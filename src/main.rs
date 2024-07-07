@@ -1,9 +1,11 @@
 
 
-use std::collections::HashMap;
+use std::env;
+use std::fs;
+use std::error::Error;
 
 use nom::{
-    bytes::complete::{is_not, tag, take_until, take_while, take_until1},
+    bytes::complete::{is_not, tag, take_until, take_while},
     combinator::value,
     sequence::{pair, terminated},
     IResult
@@ -95,54 +97,24 @@ fn module_body_parser<'a>(input: &'a str, mods: &mut Vec<Module>) -> IResult<&'a
 
 fn blif_parser<'a>(input: &'a str, modules: &mut Vec<Module>) -> IResult<&'a str, &'a str> {
     // remove comment
-    let (i, _) = value((), pair(tag("#"), is_not(".")))(input)?;
+    let (i, _) = value((), pair(tag("#"), is_not("\n")))(input)?;
+    let (i, _) = take_until(".")(i)?;
 
     let mut i = i;
-    while i.len() > 3 {
+    while i.len() > 4 {
         (i, _) = module_body_parser(i, modules)?;
     }
 
     Ok(("", ""))
 }
 
-fn main() {
-    let input_string = "# some comment\n\
-                        \n\
-                        .model Adder\n\
-                        .inputs clock reset io_a[0] io_a[1] io_b[0] io_b[1]\n\
-                        .outputs io_c[0] io_c[1]\n\
-                        .names $false\n\
-                        .names $true\n\
-                        1\n\
-                        .names $undef\n\
-                        .names $abc$2314$io_b[1] $abc$2314$io_a[1] $abc$2314$new_n9_ $abc$2314$io_c[1]\n\
-                        001 1\n\
-                        010 1\n\
-                        100 1\n\
-                        111 1\n\
-                        .names $abc$2314$io_b[0] $abc$2314$io_a[0] $abc$2314$new_n9_\n\
-                        11 1\n\
-                        .names $abc$2314$io_b[0] $abc$2314$io_a[0] $abc$2314$io_c[0]\n\
-                        01 1\n\
-                        10 1\n\
-                        .names io_c[0] $techmap$add$Adder.sv:10$940.$auto$alumacc.cc:485:replace_alu$2253.X[0]\n\
-                        1 1\n\
-                        .names $abc$2314$io_c[1] io_c[1]\n\
-                        1 1\n\
-                        .names io_a[0] $abc$2314$io_a[0]\n\
-                        1 1\n\
-                        .names io_b[0] $abc$2314$io_b[0]\n\
-                        1 1\n\
-                        .names $abc$2314$io_c[0] io_c[0]\n\
-                        1 1\n\
-                        .names io_a[1] $abc$2314$io_a[1]\n\
-                        1 1\n\
-                        .names io_b[1] $abc$2314$io_b[1]\n\
-                        1 1\n\
-                        .end";
+fn main() -> Result<(), Box<dyn Error>> {
+    let args: Vec<String> = env::args().collect();
+    let file_path = &args[1];
+    let blif_file = fs::read_to_string(file_path)?;
 
     let mut modules = vec![];
-    let res = blif_parser(input_string, &mut modules);
+    let res = blif_parser(&blif_file, &mut modules);
     match res {
         Ok(_) => {
             println!("Parsing blif file succeeded");
@@ -153,4 +125,6 @@ fn main() {
     }
 
     println!("modules\n{:?}", modules);
+
+    Ok(())
 }

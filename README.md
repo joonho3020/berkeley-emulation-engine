@@ -26,3 +26,8 @@ cd examples
 yosys
 > script yosys.cmd
 ```
+
+### Parse the blif file
+```bash
+cargo run -- examples/Adder.lut.blif
+```
