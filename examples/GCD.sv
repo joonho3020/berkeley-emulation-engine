@@ -24,4 +24,3 @@ module GCD(
   assign io_outputGCD = x;
   assign io_outputValid = y == 16'h0;
 endmodule
-
