@@ -1,8 +1,12 @@
 
 
-use std::env;
-use std::fs;
-use std::error::Error;
+use std::{
+    cmp::Ordering,
+    error::Error,
+    env,
+    fs,
+    collections::HashMap
+};
 
 use nom::{
     bytes::complete::{is_not, tag, take_until, take_while},
@@ -19,11 +23,18 @@ struct Lut {
 }
 
 #[derive (Debug)]
+struct Subckt {
+    name: String,
+    conns: HashMap<String, String>
+}
+
+#[derive (Debug)]
 struct Module {
     name: String,
     inputs: Vec<String>,
     outputs: Vec<String>,
-    luts: Vec<Lut>
+    luts: Vec<Lut>,
+    subckts: Vec<Subckt>
 }
 
 fn lut_table_parser<'a>(input: &'a str, table: &mut Vec<Vec<u8>>) -> IResult<&'a str, &'a str> {
@@ -45,8 +56,7 @@ fn lut_table_parser<'a>(input: &'a str, table: &mut Vec<Vec<u8>>) -> IResult<&'a
 }
 
 fn lut_body_parser<'a>(input: &'a str, luts: &mut Vec<Lut>) -> IResult<&'a str, &'a str> {
-    let (i, _) = tag(".names ")(input)?;
-    let (i, ioline)  = terminated(take_until("\n"), nom::character::complete::newline)(i)?;
+    let (i, ioline)  = terminated(take_until("\n"), nom::character::complete::newline)(input)?;
     let mut io: Vec<&str> = ioline.split(' ').collect();
 
     let output = io.pop().unwrap_or("INVALID_OUTPUT").to_string();
@@ -65,11 +75,33 @@ fn lut_body_parser<'a>(input: &'a str, luts: &mut Vec<Lut>) -> IResult<&'a str, 
     Ok((i, ""))
 }
 
+fn subckt_parser<'a>(input: &'a str, subckts: &mut Vec<Subckt>) -> IResult<&'a str, &'a str> {
+    let (i, name) = terminated(take_while(|c:char| c.is_alphabetic()),
+                               nom::character::complete::multispace0)(input)?;
+    let (i, sline) = terminated(take_until("\n"), nom::character::complete::newline)(i)?;
+
+    let mut conns = HashMap::new();
+    let conns_vec: Vec<&str> = sline.split(' ').collect();
+    conns_vec.iter().for_each(|c| {
+        let lr: Vec<&str> = c.split('=').collect();
+        let lhs = lr[0];
+        let rhs = lr[1];
+        conns.insert(lhs.to_string(), rhs.to_string());
+    });
+
+    subckts.push(Subckt {
+        name: name.to_string(),
+        conns: conns
+    });
+
+    Ok((i, ""))
+}
+
 fn module_body_parser<'a>(input: &'a str, mods: &mut Vec<Module>) -> IResult<&'a str, &'a str> {
     let (i, _) = tag(".model ")(input)?;
     let (i, name) = terminated(take_while(|c:char| c.is_alphabetic()),
                                nom::character::complete::newline)(i)?;
-    let (i, body) = take_until("end")(i)?;
+    let (mut i, body) = take_until("end")(i)?;
 
     let (bi, _) = tag(".inputs ")(body)?;
     let (bi, iline) = terminated(take_until("\n"), nom::character::complete::newline)(bi)?;
@@ -80,17 +112,34 @@ fn module_body_parser<'a>(input: &'a str, mods: &mut Vec<Module>) -> IResult<&'a
     let outputs: Vec<String> = oline.split(' ').map(|v| v.to_string()).collect();
 
     let mut luts = vec![];
+    let mut subckts = vec![];
     let mut bi = bi;
+    let mut tagstr = "";
+
     while bi.len() > 1 {
-        (bi, _) = lut_body_parser(bi, &mut luts)?;
+        (bi, tagstr) = terminated(take_until(" "), nom::character::complete::multispace0)(bi)?;
+        if tagstr.eq(".names") {
+            (bi, _) = lut_body_parser(bi, &mut luts)?;
+        } else if tagstr.eq(".subckt") {
+            (bi, _) = subckt_parser(bi, &mut subckts)?;
+        }
     }
 
     mods.push(Module {
         name: name.to_string(),
         inputs: inputs,
         outputs: outputs,
-        luts: luts
+        luts: luts,
+        subckts: subckts
     });
+
+    if i.len() > 4 {
+        // Advance to the next .end
+        (i, _) = take_until(".")(i)?;
+    } else {
+        // End of file
+        (i, _) = take_until("\n")(i)?;
+    }
 
     Ok((i, ""))
 }
