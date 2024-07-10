@@ -1,6 +1,7 @@
 
 
 use std::{
+    fmt::Debug,
     cmp::Ordering,
     error::Error,
     env,
@@ -29,18 +30,74 @@ struct Subckt {
 }
 
 #[derive (Debug)]
-struct Module {
+struct Gate {
+    c: String,
+    d: String,
+    q: String,
+    r: Option<String>,
+    e: Option<String>
+}
+
+impl Default for Gate {
+    fn default() -> Gate {
+        Gate {
+            c: "".to_string(),
+            d: "".to_string(),
+            q: "".to_string(),
+            r: None,
+            e: None
+        }
+    }
+}
+
+pub struct Module {
     name: String,
     inputs: Vec<String>,
     outputs: Vec<String>,
     luts: Vec<Lut>,
-    subckts: Vec<Subckt>
+    subckts: Vec<Subckt>,
+    gates: Vec<Gate>
+}
+
+impl Debug for Module {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Module {}\n", self.name)?;
+
+        write!(f, "  inputs: ")?;
+        for i in self.inputs.iter() {
+            write!(f, "  {} ", i)?;
+        }
+        write!(f, "\n")?;
+
+        write!(f, "  outputs: ")?;
+        for i in self.outputs.iter() {
+            write!(f, "  {} ", i)?;
+        }
+        write!(f, "\n")?;
+
+        for i in self.luts.iter() {
+            write!(f, "  {:?}\n", i)?;
+        }
+        write!(f, "\n")?;
+
+        for i in self.subckts.iter() {
+            write!(f, "  {:?}\n", i)?;
+        }
+        write!(f, "\n")?;
+
+        for i in self.gates.iter() {
+            write!(f, "  {:?}\n", i)?;
+        }
+        write!(f, "\n")?;
+
+        write!(f, "")
+    }
 }
 
 fn lut_table_parser<'a>(input: &'a str, table: &mut Vec<Vec<u8>>) -> IResult<&'a str, &'a str> {
     let mut i = input;
-    let mut li = "";
-    let mut te = ' ';
+    let mut li;
+    let mut te;
     while i.len() > 0 {
         (i, li) = terminated(take_until("\n"), nom::character::complete::newline)(i)?;
 
@@ -97,6 +154,42 @@ fn subckt_parser<'a>(input: &'a str, subckts: &mut Vec<Subckt>) -> IResult<&'a s
     Ok((i, ""))
 }
 
+// _SDFF_NP0_ : FF with reset C D Q R
+// _DFFE_PN_  : FF with enables C D E Q
+// _SDFFE_PP0N_ : FF with reset and enable C D E Q R
+fn gate_parser<'a>(input: &'a str, gates: &mut Vec<Gate>) -> IResult<&'a str, &'a str> {
+    let (i, line) = terminated(take_until("\n"), nom::character::complete::newline)(input)?;
+    let signal_conns: Vec<&str> = line.split(' ').collect();
+    let mut gate = Gate::default();
+    for sc in signal_conns.iter() {
+        let x: Vec<&str> = sc.split('=').collect();
+        if x.len() != 2 {
+            continue;
+        }
+        match x[0] {
+            "C" => {
+                gate.c = x[1].to_string();
+            }
+            "D" => {
+                gate.d = x[1].to_string();
+            }
+            "Q" => {
+                gate.q = x[1].to_string();
+            }
+            "R" => {
+                gate.r = Some(x[1].to_string());
+            }
+            "E" => {
+                gate.e = Some(x[1].to_string());
+            }
+            _ => {
+            }
+        }
+    }
+    gates.push(gate);
+    Ok((i, ""))
+}
+
 fn module_body_parser<'a>(input: &'a str, mods: &mut Vec<Module>) -> IResult<&'a str, &'a str> {
     let (i, _) = tag(".model ")(input)?;
     let (i, name) = terminated(take_while(|c:char| c.is_alphabetic()),
@@ -113,8 +206,9 @@ fn module_body_parser<'a>(input: &'a str, mods: &mut Vec<Module>) -> IResult<&'a
 
     let mut luts = vec![];
     let mut subckts = vec![];
+    let mut gates = vec![];
     let mut bi = bi;
-    let mut tagstr = "";
+    let mut tagstr;
 
     while bi.len() > 1 {
         (bi, tagstr) = terminated(take_until(" "), nom::character::complete::multispace0)(bi)?;
@@ -122,6 +216,8 @@ fn module_body_parser<'a>(input: &'a str, mods: &mut Vec<Module>) -> IResult<&'a
             (bi, _) = lut_body_parser(bi, &mut luts)?;
         } else if tagstr.eq(".subckt") {
             (bi, _) = subckt_parser(bi, &mut subckts)?;
+        } else if tagstr.eq(".gate") {
+            (bi, _) = gate_parser(bi, &mut gates)?;
         }
     }
 
@@ -130,7 +226,8 @@ fn module_body_parser<'a>(input: &'a str, mods: &mut Vec<Module>) -> IResult<&'a
         inputs: inputs,
         outputs: outputs,
         luts: luts,
-        subckts: subckts
+        subckts: subckts,
+        gates: gates
     });
 
     if i.len() > 4 {
