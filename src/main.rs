@@ -2,7 +2,6 @@
 
 use std::{
     fmt::Debug,
-    cmp::Ordering,
     error::Error,
     env,
     fs,
@@ -50,13 +49,61 @@ impl Default for Gate {
     }
 }
 
+#[repr(u8)]
+#[derive (Debug)]
+enum LatchInit {
+    ZER0 = 0,
+    ONE  = 1,
+    DONTCARE = 2,
+    UNKNOWN  = 3,
+}
+
+impl LatchInit {
+    fn to_enum(i: &str) -> LatchInit {
+        match i {
+            "0" => {
+                LatchInit::ZER0
+            }
+            "1" => {
+                LatchInit::ONE
+            }
+            "2" => {
+                LatchInit::DONTCARE
+            }
+            _ => {
+                LatchInit::UNKNOWN
+            }
+        }
+    }
+}
+
+#[derive (Debug)]
+struct Latch {
+    input: String,
+    output: String,
+    control: String,
+    init: LatchInit
+}
+
+impl Default for Latch {
+    fn default() -> Latch {
+        Latch {
+            input: "".to_string(),
+            output: "".to_string(),
+            control: "".to_string(),
+            init: LatchInit::UNKNOWN
+        }
+    }
+}
+
 pub struct Module {
     name: String,
     inputs: Vec<String>,
     outputs: Vec<String>,
     luts: Vec<Lut>,
     subckts: Vec<Subckt>,
-    gates: Vec<Gate>
+    gates: Vec<Gate>,
+    latches: Vec<Latch>
 }
 
 impl Debug for Module {
@@ -94,12 +141,36 @@ impl Debug for Module {
     }
 }
 
+fn take_until_or_end<'a>(tag: &'a str, istr: &'a str) -> IResult<&'a str, &'a str> {
+    let ret: IResult<&str, &str> = take_until(tag)(istr);
+    match ret {
+        Ok(x) => {
+            Ok(x)
+        }
+        Err(_) => {
+            Ok(("", istr))
+        }
+    }
+}
+
+fn terminated_newline<'a>(istr: &'a str) -> IResult<&'a str, &'a str> {
+    let ret: IResult<&str, &str> = terminated(take_until("\n"), nom::character::complete::newline)(istr);
+    match ret {
+        Ok(x) => {
+            Ok(x)
+        }
+        Err(_) => {
+            Ok(("", istr))
+        }
+    }
+}
+
 fn lut_table_parser<'a>(input: &'a str, table: &mut Vec<Vec<u8>>) -> IResult<&'a str, &'a str> {
     let mut i = input;
     let mut li;
     let mut te;
     while i.len() > 0 {
-        (i, li) = terminated(take_until("\n"), nom::character::complete::newline)(i)?;
+        (i, li) = terminated_newline(i)?;
 
         let mut row: Vec<u8> = vec![];
         let (_, mut table_input) = take_until(" ")(li)?;
@@ -113,12 +184,12 @@ fn lut_table_parser<'a>(input: &'a str, table: &mut Vec<Vec<u8>>) -> IResult<&'a
 }
 
 fn lut_body_parser<'a>(input: &'a str, luts: &mut Vec<Lut>) -> IResult<&'a str, &'a str> {
-    let (i, ioline)  = terminated(take_until("\n"), nom::character::complete::newline)(input)?;
+    let (i, ioline)  = terminated_newline(input)?;
     let mut io: Vec<&str> = ioline.split(' ').collect();
 
     let output = io.pop().unwrap_or("INVALID_OUTPUT").to_string();
     let inputs: Vec<String> = io.iter().map(|v| v.to_string()).collect();
-    let (i, table) = take_until(".")(i)?;
+    let (i, table) = take_until_or_end(".", i)?;
 
     let mut lut_table = vec![];
     let _ = lut_table_parser(table, &mut lut_table);
@@ -133,13 +204,12 @@ fn lut_body_parser<'a>(input: &'a str, luts: &mut Vec<Lut>) -> IResult<&'a str, 
 }
 
 fn subckt_parser<'a>(input: &'a str, subckts: &mut Vec<Subckt>) -> IResult<&'a str, &'a str> {
-    let (i, name) = terminated(take_while(|c:char| c.is_alphabetic()),
-                               nom::character::complete::multispace0)(input)?;
-    let (i, sline) = terminated(take_until("\n"), nom::character::complete::newline)(i)?;
+    let (i, sline) = terminated_newline(input)?;
+    let conns_vec: Vec<&str> = sline.split(' ').collect();
+    let name = conns_vec[0];
 
     let mut conns = HashMap::new();
-    let conns_vec: Vec<&str> = sline.split(' ').collect();
-    conns_vec.iter().for_each(|c| {
+    conns_vec.iter().skip(1).for_each(|c| {
         let lr: Vec<&str> = c.split('=').collect();
         let lhs = lr[0];
         let rhs = lr[1];
@@ -158,9 +228,10 @@ fn subckt_parser<'a>(input: &'a str, subckts: &mut Vec<Subckt>) -> IResult<&'a s
 // _DFFE_PN_  : FF with enables C D E Q
 // _SDFFE_PP0N_ : FF with reset and enable C D E Q R
 fn gate_parser<'a>(input: &'a str, gates: &mut Vec<Gate>) -> IResult<&'a str, &'a str> {
-    let (i, line) = terminated(take_until("\n"), nom::character::complete::newline)(input)?;
+    let (i, line) = terminated_newline(input)?;
     let signal_conns: Vec<&str> = line.split(' ').collect();
     let mut gate = Gate::default();
+
     for sc in signal_conns.iter() {
         let x: Vec<&str> = sc.split('=').collect();
         if x.len() != 2 {
@@ -190,23 +261,51 @@ fn gate_parser<'a>(input: &'a str, gates: &mut Vec<Gate>) -> IResult<&'a str, &'
     Ok((i, ""))
 }
 
+fn latch_parser<'a>(input: &'a str, latches: &mut Vec<Latch>) -> IResult<&'a str, &'a str> {
+    let (i, line) = terminated_newline(input)?;
+    let latch_info: Vec<&str> = line.split(' ').collect();
+    let mut latch = Latch::default();
+
+    for (idx, li) in latch_info.iter().enumerate() {
+        match idx {
+            0 => {
+                latch.input = li.to_string();
+            }
+            1 => {
+                latch.output = li.to_string();
+            }
+            3 => {
+                latch.control = li.to_string();
+            }
+            4 => {
+                latch.init = LatchInit::to_enum(li)                                     ;
+            }
+            _ => {
+            }
+        }
+    }
+    latches.push(latch);
+    Ok((i, ""))
+}
+
 fn module_body_parser<'a>(input: &'a str, mods: &mut Vec<Module>) -> IResult<&'a str, &'a str> {
+    let body_end_marker = "\n.end\n";
     let (i, _) = tag(".model ")(input)?;
-    let (i, name) = terminated(take_while(|c:char| c.is_alphabetic()),
+    let (i, name) = terminated(take_until("\n"),
                                nom::character::complete::newline)(i)?;
-    let (mut i, body) = take_until("end")(i)?;
+    let (mut i, body) = terminated(take_until(body_end_marker),
+                            nom::character::complete::newline)(i)?;
 
-    let (bi, _) = tag(".inputs ")(body)?;
-    let (bi, iline) = terminated(take_until("\n"), nom::character::complete::newline)(bi)?;
-    let inputs: Vec<String> = iline.split(' ').map(|v| v.to_string()).collect();
+    let (bi, iline) = terminated(take_until("\n"), nom::character::complete::newline)(body)?;
+    let inputs: Vec<String> = iline.split(' ').map(|v| v.to_string()).skip(1).collect();
 
-    let (bi, _) = tag(".outputs ")(bi)?;
     let (bi, oline) = terminated(take_until("\n"), nom::character::complete::newline)(bi)?;
-    let outputs: Vec<String> = oline.split(' ').map(|v| v.to_string()).collect();
+    let outputs: Vec<String> = oline.split(' ').map(|v| v.to_string()).skip(1).collect();
 
     let mut luts = vec![];
     let mut subckts = vec![];
     let mut gates = vec![];
+    let mut latches = vec![];
     let mut bi = bi;
     let mut tagstr;
 
@@ -218,6 +317,8 @@ fn module_body_parser<'a>(input: &'a str, mods: &mut Vec<Module>) -> IResult<&'a
             (bi, _) = subckt_parser(bi, &mut subckts)?;
         } else if tagstr.eq(".gate") {
             (bi, _) = gate_parser(bi, &mut gates)?;
+        } else if tagstr.eq(".latch") {
+            (bi, _) = latch_parser(bi, &mut latches)?;
         }
     }
 
@@ -227,10 +328,11 @@ fn module_body_parser<'a>(input: &'a str, mods: &mut Vec<Module>) -> IResult<&'a
         outputs: outputs,
         luts: luts,
         subckts: subckts,
-        gates: gates
+        gates: gates,
+        latches: latches
     });
 
-    if i.len() > 4 {
+    if i.len() > body_end_marker.to_string().len() {
         // Advance to the next .end
         (i, _) = take_until(".")(i)?;
     } else {
@@ -249,6 +351,8 @@ fn blif_parser<'a>(input: &'a str, modules: &mut Vec<Module>) -> IResult<&'a str
     let mut i = i;
     while i.len() > 4 {
         (i, _) = module_body_parser(i, modules)?;
+        (i, _) = take_until_or_end("\n.model", i)?;
+        (i, _) = terminated_newline(i)?;
     }
 
     Ok(("", ""))
