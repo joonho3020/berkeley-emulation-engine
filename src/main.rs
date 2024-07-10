@@ -374,7 +374,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    println!("modules\n{:?}", modules);
+// println!("modules\n{:?}", modules);
 
     Ok(())
 }
