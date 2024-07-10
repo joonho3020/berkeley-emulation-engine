@@ -269,3 +269,41 @@ pub fn parse_blif_file(input_file_path: &str) -> Result<Circuit, BlifError> {
         }
     }
 }
+
+#[cfg(test)]
+mod parser_tests {
+    use super::*;
+
+    fn test_blif_parser(file_path: &str) -> bool {
+        let res = parse_blif_file(&file_path);
+        match res {
+            Ok(_) => {
+                true
+            }
+            Err(err) => {
+                println!("blif file parsing error:\n{}", err);
+                false
+            }
+        }
+    }
+
+    #[test]
+    fn test_adder() {
+        assert_eq!(test_blif_parser("examples/Adder.lut.blif"), true);
+    }
+
+    #[test]
+    fn test_adder_top() {
+        assert_eq!(test_blif_parser("examples/AdderTop.lut.blif"), true);
+    }
+
+    #[test]
+    fn test_gcd() {
+        assert_eq!(test_blif_parser("examples/GCD.lut.blif"), true);
+    }
+
+    #[test]
+    fn test_tiny_rocket() {
+        assert_eq!(test_blif_parser("examples/ChipTop.blif"), true);
+    }
+}

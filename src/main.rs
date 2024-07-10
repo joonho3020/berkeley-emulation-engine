@@ -15,14 +15,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     match res {
         Ok(c) => {
             println!("Parsing blif file succeeded");
-// println!("Circuit: {:?}", c);
         }
         Err(err) => {
             println!("blif file parsing error:\n{}", err);
         }
     }
-
-// println!("modules\n{:?}", modules);
 
     Ok(())
 }
