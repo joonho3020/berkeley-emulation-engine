@@ -1,5 +1,8 @@
 use crate::primitives::*;
+
 use petgraph::graph::NodeIndex;
+use petgraph::dot::{Dot, Config};
+
 use std::collections::HashMap;
 use std::fmt;
 use std::fs;
@@ -157,6 +160,7 @@ fn module_body_parser<'a>(
     let body_end_marker = "\n.end\n";
 
     let mut net_to_nodeidx: HashMap<String, NodeIndex>  = HashMap::new();
+    let mut out_to_nodeidx: HashMap<String, NodeIndex>  = HashMap::new();
 
     // Get module body
     let (i, _) = tag(".model ")(input)?;
@@ -177,10 +181,10 @@ fn module_body_parser<'a>(
     // Parse outputs
     let (bi, oline) = terminated(take_until("\n"), nom::character::complete::newline)(bi)?;
     let outputs: Vec<String> = oline.split(' ').map(|v| v.to_string()).skip(1).collect();
-// for i in outputs.iter() {
-// let nidx = graph.add_node(Box::new(Output{name: i.clone()}));
-// net_to_nodeidx.insert(i.to_string(), nidx);
-// }
+    for o in outputs.iter() {
+        let nidx = graph.add_node(Box::new(Output{name: o.clone()}));
+        out_to_nodeidx.insert(o.to_string(), nidx);
+    }
 
     let mut luts = vec![];
     let mut subckts = vec![];
@@ -193,41 +197,51 @@ fn module_body_parser<'a>(
         (bi, tagstr) = terminated(take_until(" "), nom::character::complete::multispace0)(bi)?;
         if tagstr.eq(".names") {
             (bi, _) = lut_body_parser(bi, &mut luts)?;
-
-            let lut = luts.last().unwrap();
-            let nidx = graph.add_node(Box::new(lut.clone()));
-            net_to_nodeidx.insert(lut.output.to_string(), nidx);
-
-            for inet in lut.inputs.iter() {
-                println!("inet: {}", inet);
-                let src_nidx = net_to_nodeidx.get(inet).unwrap();
-                graph.add_edge(*src_nidx, nidx, inet.to_string());
-            }
         } else if tagstr.eq(".subckt") {
             (bi, _) = subckt_parser(bi, &mut subckts)?;
-            // TODO: ...
         } else if tagstr.eq(".gate") {
             (bi, _) = gate_parser(bi, &mut gates)?;
-
-            let gate = gates.last().unwrap();
-            let nidx = graph.add_node(Box::new(gate.clone()));
-            net_to_nodeidx.insert(gate.q.to_string(), nidx);
-
-            let d_idx = net_to_nodeidx.get(&gate.d).unwrap();
-            graph.add_edge(*d_idx, nidx, gate.d.to_string());
-
-            match &gate.e {
-                Some(e) => {
-                    let e_idx = net_to_nodeidx.get(e).unwrap();
-                    graph.add_edge(*e_idx, nidx, e.to_string());
-                }
-                None => ()
-            };
-
         } else if tagstr.eq(".latch") {
             (bi, _) = latch_parser(bi, &mut latches)?;
-            // TODO
         }
+    }
+
+    for lut in luts.iter() {
+        let nidx = graph.add_node(Box::new(lut.clone()));
+        net_to_nodeidx.insert(lut.output.to_string(), nidx);
+    }
+
+    for gate in gates.iter() {
+        let nidx = graph.add_node(Box::new(gate.clone()));
+        net_to_nodeidx.insert(gate.q.to_string(), nidx);
+    }
+
+    for lut in luts.iter() {
+        for inet in lut.inputs.iter() {
+            let src_nidx = net_to_nodeidx.get(inet       ).unwrap();
+            let dst_nidx = net_to_nodeidx.get(&lut.output).unwrap();
+            graph.add_edge(*src_nidx, *dst_nidx, inet.to_string());
+        }
+    }
+
+    for gate in gates.iter() {
+        let d_idx = net_to_nodeidx.get(&gate.d).unwrap();
+        let q_idx = net_to_nodeidx.get(&gate.q).unwrap();
+        graph.add_edge(*d_idx, *q_idx, gate.d.to_string());
+
+        match &gate.e {
+            Some(e) => {
+                let e_idx = net_to_nodeidx.get(e).unwrap();
+                graph.add_edge(*e_idx, *q_idx, e.to_string());
+            }
+            None => ()
+        };
+    }
+
+    for o in outputs.iter() {
+        let src_nidx = net_to_nodeidx.get(&o.to_string()).unwrap();
+        let dst_nidx = out_to_nodeidx.get(&o.to_string()).unwrap();
+        graph.add_edge(*src_nidx, *dst_nidx, o.to_string());
     }
 
     mods.push(Module {
