@@ -8,6 +8,9 @@ use petgraph::{
     visit::IntoNeighbors
 };
 
+mod parser;
+mod primitives;
+
 
 #[derive (Debug)]
 struct Node {
