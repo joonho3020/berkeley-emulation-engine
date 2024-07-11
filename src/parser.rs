@@ -1,37 +1,30 @@
-
-use std::collections::HashMap;
-use std::fs;
-use std::fmt;
 use crate::primitives::*;
+use petgraph::graph::NodeIndex;
+use std::collections::HashMap;
+use std::fmt;
+use std::fs;
 
 use nom::{
     bytes::complete::{is_not, tag, take_until},
     combinator::value,
     sequence::{pair, terminated},
-    IResult
+    IResult,
 };
 
 fn take_until_or_end<'a>(tag: &'a str, istr: &'a str) -> IResult<&'a str, &'a str> {
     let ret: IResult<&str, &str> = take_until(tag)(istr);
     match ret {
-        Ok(x) => {
-            Ok(x)
-        }
-        Err(_) => {
-            Ok(("", istr))
-        }
+        Ok(x) => Ok(x),
+        Err(_) => Ok(("", istr)),
     }
 }
 
 fn terminated_newline<'a>(istr: &'a str) -> IResult<&'a str, &'a str> {
-    let ret: IResult<&str, &str> = terminated(take_until("\n"), nom::character::complete::newline)(istr);
+    let ret: IResult<&str, &str> =
+        terminated(take_until("\n"), nom::character::complete::newline)(istr);
     match ret {
-        Ok(x) => {
-            Ok(x)
-        }
-        Err(_) => {
-            Ok(("", istr))
-        }
+        Ok(x) => Ok(x),
+        Err(_) => Ok(("", istr)),
     }
 }
 
@@ -54,7 +47,7 @@ fn lut_table_parser<'a>(input: &'a str, table: &mut Vec<Vec<u8>>) -> IResult<&'a
 }
 
 fn lut_body_parser<'a>(input: &'a str, luts: &mut Vec<Lut>) -> IResult<&'a str, &'a str> {
-    let (i, ioline)  = terminated_newline(input)?;
+    let (i, ioline) = terminated_newline(input)?;
     let mut io: Vec<&str> = ioline.split(' ').collect();
 
     let output = io.pop().unwrap_or("INVALID_OUTPUT").to_string();
@@ -88,7 +81,7 @@ fn subckt_parser<'a>(input: &'a str, subckts: &mut Vec<Subckt>) -> IResult<&'a s
 
     subckts.push(Subckt {
         name: name.to_string(),
-        conns: conns
+        conns: conns,
     });
 
     Ok((i, ""))
@@ -123,8 +116,7 @@ fn gate_parser<'a>(input: &'a str, gates: &mut Vec<Gate>) -> IResult<&'a str, &'
             "E" => {
                 gate.e = Some(x[1].to_string());
             }
-            _ => {
-            }
+            _ => {}
         }
     }
     gates.push(gate);
@@ -150,27 +142,45 @@ fn latch_parser<'a>(input: &'a str, latches: &mut Vec<Latch>) -> IResult<&'a str
             4 => {
                 latch.init = LatchInit::to_enum(li);
             }
-            _ => {
-            }
+            _ => {}
         }
     }
     latches.push(latch);
     Ok((i, ""))
 }
 
-fn module_body_parser<'a>(input: &'a str, mods: &mut Vec<Module>) -> IResult<&'a str, &'a str> {
+fn module_body_parser<'a>(
+    input: &'a str,
+    mods: &mut Vec<Module>,
+    graph: &mut HWGraph
+) -> IResult<&'a str, &'a str> {
     let body_end_marker = "\n.end\n";
-    let (i, _) = tag(".model ")(input)?;
-    let (i, name) = terminated(take_until("\n"),
-                               nom::character::complete::newline)(i)?;
-    let (mut i, body) = terminated(take_until(body_end_marker),
-                            nom::character::complete::newline)(i)?;
 
+    let mut net_to_nodeidx: HashMap<String, NodeIndex>  = HashMap::new();
+
+    // Get module body
+    let (i, _) = tag(".model ")(input)?;
+    let (i, name) = terminated(take_until("\n"), nom::character::complete::newline)(i)?;
+    let (mut i, body) = terminated(
+        take_until(body_end_marker),
+        nom::character::complete::newline,
+    )(i)?;
+
+    // Parse inputs
     let (bi, iline) = terminated(take_until("\n"), nom::character::complete::newline)(body)?;
     let inputs: Vec<String> = iline.split(' ').map(|v| v.to_string()).skip(1).collect();
+    for i in inputs.iter() {
+        let nidx = graph.add_node(Box::new(Input{name: i.clone()}));
+        net_to_nodeidx.insert(i.to_string(), nidx);
+    }
 
+    // Parse outputs
     let (bi, oline) = terminated(take_until("\n"), nom::character::complete::newline)(bi)?;
     let outputs: Vec<String> = oline.split(' ').map(|v| v.to_string()).skip(1).collect();
+// for i in outputs.iter() {
+// let nidx = graph.add_node(Box::new(Output{name: i.clone()}));
+// net_to_nodeidx.insert(i.to_string(), nidx);
+// }
 
     let mut luts = vec![];
     let mut subckts = vec![];
@@ -183,12 +193,40 @@ fn module_body_parser<'a>(input: &'a str, mods: &mut Vec<Module>) -> IResult<&'a
         (bi, tagstr) = terminated(take_until(" "), nom::character::complete::multispace0)(bi)?;
         if tagstr.eq(".names") {
             (bi, _) = lut_body_parser(bi, &mut luts)?;
+
+            let lut = luts.last().unwrap();
+            let nidx = graph.add_node(Box::new(lut.clone()));
+            net_to_nodeidx.insert(lut.output.to_string(), nidx);
+
+            for inet in lut.inputs.iter() {
+                println!("inet: {}", inet);
+                let src_nidx = net_to_nodeidx.get(inet).unwrap();
+                graph.add_edge(*src_nidx, nidx, inet.to_string());
+            }
         } else if tagstr.eq(".subckt") {
             (bi, _) = subckt_parser(bi, &mut subckts)?;
+            // TODO: ...
         } else if tagstr.eq(".gate") {
             (bi, _) = gate_parser(bi, &mut gates)?;
+
+            let gate = gates.last().unwrap();
+            let nidx = graph.add_node(Box::new(gate.clone()));
+            net_to_nodeidx.insert(gate.q.to_string(), nidx);
+
+            let d_idx = net_to_nodeidx.get(&gate.d).unwrap();
+            graph.add_edge(*d_idx, nidx, gate.d.to_string());
+
+            match &gate.e {
+                Some(e) => {
+                    let e_idx = net_to_nodeidx.get(e).unwrap();
+                    graph.add_edge(*e_idx, nidx, e.to_string());
+                }
+                None => ()
+            };
+
         } else if tagstr.eq(".latch") {
             (bi, _) = latch_parser(bi, &mut latches)?;
+            // TODO
         }
     }
 
@@ -199,7 +237,7 @@ fn module_body_parser<'a>(input: &'a str, mods: &mut Vec<Module>) -> IResult<&'a
         luts: luts,
         subckts: subckts,
         gates: gates,
-        latches: latches
+        latches: latches,
     });
 
     if i.len() > body_end_marker.to_string().len() {
@@ -213,14 +251,18 @@ fn module_body_parser<'a>(input: &'a str, mods: &mut Vec<Module>) -> IResult<&'a
     Ok((i, ""))
 }
 
-fn parse_modules_from_blif_str<'a>(input: &'a str, modules: &mut Vec<Module>) -> IResult<&'a str, &'a str> {
+fn parse_modules_from_blif_str<'a>(
+    input: &'a str,
+    modules: &mut Vec<Module>,
+    graph: &mut HWGraph,
+) -> IResult<&'a str, &'a str> {
     // remove comment
     let (i, _) = value((), pair(tag("#"), is_not("\n")))(input)?;
     let (i, _) = take_until(".")(i)?;
 
     let mut i = i;
     while i.len() > 4 {
-        (i, _) = module_body_parser(i, modules)?;
+        (i, _) = module_body_parser(i, modules, graph)?;
         (i, _) = take_until_or_end("\n.model", i)?;
         (i, _) = terminated_newline(i)?;
     }
@@ -228,9 +270,9 @@ fn parse_modules_from_blif_str<'a>(input: &'a str, modules: &mut Vec<Module>) ->
     Ok(("", ""))
 }
 
-#[derive (Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct BlifError {
-    pub msg: String
+    pub msg: String,
 }
 
 impl fmt::Display for BlifError {
@@ -241,16 +283,18 @@ impl fmt::Display for BlifError {
 
 fn parse_blif(input: &str) -> Result<Circuit, BlifError> {
     let mut modules: Vec<Module> = vec![];
-    let res = parse_modules_from_blif_str(input, &mut modules);
+    let mut graph = HWGraph::new();
+    let res = parse_modules_from_blif_str(input, &mut modules, &mut graph);
     match res {
         Ok(_) => {
             return Ok(Circuit {
-                mods: modules
+                mods: modules,
+                graph: graph,
             });
         }
         Err(e) => {
             return Err(BlifError {
-                msg: format!("Error while parsing:\n{}", e).to_string()
+                msg: format!("Error while parsing:\n{}", e).to_string(),
             });
         }
     }
@@ -264,46 +308,44 @@ pub fn parse_blif_file(input_file_path: &str) -> Result<Circuit, BlifError> {
         }
         Err(e) => {
             return Err(BlifError {
-                msg: format!("Error while reading the file:\n{}", e).to_string()
+                msg: format!("Error while reading the file:\n{}", e).to_string(),
             });
         }
     }
 }
 
-#[cfg(test)]
-mod parser_tests {
-    use super::*;
-
-    fn test_blif_parser(file_path: &str) -> bool {
-        let res = parse_blif_file(&file_path);
-        match res {
-            Ok(_) => {
-                true
-            }
-            Err(err) => {
-                println!("blif file parsing error:\n{}", err);
-                false
-            }
+pub fn test_blif_parser(file_path: &str) -> bool {
+    let res = parse_blif_file(&file_path);
+    match res {
+        Ok(_) => true,
+        Err(err) => {
+            println!("blif file parsing error:\n{}", err);
+            false
         }
     }
+}
+
+#[cfg(test)]
+pub mod parser_tests {
+    use super::*;
 
     #[test]
-    fn test_adder() {
+    pub fn test_adder() {
         assert_eq!(test_blif_parser("examples/Adder.lut.blif"), true);
     }
 
     #[test]
-    fn test_adder_top() {
+    pub fn test_adder_top() {
         assert_eq!(test_blif_parser("examples/AdderTop.lut.blif"), true);
     }
 
     #[test]
-    fn test_gcd() {
+    pub fn test_gcd() {
         assert_eq!(test_blif_parser("examples/GCD.lut.blif"), true);
     }
 
     #[test]
-    fn test_tiny_rocket() {
+    pub fn test_tiny_rocket() {
         assert_eq!(test_blif_parser("examples/ChipTop.blif"), true);
     }
 }

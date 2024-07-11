@@ -1,27 +1,49 @@
-
-use std::fmt::Debug;
+use petgraph::graph::Graph;
 use std::collections::HashMap;
+use std::fmt::Debug;
 
-#[derive (Debug)]
+pub trait HWNode: Debug {}
+
+pub type HWGraph = Graph<Box<dyn HWNode>, String>;
+
+#[derive(Debug)]
+pub struct Input {
+    pub name: String
+}
+
+impl HWNode for Input {}
+
+#[derive(Debug)]
+pub struct Output {
+    pub name: String
+}
+
+impl HWNode for Output {}
+
+#[derive(Debug, Clone)]
 pub struct Lut {
     pub inputs: Vec<String>,
     pub output: String,
     pub table: Vec<Vec<u8>>,
 }
 
-#[derive (Debug)]
+impl HWNode for Lut {}
+
+#[derive(Debug)]
 pub struct Subckt {
     pub name: String,
-    pub conns: HashMap<String, String>
+    pub conns: HashMap<String, String>,
 }
 
-#[derive (Debug)]
+impl HWNode for Subckt {}
+
+#[derive(Debug, Clone)]
 pub struct Gate {
     pub c: String,
     pub d: String,
     pub q: String,
     pub r: Option<String>,
-    pub e: Option<String>
+    pub e: Option<String>,
 }
 
 impl Default for Gate {
@@ -31,45 +53,39 @@ impl Default for Gate {
             d: "".to_string(),
             q: "".to_string(),
             r: None,
-            e: None
+            e: None,
         }
     }
 }
 
+impl HWNode for Gate {}
+
 #[repr(u8)]
-#[derive (Debug)]
+#[derive(Debug)]
 pub enum LatchInit {
     ZER0 = 0,
-    ONE  = 1,
+    ONE = 1,
     DONTCARE = 2,
-    UNKNOWN  = 3,
+    UNKNOWN = 3,
 }
 
 impl LatchInit {
     pub fn to_enum(i: &str) -> LatchInit {
         match i {
-            "0" => {
-                LatchInit::ZER0
-            }
-            "1" => {
-                LatchInit::ONE
-            }
-            "2" => {
-                LatchInit::DONTCARE
-            }
-            _ => {
-                LatchInit::UNKNOWN
-            }
+            "0" => LatchInit::ZER0,
+            "1" => LatchInit::ONE,
+            "2" => LatchInit::DONTCARE,
+            _ => LatchInit::UNKNOWN,
         }
     }
 }
 
-#[derive (Debug)]
+#[derive(Debug)]
 pub struct Latch {
     pub input: String,
     pub output: String,
     pub control: String,
-    pub init: LatchInit
+    pub init: LatchInit,
 }
 
 impl Default for Latch {
@@ -78,10 +94,12 @@ impl Default for Latch {
             input: "".to_string(),
             output: "".to_string(),
             control: "".to_string(),
-            init: LatchInit::UNKNOWN
+            init: LatchInit::UNKNOWN,
         }
     }
 }
+
+impl HWNode for Latch {}
 
 pub struct Module {
     pub name: String,
@@ -90,8 +108,10 @@ pub struct Module {
     pub luts: Vec<Lut>,
     pub subckts: Vec<Subckt>,
     pub gates: Vec<Gate>,
-    pub latches: Vec<Latch>
+    pub latches: Vec<Latch>,
 }
+
+impl HWNode for Module {}
 
 impl Debug for Module {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -128,7 +148,8 @@ impl Debug for Module {
     }
 }
 
-#[derive (Debug)]
+#[derive(Debug)]
 pub struct Circuit {
-    pub mods: Vec<Module>
+    pub mods: Vec<Module>,
+    pub graph: HWGraph,
 }

@@ -1,26 +1,24 @@
-
 use petgraph::{
     data::{Build, DataMapMut},
-    graph::{
-        Graph,
-        NodeIndex
-    },
-    visit::IntoNeighbors
+    graph::{Graph, NodeIndex},
+    visit::IntoNeighbors,
 };
 
 mod parser;
 mod primitives;
 
-
-#[derive (Debug)]
+#[derive(Debug)]
 struct Node {
     idx: u32,
-    vis: bool
+    vis: bool,
 }
 
 impl Node {
     fn new(idx: u32) -> Node {
-        Node {idx: idx, vis: false }
+        Node {
+            idx: idx,
+            vis: false,
+        }
     }
 }
 
@@ -35,7 +33,6 @@ fn main() {
     g.add_edge(n1, n3, 1);
     g.add_edge(n3, n4, 1);
     g.add_edge(n2, n4, 1);
-
 
     let mut q: Vec<NodeIndex> = vec![];
     q.push(n1);
@@ -54,4 +51,5 @@ fn main() {
             }
         }
     }
+    parser::test_blif_parser("examples/GCD.lut.blif");
 }
