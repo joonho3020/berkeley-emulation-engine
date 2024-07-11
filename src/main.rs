@@ -6,7 +6,7 @@ mod parser;
 mod primitives;
 
 fn main() {
-    let res = parser::parse_blif_file("examples/GCD.lut.blif");
+    let res = parser::parse_blif_file("examples/Adder.lut.blif");
     match res {
         Ok(c) => {
             let output = format!("{:?}", Dot::with_config(&c.graph, &[Config::EdgeNoLabel]));

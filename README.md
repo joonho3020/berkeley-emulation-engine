@@ -31,3 +31,8 @@ yosys
 ```bash
 cargo run -- examples/Adder.lut.blif
 ```
+
+### Graphviz
+```bash
+dot Adder.dot -Tpdf > Adder.pdf
+```
