@@ -1,4 +1,6 @@
 examples/*.blif
+examples/*.dot
+examples/*.pdf
 
 
 # Added by cargo

@@ -27,12 +27,9 @@ yosys
 > script yosys.cmd
 ```
 
-### Parse the blif file
-```bash
-cargo run -- examples/Adder.lut.blif
-```
+### Parse the blif file and obtain a pdf of the graph using graphviz
 
-### Graphviz
 ```bash
-dot Adder.dot -Tpdf > Adder.pdf
+cargo run -- examples/Adder.lut.blif > examples/Adder.dot
+dot examples/Adder.dot -Tpdf > examples/Adder.pdf
 ```
