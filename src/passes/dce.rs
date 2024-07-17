@@ -1,12 +1,9 @@
 
 use crate::primitives::*;
 use petgraph::{
-     data::{Build, DataMap, DataMapMut},
-     graph::{
-         Graph,
-         NodeIndex
-     },
-     visit::{IntoNeighbors, VisitMap, Visitable}, Direction::Incoming
+     graph::NodeIndex,
+     visit::{VisitMap, Visitable},
+     Direction::Incoming
  };
 
 pub fn dead_code_elimination(circuit: Circuit) -> Circuit {

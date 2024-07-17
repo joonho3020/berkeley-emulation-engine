@@ -30,6 +30,6 @@ yosys
 ### Parse the blif file and obtain a pdf of the graph using graphviz
 
 ```bash
-cargo run -- examples/Adder.lut.blif > examples/Adder.dot
+cargo run > examples/Adder.dot
 dot examples/Adder.dot -Tpdf > examples/Adder.pdf
 ```
