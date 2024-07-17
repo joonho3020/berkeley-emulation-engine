@@ -1,4 +1,7 @@
-use petgraph::graph::Graph;
+use petgraph::{
+    stable_graph::StableGraph,
+    graph::NodeIndex
+};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -16,7 +19,7 @@ pub trait HWNode: Debug {
     fn is(&self) -> Primitives;
 }
 
-pub type HWGraph = Graph<Box<dyn HWNode>, String>;
+pub type HWGraph = StableGraph<Box<dyn HWNode>, String>;
 
 #[derive(Debug)]
 pub struct Input {
@@ -188,8 +191,10 @@ impl Debug for Module {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Circuit {
     pub mods: Vec<Module>,
     pub graph: HWGraph,
+    pub io_i: HashMap<NodeIndex, String>,
+    pub io_o: HashMap<NodeIndex, String>
 }

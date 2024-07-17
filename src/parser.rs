@@ -152,8 +152,7 @@ fn latch_parser<'a>(input: &'a str, latches: &mut Vec<Latch>) -> IResult<&'a str
 
 fn module_body_parser<'a>(
     input: &'a str,
-    mods: &mut Vec<Module>,
-    graph: &mut HWGraph
+    circuit: &mut Circuit
 ) -> IResult<&'a str, &'a str> {
     let body_end_marker = "\n.end\n";
 
@@ -172,7 +171,8 @@ fn module_body_parser<'a>(
     let (bi, iline) = terminated(take_until("\n"), nom::character::complete::newline)(body)?;
     let inputs: Vec<String> = iline.split(' ').map(|v| v.to_string()).skip(1).collect();
     for i in inputs.iter() {
-        let nidx = graph.add_node(Box::new(Input{name: i.clone()}));
+        let nidx = circuit.graph.add_node(Box::new(Input{name: i.clone()}));
+        circuit.io_i.insert(nidx, i.to_string());
         net_to_nodeidx.insert(i.to_string(), nidx);
     }
 
@@ -180,7 +180,8 @@ fn module_body_parser<'a>(
     let (bi, oline) = terminated(take_until("\n"), nom::character::complete::newline)(bi)?;
     let outputs: Vec<String> = oline.split(' ').map(|v| v.to_string()).skip(1).collect();
     for o in outputs.iter() {
-        let nidx = graph.add_node(Box::new(Output{name: o.clone()}));
+        let nidx = circuit.graph.add_node(Box::new(Output{name: o.clone()}));
+        circuit.io_o.insert(nidx, o.to_string());
         out_to_nodeidx.insert(o.to_string(), nidx);
     }
 
@@ -205,12 +206,12 @@ fn module_body_parser<'a>(
     }
 
     for lut in luts.iter() {
-        let nidx = graph.add_node(Box::new(lut.clone()));
+        let nidx = circuit.graph.add_node(Box::new(lut.clone()));
         net_to_nodeidx.insert(lut.output.to_string(), nidx);
     }
 
     for gate in gates.iter() {
-        let nidx = graph.add_node(Box::new(gate.clone()));
+        let nidx = circuit.graph.add_node(Box::new(gate.clone()));
         net_to_nodeidx.insert(gate.q.to_string(), nidx);
     }
 
@@ -218,19 +219,19 @@ fn module_body_parser<'a>(
         for inet in lut.inputs.iter() {
             let src_nidx = net_to_nodeidx.get(inet       ).unwrap();
             let dst_nidx = net_to_nodeidx.get(&lut.output).unwrap();
-            graph.add_edge(*src_nidx, *dst_nidx, inet.to_string());
+            circuit.graph.add_edge(*src_nidx, *dst_nidx, inet.to_string());
         }
     }
 
     for gate in gates.iter() {
         let d_idx = net_to_nodeidx.get(&gate.d).unwrap();
         let q_idx = net_to_nodeidx.get(&gate.q).unwrap();
-        graph.add_edge(*d_idx, *q_idx, gate.d.to_string());
+        circuit.graph.add_edge(*d_idx, *q_idx, gate.d.to_string());
 
         match &gate.e {
             Some(e) => {
                 let e_idx = net_to_nodeidx.get(e).unwrap();
-                graph.add_edge(*e_idx, *q_idx, e.to_string());
+                circuit.graph.add_edge(*e_idx, *q_idx, e.to_string());
             }
             None => ()
         };
@@ -239,10 +240,10 @@ fn module_body_parser<'a>(
     for o in outputs.iter() {
         let src_nidx = net_to_nodeidx.get(&o.to_string()).unwrap();
         let dst_nidx = out_to_nodeidx.get(&o.to_string()).unwrap();
-        graph.add_edge(*src_nidx, *dst_nidx, o.to_string());
+        circuit.graph.add_edge(*src_nidx, *dst_nidx, o.to_string());
     }
 
-    mods.push(Module {
+    circuit.mods.push(Module {
         name: name.to_string(),
         inputs: inputs,
         outputs: outputs,
@@ -265,8 +266,7 @@ fn module_body_parser<'a>(
 
 fn parse_modules_from_blif_str<'a>(
     input: &'a str,
-    modules: &mut Vec<Module>,
-    graph: &mut HWGraph,
+    circuit: &mut Circuit
 ) -> IResult<&'a str, &'a str> {
     // remove comment
     let (i, _) = value((), pair(tag("#"), is_not("\n")))(input)?;
@@ -274,7 +274,7 @@ fn parse_modules_from_blif_str<'a>(
 
     let mut i = i;
     while i.len() > 4 {
-        (i, _) = module_body_parser(i, modules, graph)?;
+        (i, _) = module_body_parser(i, circuit)?;
         (i, _) = take_until_or_end("\n.model", i)?;
         (i, _) = terminated_newline(i)?;
     }
@@ -294,15 +294,11 @@ impl fmt::Display for BlifError {
 }
 
 fn parse_blif(input: &str) -> Result<Circuit, BlifError> {
-    let mut modules: Vec<Module> = vec![];
-    let mut graph = HWGraph::new();
-    let res = parse_modules_from_blif_str(input, &mut modules, &mut graph);
+    let mut circuit = Circuit::default();
+    let res = parse_modules_from_blif_str(input, &mut circuit);
     match res {
         Ok(_) => {
-            return Ok(Circuit {
-                mods: modules,
-                graph: graph,
-            });
+            return Ok(circuit);
         }
         Err(e) => {
             return Err(BlifError {

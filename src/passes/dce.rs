@@ -11,16 +11,8 @@ pub fn dead_code_elimination(circuit: Circuit) -> Circuit {
     let mut q: Vec<NodeIndex> = vec![];
 
     // Push Output nodes to the queue
-    // TODO: is there a better way to search for leaf nodes?
-    for nidx in graph.node_indices() {
-        let node = graph.node_weight(nidx).unwrap();
-        match node.is() {
-            Primitives::Output => {
-                q.push(nidx);
-            }
-            _ => {
-            }
-        }
+    for nidx in circuit.io_o.keys() {
+        q.push(*nidx);
     }
 
     // BFS starting from the Output node
@@ -40,15 +32,21 @@ pub fn dead_code_elimination(circuit: Circuit) -> Circuit {
         }
     }
 
-    // Need to delete nodes from the back due to how remove_node works
-    for nidx in graph.node_indices().rev() {
+    // Find nodes to delete (can't delete here due to immutable borrow)
+    let mut remove_nodes: Vec<NodeIndex> = vec![];
+    for nidx in graph.node_indices() {
         if !vis_map.is_visited(&nidx) {
-            graph.remove_node(nidx);
+            remove_nodes.push(nidx);
         }
     }
 
+    // Perform deletetion
+    for nidx in remove_nodes.iter() {
+        graph.remove_node(*nidx);
+    }
+
     return Circuit {
-        mods: circuit.mods,
-        graph: graph
+        graph: graph,
+        ..circuit
     }
 }
