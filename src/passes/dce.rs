@@ -11,6 +11,7 @@ pub fn dead_code_elimination(circuit: Circuit) -> Circuit {
     let mut q: Vec<NodeIndex> = vec![];
 
     // Push Output nodes to the queue
+    // TODO: is there a better way to search for leaf nodes?
     for nidx in graph.node_indices() {
         let node = graph.node_weight(nidx).unwrap();
         match node.is() {
