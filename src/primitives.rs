@@ -1,7 +1,4 @@
-use petgraph::{
-    stable_graph::StableGraph,
-    graph::NodeIndex
-};
+use petgraph::{graph::NodeIndex, stable_graph::StableGraph};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -12,7 +9,7 @@ pub enum Primitives {
     Subckt,
     Gate,
     Latch,
-    Module
+    Module,
 }
 
 pub trait HWNode: Debug {
@@ -23,23 +20,23 @@ pub type HWGraph = StableGraph<Box<dyn HWNode>, String>;
 
 #[derive(Debug)]
 pub struct Input {
-    pub name: String
+    pub name: String,
 }
 
 impl HWNode for Input {
     fn is(&self) -> Primitives {
-        return Primitives::Input
+        return Primitives::Input;
     }
 }
 
 #[derive(Debug)]
 pub struct Output {
-    pub name: String
+    pub name: String,
 }
 
 impl HWNode for Output {
     fn is(&self) -> Primitives {
-        return Primitives::Output
+        return Primitives::Output;
     }
 }
 
@@ -52,7 +49,7 @@ pub struct Lut {
 
 impl HWNode for Lut {
     fn is(&self) -> Primitives {
-        return Primitives::Lut
+        return Primitives::Lut;
     }
 }
 
@@ -64,7 +61,7 @@ pub struct Subckt {
 
 impl HWNode for Subckt {
     fn is(&self) -> Primitives {
-        return Primitives::Subckt
+        return Primitives::Subckt;
     }
 }
 
@@ -91,7 +88,7 @@ impl Default for Gate {
 
 impl HWNode for Gate {
     fn is(&self) -> Primitives {
-        return Primitives::Gate
+        return Primitives::Gate;
     }
 }
 
@@ -136,7 +133,7 @@ impl Default for Latch {
 
 impl HWNode for Latch {
     fn is(&self) -> Primitives {
-        return Primitives::Latch
+        return Primitives::Latch;
     }
 }
 
@@ -152,7 +149,7 @@ pub struct Module {
 
 impl HWNode for Module {
     fn is(&self) -> Primitives {
-        return Primitives::Module
+        return Primitives::Module;
     }
 }
 
@@ -196,5 +193,5 @@ pub struct Circuit {
     pub mods: Vec<Module>,
     pub graph: HWGraph,
     pub io_i: HashMap<NodeIndex, String>,
-    pub io_o: HashMap<NodeIndex, String>
+    pub io_o: HashMap<NodeIndex, String>,
 }

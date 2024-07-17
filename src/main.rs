@@ -1,10 +1,8 @@
-use petgraph::{
-    dot::{Dot, Config}
-};
+use petgraph::dot::{Config, Dot};
 
 mod parser;
-mod primitives;
 mod passes;
+mod primitives;
 
 use crate::passes::runner;
 

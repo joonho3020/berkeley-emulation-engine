@@ -150,14 +150,11 @@ fn latch_parser<'a>(input: &'a str, latches: &mut Vec<Latch>) -> IResult<&'a str
     Ok((i, ""))
 }
 
-fn module_body_parser<'a>(
-    input: &'a str,
-    circuit: &mut Circuit
-) -> IResult<&'a str, &'a str> {
+fn module_body_parser<'a>(input: &'a str, circuit: &mut Circuit) -> IResult<&'a str, &'a str> {
     let body_end_marker = "\n.end\n";
 
-    let mut net_to_nodeidx: HashMap<String, NodeIndex>  = HashMap::new();
-    let mut out_to_nodeidx: HashMap<String, NodeIndex>  = HashMap::new();
+    let mut net_to_nodeidx: HashMap<String, NodeIndex> = HashMap::new();
+    let mut out_to_nodeidx: HashMap<String, NodeIndex> = HashMap::new();
 
     // Get module body
     let (i, _) = tag(".model ")(input)?;
@@ -171,7 +168,7 @@ fn module_body_parser<'a>(
     let (bi, iline) = terminated(take_until("\n"), nom::character::complete::newline)(body)?;
     let inputs: Vec<String> = iline.split(' ').map(|v| v.to_string()).skip(1).collect();
     for i in inputs.iter() {
-        let nidx = circuit.graph.add_node(Box::new(Input{name: i.clone()}));
+        let nidx = circuit.graph.add_node(Box::new(Input { name: i.clone() }));
         circuit.io_i.insert(nidx, i.to_string());
         net_to_nodeidx.insert(i.to_string(), nidx);
     }
@@ -180,7 +177,7 @@ fn module_body_parser<'a>(
     let (bi, oline) = terminated(take_until("\n"), nom::character::complete::newline)(bi)?;
     let outputs: Vec<String> = oline.split(' ').map(|v| v.to_string()).skip(1).collect();
     for o in outputs.iter() {
-        let nidx = circuit.graph.add_node(Box::new(Output{name: o.clone()}));
+        let nidx = circuit.graph.add_node(Box::new(Output { name: o.clone() }));
         circuit.io_o.insert(nidx, o.to_string());
         out_to_nodeidx.insert(o.to_string(), nidx);
     }
@@ -217,9 +214,11 @@ fn module_body_parser<'a>(
 
     for lut in luts.iter() {
         for inet in lut.inputs.iter() {
-            let src_nidx = net_to_nodeidx.get(inet       ).unwrap();
+            let src_nidx = net_to_nodeidx.get(inet).unwrap();
             let dst_nidx = net_to_nodeidx.get(&lut.output).unwrap();
-            circuit.graph.add_edge(*src_nidx, *dst_nidx, inet.to_string());
+            circuit
+                .graph
+                .add_edge(*src_nidx, *dst_nidx, inet.to_string());
         }
     }
 
@@ -233,7 +232,7 @@ fn module_body_parser<'a>(
                 let e_idx = net_to_nodeidx.get(e).unwrap();
                 circuit.graph.add_edge(*e_idx, *q_idx, e.to_string());
             }
-            None => ()
+            None => (),
         };
     }
 
@@ -266,7 +265,7 @@ fn module_body_parser<'a>(
 
 fn parse_modules_from_blif_str<'a>(
     input: &'a str,
-    circuit: &mut Circuit
+    circuit: &mut Circuit,
 ) -> IResult<&'a str, &'a str> {
     // remove comment
     let (i, _) = value((), pair(tag("#"), is_not("\n")))(input)?;

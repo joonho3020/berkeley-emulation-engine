@@ -1,10 +1,9 @@
-
 use crate::primitives::*;
 use petgraph::{
-     graph::NodeIndex,
-     visit::{VisitMap, Visitable},
-     Direction::Incoming
- };
+    graph::NodeIndex,
+    visit::{VisitMap, Visitable},
+    Direction::Incoming,
+};
 
 pub fn dead_code_elimination(circuit: Circuit) -> Circuit {
     let mut graph = circuit.graph;
@@ -48,5 +47,5 @@ pub fn dead_code_elimination(circuit: Circuit) -> Circuit {
     return Circuit {
         graph: graph,
         ..circuit
-    }
+    };
 }
