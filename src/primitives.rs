@@ -2,7 +2,19 @@ use petgraph::graph::Graph;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
-pub trait HWNode: Debug {}
+pub enum Primitives {
+    Input,
+    Output,
+    Lut,
+    Subckt,
+    Gate,
+    Latch,
+    Module
+}
+
+pub trait HWNode: Debug {
+    fn is(&self) -> Primitives;
+}
 
 pub type HWGraph = Graph<Box<dyn HWNode>, String>;
 
@@ -11,14 +23,22 @@ pub struct Input {
     pub name: String
 }
 
-impl HWNode for Input {}
+impl HWNode for Input {
+    fn is(&self) -> Primitives {
+        return Primitives::Input
+    }
+}
 
 #[derive(Debug)]
 pub struct Output {
     pub name: String
 }
 
-impl HWNode for Output {}
+impl HWNode for Output {
+    fn is(&self) -> Primitives {
+        return Primitives::Output
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Lut {
@@ -27,7 +47,11 @@ pub struct Lut {
     pub table: Vec<Vec<u8>>,
 }
 
-impl HWNode for Lut {}
+impl HWNode for Lut {
+    fn is(&self) -> Primitives {
+        return Primitives::Lut
+    }
+}
 
 #[derive(Debug)]
 pub struct Subckt {
@@ -35,7 +59,11 @@ pub struct Subckt {
     pub conns: HashMap<String, String>,
 }
 
-impl HWNode for Subckt {}
+impl HWNode for Subckt {
+    fn is(&self) -> Primitives {
+        return Primitives::Subckt
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Gate {
@@ -58,7 +86,11 @@ impl Default for Gate {
     }
 }
 
-impl HWNode for Gate {}
+impl HWNode for Gate {
+    fn is(&self) -> Primitives {
+        return Primitives::Gate
+    }
+}
 
 #[repr(u8)]
 #[derive(Debug)]
@@ -99,7 +131,11 @@ impl Default for Latch {
     }
 }
 
-impl HWNode for Latch {}
+impl HWNode for Latch {
+    fn is(&self) -> Primitives {
+        return Primitives::Latch
+    }
+}
 
 pub struct Module {
     pub name: String,
@@ -111,7 +147,11 @@ pub struct Module {
     pub latches: Vec<Latch>,
 }
 
-impl HWNode for Module {}
+impl HWNode for Module {
+    fn is(&self) -> Primitives {
+        return Primitives::Module
+    }
+}
 
 impl Debug for Module {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

@@ -1,8 +1,6 @@
 use crate::primitives::*;
 
 use petgraph::graph::NodeIndex;
-use petgraph::dot::{Dot, Config};
-
 use std::collections::HashMap;
 use std::fmt;
 use std::fs;
@@ -328,20 +326,20 @@ pub fn parse_blif_file(input_file_path: &str) -> Result<Circuit, BlifError> {
     }
 }
 
-pub fn test_blif_parser(file_path: &str) -> bool {
-    let res = parse_blif_file(&file_path);
-    match res {
-        Ok(_) => true,
-        Err(err) => {
-            println!("blif file parsing error:\n{}", err);
-            false
-        }
-    }
-}
-
 #[cfg(test)]
 pub mod parser_tests {
     use super::*;
+
+    pub fn test_blif_parser(file_path: &str) -> bool {
+        let res = parse_blif_file(&file_path);
+        match res {
+            Ok(_) => true,
+            Err(err) => {
+                println!("blif file parsing error:\n{}", err);
+                false
+            }
+        }
+    }
 
     #[test]
     pub fn test_adder() {
