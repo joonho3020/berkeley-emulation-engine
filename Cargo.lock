@@ -111,7 +111,7 @@ dependencies = [
 [[package]]
 name = "kaminpar"
 version = "0.2.0"
-source = "git+https://github.com/joonho3020/kaminpar-rs.git?branch=joonho-main#74b6c9005b02e51e440ab8490a4a3cffd6588b3d"
+source = "git+https://github.com/joonho3020/kaminpar-rs.git?branch=joonho-main#2014beebab7fb7968ae8c9702b229b0f31e796ac"
 dependencies = [
  "cmake",
  "cxx",
@@ -131,9 +131,9 @@ dependencies = [
 
 [[package]]
 name = "memchr"
-version = "2.3.4"
+version = "2.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0ee1c47aaa256ecabcaea351eae4a9b01ef39ed810004e298d2511ed284b1525"
+checksum = "78ca9ab1a0babb1e7d5695e3530886289c18cf2f87ec19a575a0abdce112e3a3"
 
 [[package]]
 name = "minimal-lexical"
