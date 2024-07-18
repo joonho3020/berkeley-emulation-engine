@@ -1,4 +1,4 @@
-use petgraph::{graph::NodeIndex, stable_graph::StableGraph};
+use petgraph::{graph::NodeIndex, graph::Graph};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -14,11 +14,18 @@ pub enum Primitives {
 
 pub trait HWNode: Debug {
     fn is(&self) -> Primitives;
+    fn box_clone(&self) -> Box<dyn HWNode>;
 }
 
-pub type HWGraph = StableGraph<Box<dyn HWNode>, String>;
+impl Clone for Box<dyn HWNode> {
+    fn clone(&self) -> Box<dyn HWNode> {
+        self.box_clone()
+    }
+}
 
-#[derive(Debug)]
+pub type HWGraph = Graph<Box<dyn HWNode>, String>;
+
+#[derive(Debug, Clone)]
 pub struct Input {
     pub name: String,
 }
@@ -27,9 +34,13 @@ impl HWNode for Input {
     fn is(&self) -> Primitives {
         return Primitives::Input;
     }
+
+    fn box_clone(&self) -> Box<dyn HWNode> {
+        Box::new((*self).clone())
+    }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Output {
     pub name: String,
 }
@@ -37,6 +48,10 @@ pub struct Output {
 impl HWNode for Output {
     fn is(&self) -> Primitives {
         return Primitives::Output;
+    }
+
+    fn box_clone(&self) -> Box<dyn HWNode> {
+        Box::new((*self).clone())
     }
 }
 
@@ -51,9 +66,13 @@ impl HWNode for Lut {
     fn is(&self) -> Primitives {
         return Primitives::Lut;
     }
+
+    fn box_clone(&self) -> Box<dyn HWNode> {
+        Box::new((*self).clone())
+    }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Subckt {
     pub name: String,
     pub conns: HashMap<String, String>,
@@ -62,6 +81,10 @@ pub struct Subckt {
 impl HWNode for Subckt {
     fn is(&self) -> Primitives {
         return Primitives::Subckt;
+    }
+
+    fn box_clone(&self) -> Box<dyn HWNode> {
+        Box::new((*self).clone())
     }
 }
 
@@ -90,10 +113,14 @@ impl HWNode for Gate {
     fn is(&self) -> Primitives {
         return Primitives::Gate;
     }
+
+    fn box_clone(&self) -> Box<dyn HWNode> {
+        Box::new((*self).clone())
+    }
 }
 
 #[repr(u8)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum LatchInit {
     ZER0 = 0,
     ONE = 1,
@@ -112,7 +139,7 @@ impl LatchInit {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Latch {
     pub input: String,
     pub output: String,
@@ -135,8 +162,13 @@ impl HWNode for Latch {
     fn is(&self) -> Primitives {
         return Primitives::Latch;
     }
+
+    fn box_clone(&self) -> Box<dyn HWNode> {
+        Box::new((*self).clone())
+    }
 }
 
+#[derive (Clone)]
 pub struct Module {
     pub name: String,
     pub inputs: Vec<String>,
@@ -150,6 +182,10 @@ pub struct Module {
 impl HWNode for Module {
     fn is(&self) -> Primitives {
         return Primitives::Module;
+    }
+
+    fn box_clone(&self) -> Box<dyn HWNode> {
+        Box::new((*self).clone())
     }
 }
 
@@ -188,7 +224,7 @@ impl Debug for Module {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Circuit {
     pub mods: Vec<Module>,
     pub graph: HWGraph,
