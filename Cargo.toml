@@ -8,4 +8,4 @@ edition = "2021"
 [dependencies]
 nom = "7.1.3"
 petgraph = "0.6.5"
-kaminpar = { git = "https://github.com/mpetri/kaminpar-rs.git" }
+kaminpar = { git = "https://github.com/joonho3020/kaminpar-rs.git" }
