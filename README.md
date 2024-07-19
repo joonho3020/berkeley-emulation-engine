@@ -32,6 +32,17 @@ sudo apt-get install libnuma-dev
 sudo apt install libtbb-dev
 ```
 
+## Setup commands using Conda
+
+```bash
+conda create -n <name> python=<version>
+conda install conda-forge::gcc_linux-64"
+conda install conda-forge::gcc -y"
+conda install 'gxx[version=">=14"]'
+conda install conda-forge::tbb-devel
+conda install libnuma numactl
+```
+
 ---
 
 ## Example usage
