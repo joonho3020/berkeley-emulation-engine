@@ -1,6 +1,8 @@
 use crate::primitives::*;
 use petgraph::{
-    graph::NodeIndex, visit::{VisitMap, Visitable}, Direction::Incoming
+    graph::NodeIndex,
+    visit::{VisitMap, Visitable},
+    Direction::Incoming,
 };
 
 pub fn dead_code_elimination(circuit: Circuit) -> Circuit {
@@ -34,7 +36,6 @@ pub fn dead_code_elimination(circuit: Circuit) -> Circuit {
     // Find nodes to delete (can't delete here due to immutable borrow)
     for nidx in graph.node_indices().rev() {
         if !vis_map.is_visited(&nidx) {
-
             // TODO : find a case where this actually happens and test it?
             let nnodes = graph.node_count();
             let last_nidx = NodeIndex::new(nnodes - 1);

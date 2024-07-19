@@ -1,4 +1,4 @@
-use petgraph::{graph::NodeIndex, graph::Graph};
+use petgraph::{graph::Graph, graph::NodeIndex};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -168,7 +168,7 @@ impl HWNode for Latch {
     }
 }
 
-#[derive (Clone)]
+#[derive(Clone)]
 pub struct Module {
     pub name: String,
     pub inputs: Vec<String>,

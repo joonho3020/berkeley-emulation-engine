@@ -2,9 +2,9 @@ use crate::primitives::*;
 use petgraph::{
     graph::NodeIndex,
     visit::{VisitMap, Visitable},
-    Direction::Incoming, Undirected,
+    Direction::Incoming,
+    Undirected,
 };
-
 
 pub fn partition(circuit: Circuit) -> Circuit {
     let num_partitions = 2;
