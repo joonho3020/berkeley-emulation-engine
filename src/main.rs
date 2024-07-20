@@ -1,26 +1,23 @@
-use petgraph::dot::{Config, Dot};
+use crate::parser::parse_blif_file;
+use crate::passes::runner;
+use crate::primitives::Context;
+use std::env;
 
 mod parser;
 mod passes;
 mod primitives;
 
-use crate::passes::runner;
-use crate::primitives::Context;
-
 fn main() {
-    let res = parser::parse_blif_file("examples/GCD.lut.blif");
+    let args: Vec<String> = env::args().collect();
+    let file_path = &args[1];
+    let res = parse_blif_file(&file_path);
     match res {
         Ok(c) => {
             let ctx = Context {
                 gates_per_partition: 128,
             };
             let c2 = runner::run_compiler_passes(c, ctx);
-            let filtered_graph = c2.graph.filter_map(
-                |_, y| if y.clone().get_info().proc == 17 { Some(y) } else { None },
-                |_, y| Some(y));
-
-            let output = format!("{:?}", Dot::with_config(&filtered_graph, &[Config::EdgeNoLabel]));
-            println!("{}", output);
+            let _ = c2.save_all_subgraphs(file_path.to_string());
         }
         Err(_) => {
             println!("ERROR");

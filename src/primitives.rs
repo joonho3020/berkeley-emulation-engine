@@ -1,6 +1,10 @@
+use petgraph::dot::{Config, Dot};
 use petgraph::{graph::Graph, graph::NodeIndex};
+use std::cmp::max;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::fs::File;
+use std::io::Write;
 
 pub type HWGraph = Graph<Box<dyn HWNode>, String>;
 
@@ -316,5 +320,37 @@ pub struct Circuit {
 impl Circuit {
     pub fn set_ctx(&mut self, ctx: Context) {
         self.ctx = ctx;
+    }
+
+    pub fn proc_subgraph(&self, proc_id: u32) -> Graph<&Box<dyn HWNode>, &String> {
+        return self.graph.filter_map(
+            |_, y| {
+                if y.clone().get_info().proc == proc_id {
+                    Some(y)
+                } else {
+                    None
+                }
+            },
+            |_, y| Some(y),
+        );
+    }
+
+    pub fn save_all_subgraphs(&self, file_pfx: String) -> std::io::Result<()> {
+        let mut max_proc = 0;
+        for nidx in self.graph.node_indices() {
+            let node = self.graph.node_weight(nidx).unwrap();
+            max_proc = max(max_proc, node.clone().get_info().proc);
+        }
+
+        for proc_id in 0..(max_proc + 1) {
+            let psg = self.proc_subgraph(proc_id);
+            let mut file = File::create(format!("{}-{}.dot", file_pfx, proc_id))?;
+            write!(
+                &mut file,
+                "{:?}",
+                Dot::with_config(&psg, &[Config::EdgeNoLabel])
+            )?;
+        }
+        Ok(())
     }
 }

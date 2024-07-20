@@ -73,7 +73,15 @@ yosys
 
 ### Parse the blif file and obtain a pdf of the graph using graphviz
 
+- By hand:
+
 ```bash
 cargo run > examples/Adder.dot
 dot examples/Adder.dot -Tpdf > examples/Adder.pdf
+```
+
+- Or alternatively run:
+
+```bash
+./run.py --blif examples/GCD.lut.blif --dot
 ```
