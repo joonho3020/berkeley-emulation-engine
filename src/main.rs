@@ -15,7 +15,11 @@ fn main() {
                 gates_per_partition: 128,
             };
             let c2 = runner::run_compiler_passes(c, ctx);
-            let output = format!("{:?}", Dot::with_config(&c2.graph, &[Config::EdgeNoLabel]));
+            let filtered_graph = c2.graph.filter_map(
+                |_, y| if y.clone().get_info().proc == 17 { Some(y) } else { None },
+                |_, y| Some(y));
+
+            let output = format!("{:?}", Dot::with_config(&filtered_graph, &[Config::EdgeNoLabel]));
             println!("{}", output);
         }
         Err(_) => {
