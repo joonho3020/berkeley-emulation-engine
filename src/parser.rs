@@ -5,6 +5,8 @@ use std::collections::HashMap;
 use std::fmt;
 use std::fs;
 
+type IResultStr<'a> = IResult<&'a str, &'a str>;
+
 use nom::{
     bytes::complete::{is_not, tag, take_until},
     combinator::value,
@@ -12,7 +14,7 @@ use nom::{
     IResult,
 };
 
-fn take_until_or_end<'a>(tag: &'a str, istr: &'a str) -> IResult<&'a str, &'a str> {
+fn take_until_or_end<'a>(tag: &'a str, istr: &'a str) -> IResultStr<'a> {
     let ret: IResult<&str, &str> = take_until(tag)(istr);
     match ret {
         Ok(x) => Ok(x),
@@ -20,7 +22,7 @@ fn take_until_or_end<'a>(tag: &'a str, istr: &'a str) -> IResult<&'a str, &'a st
     }
 }
 
-fn terminated_newline<'a>(istr: &'a str) -> IResult<&'a str, &'a str> {
+fn terminated_newline<'a>(istr: &'a str) -> IResultStr<'a> {
     let ret: IResult<&str, &str> =
         terminated(take_until("\n"), nom::character::complete::newline)(istr);
     match ret {
@@ -29,7 +31,7 @@ fn terminated_newline<'a>(istr: &'a str) -> IResult<&'a str, &'a str> {
     }
 }
 
-fn lut_table_parser<'a>(input: &'a str, table: &mut Vec<Vec<u8>>) -> IResult<&'a str, &'a str> {
+fn lut_table_parser<'a>(input: &'a str, table: &mut Vec<Vec<u8>>) -> IResultStr<'a> {
     let mut i = input;
     let mut li;
     let mut te;
@@ -47,7 +49,7 @@ fn lut_table_parser<'a>(input: &'a str, table: &mut Vec<Vec<u8>>) -> IResult<&'a
     Ok(("", ""))
 }
 
-fn lut_body_parser<'a>(input: &'a str, luts: &mut Vec<Lut>) -> IResult<&'a str, &'a str> {
+fn lut_body_parser<'a>(input: &'a str, luts: &mut Vec<Lut>) -> IResultStr<'a> {
     let (i, ioline) = terminated_newline(input)?;
     let mut io: Vec<&str> = ioline.split(' ').collect();
 
@@ -62,12 +64,13 @@ fn lut_body_parser<'a>(input: &'a str, luts: &mut Vec<Lut>) -> IResult<&'a str, 
         inputs: inputs,
         output: output,
         table: lut_table,
+        info: NodeInfo::default(),
     });
 
     Ok((i, ""))
 }
 
-fn subckt_parser<'a>(input: &'a str, subckts: &mut Vec<Subckt>) -> IResult<&'a str, &'a str> {
+fn subckt_parser<'a>(input: &'a str, subckts: &mut Vec<Subckt>) -> IResultStr<'a> {
     let (i, sline) = terminated_newline(input)?;
     let conns_vec: Vec<&str> = sline.split(' ').collect();
     let name = conns_vec[0];
@@ -83,6 +86,7 @@ fn subckt_parser<'a>(input: &'a str, subckts: &mut Vec<Subckt>) -> IResult<&'a s
     subckts.push(Subckt {
         name: name.to_string(),
         conns: conns,
+        info: NodeInfo::default(),
     });
 
     Ok((i, ""))
@@ -91,7 +95,7 @@ fn subckt_parser<'a>(input: &'a str, subckts: &mut Vec<Subckt>) -> IResult<&'a s
 // _SDFF_NP0_ : FF with reset C D Q R
 // _DFFE_PN_  : FF with enables C D E Q
 // _SDFFE_PP0N_ : FF with reset and enable C D E Q R
-fn gate_parser<'a>(input: &'a str, gates: &mut Vec<Gate>) -> IResult<&'a str, &'a str> {
+fn gate_parser<'a>(input: &'a str, gates: &mut Vec<Gate>) -> IResultStr<'a> {
     let (i, line) = terminated_newline(input)?;
     let signal_conns: Vec<&str> = line.split(' ').collect();
     let mut gate = Gate::default();
@@ -124,7 +128,7 @@ fn gate_parser<'a>(input: &'a str, gates: &mut Vec<Gate>) -> IResult<&'a str, &'
     Ok((i, ""))
 }
 
-fn latch_parser<'a>(input: &'a str, latches: &mut Vec<Latch>) -> IResult<&'a str, &'a str> {
+fn latch_parser<'a>(input: &'a str, latches: &mut Vec<Latch>) -> IResultStr<'a> {
     let (i, line) = terminated_newline(input)?;
     let latch_info: Vec<&str> = line.split(' ').collect();
     let mut latch = Latch::default();
@@ -150,7 +154,7 @@ fn latch_parser<'a>(input: &'a str, latches: &mut Vec<Latch>) -> IResult<&'a str
     Ok((i, ""))
 }
 
-fn module_body_parser<'a>(input: &'a str, circuit: &mut Circuit) -> IResult<&'a str, &'a str> {
+fn module_body_parser<'a>(input: &'a str, circuit: &mut Circuit) -> IResultStr<'a> {
     let body_end_marker = "\n.end\n";
 
     let mut net_to_nodeidx: HashMap<String, NodeIndex> = HashMap::new();
@@ -168,7 +172,10 @@ fn module_body_parser<'a>(input: &'a str, circuit: &mut Circuit) -> IResult<&'a 
     let (bi, iline) = terminated(take_until("\n"), nom::character::complete::newline)(body)?;
     let inputs: Vec<String> = iline.split(' ').map(|v| v.to_string()).skip(1).collect();
     for i in inputs.iter() {
-        let nidx = circuit.graph.add_node(Box::new(Input { name: i.clone() }));
+        let nidx = circuit.graph.add_node(Box::new(Input {
+            name: i.clone(),
+            info: NodeInfo::default(),
+        }));
         circuit.io_i.insert(nidx, i.to_string());
         net_to_nodeidx.insert(i.to_string(), nidx);
     }
@@ -177,7 +184,10 @@ fn module_body_parser<'a>(input: &'a str, circuit: &mut Circuit) -> IResult<&'a 
     let (bi, oline) = terminated(take_until("\n"), nom::character::complete::newline)(bi)?;
     let outputs: Vec<String> = oline.split(' ').map(|v| v.to_string()).skip(1).collect();
     for o in outputs.iter() {
-        let nidx = circuit.graph.add_node(Box::new(Output { name: o.clone() }));
+        let nidx = circuit.graph.add_node(Box::new(Output {
+            name: o.clone(),
+            info: NodeInfo::default(),
+        }));
         circuit.io_o.insert(nidx, o.to_string());
         out_to_nodeidx.insert(o.to_string(), nidx);
     }
@@ -250,6 +260,7 @@ fn module_body_parser<'a>(input: &'a str, circuit: &mut Circuit) -> IResult<&'a 
         subckts: subckts,
         gates: gates,
         latches: latches,
+        info: NodeInfo::default(),
     });
 
     if i.len() > body_end_marker.to_string().len() {
@@ -263,10 +274,7 @@ fn module_body_parser<'a>(input: &'a str, circuit: &mut Circuit) -> IResult<&'a 
     Ok((i, ""))
 }
 
-fn parse_modules_from_blif_str<'a>(
-    input: &'a str,
-    circuit: &mut Circuit,
-) -> IResult<&'a str, &'a str> {
+fn parse_modules_from_blif_str<'a>(input: &'a str, circuit: &mut Circuit) -> IResultStr<'a> {
     // remove comment
     let (i, _) = value((), pair(tag("#"), is_not("\n")))(input)?;
     let (i, _) = take_until(".")(i)?;

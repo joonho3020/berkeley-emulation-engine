@@ -2,6 +2,8 @@ use petgraph::{graph::Graph, graph::NodeIndex};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
+pub type HWGraph = Graph<Box<dyn HWNode>, String>;
+
 pub enum Primitives {
     Input,
     Output,
@@ -15,6 +17,8 @@ pub enum Primitives {
 pub trait HWNode: Debug {
     fn is(&self) -> Primitives;
     fn box_clone(&self) -> Box<dyn HWNode>;
+    fn set_info(&mut self, info: NodeInfo);
+    fn get_info(&mut self) -> NodeInfo;
 }
 
 impl Clone for Box<dyn HWNode> {
@@ -23,11 +27,15 @@ impl Clone for Box<dyn HWNode> {
     }
 }
 
-pub type HWGraph = Graph<Box<dyn HWNode>, String>;
+#[derive(Debug, Clone, Default)]
+pub struct NodeInfo {
+    pub rank: u32,
+}
 
 #[derive(Debug, Clone)]
 pub struct Input {
     pub name: String,
+    pub info: NodeInfo,
 }
 
 impl HWNode for Input {
@@ -38,11 +46,20 @@ impl HWNode for Input {
     fn box_clone(&self) -> Box<dyn HWNode> {
         Box::new((*self).clone())
     }
+
+    fn set_info(&mut self, info: NodeInfo) {
+        self.info = info;
+    }
+
+    fn get_info(&mut self) -> NodeInfo {
+        self.info.clone()
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct Output {
     pub name: String,
+    pub info: NodeInfo,
 }
 
 impl HWNode for Output {
@@ -53,6 +70,14 @@ impl HWNode for Output {
     fn box_clone(&self) -> Box<dyn HWNode> {
         Box::new((*self).clone())
     }
+
+    fn set_info(&mut self, info: NodeInfo) {
+        self.info = info;
+    }
+
+    fn get_info(&mut self) -> NodeInfo {
+        self.info.clone()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -60,6 +85,7 @@ pub struct Lut {
     pub inputs: Vec<String>,
     pub output: String,
     pub table: Vec<Vec<u8>>,
+    pub info: NodeInfo,
 }
 
 impl HWNode for Lut {
@@ -70,12 +96,21 @@ impl HWNode for Lut {
     fn box_clone(&self) -> Box<dyn HWNode> {
         Box::new((*self).clone())
     }
+
+    fn set_info(&mut self, info: NodeInfo) {
+        self.info = info;
+    }
+
+    fn get_info(&mut self) -> NodeInfo {
+        self.info.clone()
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct Subckt {
     pub name: String,
     pub conns: HashMap<String, String>,
+    pub info: NodeInfo,
 }
 
 impl HWNode for Subckt {
@@ -86,6 +121,14 @@ impl HWNode for Subckt {
     fn box_clone(&self) -> Box<dyn HWNode> {
         Box::new((*self).clone())
     }
+
+    fn set_info(&mut self, info: NodeInfo) {
+        self.info = info;
+    }
+
+    fn get_info(&mut self) -> NodeInfo {
+        self.info.clone()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -95,6 +138,8 @@ pub struct Gate {
     pub q: String,
     pub r: Option<String>,
     pub e: Option<String>,
+
+    pub info: NodeInfo,
 }
 
 impl Default for Gate {
@@ -105,6 +150,7 @@ impl Default for Gate {
             q: "".to_string(),
             r: None,
             e: None,
+            info: NodeInfo::default(),
         }
     }
 }
@@ -116,6 +162,14 @@ impl HWNode for Gate {
 
     fn box_clone(&self) -> Box<dyn HWNode> {
         Box::new((*self).clone())
+    }
+
+    fn set_info(&mut self, info: NodeInfo) {
+        self.info = info;
+    }
+
+    fn get_info(&mut self) -> NodeInfo {
+        self.info.clone()
     }
 }
 
@@ -145,6 +199,7 @@ pub struct Latch {
     pub output: String,
     pub control: String,
     pub init: LatchInit,
+    pub info: NodeInfo,
 }
 
 impl Default for Latch {
@@ -154,6 +209,7 @@ impl Default for Latch {
             output: "".to_string(),
             control: "".to_string(),
             init: LatchInit::UNKNOWN,
+            info: NodeInfo::default(),
         }
     }
 }
@@ -166,6 +222,14 @@ impl HWNode for Latch {
     fn box_clone(&self) -> Box<dyn HWNode> {
         Box::new((*self).clone())
     }
+
+    fn set_info(&mut self, info: NodeInfo) {
+        self.info = info;
+    }
+
+    fn get_info(&mut self) -> NodeInfo {
+        self.info.clone()
+    }
 }
 
 #[derive(Clone)]
@@ -177,6 +241,7 @@ pub struct Module {
     pub subckts: Vec<Subckt>,
     pub gates: Vec<Gate>,
     pub latches: Vec<Latch>,
+    pub info: NodeInfo,
 }
 
 impl HWNode for Module {
@@ -186,6 +251,14 @@ impl HWNode for Module {
 
     fn box_clone(&self) -> Box<dyn HWNode> {
         Box::new((*self).clone())
+    }
+
+    fn set_info(&mut self, info: NodeInfo) {
+        self.info = info;
+    }
+
+    fn get_info(&mut self) -> NodeInfo {
+        self.info.clone()
     }
 }
 
@@ -225,9 +298,24 @@ impl Debug for Module {
 }
 
 #[derive(Debug, Default, Clone)]
+pub struct Context {
+    pub num_partitions: u32,
+    pub kaminpar_epsilon: f64,
+    pub kaminpar_seed: u64,
+    pub kaminpar_nthreads: usize,
+}
+
+#[derive(Debug, Default, Clone)]
 pub struct Circuit {
     pub mods: Vec<Module>,
     pub graph: HWGraph,
     pub io_i: HashMap<NodeIndex, String>,
     pub io_o: HashMap<NodeIndex, String>,
+    pub ctx: Context,
+}
+
+impl Circuit {
+    pub fn set_ctx(&mut self, ctx: Context) {
+        self.ctx = ctx;
+    }
 }

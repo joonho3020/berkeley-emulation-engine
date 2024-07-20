@@ -37,12 +37,19 @@ pub fn dead_code_elimination(circuit: Circuit) -> Circuit {
     for nidx in graph.node_indices().rev() {
         if !vis_map.is_visited(&nidx) {
             // TODO : find a case where this actually happens and test it?
+
             let nnodes = graph.node_count();
             let last_nidx = NodeIndex::new(nnodes - 1);
-            if let Some(v) = io_i.remove(&last_nidx) {
+
+            if io_i.contains_key(&nidx) {
+                io_i.remove(&nidx);
+            } else if let Some(v) = io_i.remove(&last_nidx) {
                 io_i.insert(nidx, v);
             }
-            if let Some(v) = io_o.remove(&last_nidx) {
+
+            if io_o.contains_key(&nidx) {
+                io_o.remove(&nidx);
+            } else if let Some(v) = io_o.remove(&last_nidx) {
                 io_o.insert(nidx, v);
             }
 
