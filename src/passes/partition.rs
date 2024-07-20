@@ -1,31 +1,12 @@
-use std::cmp::max;
-
 use crate::primitives::*;
 use petgraph::{
-    data::{DataMap, DataMapMut},
     graph::NodeIndex,
     visit::{VisitMap, Visitable},
     Direction::{Incoming, Outgoing},
 };
+use std::cmp::max;
 
-pub fn kaminpar_partition(circuit: Circuit) -> (Vec<u32>, Circuit) {
-    let undirected_graph = circuit.graph.clone().into_edge_type();
-    let partition = kaminpar::PartitionerBuilder::with_epsilon(circuit.ctx.kaminpar_epsilon)
-        .seed(circuit.ctx.kaminpar_seed)
-        .threads(std::num::NonZeroUsize::new(circuit.ctx.kaminpar_nthreads).unwrap())
-        .partition(&undirected_graph, circuit.ctx.num_partitions);
-
-    let ret = match partition {
-        Ok(assignments) => assignments,
-        Err(e) => {
-            println!("Kaminpar partition error {}", e);
-            vec![]
-        }
-    };
-    return (ret, circuit);
-}
-
-pub fn set_rank(graph: &mut HWGraph, nidx: NodeIndex, rank: u32) {
+fn set_rank(graph: &mut HWGraph, nidx: NodeIndex, rank: u32) {
     let node = graph.node_weight_mut(nidx).unwrap();
     let info = node.get_info();
     let new_rank = max(info.rank, rank);
@@ -69,13 +50,15 @@ pub fn find_rank_order(circuit: Circuit) -> Circuit {
         if vis_map.is_visited(&nidx) {
             continue;
         }
-
         vis_map.visit(nidx);
-        let parent_rank = graph.node_weight_mut(nidx).unwrap().get_info().rank;
 
+        let parent_rank = graph.node_weight_mut(nidx).unwrap().get_info().rank;
         let mut childs = graph.neighbors_directed(nidx, Outgoing).detach();
         while let Some(cidx) = childs.next_node(&graph) {
-            set_rank(&mut graph, cidx, parent_rank + 1);
+            let node_type = graph.node_weight_mut(cidx).unwrap().is();
+            if (node_type != Primitives::Gate) && (node_type != Primitives::Latch) {
+                set_rank(&mut graph, cidx, parent_rank + 1);
+            }
             if !vis_map.is_visited(&cidx) {
                 q.push(cidx);
             }
@@ -84,6 +67,70 @@ pub fn find_rank_order(circuit: Circuit) -> Circuit {
 
     return Circuit {
         io_i: io_i,
+        graph: graph,
+        ..circuit
+    };
+}
+
+fn set_proc(graph: &mut HWGraph, nidx: NodeIndex, proc: u32) {
+    let node = graph.node_weight_mut(nidx).unwrap();
+    let info = node.get_info();
+    node.set_info(NodeInfo { proc: proc, ..info })
+}
+
+pub fn map_to_processor(circuit: Circuit) -> Circuit {
+    let mut graph = circuit.graph;
+    let io_o = circuit.io_o;
+
+    // Start from Output
+    let mut q: Vec<NodeIndex> = vec![];
+    for nidx in io_o.keys() {
+        q.push(*nidx);
+    }
+
+    let mut proc_id = 0;
+    let max_gates = circuit.ctx.gates_per_partition;
+
+    let mut vis_map = graph.visit_map();
+    while !q.is_empty() {
+        let root = q.remove(0);
+
+        let mut cur_proc_size = 0;
+        let mut qq: Vec<NodeIndex> = vec![];
+        qq.push(root);
+        while !qq.is_empty() {
+            let nidx = qq.remove(0);
+            if vis_map.is_visited(&nidx) {
+                continue;
+            }
+            vis_map.visit(nidx);
+
+            set_proc(&mut graph, nidx, proc_id);
+            let mut parents = graph.neighbors_directed(nidx, Incoming).detach();
+            while let Some(pidx) = parents.next_node(&graph) {
+                let node_type = graph.node_weight_mut(pidx).unwrap().is();
+                if !vis_map.is_visited(&pidx) {
+                    if (node_type != Primitives::Gate) && (node_type != Primitives::Latch) {
+                        qq.push(pidx);
+                    } else {
+                        q.push(pidx);
+                    }
+                }
+            }
+
+            cur_proc_size += 1;
+            assert!(
+                cur_proc_size <= max_gates,
+                "Number of gates ({}) exceeded max_gates ({})",
+                cur_proc_size,
+                max_gates
+            );
+        }
+        proc_id += 1;
+    }
+
+    return Circuit {
+        io_o: io_o,
         graph: graph,
         ..circuit
     };

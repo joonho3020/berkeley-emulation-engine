@@ -4,6 +4,7 @@ use std::fmt::Debug;
 
 pub type HWGraph = Graph<Box<dyn HWNode>, String>;
 
+#[derive(PartialEq)]
 pub enum Primitives {
     Input,
     Output,
@@ -30,6 +31,7 @@ impl Clone for Box<dyn HWNode> {
 #[derive(Debug, Clone, Default)]
 pub struct NodeInfo {
     pub rank: u32,
+    pub proc: u32,
 }
 
 #[derive(Debug, Clone)]
@@ -299,10 +301,7 @@ impl Debug for Module {
 
 #[derive(Debug, Default, Clone)]
 pub struct Context {
-    pub num_partitions: u32,
-    pub kaminpar_epsilon: f64,
-    pub kaminpar_seed: u64,
-    pub kaminpar_nthreads: usize,
+    pub gates_per_partition: u32,
 }
 
 #[derive(Debug, Default, Clone)]
