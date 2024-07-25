@@ -2,7 +2,7 @@ use crate::primitives::*;
 use petgraph::{
     graph::NodeIndex,
     visit::{VisitMap, Visitable},
-    Direction::{Incoming, Outgoing},
+    Direction::Outgoing,
 };
 use std::cmp::max;
 
@@ -94,11 +94,11 @@ fn set_proc(
 
 pub fn map_to_processor(circuit: Circuit) -> Circuit {
     let mut graph = circuit.graph;
-    let io_o = circuit.io_o;
+    let io_i = circuit.io_i;
 
-    // Start from Output
+    // Start from Input
     let mut q: Vec<NodeIndex> = vec![];
-    for nidx in io_o.keys() {
+    for nidx in io_i.keys() {
         q.push(*nidx);
     }
 
@@ -118,27 +118,16 @@ pub fn map_to_processor(circuit: Circuit) -> Circuit {
                 continue;
             }
             vis_map.visit(nidx);
+            set_proc(&mut graph, nidx, proc_id, &mut cur_proc_size, max_gates);
 
-            // Only set the proc id if this isn't a FF node.
-            // If this node is a FF, it is the root of the BFS and the proc_id
-            // has already been set.
-            let cur_node_type = graph.node_weight_mut(nidx).unwrap().is();
-            if (cur_node_type != Primitives::Gate) && (cur_node_type != Primitives::Latch) {
-                set_proc(&mut graph, nidx, proc_id, &mut cur_proc_size, max_gates);
-            }
-
-            let mut parents = graph.neighbors_directed(nidx, Incoming).detach();
-            while let Some(pidx) = parents.next_node(&graph) {
-                let node_type = graph.node_weight_mut(pidx).unwrap().is();
-                if !vis_map.is_visited(&pidx) {
-                    if (node_type != Primitives::Gate) && (node_type != Primitives::Latch) {
-                        qq.push(pidx);
+            let mut childs = graph.neighbors_directed(nidx, Outgoing).detach();
+            while let Some(cidx) = childs.next_node(&graph) {
+                let child_type = graph.node_weight_mut(cidx).unwrap().is();
+                if !vis_map.is_visited(&cidx) {
+                    if (child_type != Primitives::Gate) && (child_type != Primitives::Latch) {
+                        qq.push(cidx);
                     } else {
-                        // Node is FF, add this node as the root of traversal.
-                        // However, we want this node to be included in the current processor
-                        // to reduce NOPs while scheduling instructions.
-                        q.push(pidx);
-                        set_proc(&mut graph, pidx, proc_id, &mut cur_proc_size, max_gates);
+                        q.push(cidx);
                     }
                 }
             }
@@ -147,7 +136,7 @@ pub fn map_to_processor(circuit: Circuit) -> Circuit {
     }
 
     return Circuit {
-        io_o: io_o,
+        io_i: io_i,
         graph: graph,
         ..circuit
     };

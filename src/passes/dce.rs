@@ -36,11 +36,10 @@ pub fn dead_code_elimination(circuit: Circuit) -> Circuit {
     // Find nodes to delete (can't delete here due to immutable borrow)
     for nidx in graph.node_indices().rev() {
         if !vis_map.is_visited(&nidx) {
-            // TODO : find a case where this actually happens and test it?
-
             let nnodes = graph.node_count();
             let last_nidx = NodeIndex::new(nnodes - 1);
 
+            // TODO : find a case where this actually happens and test it?
             if io_i.contains_key(&nidx) {
                 io_i.remove(&nidx);
             } else if let Some(v) = io_i.remove(&last_nidx) {

@@ -4,7 +4,7 @@ use petgraph::{
     visit::{EdgeRef, VisitMap, Visitable},
     Direction::Outgoing,
 };
-use std::cmp::max;
+use std::cmp::{max, Ordering};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fs::File;
@@ -27,7 +27,7 @@ pub trait HWNode: Debug {
     fn is(&self) -> Primitives;
     fn box_clone(&self) -> Box<dyn HWNode>;
     fn set_info(&mut self, info: NodeInfo);
-    fn get_info(&mut self) -> NodeInfo;
+    fn get_info(&self) -> NodeInfo;
 }
 
 impl Clone for Box<dyn HWNode> {
@@ -36,10 +36,44 @@ impl Clone for Box<dyn HWNode> {
     }
 }
 
+impl PartialEq for Box<dyn HWNode> {
+    fn eq(&self, other: &Self) -> bool {
+        if self.is() == other.is() {
+            self.get_info().rank == other.get_info().rank
+        } else {
+            false
+        }
+    }
+}
+
+impl Eq for Box<dyn HWNode> {}
+
+impl Ord for Box<dyn HWNode> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        if (self.is() == Primitives::Input) && (other.is() == Primitives::Input)
+            || (self.is() != Primitives::Input) && (other.is() != Primitives::Input)
+        {
+            return self.get_info().rank.cmp(&other.get_info().rank);
+        } else if self.is() == Primitives::Input {
+            return Ordering::Less;
+        } else {
+            return Ordering::Greater;
+        }
+    }
+}
+
+impl PartialOrd for Box<dyn HWNode> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct NodeInfo {
     pub rank: u32,
     pub proc: u32,
+    pub pc: u32,
+    pub scheduled: bool,
 }
 
 #[derive(Clone)]
@@ -61,7 +95,7 @@ impl HWNode for Input {
         self.info = info;
     }
 
-    fn get_info(&mut self) -> NodeInfo {
+    fn get_info(&self) -> NodeInfo {
         self.info.clone()
     }
 }
@@ -91,7 +125,7 @@ impl HWNode for Output {
         self.info = info;
     }
 
-    fn get_info(&mut self) -> NodeInfo {
+    fn get_info(&self) -> NodeInfo {
         self.info.clone()
     }
 }
@@ -123,7 +157,7 @@ impl HWNode for Lut {
         self.info = info;
     }
 
-    fn get_info(&mut self) -> NodeInfo {
+    fn get_info(&self) -> NodeInfo {
         self.info.clone()
     }
 }
@@ -154,7 +188,7 @@ impl HWNode for Subckt {
         self.info = info;
     }
 
-    fn get_info(&mut self) -> NodeInfo {
+    fn get_info(&self) -> NodeInfo {
         self.info.clone()
     }
 }
@@ -196,7 +230,7 @@ impl HWNode for Gate {
         self.info = info;
     }
 
-    fn get_info(&mut self) -> NodeInfo {
+    fn get_info(&self) -> NodeInfo {
         self.info.clone()
     }
 }
@@ -261,7 +295,7 @@ impl HWNode for Latch {
         self.info = info;
     }
 
-    fn get_info(&mut self) -> NodeInfo {
+    fn get_info(&self) -> NodeInfo {
         self.info.clone()
     }
 }
@@ -291,7 +325,7 @@ impl HWNode for Module {
         self.info = info;
     }
 
-    fn get_info(&mut self) -> NodeInfo {
+    fn get_info(&self) -> NodeInfo {
         self.info.clone()
     }
 }

@@ -1,10 +1,196 @@
 use crate::primitives::*;
 use petgraph::{
-    graph::NodeIndex,
-    visit::{VisitMap, Visitable},
-    Direction::{Incoming, Outgoing},
+    data::DataMap, graph::{Graph, NodeIndex}, visit::{IntoNeighborsDirected, VisitMap, Visitable}, Direction::{Incoming, Outgoing}
 };
+use std::cmp::max;
+use std::collections::{HashSet, HashMap};
 
-pub fn instruction_mapping(circuit: Circuit) -> Circuit {
-    circuit
+#[derive(Eq, Hash, PartialEq, Clone)]
+struct InstOrProc {
+    nidx: Option<NodeIndex>,
+    pidx: Option<u32>,
+}
+
+
+#[derive(Debug, Default)]
+struct NodeArray {
+    nodes: Vec<NodeIndex>,
+    ptr: usize,
+}
+
+impl NodeArray {
+    fn push_node(&mut self, nidx: NodeIndex) {
+        self.nodes.push(nidx);
+    }
+
+    fn current(&self) -> NodeIndex {
+// println!("current {} {}", self.nodes.len(), self.ptr);
+        return self.nodes[self.ptr];
+    }
+
+    fn done(&self) -> bool {
+        return self.nodes.len() == self.ptr;
+    }
+
+    fn schedule(&mut self) {
+        self.ptr += 1;
+    }
+
+    fn max_rank_node(&self) -> NodeIndex {
+        return self.nodes[self.nodes.len() - 1];
+    }
+}
+
+/*
+* 1. schedule Input & Gates first
+* 2. for each partition get next rank to simulate
+*    - if dependencies are resolved, schedule it
+*    - else insert nop
+* 3. for each partition, if there is two ore more instructions that are parents scheduled in
+*    step 2, unschedule some of them.
+*/
+pub fn schedule_instructions(circuit: Circuit) -> Circuit {
+    let mut graph = circuit.graph;
+
+    let mut max_proc = 0;
+    for nidx in graph.node_indices() {
+        let node = graph.node_weight(nidx).unwrap();
+        max_proc = max(max_proc, node.clone().get_info().proc);
+    }
+
+    // subgraphs is ordered in BFS order starting from the input nodes
+    let mut subgraphs_rank_order: Vec<NodeArray> = vec![];
+    for _ in 0..(max_proc + 1) {
+        subgraphs_rank_order.push(NodeArray::default());
+    }
+
+    for nidx in graph.node_indices() {
+        let node = graph.node_weight(nidx).unwrap();
+        subgraphs_rank_order.get_mut(node.get_info().proc as usize).unwrap().push_node(nidx);
+    }
+    for sro in subgraphs_rank_order.iter_mut() {
+        sro.nodes.sort_by(|idx1, idx2| {
+            let n1 = graph.node_weight(*idx1).unwrap();
+            let n2 = graph.node_weight(*idx2).unwrap();
+            n1.cmp(&n2)
+        });
+    }
+
+    for sro in subgraphs_rank_order.iter() {
+        println!("{:?}", sro);
+    }
+
+    let mut pc = 0;
+    let mut scheduled_map = graph.visit_map();
+
+    while scheduled_map.count_ones(..) != scheduled_map.len() {
+        let mut schedule_candidates: HashSet<NodeIndex> = HashSet::new();
+
+        for (sg_idx, node_array) in subgraphs_rank_order.iter_mut().enumerate() {
+            if node_array.done() {
+                continue;
+            }
+            let nidx = node_array.current();
+            let node = graph.node_weight_mut(nidx).unwrap();
+
+            if node.is() == Primitives::Input
+                || node.is() == Primitives::Gate
+                || node.is() == Primitives::Latch
+            {
+                schedule_candidates.insert(nidx);
+            } else {
+                let mut parents = graph.neighbors_directed(nidx, Incoming).detach();
+                let mut unresolved_dep = false;
+                while let Some(pidx) = parents.next_node(&graph) {
+                    let pnode = graph.node_weight(pidx).unwrap();
+                    if !pnode.get_info().scheduled {
+                        unresolved_dep = true;
+                        break;
+                    }
+                }
+                if !unresolved_dep {
+                    schedule_candidates.insert(nidx);
+                }
+            }
+        }
+
+        let mut dep_graph: Graph<InstOrProc, usize> = Graph::default();
+        let mut proc_nodes: HashMap<InstOrProc, NodeIndex> = HashMap::new();
+        let mut inst_criticality_map: HashMap<NodeIndex, u32> = HashMap::new();
+
+        // Construct a bipartite graph where the edges look like:
+        // Schedule Candidate Node Index -> Proc index of children
+        for nidx in schedule_candidates.iter() {
+            // add candidate instruction to dependency graph
+            let inst_node = InstOrProc { nidx: Some(*nidx), pidx: None };
+            let inst_node_idx = dep_graph.add_node(inst_node);
+            let mut criticality = 0;
+
+            let mut childs = graph.neighbors_directed(*nidx, Outgoing).detach();
+            while let Some(cidx) = childs.next_node(&graph) {
+                // for children nodes of this node, add the partition index
+                // into the dependency graph
+                let child_proc_idx = graph.node_weight(cidx).unwrap().get_info().proc;
+                let proc_node = InstOrProc { nidx: None, pidx: Some(child_proc_idx) };
+                if !proc_nodes.contains_key(&proc_node) {
+                    let proc_node_idx = dep_graph.add_node(proc_node.clone());
+                    proc_nodes.insert(proc_node.clone(), proc_node_idx);
+                }
+                dep_graph.add_edge(inst_node_idx, *proc_nodes.get(&proc_node).unwrap(), 0);
+
+                // compute criticality
+                let max_rank_node = subgraphs_rank_order.get(child_proc_idx as usize).unwrap().max_rank_node();
+                let max_rank = graph.node_weight(max_rank_node).unwrap().get_info().rank;
+                criticality = max(criticality, max_rank);
+            }
+            inst_criticality_map.insert(inst_node_idx, criticality);
+        }
+
+        // Select instructions to schedule greedily based on the criticality
+        let mut criticality_vec: Vec<(&NodeIndex, &u32)> = inst_criticality_map.iter().collect();
+        criticality_vec.sort_by(|a, b| b.1.cmp(a.1));
+
+        let mut dep_graph_vis = dep_graph.visit_map();
+
+        for (nidx, _) in criticality_vec.iter() {
+            let inst_node = dep_graph.node_weight(**nidx).unwrap();
+            let mut child_procs = dep_graph.neighbors_directed(**nidx, Outgoing).detach();
+            let mut scheduleable = true;
+
+            // check if scheduleable
+            while let Some(child_proc_idx) = child_procs.next_node(&dep_graph) {
+                if dep_graph_vis.is_visited(&child_proc_idx) {
+                    scheduleable = false;
+                    break;
+                }
+            }
+
+            if scheduleable {
+                // mark the children procs as visisted in the dependency graph
+                while let Some(child_proc_idx) = child_procs.next_node(&dep_graph) {
+                    dep_graph_vis.visit(child_proc_idx);
+                }
+
+                let original_node_idx = inst_node.nidx.unwrap();
+                let original_node = graph.node_weight_mut(original_node_idx).unwrap();
+                let proc_idx = original_node.get_info().proc;
+
+                println!("scheduling node: {:?}", original_node);
+                scheduled_map.visit(original_node_idx);
+                subgraphs_rank_order.get_mut(proc_idx as usize).unwrap().schedule();
+                original_node.set_info(NodeInfo {
+                    pc: pc,
+                    scheduled: true,
+                    ..original_node.get_info()
+                });
+            }
+        }
+
+        pc += 1;
+    }
+
+    return Circuit {
+        graph: graph,
+        ..circuit
+    };
 }
