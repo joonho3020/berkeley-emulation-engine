@@ -1,5 +1,11 @@
-use petgraph::dot::{Config, Dot};
-use petgraph::{graph::Graph, graph::NodeIndex};
+use petgraph::{
+    csr::IndexType,
+    data::DataMapMut,
+    dot::{Config, Dot},
+    graph::{Graph, NodeIndex},
+    visit::{EdgeIndexable, EdgeRef, VisitMap, Visitable},
+    Direction::Outgoing,
+};
 use std::cmp::max;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -38,7 +44,7 @@ pub struct NodeInfo {
     pub proc: u32,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Input {
     pub name: String,
     pub info: NodeInfo,
@@ -62,7 +68,13 @@ impl HWNode for Input {
     }
 }
 
-#[derive(Debug, Clone)]
+impl Debug for Input {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Input {} {:?}", self.name, self.info)
+    }
+}
+
+#[derive(Clone)]
 pub struct Output {
     pub name: String,
     pub info: NodeInfo,
@@ -86,7 +98,13 @@ impl HWNode for Output {
     }
 }
 
-#[derive(Debug, Clone)]
+impl Debug for Output {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Output {} {:?}", self.name, self.info)
+    }
+}
+
+#[derive(Clone)]
 pub struct Lut {
     pub inputs: Vec<String>,
     pub output: String,
@@ -109,6 +127,12 @@ impl HWNode for Lut {
 
     fn get_info(&mut self) -> NodeInfo {
         self.info.clone()
+    }
+}
+
+impl Debug for Lut {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Lut {:?}", self.info)
     }
 }
 
@@ -137,7 +161,7 @@ impl HWNode for Subckt {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Gate {
     pub c: String,
     pub d: String,
@@ -176,6 +200,12 @@ impl HWNode for Gate {
 
     fn get_info(&mut self) -> NodeInfo {
         self.info.clone()
+    }
+}
+
+impl Debug for Gate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Gate {:?}", self.info)
     }
 }
 
@@ -308,7 +338,7 @@ pub struct Context {
     pub gates_per_partition: u32,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Default, Clone)]
 pub struct Circuit {
     pub mods: Vec<Module>,
     pub graph: HWGraph,
@@ -336,6 +366,15 @@ impl Circuit {
     }
 
     pub fn save_all_subgraphs(&self, file_pfx: String) -> std::io::Result<()> {
+        // save main graph
+        let mut file = File::create(format!("{}-tot.dot", file_pfx))?;
+        write!(
+            &mut file,
+            "{:?}",
+            Dot::with_config(&self.graph, &[Config::EdgeNoLabel])
+        )?;
+
+        // save subgraphs
         let mut max_proc = 0;
         for nidx in self.graph.node_indices() {
             let node = self.graph.node_weight(nidx).unwrap();
@@ -352,5 +391,71 @@ impl Circuit {
             )?;
         }
         Ok(())
+    }
+}
+
+impl Debug for Circuit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let indent: &str = "    ";
+        let graph = &self.graph;
+        let io_i = &self.io_i;
+
+        // Push Input nodes
+        let mut q: Vec<NodeIndex> = vec![];
+        for nidx in io_i.keys() {
+            q.push(*nidx);
+        }
+
+        write!(f, "digraph {{\n")?;
+
+        // BFS
+        let mut vis_map = graph.visit_map();
+        while !q.is_empty() {
+            let nidx = q.remove(0);
+            if vis_map.is_visited(&nidx) {
+                continue;
+            }
+            vis_map.visit(nidx);
+            let node = graph.node_weight(nidx).unwrap();
+            // red, blue, green, white, purple
+            let proc = node.clone().get_info().proc % 5;
+            let color = match proc {
+                0 => "red",
+                1 => "blue",
+                2 => "green",
+                3 => "orange",
+                4 => "purple",
+                _ => "white",
+            };
+            write!(
+                f,
+                "{}{} [ label = \"{:?}\" color = \"{}\"]\n",
+                indent,
+                nidx.index(),
+                node,
+                color
+            )?;
+
+            let mut childs = graph.neighbors_directed(nidx, Outgoing).detach();
+            while let Some(cidx) = childs.next_node(&graph) {
+                if !vis_map.is_visited(&cidx) {
+                    q.push(cidx);
+                }
+            }
+        }
+
+        for (_, edge) in graph.edge_references().enumerate() {
+            write!(
+                f,
+                "{}{} {} {} ",
+                indent,
+                edge.source().index(),
+                "->",
+                edge.target().index(),
+            )?;
+            writeln!(f, "[ ]")?;
+        }
+
+        write!(f, "}}")
     }
 }

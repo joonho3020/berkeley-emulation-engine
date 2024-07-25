@@ -18,6 +18,7 @@ fn main() {
             };
             let c2 = runner::run_compiler_passes(c, ctx);
             let _ = c2.save_all_subgraphs(file_path.to_string());
+            println!("{:?}", c2);
         }
         Err(_) => {
             println!("ERROR");

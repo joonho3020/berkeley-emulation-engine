@@ -2,6 +2,7 @@ examples/*.blif
 examples/*.dot
 examples/*.pdf
 examples/*.tar.gz
+**/.DS_STORE
 
 
 # Added by cargo

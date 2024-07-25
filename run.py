@@ -23,9 +23,9 @@ def generate_human_readable_graphs():
   blif_path: Path = args.blif
   dotfiles = blif_path.parent.glob(f'*{blif_path.name}-*.dot')
   for df in list(dotfiles):
-    run(f'dot {df} -Tpdf > {blif_path.parent}/{df.name}.pdf')
-  run(f'tar -cvzf {blif_path.parent}/{blif_path.name}.tar.gz {blif_path.parent}/{blif_path.name}*')
-  run(f'rm {blif_path.parent}/{blif_path.name}-*')
+    run(f'dot {df} -Tpdf -Kdot > {blif_path.parent}/{df.name}.pdf')
+# run(f'tar -cvzf {blif_path.parent}/{blif_path.name}.tar.gz {blif_path.parent}/{blif_path.name}*')
+# run(f'rm {blif_path.parent}/{blif_path.name}-*')
 
 def main():
   if args.test:
