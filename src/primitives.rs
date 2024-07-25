@@ -1,9 +1,7 @@
 use petgraph::{
-    csr::IndexType,
-    data::DataMapMut,
     dot::{Config, Dot},
     graph::{Graph, NodeIndex},
-    visit::{EdgeIndexable, EdgeRef, VisitMap, Visitable},
+    visit::{EdgeRef, VisitMap, Visitable},
     Direction::Outgoing,
 };
 use std::cmp::max;

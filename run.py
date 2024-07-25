@@ -14,7 +14,8 @@ def run(cmd: str) -> subprocess.CompletedProcess:
   return subprocess.run(cmd, shell = True)
 
 def run_compiler():
-  run(f'cargo run -- {args.blif}')
+  run(f'cargo run -- {args.blif} > STUFF.dot')
+  run(f'dot STUFF.dot -Tpdf > STUFF.pdf')
 
 def run_test():
   run(f'cargo test')

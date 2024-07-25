@@ -72,10 +72,24 @@ pub fn find_rank_order(circuit: Circuit) -> Circuit {
     };
 }
 
-fn set_proc(graph: &mut HWGraph, nidx: NodeIndex, proc: u32) {
+fn set_proc(
+    graph: &mut HWGraph,
+    nidx: NodeIndex,
+    proc: u32,
+    cur_proc_size: &mut u32,
+    max_gates: u32,
+) {
     let node = graph.node_weight_mut(nidx).unwrap();
     let info = node.get_info();
-    node.set_info(NodeInfo { proc: proc, ..info })
+    node.set_info(NodeInfo { proc: proc, ..info });
+
+    *cur_proc_size = *cur_proc_size + 1;
+    assert!(
+        *cur_proc_size <= max_gates,
+        "Number of gates ({}) exceeded max_gates ({})",
+        cur_proc_size,
+        max_gates
+    );
 }
 
 pub fn map_to_processor(circuit: Circuit) -> Circuit {
@@ -105,7 +119,14 @@ pub fn map_to_processor(circuit: Circuit) -> Circuit {
             }
             vis_map.visit(nidx);
 
-            set_proc(&mut graph, nidx, proc_id);
+            // Only set the proc id if this isn't a FF node.
+            // If this node is a FF, it is the root of the BFS and the proc_id
+            // has already been set.
+            let cur_node_type = graph.node_weight_mut(nidx).unwrap().is();
+            if (cur_node_type != Primitives::Gate) && (cur_node_type != Primitives::Latch) {
+                set_proc(&mut graph, nidx, proc_id, &mut cur_proc_size, max_gates);
+            }
+
             let mut parents = graph.neighbors_directed(nidx, Incoming).detach();
             while let Some(pidx) = parents.next_node(&graph) {
                 let node_type = graph.node_weight_mut(pidx).unwrap().is();
@@ -113,18 +134,14 @@ pub fn map_to_processor(circuit: Circuit) -> Circuit {
                     if (node_type != Primitives::Gate) && (node_type != Primitives::Latch) {
                         qq.push(pidx);
                     } else {
+                        // Node is FF, add this node as the root of traversal.
+                        // However, we want this node to be included in the current processor
+                        // to reduce NOPs while scheduling instructions.
                         q.push(pidx);
+                        set_proc(&mut graph, pidx, proc_id, &mut cur_proc_size, max_gates);
                     }
                 }
             }
-
-            cur_proc_size += 1;
-            assert!(
-                cur_proc_size <= max_gates,
-                "Number of gates ({}) exceeded max_gates ({})",
-                cur_proc_size,
-                max_gates
-            );
         }
         proc_id += 1;
     }
