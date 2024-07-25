@@ -185,6 +185,10 @@ pub fn schedule_instructions(circuit: Circuit) -> Circuit {
                 });
             }
         }
+        for sro in subgraphs_rank_order.iter() {
+            println!("{:?}", sro);
+        }
+        println!("-------------------------------------");
 
         pc += 1;
     }
