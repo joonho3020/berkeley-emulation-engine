@@ -1,10 +1,9 @@
 use crate::primitives::*;
 use petgraph::{
-    graph::NodeIndex,
-    visit::{VisitMap, Visitable},
-    Direction::Outgoing,
+    data::DataMap, graph::NodeIndex, visit::{VisitMap, Visitable}, Direction::{Incoming, Outgoing}
 };
 use std::cmp::max;
+use indexmap::IndexMap;
 
 fn set_rank(graph: &mut HWGraph, nidx: NodeIndex, rank: u32) {
     let node = graph.node_weight_mut(nidx).unwrap();
@@ -43,25 +42,44 @@ pub fn find_rank_order(circuit: Circuit) -> Circuit {
         set_rank(&mut graph, *nidx, 0);
     }
 
+    // compute indeg
+    let mut indeg: IndexMap<NodeIndex, u32> = IndexMap::new();
+    for nidx in graph.node_indices() {
+        indeg.insert(nidx, 0);
+    }
+    for eidx in graph.edge_indices() {
+        let e = graph.edge_endpoints(eidx).unwrap();
+        let dst = e.1;
+        *indeg.get_mut(&dst).unwrap() += 1;
+    }
+
     // BFS
+    let mut topo_sort_order: Vec<NodeIndex> = vec![];
     let mut vis_map = graph.visit_map();
     while !q.is_empty() {
         let nidx = q.remove(0);
-        if vis_map.is_visited(&nidx) {
-            continue;
-        }
         vis_map.visit(nidx);
+        topo_sort_order.push(nidx);
 
-        let parent_rank = graph.node_weight_mut(nidx).unwrap().get_info().rank;
         let mut childs = graph.neighbors_directed(nidx, Outgoing).detach();
         while let Some(cidx) = childs.next_node(&graph) {
-            let node_type = graph.node_weight_mut(cidx).unwrap().is();
-            if (node_type != Primitives::Gate) && (node_type != Primitives::Latch) {
-                set_rank(&mut graph, cidx, parent_rank + 1);
-            }
-            if !vis_map.is_visited(&cidx) {
+            *indeg.get_mut(&cidx).unwrap() -= 1;
+            if *indeg.get(&cidx).unwrap() == 0 && !vis_map.is_visited(&cidx) {
                 q.push(cidx);
             }
+        }
+    }
+
+    for nidx in topo_sort_order.iter() {
+        let node = graph.node_weight(*nidx).unwrap();
+        if node.is() != Primitives::Gate || node.is() != Primitives::Latch {
+            let mut max_parent_rank = 0;
+            let mut parents = graph.neighbors_directed(*nidx, Incoming).detach();
+            while let Some(pidx) = parents.next_node(&graph) {
+                let parent = graph.node_weight(pidx).unwrap();
+                max_parent_rank = max(max_parent_rank, parent.get_info().rank);
+            }
+            set_rank(&mut graph, *nidx, max_parent_rank + 1);
         }
     }
 

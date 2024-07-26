@@ -83,6 +83,8 @@ pub fn schedule_instructions(circuit: Circuit) -> Circuit {
     let mut pc = 0;
     let mut scheduled_map = graph.visit_map();
 
+    let mut iter_cnt = 0;
+
     while scheduled_map.count_ones(..) != scheduled_map.len() {
         let mut schedule_candidates: IndexSet<NodeIndex> = IndexSet::new();
 
@@ -152,6 +154,7 @@ pub fn schedule_instructions(circuit: Circuit) -> Circuit {
 
         let mut dep_graph_vis = dep_graph.visit_map();
 
+        let mut scheduled_something: bool = false;
         for (nidx, _) in criticality_vec.iter() {
             let inst_node = dep_graph.node_weight(**nidx).unwrap();
             let mut child_procs = dep_graph.neighbors_directed(**nidx, Outgoing).detach();
@@ -183,6 +186,16 @@ pub fn schedule_instructions(circuit: Circuit) -> Circuit {
                     scheduled: true,
                     ..original_node.get_info()
                 });
+                scheduled_something = true;
+            }
+        }
+
+        if scheduled_something {
+            iter_cnt = 0;
+        } else {
+            iter_cnt += 1;
+            if iter_cnt > 100 {
+                break;
             }
         }
         for sro in subgraphs_rank_order.iter() {

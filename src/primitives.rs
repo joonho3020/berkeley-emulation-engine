@@ -70,10 +70,10 @@ impl PartialOrd for Box<dyn HWNode> {
 
 #[derive(Debug, Clone, Default)]
 pub struct NodeInfo {
-    pub rank: u32,
     pub proc: u32,
-    pub pc: u32,
+    pub rank: u32,
     pub scheduled: bool,
+    pub pc: u32,
 }
 
 #[derive(Clone)]
