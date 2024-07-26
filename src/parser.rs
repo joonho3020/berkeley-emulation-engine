@@ -1,7 +1,7 @@
 use crate::primitives::*;
 
 use petgraph::graph::NodeIndex;
-use std::collections::HashMap;
+use indexmap::IndexMap;
 use std::fmt;
 use std::fs;
 
@@ -75,7 +75,7 @@ fn subckt_parser<'a>(input: &'a str, subckts: &mut Vec<Subckt>) -> IResultStr<'a
     let conns_vec: Vec<&str> = sline.split(' ').collect();
     let name = conns_vec[0];
 
-    let mut conns = HashMap::new();
+    let mut conns = IndexMap::new();
     conns_vec.iter().skip(1).for_each(|c| {
         let lr: Vec<&str> = c.split('=').collect();
         let lhs = lr[0];
@@ -157,8 +157,8 @@ fn latch_parser<'a>(input: &'a str, latches: &mut Vec<Latch>) -> IResultStr<'a> 
 fn module_body_parser<'a>(input: &'a str, circuit: &mut Circuit) -> IResultStr<'a> {
     let body_end_marker = "\n.end\n";
 
-    let mut net_to_nodeidx: HashMap<String, NodeIndex> = HashMap::new();
-    let mut out_to_nodeidx: HashMap<String, NodeIndex> = HashMap::new();
+    let mut net_to_nodeidx: IndexMap<String, NodeIndex> = IndexMap::new();
+    let mut out_to_nodeidx: IndexMap<String, NodeIndex> = IndexMap::new();
 
     // Get module body
     let (i, _) = tag(".model ")(input)?;

@@ -5,7 +5,7 @@ use petgraph::{
     Direction::Outgoing,
 };
 use std::cmp::{max, Ordering};
-use std::collections::HashMap;
+use indexmap::IndexMap;
 use std::fmt::Debug;
 use std::fs::File;
 use std::io::Write;
@@ -171,7 +171,7 @@ impl Debug for Lut {
 #[derive(Debug, Clone)]
 pub struct Subckt {
     pub name: String,
-    pub conns: HashMap<String, String>,
+    pub conns: IndexMap<String, String>,
     pub info: NodeInfo,
 }
 
@@ -374,8 +374,8 @@ pub struct Context {
 pub struct Circuit {
     pub mods: Vec<Module>,
     pub graph: HWGraph,
-    pub io_i: HashMap<NodeIndex, String>,
-    pub io_o: HashMap<NodeIndex, String>,
+    pub io_i: IndexMap<NodeIndex, String>,
+    pub io_o: IndexMap<NodeIndex, String>,
     pub ctx: Context,
 }
 

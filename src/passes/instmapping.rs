@@ -3,7 +3,7 @@ use petgraph::{
     data::DataMap, graph::{Graph, NodeIndex}, visit::{IntoNeighborsDirected, VisitMap, Visitable}, Direction::{Incoming, Outgoing}
 };
 use std::cmp::max;
-use std::collections::{HashSet, HashMap};
+use indexmap::{IndexSet, IndexMap};
 
 #[derive(Eq, Hash, PartialEq, Clone)]
 struct InstOrProc {
@@ -84,7 +84,7 @@ pub fn schedule_instructions(circuit: Circuit) -> Circuit {
     let mut scheduled_map = graph.visit_map();
 
     while scheduled_map.count_ones(..) != scheduled_map.len() {
-        let mut schedule_candidates: HashSet<NodeIndex> = HashSet::new();
+        let mut schedule_candidates: IndexSet<NodeIndex> = IndexSet::new();
 
         for (sg_idx, node_array) in subgraphs_rank_order.iter_mut().enumerate() {
             if node_array.done() {
@@ -115,8 +115,8 @@ pub fn schedule_instructions(circuit: Circuit) -> Circuit {
         }
 
         let mut dep_graph: Graph<InstOrProc, usize> = Graph::default();
-        let mut proc_nodes: HashMap<InstOrProc, NodeIndex> = HashMap::new();
-        let mut inst_criticality_map: HashMap<NodeIndex, u32> = HashMap::new();
+        let mut proc_nodes: IndexMap<InstOrProc, NodeIndex> = IndexMap::new();
+        let mut inst_criticality_map: IndexMap<NodeIndex, u32> = IndexMap::new();
 
         // Construct a bipartite graph where the edges look like:
         // Schedule Candidate Node Index -> Proc index of children
