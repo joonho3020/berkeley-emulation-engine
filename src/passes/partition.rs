@@ -1,9 +1,12 @@
 use crate::primitives::*;
+use indexmap::IndexMap;
 use petgraph::{
-    data::DataMap, graph::NodeIndex, visit::{VisitMap, Visitable}, Direction::{Incoming, Outgoing}
+    data::DataMap,
+    graph::NodeIndex,
+    visit::{VisitMap, Visitable},
+    Direction::{Incoming, Outgoing},
 };
 use std::cmp::max;
-use indexmap::IndexMap;
 
 fn set_rank(graph: &mut HWGraph, nidx: NodeIndex, rank: u32) {
     let node = graph.node_weight_mut(nidx).unwrap();

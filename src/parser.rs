@@ -1,7 +1,7 @@
 use crate::primitives::*;
 
-use petgraph::graph::NodeIndex;
 use indexmap::IndexMap;
+use petgraph::graph::NodeIndex;
 use std::fmt;
 use std::fs;
 

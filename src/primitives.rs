@@ -1,3 +1,4 @@
+use indexmap::IndexMap;
 use petgraph::{
     dot::{Config, Dot},
     graph::{Graph, NodeIndex},
@@ -5,7 +6,6 @@ use petgraph::{
     Direction::Outgoing,
 };
 use std::cmp::{max, Ordering};
-use indexmap::IndexMap;
 use std::fmt::Debug;
 use std::fs::File;
 use std::io::Write;

@@ -8,7 +8,7 @@ mod passes;
 mod primitives;
 
 fn main() {
-// env::set_var("RUST_BACKTRACE", "1");
+    // env::set_var("RUST_BACKTRACE", "1");
 
     let args: Vec<String> = env::args().collect();
     let file_path = &args[1];
