@@ -12,8 +12,10 @@ use std::io::Write;
 
 pub type HWGraph = Graph<Box<dyn HWNode>, String>;
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug, Clone, Default)]
 pub enum Primitives {
+    #[default]
+    NOP,
     Input,
     Output,
     Lut,
@@ -66,6 +68,26 @@ impl PartialOrd for Box<dyn HWNode> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct Operand {
+    pub valid: bool,
+    pub rs: u32,
+    pub local: bool,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct SwitchIn {
+    pub valid: bool,
+    pub idx: u32,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct Instruction {
+    pub opcode: Primitives,
+    pub operands: Vec<Operand>,
+    pub sin: SwitchIn,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -377,6 +399,7 @@ pub struct Circuit {
     pub io_i: IndexMap<NodeIndex, String>,
     pub io_o: IndexMap<NodeIndex, String>,
     pub ctx: Context,
+    pub instructions: Vec<Vec<Instruction>>,
 }
 
 impl Circuit {
@@ -421,6 +444,17 @@ impl Circuit {
                 "{:?}",
                 Dot::with_config(&psg, &[Config::EdgeNoLabel])
             )?;
+        }
+        Ok(())
+    }
+
+    pub fn save_insts(&self, file_pfx: String) -> std::io::Result<()> {
+        let mut file = File::create(format!("{}.instructions", file_pfx))?;
+        for (proc, insts) in self.instructions.iter().enumerate() {
+            write!(&mut file, "-----------------------------\n")?;
+            for (pc, inst) in insts.iter().enumerate() {
+                write!(&mut file, "{} {}: {:?}\n", proc, pc, inst)?;
+            }
         }
         Ok(())
     }

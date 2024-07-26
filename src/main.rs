@@ -19,7 +19,8 @@ fn main() {
                 gates_per_partition: 128,
             };
             let c2 = runner::run_compiler_passes(c, ctx);
-            let _ = c2.save_all_subgraphs(file_path.to_string());
+            // let _ = c2.save_all_subgraphs(file_path.to_string());
+            let _ = c2.save_insts(file_path.to_string());
             println!("{:?}", c2);
         }
         Err(_) => {

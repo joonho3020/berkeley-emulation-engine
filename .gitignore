@@ -2,6 +2,7 @@ examples/*.blif
 examples/*.dot
 examples/*.pdf
 examples/*.tar.gz
+examples/*.instructions
 **/.DS_STORE
 
 

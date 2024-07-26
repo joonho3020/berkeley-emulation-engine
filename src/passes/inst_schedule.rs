@@ -1,9 +1,8 @@
 use crate::primitives::*;
 use indexmap::{IndexMap, IndexSet};
 use petgraph::{
-    data::DataMap,
     graph::{Graph, NodeIndex},
-    visit::{IntoNeighborsDirected, VisitMap, Visitable},
+    visit::{VisitMap, Visitable},
     Direction::{Incoming, Outgoing},
 };
 use std::cmp::max;
@@ -91,7 +90,7 @@ pub fn schedule_instructions(circuit: Circuit) -> Circuit {
     while scheduled_map.count_ones(..) != scheduled_map.len() {
         let mut schedule_candidates: IndexSet<NodeIndex> = IndexSet::new();
 
-        for (sg_idx, node_array) in subgraphs_rank_order.iter_mut().enumerate() {
+        for (_, node_array) in subgraphs_rank_order.iter_mut().enumerate() {
             if node_array.done() {
                 continue;
             }
