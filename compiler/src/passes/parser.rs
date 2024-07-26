@@ -1,9 +1,7 @@
 use crate::primitives::*;
-
 use indexmap::IndexMap;
 use petgraph::graph::NodeIndex;
-use std::fmt;
-use std::fs;
+use std::{fmt, fs};
 
 type IResultStr<'a> = IResult<&'a str, &'a str>;
 

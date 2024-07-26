@@ -5,10 +5,12 @@ use petgraph::{
     visit::{EdgeRef, VisitMap, Visitable},
     Direction::Outgoing,
 };
-use std::cmp::{max, Ordering};
-use std::fmt::Debug;
-use std::fs::File;
-use std::io::Write;
+use std::{
+    cmp::{max, Ordering},
+    fmt::Debug,
+    fs::File,
+    io::Write,
+};
 
 pub type HWGraph = Graph<Box<dyn HWNode>, String>;
 

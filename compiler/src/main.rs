@@ -1,18 +1,19 @@
-use crate::parser::parse_blif_file;
+mod fsim;
+mod passes;
+mod primitives;
+
+use crate::fsim::module;
+use crate::passes::parser;
 use crate::passes::runner;
 use crate::primitives::Context;
 use std::env;
-
-mod parser;
-mod passes;
-mod primitives;
 
 fn main() {
     // env::set_var("RUST_BACKTRACE", "1");
 
     let args: Vec<String> = env::args().collect();
     let file_path = &args[1];
-    let res = parse_blif_file(&file_path);
+    let res = parser::parse_blif_file(&file_path);
     match res {
         Ok(c) => {
             let ctx = Context {

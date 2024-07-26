@@ -1,5 +1,5 @@
 examples/*.blif
-examples/*.dot
+**/*.dot
 examples/*.pdf
 examples/*.tar.gz
 examples/*.instructions
@@ -8,4 +8,4 @@ examples/*.instructions
 
 # Added by cargo
 
-/target
+**/target

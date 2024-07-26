@@ -1,10 +1,5 @@
 use crate::primitives::*;
-use indexmap::{IndexMap, IndexSet};
-use petgraph::{
-    graph::{Graph, NodeIndex},
-    visit::{IntoNeighborsDirected, VisitMap, Visitable},
-    Direction::{Incoming, Outgoing},
-};
+use petgraph::Direction::{Incoming, Outgoing};
 use std::cmp::max;
 
 pub fn map_instructions(circuit: Circuit) -> Circuit {
