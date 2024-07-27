@@ -46,6 +46,11 @@ impl Processor {
         // Instruction fetch
         let cur_inst = &self.imem[self.pc];
 
+        // Update SDM
+        self.sdm[self.pc] = self.s_port.ip;
+
+        println!("cur_inst: {:?}", cur_inst);
+
         // Read the operands from the LDM and SDM
         let mut operands: Vec<Bit> = Vec::new();
         for op in cur_inst.operands.iter() {
@@ -53,6 +58,8 @@ impl Processor {
             let bit = if op.local { self.ldm[rs] } else { self.sdm[rs] };
             operands.push(bit);
         }
+
+        println!("operands: {:?}", operands);
 
         // LUT lookup
         let f_out = match &cur_inst.opcode {
@@ -82,12 +89,13 @@ impl Processor {
             _ => 0,
         };
 
+        println!("f_out: {:?}", f_out);
+
         // Set switch out
         self.s_port.op = f_out;
 
-        // Update LDM & SDM
+        // Update LDM
         self.ldm[self.pc] = f_out;
-        self.sdm[self.pc] = self.s_port.ip;
 
         // Increment step
         if self.pc == (self.max_steps - 1) {

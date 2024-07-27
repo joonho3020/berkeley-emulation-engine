@@ -15,6 +15,7 @@ pub struct SwitchIn {
 
 #[derive(Debug, Clone, Default)]
 pub struct Instruction {
+    pub valid: bool,
     pub opcode: Primitives,
     pub lut: u64,
     pub operands: Vec<Operand>,

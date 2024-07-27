@@ -28,6 +28,7 @@ pub fn map_instructions(circuit: Circuit) -> Circuit {
         let node_inst = node_insts.get_mut(node.get_info().pc as usize).unwrap();
 
         // assign opcode
+        node_inst.valid = true;
         node_inst.opcode = node.is();
 
         if node.is() == Primitives::Lut {
@@ -51,7 +52,6 @@ pub fn map_instructions(circuit: Circuit) -> Circuit {
 
         // assign operands
         let mut parents = graph.neighbors_directed(nidx, Incoming).detach();
-        let mut edge_cnt = 0;
         while let Some(pidx) = parents.next_node(&graph) {
             let edge_idx = graph.find_edge(pidx, nidx).unwrap();
             let mut op_idx = 0;
@@ -60,7 +60,6 @@ pub fn map_instructions(circuit: Circuit) -> Circuit {
                 let edge_name = graph.edge_weight(edge_idx).unwrap();
                 op_idx = lut_inputs.iter().position(|n| n == edge_name).unwrap();
             }
-            edge_cnt += 1;
 
             let parent = graph.node_weight(pidx).unwrap();
 
@@ -89,7 +88,7 @@ pub fn map_instructions(circuit: Circuit) -> Circuit {
                 let child_insts = all_insts.get_mut(child.get_info().proc as usize).unwrap();
                 let child_inst = child_insts.get_mut(node.get_info().pc as usize).unwrap();
                 child_inst.sin.valid = true;
-                child_inst.sin.idx = node.get_info().pc; // TODO: add network latency consideration
+                child_inst.sin.idx = node.get_info().proc; // TODO: add network latency consideration
             }
         }
     }

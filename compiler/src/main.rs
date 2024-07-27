@@ -28,12 +28,13 @@ fn main() {
 
             let all_insts = c2.instructions;
             let nprocs = all_insts.len();
-            let mut max_steps = 0;
-            for insts in all_insts.iter() {
-                max_steps = max(max_steps, insts.len());
+            let mut max_pc = 0;
+            for nidx in c2.graph.node_indices() {
+                let node = c2.graph.node_weight(nidx).unwrap();
+                max_pc = max(max_pc, node.get_info().pc);
             }
 
-            let mut module = Module::new(nprocs, max_steps);
+            let mut module = Module::new(nprocs, (max_pc + 1) as usize);
             module.set_insts(all_insts);
             // io_value2[1]
             // io_loadingValues

@@ -34,21 +34,29 @@ impl Module {
         assert!(self.procs.len() >= all_insts.len());
         for (i, insts) in all_insts.iter().enumerate() {
             for (pc, inst) in insts.iter().enumerate() {
-                self.procs[i].set_inst(inst.clone(), pc);
-                if inst.opcode == Primitives::Input {
-                    self.iprocs.push(i);
-                } else if inst.opcode == Primitives::Output {
-                    self.oprocs.push(i);
+                if pc < self.max_steps  {
+                    self.procs[i].set_inst(inst.clone(), pc);
+                    if inst.opcode == Primitives::Input {
+                        self.iprocs.push(i);
+                    } else if inst.opcode == Primitives::Output {
+                        self.oprocs.push(i);
+                    }
                 }
             }
         }
+        println!("self.iprocs: {:?}", self.iprocs);
+        println!("self.oprocs: {:?}", self.oprocs);
     }
 
     fn step(self: &mut Self) {
         for (i, proc) in self.procs.iter_mut().enumerate() {
             let switch_in_idx = proc.get_switch_in_id() as usize;
             proc.set_switch_in(self.switch.get_port_val(switch_in_idx));
+        }
+        for (i, proc) in self.procs.iter_mut().enumerate() {
             proc.step();
+        }
+        for (i, proc) in self.procs.iter_mut().enumerate() {
             self.switch.set_port_val(i, proc.get_switch_out());
         }
     }
