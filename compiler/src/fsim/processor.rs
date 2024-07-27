@@ -1,53 +1,6 @@
 use crate::fsim::common::*;
+use crate::primitives::*;
 use std::fmt::Debug;
-
-#[derive(Default, Clone, Debug)]
-pub enum Opcode {
-    #[default]
-    NOP,
-    AND,
-    OR,
-    INV,
-}
-
-impl Opcode {
-    fn perform_operation(self: &Self, operands: Vec<Bit>) -> Bit {
-        let optbit = match self {
-            Opcode::NOP => Some(0 as u8),
-            Opcode::AND => operands.into_iter().reduce(|a, b| a & b),
-            Opcode::OR => operands.into_iter().reduce(|a, b| a | b),
-            Opcode::INV => Some(!operands[0]),
-        };
-        match optbit {
-            Some(x) => x,
-            None => 0,
-        }
-    }
-}
-
-#[derive(Default, Clone, Debug)]
-pub enum SwitchOutSel {
-    #[default]
-    FUNC,
-    LSDM,
-    EXTERNAL,
-}
-
-#[derive(Default, Clone, Debug)]
-pub struct OperandInfo {
-    ldm_addr: Bits32,
-    sdm_addr: Bits32,
-    op_sel: Bit,
-}
-
-#[derive(Default, Clone, Debug)]
-pub struct Inst {
-    op_infos: Vec<OperandInfo>,
-    s_op_info: OperandInfo,
-    opcode: Opcode,
-    s_out_sel: SwitchOutSel,
-    sin_id: Bits32,
-}
 
 #[derive(Default, Clone, Debug)]
 struct SwitchPort {
@@ -58,11 +11,12 @@ struct SwitchPort {
 #[derive(Clone)]
 pub struct Processor {
     max_steps: usize,
-    imem: Vec<Inst>,
+    imem: Vec<Instruction>,
     ldm: Vec<Bit>,
     sdm: Vec<Bit>,
-    external: Bit,
-    step: usize,
+    io_i: Bit,
+    io_o: Bit,
+    pc: usize,
     cycle: usize,
     s_port: SwitchPort,
 }
@@ -71,65 +25,58 @@ impl Processor {
     pub fn new(max_steps_: usize) -> Self {
         Processor {
             max_steps: max_steps_,
-            imem: vec![Inst::default(); max_steps_],
+            imem: vec![Instruction::default(); max_steps_],
             ldm: vec![Bit::default(); max_steps_],
             sdm: vec![Bit::default(); max_steps_],
-            external: 0,
-            step: 0,
+            io_i: 0,
+            io_o: 0,
+            pc: 0,
             cycle: 0,
             s_port: SwitchPort::default(),
         }
     }
 
-    pub fn set_inst(self: &mut Self, inst: Inst, step: usize) {
+    pub fn set_inst(self: &mut Self, inst: Instruction, step: usize) {
         assert!(step < self.imem.len());
         self.imem[step] = inst;
     }
 
     pub fn step(self: &mut Self) {
         // Instruction fetch
-        let cur_inst = &self.imem[self.step];
+        let cur_inst = &self.imem[self.pc];
 
         // Read the operands from the LDM and SDM
         let mut operands: Vec<Bit> = Vec::new();
-        for oi in cur_inst.op_infos.iter() {
-            let ldm_bit = self.ldm[oi.ldm_addr as usize];
-            let sdm_bit = self.sdm[oi.sdm_addr as usize];
-            let bit = if oi.op_sel == 0 { ldm_bit } else { sdm_bit };
-            operands.push(bit);
+        for op in cur_inst.operands.iter() {
+            if op.valid {
+                let rs = op.rs as usize;
+                let bit = if op.local { self.ldm[rs] } else { self.sdm[rs] };
+                operands.push(bit);
+            }
         }
 
-        let s_op_out = if cur_inst.s_op_info.op_sel == 0 {
-            self.ldm[cur_inst.s_op_info.ldm_addr as usize]
-        } else {
-            self.sdm[cur_inst.s_op_info.sdm_addr as usize]
-        };
-
         // LUT lookup
-        let f_out = cur_inst.opcode.perform_operation(operands);
+        let f_out = 0;
+        // cur_inst.opcode.perform_operation(operands);
 
         // Set switch out
-        self.s_port.op = match cur_inst.s_out_sel {
-            SwitchOutSel::FUNC => f_out,
-            SwitchOutSel::LSDM => s_op_out,
-            SwitchOutSel::EXTERNAL => self.external,
-        };
+        self.s_port.op = f_out;
 
         // Update LDM & SDM
-        self.ldm[self.step] = f_out;
-        self.sdm[self.step] = self.s_port.ip;
+        self.ldm[self.pc] = f_out;
+        self.sdm[self.pc] = self.s_port.ip;
 
         // Increment step
-        if self.step == (self.max_steps - 1) {
+        if self.pc == (self.max_steps - 1) {
             self.cycle += 1;
-            self.step = 0;
+            self.pc = 0;
         } else {
-            self.step += 1;
+            self.pc += 1;
         }
     }
 
     pub fn get_switch_in_id(self: &Self) -> Bits32 {
-        self.imem[self.step].sin_id
+        self.imem[self.pc].sin.idx
     }
 
     pub fn set_switch_in(self: &mut Self, b: Bit) {
@@ -145,8 +92,8 @@ impl Debug for Processor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Proc[\n  {:?}\n  {:?}\n  external {:#}\n",
-            self.imem[self.step], self.s_port, self.external
+            "Proc[\n  {:?}\n  {:?}\n  io_i {} io_o {}\n",
+            self.imem[self.pc], self.s_port, self.io_i, self.io_o
         )?;
 
         write!(f, "  ldm:\n")?;

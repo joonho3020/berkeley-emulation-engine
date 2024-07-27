@@ -41,14 +41,14 @@ pub fn dead_code_elimination(circuit: Circuit) -> Circuit {
 
             // TODO : find a case where this actually happens and test it?
             if io_i.contains_key(&nidx) {
-                io_i.remove(&nidx);
-            } else if let Some(v) = io_i.remove(&last_nidx) {
+                io_i.swap_remove(&nidx);
+            } else if let Some(v) = io_i.swap_remove(&last_nidx) {
                 io_i.insert(nidx, v);
             }
 
             if io_o.contains_key(&nidx) {
-                io_o.remove(&nidx);
-            } else if let Some(v) = io_o.remove(&last_nidx) {
+                io_o.swap_remove(&nidx);
+            } else if let Some(v) = io_o.swap_remove(&last_nidx) {
                 io_o.insert(nidx, v);
             }
 

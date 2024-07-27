@@ -1,7 +1,6 @@
 use crate::primitives::*;
 use indexmap::IndexMap;
 use petgraph::{
-    data::DataMap,
     graph::NodeIndex,
     visit::{VisitMap, Visitable},
     Direction::{Incoming, Outgoing},

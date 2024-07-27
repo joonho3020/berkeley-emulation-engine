@@ -138,23 +138,27 @@ pub fn schedule_instructions(circuit: Circuit) -> Circuit {
                 // for children nodes of this node, add the partition index
                 // into the dependency graph
                 let child_proc_idx = graph.node_weight(cidx).unwrap().get_info().proc;
-                let proc_node = InstOrProc {
-                    nidx: None,
-                    pidx: Some(child_proc_idx),
-                };
-                if !proc_nodes.contains_key(&proc_node) {
-                    let proc_node_idx = dep_graph.add_node(proc_node.clone());
-                    proc_nodes.insert(proc_node.clone(), proc_node_idx);
-                }
-                dep_graph.add_edge(inst_node_idx, *proc_nodes.get(&proc_node).unwrap(), 0);
+                let cur_proc_idx = graph.node_weight(*nidx).unwrap().get_info().proc;
+                if child_proc_idx != cur_proc_idx {
+                    let proc_node = InstOrProc {
+                        nidx: None,
+                        pidx: Some(child_proc_idx),
+                    };
+                    if !proc_nodes.contains_key(&proc_node) {
+                        let proc_node_idx = dep_graph.add_node(proc_node.clone());
+                        proc_nodes.insert(proc_node.clone(), proc_node_idx);
+                    }
 
-                // compute criticality
-                let max_rank_node = subgraphs_rank_order
-                    .get(child_proc_idx as usize)
-                    .unwrap()
-                    .max_rank_node();
-                let max_rank = graph.node_weight(max_rank_node).unwrap().get_info().rank;
-                criticality = max(criticality, max_rank);
+                    dep_graph.add_edge(inst_node_idx, *proc_nodes.get(&proc_node).unwrap(), 0);
+
+                    // compute criticality
+                    let max_rank_node = subgraphs_rank_order
+                        .get(child_proc_idx as usize)
+                        .unwrap()
+                        .max_rank_node();
+                    let max_rank = graph.node_weight(max_rank_node).unwrap().get_info().rank;
+                    criticality = max(criticality, max_rank);
+                }
             }
             inst_criticality_map.insert(inst_node_idx, criticality);
         }
@@ -180,8 +184,11 @@ pub fn schedule_instructions(circuit: Circuit) -> Circuit {
 
             if scheduleable {
                 // mark the children procs as visisted in the dependency graph
-                while let Some(child_proc_idx) = child_procs.next_node(&dep_graph) {
+                let mut child_procs_to_remove =
+                    dep_graph.neighbors_directed(**nidx, Outgoing).detach();
+                while let Some(child_proc_idx) = child_procs_to_remove.next_node(&dep_graph) {
                     dep_graph_vis.visit(child_proc_idx);
+                    // println!("child_proc_idx: {:?}", child_proc_idx);
                 }
 
                 let original_node_idx = inst_node.nidx.unwrap();

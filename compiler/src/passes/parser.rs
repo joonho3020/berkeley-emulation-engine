@@ -220,6 +220,11 @@ fn module_body_parser<'a>(input: &'a str, circuit: &mut Circuit) -> IResultStr<'
         net_to_nodeidx.insert(gate.q.to_string(), nidx);
     }
 
+    for latch in latches.iter() {
+        let nidx = circuit.graph.add_node(Box::new(latch.clone()));
+        net_to_nodeidx.insert(latch.output.to_string(), nidx);
+    }
+
     for lut in luts.iter() {
         for inet in lut.inputs.iter() {
             let src_nidx = net_to_nodeidx.get(inet).unwrap();
@@ -242,6 +247,14 @@ fn module_body_parser<'a>(input: &'a str, circuit: &mut Circuit) -> IResultStr<'
             }
             None => (),
         };
+    }
+
+    for latch in latches.iter() {
+        let d_idx = net_to_nodeidx.get(&latch.input).unwrap();
+        let q_idx = net_to_nodeidx.get(&latch.output).unwrap();
+        circuit
+            .graph
+            .add_edge(*d_idx, *q_idx, latch.input.to_string());
     }
 
     for o in outputs.iter() {

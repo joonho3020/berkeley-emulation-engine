@@ -7,64 +7,59 @@
 .names $true
 1
 .names $undef
-.names io_loadingValues $abc$223$new_n19_ $abc$223$auto$opt_dff.cc:194:make_patterns_logic$21
-01 1
-10 1
-11 1
-.names x[1] y[1] $abc$223$new_n20_ $abc$223$new_n19_
-001 1
-100 1
-101 1
-111 1
-.names x[0] y[0] $abc$223$new_n20_
-10 1
-.names $abc$223$new_n19_ io_loadingValues $abc$223$auto$opt_dff.cc:194:make_patterns_logic$24
-00 1
-01 1
-11 1
 .names y[1] y[0] io_outputValid
 00 1
-.names $abc$223$new_n24_ io_value2[0] io_loadingValues $0\y[1:0][0]
-011 1
-100 1
-101 1
-110 1
-111 1
-.names io_loadingValues $abc$223$new_n25_ $abc$223$new_n19_ $abc$223$new_n24_
+.names $abc$194$new_n23_ $abc$194$new_n18_ $abc$194$new_n20_ $0\y[1:0][0]
 000 1
-.names x[0] y[0] $abc$223$new_n25_
-00 1
-11 1
-.names io_loadingValues $abc$223$new_n27_ io_value2[1] $0\y[1:0][1]
 010 1
 011 1
-101 1
-111 1
-.names y[1] x[1] $abc$223$new_n20_ $abc$223$new_n27_
+.names y[0] $abc$194$new_n19_ $abc$194$new_n18_
+10 1
+.names x[0] y[1] x[1] $abc$194$new_n19_
 100 1
-.names $abc$223$new_n29_ io_value1[0] io_loadingValues $0\x[1:0][0]
-011 1
-100 1
-101 1
 110 1
 111 1
-.names $abc$223$new_n19_ io_loadingValues $abc$223$new_n25_ $abc$223$new_n29_
+.names io_loadingValues $abc$194$new_n26_ $abc$194$new_n22_ $abc$194$new_n20_
+000 1
+001 1
+010 1
+.names y[1] x[1] $abc$194$new_n22_
+10 1
+.names io_loadingValues io_value2[0] $abc$194$new_n23_
+10 1
+.names x[0] y[1] y[0] $abc$194$new_n26_
+110 1
+.names y[0] x[0] y[1] $abc$194$new_n35_
 100 1
-.names io_loadingValues $abc$223$new_n31_ io_value1[1] $0\x[1:0][1]
+.names $abc$194$new_n26_ $abc$194$new_n22_ $abc$194$new_n37_
+01 1
+10 1
+.names io_loadingValues io_value2[1] $abc$194$new_n37_ $0\y[1:0][1]
+001 1
+011 1
+110 1
+111 1
+.names x[1] y[0] y[1] $abc$194$new_n39_
+110 1
+.names x[0] $abc$194$new_n39_ $abc$194$new_n40_
+01 1
+10 1
+.names io_loadingValues $abc$194$new_n40_ io_value1[0] $0\x[1:0][0]
 010 1
 011 1
 101 1
 111 1
-.names $abc$223$new_n32_ y[0] x[0] $abc$223$new_n31_
+.names x[1] $abc$194$new_n35_ $abc$194$new_n26_ $abc$194$new_n42_
 100 1
-101 1
+.names io_loadingValues io_value1[1] $abc$194$new_n42_ $0\x[1:0][1]
+001 1
+011 1
+110 1
 111 1
-.names x[1] y[1] $abc$223$new_n32_
-10 1
-.gate $_DFFE_PP_ C=clock D=$0\x[1:0][0] E=$abc$223$auto$opt_dff.cc:194:make_patterns_logic$21 Q=x[0]
-.gate $_DFFE_PP_ C=clock D=$0\x[1:0][1] E=$abc$223$auto$opt_dff.cc:194:make_patterns_logic$21 Q=x[1]
-.gate $_DFFE_PP_ C=clock D=$0\y[1:0][0] E=$abc$223$auto$opt_dff.cc:194:make_patterns_logic$24 Q=y[0]
-.gate $_DFFE_PP_ C=clock D=$0\y[1:0][1] E=$abc$223$auto$opt_dff.cc:194:make_patterns_logic$24 Q=y[1]
+.latch $0\x[1:0][0] x[0] re clock 2
+.latch $0\x[1:0][1] x[1] re clock 2
+.latch $0\y[1:0][0] y[0] re clock 2
+.latch $0\y[1:0][1] y[1] re clock 2
 .names x[0] io_outputGCD[0]
 1 1
 .names x[1] io_outputGCD[1]

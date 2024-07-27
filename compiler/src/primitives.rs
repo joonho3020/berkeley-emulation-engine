@@ -285,7 +285,7 @@ impl LatchInit {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Latch {
     pub input: String,
     pub output: String,
@@ -321,6 +321,12 @@ impl HWNode for Latch {
 
     fn get_info(&self) -> NodeInfo {
         self.info.clone()
+    }
+}
+
+impl Debug for Latch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Latch {:?}", self.info)
     }
 }
 
