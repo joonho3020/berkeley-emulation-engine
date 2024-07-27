@@ -1,3 +1,4 @@
+use crate::instruction::Instruction;
 use indexmap::IndexMap;
 use petgraph::{
     dot::{Config, Dot},
@@ -32,6 +33,7 @@ pub trait HWNode: Debug {
     fn box_clone(&self) -> Box<dyn HWNode>;
     fn set_info(&mut self, info: NodeInfo);
     fn get_info(&self) -> NodeInfo;
+    fn get_lut(&self) -> Option<Lut>;
 }
 
 impl Clone for Box<dyn HWNode> {
@@ -73,26 +75,6 @@ impl PartialOrd for Box<dyn HWNode> {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct Operand {
-    pub valid: bool,
-    pub rs: u32,
-    pub local: bool,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct SwitchIn {
-    pub valid: bool,
-    pub idx: u32,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct Instruction {
-    pub opcode: Primitives,
-    pub operands: Vec<Operand>,
-    pub sin: SwitchIn,
-}
-
-#[derive(Debug, Clone, Default)]
 pub struct NodeInfo {
     pub proc: u32,
     pub rank: u32,
@@ -121,6 +103,10 @@ impl HWNode for Input {
 
     fn get_info(&self) -> NodeInfo {
         self.info.clone()
+    }
+
+    fn get_lut(&self) -> Option<Lut> {
+        None
     }
 }
 
@@ -151,6 +137,10 @@ impl HWNode for Output {
 
     fn get_info(&self) -> NodeInfo {
         self.info.clone()
+    }
+
+    fn get_lut(&self) -> Option<Lut> {
+        None
     }
 }
 
@@ -184,6 +174,10 @@ impl HWNode for Lut {
     fn get_info(&self) -> NodeInfo {
         self.info.clone()
     }
+
+    fn get_lut(&self) -> Option<Lut> {
+        Some(self.clone())
+    }
 }
 
 impl Debug for Lut {
@@ -214,6 +208,10 @@ impl HWNode for Subckt {
 
     fn get_info(&self) -> NodeInfo {
         self.info.clone()
+    }
+
+    fn get_lut(&self) -> Option<Lut> {
+        None
     }
 }
 
@@ -256,6 +254,10 @@ impl HWNode for Gate {
 
     fn get_info(&self) -> NodeInfo {
         self.info.clone()
+    }
+
+    fn get_lut(&self) -> Option<Lut> {
+        None
     }
 }
 
@@ -322,6 +324,10 @@ impl HWNode for Latch {
     fn get_info(&self) -> NodeInfo {
         self.info.clone()
     }
+
+    fn get_lut(&self) -> Option<Lut> {
+        None
+    }
 }
 
 impl Debug for Latch {
@@ -357,6 +363,10 @@ impl HWNode for Module {
 
     fn get_info(&self) -> NodeInfo {
         self.info.clone()
+    }
+
+    fn get_lut(&self) -> Option<Lut> {
+        None
     }
 }
 

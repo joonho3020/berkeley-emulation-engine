@@ -1,5 +1,6 @@
 use crate::fsim::common::*;
-use crate::primitives::*;
+use crate::instruction::Instruction;
+use crate::primitives::Primitives;
 use std::fmt::Debug;
 
 #[derive(Default, Clone, Debug)]
@@ -48,16 +49,38 @@ impl Processor {
         // Read the operands from the LDM and SDM
         let mut operands: Vec<Bit> = Vec::new();
         for op in cur_inst.operands.iter() {
-            if op.valid {
-                let rs = op.rs as usize;
-                let bit = if op.local { self.ldm[rs] } else { self.sdm[rs] };
-                operands.push(bit);
-            }
+            let rs = op.rs as usize;
+            let bit = if op.local { self.ldm[rs] } else { self.sdm[rs] };
+            operands.push(bit);
         }
 
         // LUT lookup
-        let f_out = 0;
-        // cur_inst.opcode.perform_operation(operands);
+        let f_out = match &cur_inst.opcode {
+            Primitives::NOP => 0,
+            Primitives::Input => self.io_i,
+            Primitives::Lut => {
+                let mut entry = 0;
+                for (i, bit) in operands.iter().enumerate() {
+                    entry = entry + (bit << i);
+                }
+                ((cur_inst.lut >> entry) & 1) as u8
+            }
+            Primitives::Output => {
+                assert!(operands.len() == 1, "Output has {} inputs", operands.len());
+                let bit = *operands.get(0).unwrap();
+                self.io_o = bit;
+                bit
+            }
+            Primitives::Gate | Primitives::Latch => {
+                assert!(
+                    operands.len() == 1,
+                    "Gate/Latch has {} inputs",
+                    operands.len()
+                );
+                *operands.get(0).unwrap()
+            }
+            _ => 0,
+        };
 
         // Set switch out
         self.s_port.op = f_out;
@@ -85,6 +108,14 @@ impl Processor {
 
     pub fn get_switch_out(self: &mut Self) -> Bit {
         self.s_port.op
+    }
+
+    pub fn set_io_i(self: &mut Self, x: Bit) {
+        self.io_i = x
+    }
+
+    pub fn get_io_o(self: &mut Self) -> Bit {
+        self.io_o
     }
 }
 
