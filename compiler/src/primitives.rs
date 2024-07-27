@@ -408,6 +408,7 @@ impl Debug for Module {
 #[derive(Debug, Default, Clone)]
 pub struct Context {
     pub gates_per_partition: u32,
+    pub network_latency: u32,
 }
 
 #[derive(Default, Clone)]

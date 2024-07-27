@@ -11,15 +11,15 @@ struct SwitchPort {
 
 #[derive(Clone)]
 pub struct Processor {
-    max_steps: usize,
-    imem: Vec<Instruction>,
-    ldm: Vec<Bit>,
-    sdm: Vec<Bit>,
-    io_i: Bit,
-    io_o: Bit,
-    pc: usize,
-    cycle: usize,
-    s_port: SwitchPort,
+    pub max_steps: usize,
+    pub imem: Vec<Instruction>,
+    pub ldm: Vec<Bit>,
+    pub sdm: Vec<Bit>,
+    pub io_i: Bit,
+    pub io_o: Bit,
+    pub pc: usize,
+    pub cycle: usize,
+    pub s_port: SwitchPort,
 }
 
 impl Processor {

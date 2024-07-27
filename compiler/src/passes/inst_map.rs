@@ -71,7 +71,7 @@ pub fn map_instructions(circuit: Circuit) -> Circuit {
                 });
             } else {
                 node_inst.operands.push(Operand {
-                    rs: parent.get_info().pc, // TODO: add network latency consideration
+                    rs: parent.get_info().pc + circuit.ctx.network_latency,
                     local: false,
                     idx: op_idx as u32,
                 });
@@ -86,9 +86,12 @@ pub fn map_instructions(circuit: Circuit) -> Circuit {
 
             if child.get_info().proc != node.get_info().proc {
                 let child_insts = all_insts.get_mut(child.get_info().proc as usize).unwrap();
-                let child_inst = child_insts.get_mut(node.get_info().pc as usize).unwrap();
+                let child_inst = child_insts
+                    .get_mut((node.get_info().pc + circuit.ctx.network_latency) as usize)
+                    .unwrap();
+                child_inst.valid = true;
                 child_inst.sin.valid = true;
-                child_inst.sin.idx = node.get_info().proc; // TODO: add network latency consideration
+                child_inst.sin.idx = node.get_info().proc;
             }
         }
     }
