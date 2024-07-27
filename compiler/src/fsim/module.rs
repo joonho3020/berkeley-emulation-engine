@@ -50,7 +50,7 @@ impl Module {
 
     fn print(self: &Self) {
         print!("    ");
-        for (i, proc) in self.procs.iter().enumerate() {
+        for (i, _) in self.procs.iter().enumerate() {
             print!("   {:02}   ", i);
         }
         print!("\n");
@@ -61,7 +61,7 @@ impl Module {
             } else {
                 print!("    {:02}", pc);
             }
-            for (i, proc) in self.procs.iter().enumerate() {
+            for (_, proc) in self.procs.iter().enumerate() {
                 print!(" | {}{} | ", proc.ldm[pc], proc.sdm[pc]);
             }
             print!("\n");
@@ -69,11 +69,11 @@ impl Module {
     }
 
     fn step(self: &mut Self) {
-        for (i, proc) in self.procs.iter_mut().enumerate() {
+        for (_, proc) in self.procs.iter_mut().enumerate() {
             let switch_in_idx = proc.get_switch_in_id() as usize;
             proc.set_switch_in(self.switch.get_port_val(switch_in_idx));
         }
-        for (i, proc) in self.procs.iter_mut().enumerate() {
+        for (_, proc) in self.procs.iter_mut().enumerate() {
             proc.step();
         }
         self.print();

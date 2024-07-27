@@ -80,10 +80,6 @@ pub fn schedule_instructions(circuit: Circuit) -> Circuit {
         });
     }
 
-    // for sro in subgraphs_rank_order.iter() {
-    // println!("{:?}", sro);
-    // }
-
     let mut pc = 0;
     let mut scheduled_map = graph.visit_map();
 
@@ -208,12 +204,6 @@ pub fn schedule_instructions(circuit: Circuit) -> Circuit {
                 });
             }
         }
-
-        // for sro in subgraphs_rank_order.iter() {
-        // println!("{:?}", sro);
-        // }
-        // println!("-------------------------------------");
-
         pc += 1;
     }
 

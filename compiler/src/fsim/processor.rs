@@ -4,7 +4,7 @@ use crate::primitives::Primitives;
 use std::fmt::Debug;
 
 #[derive(Default, Clone, Debug)]
-struct SwitchPort {
+pub struct SwitchPort {
     ip: Bit,
     op: Bit,
 }

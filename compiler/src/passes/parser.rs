@@ -263,17 +263,6 @@ fn module_body_parser<'a>(input: &'a str, circuit: &mut Circuit) -> IResultStr<'
         circuit.graph.add_edge(*src_nidx, *dst_nidx, o.to_string());
     }
 
-    circuit.mods.push(Module {
-        name: name.to_string(),
-        inputs: inputs,
-        outputs: outputs,
-        luts: luts,
-        subckts: subckts,
-        gates: gates,
-        latches: latches,
-        info: NodeInfo::default(),
-    });
-
     if i.len() > body_end_marker.to_string().len() {
         // Advance to the next .end
         (i, _) = take_until(".")(i)?;

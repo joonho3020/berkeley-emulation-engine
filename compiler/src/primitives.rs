@@ -413,7 +413,6 @@ pub struct Context {
 
 #[derive(Default, Clone)]
 pub struct Circuit {
-    pub mods: Vec<Module>,
     pub graph: HWGraph,
     pub io_i: IndexMap<NodeIndex, String>,
     pub io_o: IndexMap<NodeIndex, String>,

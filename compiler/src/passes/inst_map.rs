@@ -1,6 +1,5 @@
 use crate::instruction::*;
 use crate::primitives::*;
-use petgraph::data::DataMap;
 use petgraph::Direction::{Incoming, Outgoing};
 use std::cmp::max;
 
