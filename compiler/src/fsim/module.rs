@@ -31,13 +31,15 @@ impl Module {
         }
     }
 
+    /// Given a circuit that went through the compiler pass,
+    /// return a Module with instructions from the compiler pass mapped
     pub fn from_circuit(c: Circuit) -> Self {
-        let all_insts = c.instructions;
+        let all_insts = c.emulator.instructions;
         let nprocs = all_insts.len();
         let mut max_pc = 0;
         for nidx in c.graph.node_indices() {
             let node = c.graph.node_weight(nidx).unwrap();
-            max_pc = max(max_pc, node.get_info().pc + c.ctx.network_latency);
+            max_pc = max(max_pc, node.get_info().pc + c.emulator.cfg.network_latency);
         }
 
         let host_steps = max_pc + 1;

@@ -3,11 +3,12 @@ mod instruction;
 mod passes;
 mod primitives;
 
+use petgraph::dot::Config;
+
 use crate::fsim::module::*;
 use crate::passes::parser;
 use crate::passes::runner;
-use crate::primitives::Context;
-use std::cmp::max;
+use crate::primitives::Configuration;
 use std::env;
 
 fn main() {
@@ -24,11 +25,11 @@ fn main() {
         }
     };
 
-    let ctx = Context {
+    let cfg = Configuration {
         gates_per_partition: 128,
         network_latency: 1,
     };
-    parsed_circuit.set_ctx(ctx);
+    parsed_circuit.set_cfg(cfg);
 
     let mapped_circuit = runner::run_compiler_passes(parsed_circuit);
     let mut module = Module::from_circuit(mapped_circuit);

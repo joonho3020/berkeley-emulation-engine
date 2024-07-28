@@ -123,7 +123,7 @@ pub fn map_to_processor(circuit: Circuit) -> Circuit {
     }
 
     let mut proc_id = 0;
-    let max_gates = circuit.ctx.gates_per_partition;
+    let max_gates = circuit.emulator.cfg.gates_per_partition;
 
     let mut vis_map = graph.visit_map();
     while !q.is_empty() {

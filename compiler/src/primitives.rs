@@ -50,6 +50,7 @@ pub trait HWNode: Debug {
     fn set_info(&mut self, info: NodeInfo);
     fn get_info(&self) -> NodeInfo;
     fn get_lut(&self) -> Option<Lut>;
+    fn name(&self) -> &str;
 }
 
 impl Clone for Box<dyn HWNode> {
@@ -116,6 +117,10 @@ impl HWNode for Input {
     fn get_lut(&self) -> Option<Lut> {
         None
     }
+
+    fn name(&self) -> &str {
+        &self.name
+    }
 }
 
 impl Debug for Input {
@@ -149,6 +154,10 @@ impl HWNode for Output {
 
     fn get_lut(&self) -> Option<Lut> {
         None
+    }
+
+    fn name(&self) -> &str {
+        &self.name
     }
 }
 
@@ -186,6 +195,10 @@ impl HWNode for Lut {
     fn get_lut(&self) -> Option<Lut> {
         Some(self.clone())
     }
+
+    fn name(&self) -> &str {
+        &self.output
+    }
 }
 
 impl Debug for Lut {
@@ -220,6 +233,10 @@ impl HWNode for Subckt {
 
     fn get_lut(&self) -> Option<Lut> {
         None
+    }
+
+    fn name(&self) -> &str {
+        &self.name
     }
 }
 
@@ -266,6 +283,10 @@ impl HWNode for Gate {
 
     fn get_lut(&self) -> Option<Lut> {
         None
+    }
+
+    fn name(&self) -> &str {
+        &self.q
     }
 }
 
@@ -336,6 +357,10 @@ impl HWNode for Latch {
     fn get_lut(&self) -> Option<Lut> {
         None
     }
+
+    fn name(&self) -> &str {
+        &self.output
+    }
 }
 
 impl Debug for Latch {
@@ -376,6 +401,10 @@ impl HWNode for Module {
     fn get_lut(&self) -> Option<Lut> {
         None
     }
+
+    fn name(&self) -> &str {
+        &self.name
+    }
 }
 
 impl Debug for Module {
@@ -413,10 +442,19 @@ impl Debug for Module {
     }
 }
 
+/// # Context
+/// - Configuration of the underlying hardware emulation platform
 #[derive(Debug, Default, Clone)]
-pub struct Context {
+pub struct Configuration {
     pub gates_per_partition: u32,
     pub network_latency: u32,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct EmulatorInfo {
+    pub cfg: Configuration,
+    pub instructions: Vec<Vec<Instruction>>,
+    pub signal_map: IndexMap<String, NodeInfo>
 }
 
 #[derive(Default, Clone)]
@@ -424,13 +462,12 @@ pub struct Circuit {
     pub graph: HWGraph,
     pub io_i: IndexMap<NodeIndex, String>, // Nodes that represent the input IO port
     pub io_o: IndexMap<NodeIndex, String>, // Nodes that represent the output IO port
-    pub ctx: Context,
-    pub instructions: Vec<Vec<Instruction>>,
+    pub emulator: EmulatorInfo
 }
 
 impl Circuit {
-    pub fn set_ctx(&mut self, ctx: Context) {
-        self.ctx = ctx;
+    pub fn set_cfg(&mut self, cfg: Configuration) {
+        self.emulator.cfg = cfg;
     }
 
     pub fn proc_subgraph(&self, proc_id: u32) -> Graph<&Box<dyn HWNode>, &String> {
@@ -476,7 +513,7 @@ impl Circuit {
 
     pub fn save_insts(&self, file_pfx: String) -> std::io::Result<()> {
         let mut file = File::create(format!("{}.instructions", file_pfx))?;
-        for (proc, insts) in self.instructions.iter().enumerate() {
+        for (proc, insts) in self.emulator.instructions.iter().enumerate() {
             write!(&mut file, "-----------------------------\n")?;
             for (pc, inst) in insts.iter().enumerate() {
                 write!(&mut file, "{} {}: {:?}\n", proc, pc, inst)?;

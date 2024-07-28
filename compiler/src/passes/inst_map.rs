@@ -18,7 +18,7 @@ pub fn map_instructions(circuit: Circuit) -> Circuit {
     let mut all_insts: Vec<Vec<Instruction>> = vec![];
     for _ in 0..(max_proc + 1) {
         let mut insts: Vec<Instruction> = vec![];
-        for _ in 0..circuit.ctx.gates_per_partition {
+        for _ in 0..circuit.emulator.cfg.gates_per_partition {
             insts.push(Instruction::default());
         }
         all_insts.push(insts);
@@ -73,7 +73,7 @@ pub fn map_instructions(circuit: Circuit) -> Circuit {
                 });
             } else {
                 node_inst.operands.push(Operand {
-                    rs: parent.get_info().pc + circuit.ctx.network_latency,
+                    rs: parent.get_info().pc + circuit.emulator.cfg.network_latency,
                     local: false,
                     idx: op_idx as u32,
                 });
@@ -89,7 +89,7 @@ pub fn map_instructions(circuit: Circuit) -> Circuit {
             if child.get_info().proc != node.get_info().proc {
                 let child_insts = all_insts.get_mut(child.get_info().proc as usize).unwrap();
                 let child_inst = child_insts
-                    .get_mut((node.get_info().pc + circuit.ctx.network_latency) as usize)
+                    .get_mut((node.get_info().pc + circuit.emulator.cfg.network_latency) as usize)
                     .unwrap();
                 child_inst.valid = true;
                 child_inst.sin.valid = true;
@@ -99,7 +99,10 @@ pub fn map_instructions(circuit: Circuit) -> Circuit {
     }
 
     return Circuit {
-        instructions: all_insts,
+        emulator: EmulatorInfo {
+            instructions: all_insts,
+            ..circuit.emulator
+        },
         graph: graph,
         ..circuit
     };
