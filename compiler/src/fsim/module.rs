@@ -2,8 +2,9 @@ use crate::fsim::common::*;
 use crate::fsim::processor::*;
 use crate::fsim::switch::*;
 use crate::instruction::Instruction;
-use crate::primitives::Primitives;
+use crate::primitives::{Primitives, Circuit};
 use std::fmt::Debug;
+use std::cmp::max;
 
 pub struct Module {
     switch: Switch,
@@ -28,6 +29,22 @@ impl Module {
             iprocs: vec![],
             oprocs: vec![],
         }
+    }
+
+    pub fn from_circuit(c: Circuit) -> Self {
+        let all_insts = c.instructions;
+        let nprocs = all_insts.len();
+        let mut max_pc = 0;
+        for nidx in c.graph.node_indices() {
+            let node = c.graph.node_weight(nidx).unwrap();
+            max_pc = max(max_pc, node.get_info().pc + c.ctx.network_latency);
+        }
+
+        let host_steps = max_pc + 1;
+        let mut module = Module::new(nprocs, host_steps as usize);
+        module.set_insts(all_insts);
+
+        return module;
     }
 
     pub fn set_insts(self: &mut Self, all_insts: Vec<Vec<Instruction>>) {

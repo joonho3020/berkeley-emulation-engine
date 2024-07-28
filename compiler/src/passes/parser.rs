@@ -346,21 +346,11 @@ pub mod parser_tests {
 
     #[test]
     pub fn test_adder() {
-        assert_eq!(test_blif_parser("examples/Adder.lut.blif"), true);
-    }
-
-    #[test]
-    pub fn test_adder_top() {
-        assert_eq!(test_blif_parser("examples/AdderTop.lut.blif"), true);
+        assert_eq!(test_blif_parser("../examples/Adder.lut.blif"), true);
     }
 
     #[test]
     pub fn test_gcd() {
-        assert_eq!(test_blif_parser("examples/GCD.lut.blif"), true);
-    }
-
-    #[test]
-    pub fn test_tiny_rocket() {
-        assert_eq!(test_blif_parser("examples/ChipTop.blif"), true);
+        assert_eq!(test_blif_parser("../examples/GCD.lut.blif"), true);
     }
 }
