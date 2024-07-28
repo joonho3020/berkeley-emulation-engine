@@ -11,28 +11,28 @@ pub struct SwitchPort {
 
 #[derive(Clone)]
 pub struct Processor {
-    pub max_steps: usize,
+    pub host_steps: usize,
     pub imem: Vec<Instruction>,
     pub ldm: Vec<Bit>,
     pub sdm: Vec<Bit>,
     pub io_i: Bit,
     pub io_o: Bit,
     pub pc: usize,
-    pub cycle: usize,
+    pub target_cycle: usize,
     pub s_port: SwitchPort,
 }
 
 impl Processor {
-    pub fn new(max_steps_: usize) -> Self {
+    pub fn new(host_steps_: usize) -> Self {
         Processor {
-            max_steps: max_steps_,
-            imem: vec![Instruction::default(); max_steps_],
-            ldm: vec![Bit::default(); max_steps_],
-            sdm: vec![Bit::default(); max_steps_],
+            host_steps: host_steps_,
+            imem: vec![Instruction::default(); host_steps_],
+            ldm: vec![Bit::default(); host_steps_],
+            sdm: vec![Bit::default(); host_steps_],
             io_i: 0,
             io_o: 0,
             pc: 0,
-            cycle: 0,
+            target_cycle: 0,
             s_port: SwitchPort::default(),
         }
     }
@@ -98,8 +98,8 @@ impl Processor {
         self.ldm[self.pc] = f_out;
 
         // Increment step
-        if self.pc == (self.max_steps - 1) {
-            self.cycle += 1;
+        if self.pc == (self.host_steps - 1) {
+            self.target_cycle += 1;
             self.pc = 0;
         } else {
             self.pc += 1;

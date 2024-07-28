@@ -15,6 +15,19 @@ use std::{
 
 pub type HWGraph = Graph<Box<dyn HWNode>, String>;
 
+/// # Metadata attached to each `HWGraph` node
+/// - proc: the processor id that this node is mapped to
+/// - rank: rank order index
+/// - scheduled: true if a imem slot has been allocated for this instruction
+/// - pc: index to the allocated imem slot
+#[derive(Debug, Clone, Default)]
+pub struct NodeInfo {
+    pub proc: u32,
+    pub rank: u32,
+    pub scheduled: bool,
+    pub pc: u32,
+}
+
 #[derive(PartialEq, Debug, Clone, Default)]
 pub enum Primitives {
     #[default]
@@ -28,9 +41,12 @@ pub enum Primitives {
     Module,
 }
 
+/// # Interface for accessing/manipulating the underlying node in `HWGraph`
 pub trait HWNode: Debug {
-    fn is(&self) -> Primitives;
     fn box_clone(&self) -> Box<dyn HWNode>;
+
+    /// # Returns the `Primitives` enum so that we can check for types
+    fn is(&self) -> Primitives;
     fn set_info(&mut self, info: NodeInfo);
     fn get_info(&self) -> NodeInfo;
     fn get_lut(&self) -> Option<Lut>;
@@ -72,14 +88,6 @@ impl PartialOrd for Box<dyn HWNode> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct NodeInfo {
-    pub proc: u32,
-    pub rank: u32,
-    pub scheduled: bool,
-    pub pc: u32,
 }
 
 #[derive(Clone)]
@@ -414,8 +422,8 @@ pub struct Context {
 #[derive(Default, Clone)]
 pub struct Circuit {
     pub graph: HWGraph,
-    pub io_i: IndexMap<NodeIndex, String>,
-    pub io_o: IndexMap<NodeIndex, String>,
+    pub io_i: IndexMap<NodeIndex, String>, // Nodes that represent the input IO port
+    pub io_o: IndexMap<NodeIndex, String>, // Nodes that represent the output IO port
     pub ctx: Context,
     pub instructions: Vec<Vec<Instruction>>,
 }

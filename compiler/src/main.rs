@@ -23,10 +23,6 @@ fn main() {
                 network_latency: 1,
             };
             let c2 = runner::run_compiler_passes(c, ctx.clone());
-            // let _ = c2.save_all_subgraphs(file_path.to_string());
-            let _ = c2.save_insts(file_path.to_string());
-            println!("{:?}", c2);
-
             let all_insts = c2.instructions;
             let nprocs = all_insts.len();
             let mut max_pc = 0;

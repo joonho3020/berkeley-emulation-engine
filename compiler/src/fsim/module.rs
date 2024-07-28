@@ -8,9 +8,9 @@ use std::fmt::Debug;
 pub struct Module {
     switch: Switch,
     procs: Vec<Processor>,
-    max_steps: usize,
-    iprocs: Vec<usize>,
-    oprocs: Vec<usize>,
+    host_steps: usize,   // Total number of host machine cycles to emulate one target cycle
+    iprocs: Vec<usize>, // Processor indices that have input IO ports
+    oprocs: Vec<usize>, // Processor indices that have output IO ports
 }
 
 impl Debug for Module {
@@ -20,11 +20,11 @@ impl Debug for Module {
 }
 
 impl Module {
-    pub fn new(nprocs: usize, max_steps: usize) -> Self {
+    pub fn new(nprocs: usize, host_steps_: usize) -> Self {
         Module {
             switch: Switch::new(nprocs),
-            procs: vec![Processor::new(max_steps); nprocs],
-            max_steps: max_steps,
+            procs: vec![Processor::new(host_steps_); nprocs],
+            host_steps: host_steps_,
             iprocs: vec![],
             oprocs: vec![],
         }
@@ -34,7 +34,7 @@ impl Module {
         assert!(self.procs.len() >= all_insts.len());
         for (i, insts) in all_insts.iter().enumerate() {
             for (pc, inst) in insts.iter().enumerate() {
-                if pc < self.max_steps {
+                if pc < self.host_steps {
                     self.procs[i].set_inst(inst.clone(), pc);
                     if inst.opcode == Primitives::Input {
                         self.iprocs.push(i);
@@ -55,7 +55,7 @@ impl Module {
         }
         print!("\n");
 
-        for pc in 0..self.max_steps {
+        for pc in 0..self.host_steps {
             if pc == self.procs[0].pc {
                 print!("->  {:02}", pc);
             } else {
@@ -104,7 +104,7 @@ impl Module {
 
     pub fn run_cycle(self: &mut Self, ibits: Vec<Bit>) -> Vec<Bit> {
         self.set_inputs(ibits);
-        for _ in 0..self.max_steps {
+        for _ in 0..self.host_steps {
             self.step();
         }
         self.get_outputs()

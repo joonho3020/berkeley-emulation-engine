@@ -3,6 +3,9 @@ use crate::primitives::*;
 use petgraph::Direction::{Incoming, Outgoing};
 use std::cmp::max;
 
+/// # `map_instructions`
+/// - After the instructions are scheduled, set the appropriate registers and
+/// network input values
 pub fn map_instructions(circuit: Circuit) -> Circuit {
     let graph = circuit.graph;
 

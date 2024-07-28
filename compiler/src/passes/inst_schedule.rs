@@ -13,6 +13,7 @@ struct InstOrProc {
     pidx: Option<u32>,
 }
 
+/// # Helper struct for instruction scheduling
 #[derive(Debug, Default)]
 struct NodeArray {
     nodes: Vec<NodeIndex>,
@@ -42,14 +43,13 @@ impl NodeArray {
     }
 }
 
-/*
-* 1. schedule Input & Gates first
-* 2. for each partition get next rank to simulate
-*    - if dependencies are resolved, schedule it
-*    - else insert nop
-* 3. for each partition, if there is two ore more instructions that are parents scheduled in
-*    step 2, unschedule some of them.
-*/
+/// # Finds a valid instruction schedule given a partitioned graph
+/// - Schedule Input & Gates first
+/// - For each partition get next rank to simulate
+///    - if dependencies are resolved, schedule it
+///    - else insert nop
+/// - For each partition, if there is two ore more instructions that are parents scheduled in
+///   step 2, unschedule some of them.
 pub fn schedule_instructions(circuit: Circuit) -> Circuit {
     let mut graph = circuit.graph;
 
@@ -184,14 +184,12 @@ pub fn schedule_instructions(circuit: Circuit) -> Circuit {
                     dep_graph.neighbors_directed(**nidx, Outgoing).detach();
                 while let Some(child_proc_idx) = child_procs_to_remove.next_node(&dep_graph) {
                     dep_graph_vis.visit(child_proc_idx);
-                    // println!("child_proc_idx: {:?}", child_proc_idx);
                 }
 
                 let original_node_idx = inst_node.nidx.unwrap();
                 let original_node = graph.node_weight_mut(original_node_idx).unwrap();
                 let proc_idx = original_node.get_info().proc;
 
-                // println!("scheduling node: {:?}", original_node);
                 scheduled_map.visit(original_node_idx);
                 subgraphs_rank_order
                     .get_mut(proc_idx as usize)
