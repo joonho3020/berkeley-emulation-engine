@@ -35,10 +35,10 @@ fn main() -> Result<(), String> {
 
     let mut module = Module::from_circuit(mapped_circuit);
     let inputs = IndexMap::from([
-        ("io_value1[0]", [0, 0, 1, 1, 1, 1, 1, 1]),
-        ("io_value1[1]", [0, 0, 1, 1, 1, 1, 1, 1]),
-        ("io_value2[0]", [0, 0, 1, 1, 1, 1, 1, 1]),
-        ("io_value2[1]", [0, 0, 0, 0, 0, 0, 0, 0]),
+        ("io_value1[0]",     [0, 0, 1, 1, 1, 1, 1, 1]),
+        ("io_value1[1]",     [0, 0, 1, 1, 1, 1, 1, 1]),
+        ("io_value2[0]",     [0, 0, 1, 1, 1, 1, 1, 1]),
+        ("io_value2[1]",     [0, 0, 0, 0, 0, 0, 0, 0]),
         ("io_loadingValues", [0, 0, 1, 0, 0, 0, 0, 0]),
     ]);
     let cycles = inputs.values().fold(0, |x, y| max(x, y.len()));
