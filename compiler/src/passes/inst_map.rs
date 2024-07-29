@@ -1,5 +1,6 @@
 use crate::instruction::*;
 use crate::primitives::*;
+use indexmap::IndexMap;
 use petgraph::Direction::{Incoming, Outgoing};
 use std::cmp::max;
 
@@ -15,6 +16,7 @@ pub fn map_instructions(circuit: Circuit) -> Circuit {
         max_proc = max(max_proc, node.clone().get_info().proc);
     }
 
+    let mut signal_map: IndexMap<String, NodeInfo> = IndexMap::new();
     let mut all_insts: Vec<Vec<Instruction>> = vec![];
     for _ in 0..(max_proc + 1) {
         let mut insts: Vec<Instruction> = vec![];
@@ -96,11 +98,15 @@ pub fn map_instructions(circuit: Circuit) -> Circuit {
                 child_inst.sin.idx = node.get_info().proc;
             }
         }
+
+        // add to signal map
+        signal_map.insert(node.name().to_string(), node.get_info());
     }
 
     return Circuit {
         emulator: EmulatorInfo {
             instructions: all_insts,
+            signal_map: signal_map,
             ..circuit.emulator
         },
         graph: graph,

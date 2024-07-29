@@ -289,18 +289,7 @@ fn parse_modules_from_blif_str<'a>(input: &'a str, circuit: &mut Circuit) -> IRe
     Ok(("", ""))
 }
 
-#[derive(Debug, Clone)]
-pub struct BlifError {
-    pub msg: String,
-}
-
-impl fmt::Display for BlifError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Error: {}", self.msg)
-    }
-}
-
-fn parse_blif(input: &str) -> Result<Circuit, BlifError> {
+fn parse_blif(input: &str) -> Result<Circuit, String> {
     let mut circuit = Circuit::default();
     let res = parse_modules_from_blif_str(input, &mut circuit);
     match res {
@@ -308,23 +297,19 @@ fn parse_blif(input: &str) -> Result<Circuit, BlifError> {
             return Ok(circuit);
         }
         Err(e) => {
-            return Err(BlifError {
-                msg: format!("Error while parsing:\n{}", e).to_string(),
-            });
+            return Err(format!("Error while parsing:\n{}", e).to_string());
         }
     }
 }
 
-pub fn parse_blif_file(input_file_path: &str) -> Result<Circuit, BlifError> {
+pub fn parse_blif_file(input_file_path: &str) -> Result<Circuit, String> {
     let blif_file = fs::read_to_string(input_file_path);
     match blif_file {
         Ok(blif_str) => {
             return parse_blif(&blif_str);
         }
         Err(e) => {
-            return Err(BlifError {
-                msg: format!("Error while reading the file:\n{}", e).to_string(),
-            });
+            return Err(format!("Error while reading the file:\n{}", e).to_string());
         }
     }
 }

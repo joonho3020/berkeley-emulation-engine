@@ -2,16 +2,18 @@ use crate::fsim::common::*;
 use crate::fsim::processor::*;
 use crate::fsim::switch::*;
 use crate::instruction::Instruction;
-use crate::primitives::{Primitives, Circuit};
-use std::fmt::Debug;
+use crate::primitives::{Circuit, NodeInfo, Primitives};
+use indexmap::IndexMap;
 use std::cmp::max;
+use std::fmt::Debug;
 
 pub struct Module {
     switch: Switch,
     procs: Vec<Processor>,
-    host_steps: usize,   // Total number of host machine cycles to emulate one target cycle
+    host_steps: usize, // Total number of host machine cycles to emulate one target cycle
     iprocs: Vec<usize>, // Processor indices that have input IO ports
     oprocs: Vec<usize>, // Processor indices that have output IO ports
+    signal_map: IndexMap<String, NodeInfo>,
 }
 
 impl Debug for Module {
@@ -28,6 +30,7 @@ impl Module {
             host_steps: host_steps_,
             iprocs: vec![],
             oprocs: vec![],
+            signal_map: IndexMap::new(),
         }
     }
 
@@ -35,6 +38,8 @@ impl Module {
     /// return a Module with instructions from the compiler pass mapped
     pub fn from_circuit(c: Circuit) -> Self {
         let all_insts = c.emulator.instructions;
+
+        // get max pc for entire emulator
         let nprocs = all_insts.len();
         let mut max_pc = 0;
         for nidx in c.graph.node_indices() {
@@ -44,7 +49,12 @@ impl Module {
 
         let host_steps = max_pc + 1;
         let mut module = Module::new(nprocs, host_steps as usize);
+
+        // set instructions
         module.set_insts(all_insts);
+
+        // set signal mapping
+        module.set_signal_map(c.emulator.signal_map);
 
         return module;
     }
@@ -63,8 +73,10 @@ impl Module {
                 }
             }
         }
-        println!("self.iprocs: {:?}", self.iprocs);
-        println!("self.oprocs: {:?}", self.oprocs);
+    }
+
+    pub fn set_signal_map(self: &mut Self, signal_map: IndexMap<String, NodeInfo>) {
+        self.signal_map = signal_map
     }
 
     fn print(self: &Self) {
@@ -95,25 +107,37 @@ impl Module {
         for (_, proc) in self.procs.iter_mut().enumerate() {
             proc.step();
         }
-        self.print();
+        // self.print();
         for (i, proc) in self.procs.iter_mut().enumerate() {
             self.switch.set_port_val(i, proc.get_switch_out());
         }
     }
 
-    fn set_inputs(self: &mut Self, ibits: Vec<Bit>) {
-        assert!(
-            ibits.len() == self.iprocs.len(),
-            "expected {} input bits, got {} bits",
-            self.iprocs.len(),
-            ibits.len()
-        );
-        for (ibit, iproc) in ibits.iter().zip(self.iprocs.iter()) {
-            self.procs[*iproc].set_io_i(*ibit);
+    pub fn peek(self: Self, signal: String) -> Result<Bit, String> {
+        let map = self.signal_map.get(&signal);
+        match map {
+            Some(info) => Ok(self.procs[info.proc as usize].ldm[info.pc as usize]),
+            None => Err(format!("Cannot find signal {} to peek", signal).to_string()),
         }
     }
 
-    fn get_outputs(self: &mut Self) -> Vec<Bit> {
+    pub fn poke(self: &mut Self, signal: String, val: Bit) -> Result<Bit, String> {
+        let map = self.signal_map.get(&signal);
+        match map {
+            Some(info) => {
+                let inst = self.procs[info.proc as usize].imem[info.pc as usize].clone();
+                if inst.opcode == Primitives::Input {
+                    self.procs[info.proc as usize].set_io_i(val);
+                    Ok(val)
+                } else {
+                    Err(format!("Signal {} to poke is not a Input", signal).to_string())
+                }
+            }
+            None => Err(format!("Cannot find signal {} to poke", signal).to_string()),
+        }
+    }
+
+    pub fn get_outputs(self: &mut Self) -> Vec<Bit> {
         let mut ret = vec![];
         for oproc in self.oprocs.iter() {
             ret.push(self.procs[*oproc].get_io_o());
@@ -121,11 +145,9 @@ impl Module {
         ret
     }
 
-    pub fn run_cycle(self: &mut Self, ibits: Vec<Bit>) -> Vec<Bit> {
-        self.set_inputs(ibits);
+    pub fn run_cycle(self: &mut Self) {
         for _ in 0..self.host_steps {
             self.step();
         }
-        self.get_outputs()
     }
 }

@@ -49,7 +49,7 @@ impl Processor {
         // Update SDM
         self.sdm[self.pc] = self.s_port.ip;
 
-        println!("cur_inst: {:?}", cur_inst);
+        // println!("cur_inst: {:?}", cur_inst);
 
         // Read the operands from the LDM and SDM
         let mut operands: Vec<Bit> = Vec::new();
@@ -59,7 +59,7 @@ impl Processor {
             operands.push(bit);
         }
 
-        println!("operands: {:?}", operands);
+        // println!("operands: {:?}", operands);
 
         // LUT lookup
         let f_out = match &cur_inst.opcode {
@@ -89,7 +89,7 @@ impl Processor {
             _ => 0,
         };
 
-        println!("f_out: {:?}", f_out);
+        // println!("f_out: {:?}", f_out);
 
         // Set switch out
         self.s_port.op = f_out;

@@ -450,11 +450,13 @@ pub struct Configuration {
     pub network_latency: u32,
 }
 
+/// # EmulatorInfo
+/// - Contains fields specific to the emulator hardware
 #[derive(Debug, Default, Clone)]
 pub struct EmulatorInfo {
     pub cfg: Configuration,
     pub instructions: Vec<Vec<Instruction>>,
-    pub signal_map: IndexMap<String, NodeInfo>
+    pub signal_map: IndexMap<String, NodeInfo>,
 }
 
 #[derive(Default, Clone)]
@@ -462,7 +464,7 @@ pub struct Circuit {
     pub graph: HWGraph,
     pub io_i: IndexMap<NodeIndex, String>, // Nodes that represent the input IO port
     pub io_o: IndexMap<NodeIndex, String>, // Nodes that represent the output IO port
-    pub emulator: EmulatorInfo
+    pub emulator: EmulatorInfo,
 }
 
 impl Circuit {
