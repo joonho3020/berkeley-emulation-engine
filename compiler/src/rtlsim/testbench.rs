@@ -1,4 +1,3 @@
-use crate::fsim::common::Bit;
 use indexmap::IndexMap;
 use std::cmp::max;
 use std::fs;
@@ -35,6 +34,8 @@ pub fn get_io(verilog_str: String, top: String) -> Vec<Port> {
                     cur_bits_minus_one = x[0].replace('[', "").parse().unwrap();
                 }
             }
+
+            assert!(cur_bits_minus_one + 1 <= 64, "Can support up to 64 bit wires");
 
             ret.push({
                 Port {
@@ -269,4 +270,18 @@ pub fn aggregate_bitblasted_values(ports: &Vec<Port>, blasted_values: &mut Index
         }
     }
     return aggregated;
+}
+
+pub fn output_value_fmt(values: &IndexMap<String, Vec<u64>>) -> String {
+    let mut output_str = "** Start Simulation **\n".to_string();
+    let cycles = values.values().fold(0, |x, y| max(x, y.len()));
+    for cycle in 0..cycles {
+        output_str.push_str(&format!("{}", cycle));
+        for k in values.keys() {
+            output_str.push_str(&format!(" {} {}", k, values[k][cycle]));
+        }
+        output_str.push_str("\n");
+    }
+    output_str.push_str("** End Simulation **\n");
+    return output_str;
 }

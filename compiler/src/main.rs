@@ -12,10 +12,10 @@ use crate::passes::runner;
 use crate::primitives::Configuration;
 use indexmap::IndexMap;
 use std::cmp::max;
-use std::fs;
-use std::env;
+use std::io::Write;
+use std::{env, fs};
 
-fn main() -> Result<(), String> {
+fn main() -> std::io::Result<()> {
     let args: Vec<String> = env::args().collect();
     if args.len() < 5 {
         println!("Usage: cargo run --bin blif-parser -- <sv input path> <top module name> <input stimuli file> <blif input path>");
@@ -31,8 +31,7 @@ fn main() -> Result<(), String> {
     let mut parsed_circuit = match res {
         Ok(c) => c,
         Err(e) => {
-            println!("{}", e);
-            return Err(e);
+            return Err(std::io::Error::other(format!("{}", e)));
         }
     };
 
@@ -46,7 +45,7 @@ fn main() -> Result<(), String> {
     let verilog_str = match fs::read_to_string(sv_file_path) {
         Ok(content) => content,
         Err(e) => {
-            return Err(format!("Error while parsing:\n{}", e).to_string());
+            return Err(std::io::Error::other(format!("Error while parsing:\n{}", e)));
         }
     };
 
@@ -71,7 +70,7 @@ fn main() -> Result<(), String> {
             let val = input_stimuli_blasted[key].get(cycle);
             match val {
                 Some(b) => {
-                    module.poke(key.to_string(), *b as Bit)?;
+                    let _ = module.poke(key.to_string(), *b as Bit);
                 }
                 None => {}
             }
@@ -86,9 +85,19 @@ fn main() -> Result<(), String> {
             output_blasted.get_mut(opb).unwrap().push(output as u64);
         }
     }
-    let output_values = aggregate_bitblasted_values(&ports, &mut output_blasted);
-    println!("{:?}", output_values);
+    let output_values = output_value_fmt(
+        &aggregate_bitblasted_values(&ports, &mut output_blasted)
+    );
 
+    let sim_dir = format!("sim-dir-{}", top_mod);
+    let mut cwd = env::current_dir()?;
+    cwd.push(sim_dir.to_string());
+    let mut emulation_out_file = fs::File::create(format!(
+        "{}/{}-emulation.out",
+        cwd.to_str().unwrap(),
+        top_mod
+    ))?;
+    emulation_out_file.write(output_values.as_bytes())?;
 
     return Ok(());
 }
