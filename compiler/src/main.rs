@@ -31,7 +31,7 @@ fn main() -> Result<(), String> {
     parsed_circuit.set_cfg(cfg);
 
     let mapped_circuit = runner::run_compiler_passes(parsed_circuit);
-    // println!("{:?}", mapped_circuit);
+    println!("{:?}", mapped_circuit);
 
     let mut module = Module::from_circuit(mapped_circuit);
     let inputs = IndexMap::from([

@@ -365,7 +365,7 @@ impl HWNode for Latch {
 
 impl Debug for Latch {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Latch {:?}", self.info)
+        write!(f, "Latch {} {:?}", self.output, self.info)
     }
 }
 
