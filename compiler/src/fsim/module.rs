@@ -113,8 +113,8 @@ impl Module {
         }
     }
 
-    pub fn peek(self: Self, signal: String) -> Result<Bit, String> {
-        let map = self.signal_map.get(&signal);
+    pub fn peek(self: &Self, signal: &str) -> Result<Bit, String> {
+        let map = self.signal_map.get(signal);
         match map {
             Some(info) => Ok(self.procs[info.proc as usize].ldm[info.pc as usize]),
             None => Err(format!("Cannot find signal {} to peek", signal).to_string()),

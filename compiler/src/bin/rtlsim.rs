@@ -8,10 +8,15 @@ use std::{env, fs};
 
 fn main() -> std::io::Result<()> {
     let args: Vec<String> = env::args().collect();
+    if args.len() < 4 {
+        println!("Usage: cargo run --bin rtlsim -- <sv input path> <top module name> <input stimuli file>");
+        return Ok(());
+    }
+
     let file_path = &args[1];
     let top_mod = &args[2];
     let input_stimuli = get_input_stimuli(&args[3]);
-    let tb = match generate_testbench(file_path, top_mod, input_stimuli) {
+    let tb = match generate_testbench(file_path, top_mod, &input_stimuli) {
         Ok(x) => x,
         Err(e) => {
             return Err(std::io::Error::other(format!("{}", e)));

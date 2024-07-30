@@ -1,8 +1,9 @@
+use crate::fsim::common::Bit;
 use indexmap::IndexMap;
 use std::cmp::max;
 use std::fs;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Port {
     pub name: String,
     pub width: u64,
@@ -50,7 +51,7 @@ pub fn get_io(verilog_str: String, top: String) -> Vec<Port> {
 }
 
 pub fn generate_testbench_string(
-    input_stimuli: IndexMap<String, Vec<u64>>,
+    input_stimuli: &IndexMap<String, Vec<u64>>,
     io: Vec<Port>,
     top: String,
 ) -> String {
@@ -148,7 +149,7 @@ end
 pub fn generate_testbench(
     file_path: &str,
     top_mod: &str,
-    input_stimuli: IndexMap<String, Vec<u64>>,
+    input_stimuli: &IndexMap<String, Vec<u64>>,
 ) -> Result<String, String> {
     let verilog_str = match fs::read_to_string(file_path) {
         Ok(content) => content,
@@ -184,4 +185,88 @@ pub fn get_input_stimuli(file_path: &str) -> IndexMap<String, Vec<u64>> {
     }
 
     ret
+}
+
+pub fn bitblast_input_stimuli(input_stimuli: &IndexMap<String, Vec<u64>>, ports: &Vec<Port>) -> IndexMap<String, Vec<u64>> {
+    let mut input_stimuli_blasted: IndexMap<String, Vec<u64>> = IndexMap::new();
+    for port in ports.iter() {
+        if !input_stimuli.contains_key(&port.name) {
+            continue;
+        }
+
+        let stimuli_for_input = input_stimuli.get(&port.name).unwrap();
+        if port.width == 1 {
+            input_stimuli_blasted.insert(port.name.clone(), stimuli_for_input.clone());
+        } else {
+            for idx in 0..port.width {
+                let mut port_name = port.name.clone();
+                port_name.push_str(&format!("[{}]", idx));
+                input_stimuli_blasted.insert(port_name.clone(), vec![]);
+
+                for stimuli in stimuli_for_input {
+                    let bit = ((*stimuli) >> idx) & 0x1;
+                    input_stimuli_blasted.get_mut(&port_name).unwrap().push(bit);
+                }
+            }
+        }
+    }
+    return input_stimuli_blasted;
+}
+
+pub fn bitblasted_port_names(ports: &Vec<Port>) -> Vec<String> {
+    let mut ret = vec![];
+    for port in ports.iter() {
+        if port.width == 1 {
+            ret.push(port.name.clone());
+        } else {
+            for idx in 0..port.width {
+                let mut port_name = port.name.clone();
+                port_name.push_str(&format!("[{}]", idx));
+                ret.push(port_name);
+            }
+        }
+    }
+    return ret;
+}
+
+pub fn aggregate_bitblasted_values(ports: &Vec<Port>, blasted_values: &mut IndexMap<String, Vec<u64>>) -> IndexMap<String, Vec<u64>> {
+    let mut aggregated: IndexMap<String, Vec<u64>> = IndexMap::new();
+    for port in ports.iter() {
+        if port.input {
+            continue;
+        }
+
+        aggregated.insert(port.name.clone(), vec![]);
+        if port.width == 1 {
+            match blasted_values.get_mut(&port.name) {
+                Some(v) => {
+                    aggregated.get_mut(&port.name).unwrap().append(v);
+                }
+                None => {
+                    continue;
+                }
+            }
+        } else {
+            for idx in 0..port.width {
+                let mut port_name = port.name.clone();
+                port_name.push_str(&format!("[{}]", idx));
+
+                match blasted_values.get(&port_name) {
+                    Some(bits) => {
+                        for (cycle, bit) in bits.iter().enumerate() {
+                            let x = aggregated.get_mut(&port.name).unwrap();
+                            if x.len() < (cycle + 1) {
+                                x.push(0);
+                            }
+                            x[cycle] = x[cycle] + (bit << idx);
+                        }
+                    }
+                    None => {
+                        continue;
+                    }
+                }
+            }
+        }
+    }
+    return aggregated;
 }
