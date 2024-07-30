@@ -1,7 +1,7 @@
 use crate::primitives::*;
 use indexmap::IndexMap;
 use petgraph::graph::NodeIndex;
-use std::{fmt, fs};
+use std::fs;
 
 type IResultStr<'a> = IResult<&'a str, &'a str>;
 
@@ -160,7 +160,7 @@ fn module_body_parser<'a>(input: &'a str, circuit: &mut Circuit) -> IResultStr<'
 
     // Get module body
     let (i, _) = tag(".model ")(input)?;
-    let (i, name) = terminated(take_until("\n"), nom::character::complete::newline)(i)?;
+    let (i, _name) = terminated(take_until("\n"), nom::character::complete::newline)(i)?;
     let (mut i, body) = terminated(
         take_until(body_end_marker),
         nom::character::complete::newline,

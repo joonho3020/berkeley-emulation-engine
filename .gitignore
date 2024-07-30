@@ -3,7 +3,9 @@ examples/*.blif
 examples/*.pdf
 examples/*.tar.gz
 examples/*.instructions
+examples/obj_dir
 **/.DS_STORE
+**/sim-dir-*
 
 
 # Added by cargo
