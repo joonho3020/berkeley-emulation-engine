@@ -4,15 +4,16 @@ mod passes;
 mod primitives;
 mod rtlsim;
 
-use crate::rtlsim::testbench::*;
 use crate::fsim::common::*;
 use crate::fsim::module::*;
 use crate::passes::parser;
 use crate::passes::runner;
 use crate::primitives::Configuration;
+use crate::rtlsim::testbench::*;
 use indexmap::IndexMap;
 use std::cmp::max;
 use std::io::Write;
+use std::process::Command;
 use std::{env, fs};
 
 fn main() -> std::io::Result<()> {
@@ -24,10 +25,10 @@ fn main() -> std::io::Result<()> {
 
     let sv_file_path = &args[1];
     let top_mod = &args[2];
-    let input_stimuli = get_input_stimuli(&args[3]);
-    let file_path = &args[4];
+    let input_stimuli_path = &args[3];
+    let blif_file_path = &args[4];
 
-    let res = parser::parse_blif_file(&file_path);
+    let res = parser::parse_blif_file(&blif_file_path);
     let mut parsed_circuit = match res {
         Ok(c) => c,
         Err(e) => {
@@ -45,16 +46,24 @@ fn main() -> std::io::Result<()> {
     let verilog_str = match fs::read_to_string(sv_file_path) {
         Ok(content) => content,
         Err(e) => {
-            return Err(std::io::Error::other(format!("Error while parsing:\n{}", e)));
+            return Err(std::io::Error::other(format!(
+                "Error while parsing:\n{}",
+                e
+            )));
         }
     };
 
     // convert input stimuli to bit-blasted input stimuli
     let ports = get_io(verilog_str.to_string(), top_mod.to_string());
+    let input_stimuli = get_input_stimuli(input_stimuli_path);
     let input_stimuli_blasted = bitblast_input_stimuli(&input_stimuli, &ports);
 
     // bit-blasted output stimuli
-    let output_ports = ports.iter().filter(|x| !x.input).map(|x| x.clone()).collect();
+    let output_ports = ports
+        .iter()
+        .filter(|x| !x.input)
+        .map(|x| x.clone())
+        .collect();
     let output_ports_blasted = bitblasted_port_names(&output_ports);
     let mut output_blasted: IndexMap<String, Vec<u64>> = IndexMap::new();
     for opb in output_ports_blasted.iter() {
@@ -63,7 +72,9 @@ fn main() -> std::io::Result<()> {
 
     let mut module = Module::from_circuit(mapped_circuit);
 
-    let cycles = input_stimuli_blasted.values().fold(0, |x, y| max(x, y.len()));
+    let cycles = input_stimuli_blasted
+        .values()
+        .fold(0, |x, y| max(x, y.len()));
     for cycle in 0..cycles {
         // poke inputs
         for key in input_stimuli_blasted.keys() {
@@ -85,19 +96,33 @@ fn main() -> std::io::Result<()> {
             output_blasted.get_mut(opb).unwrap().push(output as u64);
         }
     }
-    let output_values = output_value_fmt(
-        &aggregate_bitblasted_values(&ports, &mut output_blasted)
-    );
+    let output_values = output_value_fmt(&aggregate_bitblasted_values(&ports, &mut output_blasted));
 
+    // Run reference RTL simulation
     let sim_dir = format!("sim-dir-{}", top_mod);
+    let sim_output_file = format!("{}-simulation.out", top_mod);
+    run_rtl_simulation(
+        sv_file_path,
+        top_mod,
+        input_stimuli_path,
+        &sim_dir,
+        &sim_output_file,
+    )?;
+
+    let emul_output_file = format!("{}-emulation.out", top_mod);
     let mut cwd = env::current_dir()?;
-    cwd.push(sim_dir.to_string());
-    let mut emulation_out_file = fs::File::create(format!(
-        "{}/{}-emulation.out",
-        cwd.to_str().unwrap(),
-        top_mod
-    ))?;
+    cwd.push(sim_dir);
+    let mut emulation_out_file =
+        fs::File::create(format!("{}/{}", cwd.to_str().unwrap(), emul_output_file))?;
     emulation_out_file.write(output_values.as_bytes())?;
+
+    let diff_out = Command::new("diff")
+        .current_dir(&cwd)
+        .arg(sim_output_file)
+        .arg(emul_output_file)
+        .status()?;
+
+    println!("diff_out: {:?}", diff_out);
 
     return Ok(());
 }

@@ -1,6 +1,9 @@
 use indexmap::IndexMap;
 use std::cmp::max;
-use std::fs;
+use std::io::Write;
+use std::path::Path;
+use std::process::Command;
+use std::{env, fs};
 
 #[derive(Debug, Clone)]
 pub struct Port {
@@ -35,7 +38,10 @@ pub fn get_io(verilog_str: String, top: String) -> Vec<Port> {
                 }
             }
 
-            assert!(cur_bits_minus_one + 1 <= 64, "Can support up to 64 bit wires");
+            assert!(
+                cur_bits_minus_one + 1 <= 64,
+                "Can support up to 64 bit wires"
+            );
 
             ret.push({
                 Port {
@@ -164,6 +170,98 @@ pub fn generate_testbench(
     Ok(tb)
 }
 
+pub fn run_rtl_simulation(
+    sv_file_path: &str,
+    top_mod: &str,
+    input_stimuli_path: &str,
+    sim_dir: &str,
+    sim_output_file: &str,
+) -> std::io::Result<()> {
+    let input_stimuli = get_input_stimuli(input_stimuli_path);
+    let tb = match generate_testbench(sv_file_path, top_mod, &input_stimuli) {
+        Ok(x) => x,
+        Err(e) => {
+            return Err(std::io::Error::other(format!("{}", e)));
+        }
+    };
+
+    let verilog_file = Path::new(sv_file_path);
+
+    let tb_name = format!("{}-testbench.sv", top_mod);
+    let mut tb_file = fs::File::create(&tb_name)?;
+    tb_file.write(tb.as_bytes())?;
+
+    let mut cwd = env::current_dir()?;
+    cwd.push(sim_dir.to_string());
+    fs::create_dir_all(cwd.to_path_buf())?;
+
+    Command::new("cp")
+        .arg(&verilog_file)
+        .arg(cwd.to_str().unwrap())
+        .status()?;
+
+    Command::new("mv").arg(&tb_name).arg(&cwd).status()?;
+
+    Command::new("verilator")
+        .current_dir(&cwd)
+        .arg("--binary")
+        .arg(&tb_name)
+        .arg(verilog_file.file_name().unwrap())
+        .arg("-o")
+        .arg("rtlsim_binary")
+        .arg("--Mdir")
+        .arg("build")
+        .status()?;
+
+    let stdout = Command::new("./rtlsim_binary")
+        .current_dir(cwd.join("build"))
+        .arg("--help")
+        .output()?
+        .stdout;
+
+    let output = match String::from_utf8(stdout) {
+        Ok(o) => o,
+        _ => {
+            return Err(std::io::Error::other(
+                "Output from RTL simulation corrupted",
+            ));
+        }
+    };
+
+    let start_simulation_tag = "** Start Simulation **";
+    let end_simulation_tag = "** End Simulation **";
+    let mut start_collecting = false;
+    let mut output_str = "".to_string();
+
+    for line in output.lines() {
+        if start_collecting && line.contains(end_simulation_tag) {
+            output_str.push_str(end_simulation_tag);
+            output_str.push_str("\n");
+            break;
+        } else if start_collecting {
+            let mut words: Vec<&str> = line.split(' ').filter(|x| *x != "").collect();
+            let timestamp: u64 = words[0].parse().unwrap();
+            words.remove(0);
+
+            // TODO: fix hardcoded rtl sim period
+            let cycle = (timestamp - 80) / 20;
+            output_str.push_str(&format!("{} ", cycle));
+            output_str.push_str(&words.join(" "));
+            output_str.push_str("\n");
+        } else if line.contains(start_simulation_tag) {
+            start_collecting = true;
+            output_str.push_str(start_simulation_tag);
+            output_str.push_str("\n");
+        }
+    }
+
+    let mut sim_out_file =
+        fs::File::create(format!("{}/{}", cwd.to_str().unwrap(), sim_output_file))?;
+    sim_out_file.write(output_str.as_bytes())?;
+
+    Ok(())
+}
+
 pub fn get_input_stimuli(file_path: &str) -> IndexMap<String, Vec<u64>> {
     let input_str = match fs::read_to_string(file_path) {
         Ok(content) => content,
@@ -188,7 +286,10 @@ pub fn get_input_stimuli(file_path: &str) -> IndexMap<String, Vec<u64>> {
     ret
 }
 
-pub fn bitblast_input_stimuli(input_stimuli: &IndexMap<String, Vec<u64>>, ports: &Vec<Port>) -> IndexMap<String, Vec<u64>> {
+pub fn bitblast_input_stimuli(
+    input_stimuli: &IndexMap<String, Vec<u64>>,
+    ports: &Vec<Port>,
+) -> IndexMap<String, Vec<u64>> {
     let mut input_stimuli_blasted: IndexMap<String, Vec<u64>> = IndexMap::new();
     for port in ports.iter() {
         if !input_stimuli.contains_key(&port.name) {
@@ -230,7 +331,10 @@ pub fn bitblasted_port_names(ports: &Vec<Port>) -> Vec<String> {
     return ret;
 }
 
-pub fn aggregate_bitblasted_values(ports: &Vec<Port>, blasted_values: &mut IndexMap<String, Vec<u64>>) -> IndexMap<String, Vec<u64>> {
+pub fn aggregate_bitblasted_values(
+    ports: &Vec<Port>,
+    blasted_values: &mut IndexMap<String, Vec<u64>>,
+) -> IndexMap<String, Vec<u64>> {
     let mut aggregated: IndexMap<String, Vec<u64>> = IndexMap::new();
     for port in ports.iter() {
         if port.input {
