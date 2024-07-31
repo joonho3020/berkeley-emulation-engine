@@ -44,3 +44,11 @@ dot examples/Adder.dot -Tpdf > examples/Adder.pdf
 ```bash
 cargo run --bin rtlsim -- ../examples/GCD.sv GCD ../examples/GCD.input
 ```
+
+### Run both emulation functional simulation and RTL simulation and compare the generated outputs
+
+- Run:
+
+```bash
+cargo run --bin blif-parser -- ../examples/GCD.sv GCD  ../examples/GCD.input ../examples/GCD-2bit.lut.blif
+```

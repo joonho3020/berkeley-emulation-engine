@@ -122,7 +122,11 @@ fn main() -> std::io::Result<()> {
         .arg(emul_output_file)
         .status()?;
 
-    println!("diff_out: {:?}", diff_out);
+    if diff_out.success() {
+        println!("test success! output matches with RTL simulation");
+    } else {
+        println!("RIP test failed!");
+    }
 
     return Ok(());
 }
