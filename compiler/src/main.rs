@@ -70,7 +70,7 @@ fn main() -> std::io::Result<()> {
         output_blasted.insert(opb.to_string(), vec![]);
     }
 
-    let mut module = Module::from_circuit(mapped_circuit);
+    let mut module = Module::from_circuit(&mapped_circuit);
 
     let cycles = input_stimuli_blasted
         .values()
@@ -89,7 +89,6 @@ fn main() -> std::io::Result<()> {
 
         // run a cycle
         module.run_cycle();
-        println!("outputs: {:?}", module.get_outputs());
 
         for opb in output_ports_blasted.iter() {
             let output = module.peek(opb).unwrap();
@@ -127,6 +126,10 @@ fn main() -> std::io::Result<()> {
     } else {
         println!("RIP test failed!");
     }
+
+    let mut graph_file =
+        fs::File::create(format!("{}/{}.dot", cwd.to_str().unwrap(), top_mod))?;
+    graph_file.write(format!("{:?}", &mapped_circuit).as_bytes())?;
 
     return Ok(());
 }

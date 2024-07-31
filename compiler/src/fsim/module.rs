@@ -36,8 +36,8 @@ impl Module {
 
     /// Given a circuit that went through the compiler pass,
     /// return a Module with instructions from the compiler pass mapped
-    pub fn from_circuit(c: Circuit) -> Self {
-        let all_insts = c.emulator.instructions;
+    pub fn from_circuit(c: &Circuit) -> Self {
+        let all_insts = &c.emulator.instructions;
 
         // get max pc for entire emulator
         let nprocs = all_insts.len();
@@ -51,10 +51,10 @@ impl Module {
         let mut module = Module::new(nprocs, host_steps as usize);
 
         // set instructions
-        module.set_insts(all_insts);
+        module.set_insts(all_insts.to_vec());
 
         // set signal mapping
-        module.set_signal_map(c.emulator.signal_map);
+        module.set_signal_map(&c.emulator.signal_map);
 
         return module;
     }
@@ -75,8 +75,8 @@ impl Module {
         }
     }
 
-    pub fn set_signal_map(self: &mut Self, signal_map: IndexMap<String, NodeInfo>) {
-        self.signal_map = signal_map
+    pub fn set_signal_map(self: &mut Self, signal_map: &IndexMap<String, NodeInfo>) {
+        self.signal_map = signal_map.clone()
     }
 
     fn print(self: &Self) {

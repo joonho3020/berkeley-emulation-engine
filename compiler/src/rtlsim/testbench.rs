@@ -84,7 +84,7 @@ always begin
 end
 
 initial begin
-  clock  = 1'b0;
+  clock  = 1'b1;
   reset = 1'b0;
 
   #(T*2) reset = 1'b1;
@@ -117,7 +117,7 @@ initial begin
                 None => {}
             }
         }
-        poke_str.push_str("  #(T);\n\n");
+        poke_str.push_str("  @(negedge clock); #(0);\n\n");
         testbench.push_str(&poke_str);
     }
     testbench.push_str(&format!(
@@ -204,6 +204,7 @@ pub fn run_rtl_simulation(
 
     Command::new("verilator")
         .current_dir(&cwd)
+        .arg("--trace")
         .arg("--binary")
         .arg(&tb_name)
         .arg(verilog_file.file_name().unwrap())
