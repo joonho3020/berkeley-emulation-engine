@@ -127,8 +127,7 @@ fn main() -> std::io::Result<()> {
         println!("RIP test failed!");
     }
 
-    let mut graph_file =
-        fs::File::create(format!("{}/{}.dot", cwd.to_str().unwrap(), top_mod))?;
+    let mut graph_file = fs::File::create(format!("{}/{}.dot", cwd.to_str().unwrap(), top_mod))?;
     graph_file.write(format!("{:?}", &mapped_circuit).as_bytes())?;
 
     return Ok(());
