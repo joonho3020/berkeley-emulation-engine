@@ -1,3 +1,4 @@
+use indexmap::IndexMap;
 use indicatif::ProgressStyle;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
@@ -114,5 +115,54 @@ impl WaveformDB {
                 );
             }
         }
+    }
+
+    pub fn signal_values_at_cycle(self: &mut Self, cycle: u32) -> IndexMap<String, u8> {
+        let hierarchy = &self.header.hierarchy;
+
+        let mut ret: IndexMap<String, u8> = IndexMap::new();
+
+        for var in hierarchy.get_unique_signals_vars().iter().flatten() {
+            let _signal_name: String = var.full_name(&hierarchy);
+            let ids = [var.signal_ref(); 1];
+            let loaded = self
+                .body
+                .source
+                .load_signals(&ids, &hierarchy, LOAD_OPTS.multi_thread);
+            let (_, loaded_signal) = loaded.into_iter().next().unwrap();
+
+            let offset = loaded_signal.get_offset(cycle as u32);
+            match offset {
+                Some(idx) => {
+                    for elemidx in 0..idx.elements {
+                        let name = _signal_name.split('.').last().unwrap().to_string();
+                        let sig_val = loaded_signal.get_value_at(&idx, elemidx);
+                        let numbits = match sig_val.bits() {
+                            Some(x) => x,
+                            _ => 0,
+                        };
+                        let bits = match sig_val.to_bit_string() {
+                            Some(bits_as_string) => bits_as_string,
+                            _ => "".to_string(),
+                        };
+                        if numbits == 1 {
+                            ret.insert(name, bits.parse().unwrap());
+                        } else {
+                            assert!(numbits <= 64, "Currently only supports up to 64 bits");
+                            let bits_array: Vec<char> = bits.chars().rev().collect();
+                            for bit in 0..numbits {
+                                let val = bits_array[bit as usize].to_digit(10).unwrap();
+                                let index = format!("[{}]", bit);
+                                let mut name_bit = name.clone();
+                                name_bit.push_str(&index);
+                                ret.insert(name_bit, val as u8);
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        return ret;
     }
 }
