@@ -1,10 +1,8 @@
 use crate::instruction::Instruction;
+use crate::fsim::module::Module as EmulModule;
 use indexmap::IndexMap;
 use petgraph::{
-    dot::{Config, Dot},
-    graph::{Graph, NodeIndex},
-    visit::{EdgeRef, VisitMap, Visitable},
-    Direction::Outgoing,
+    dot::{Config, Dot}, graph::{Graph, NodeIndex}, visit::{EdgeRef, VisitMap, Visitable}, Direction::{Outgoing, Incoming}
 };
 use std::{
     cmp::{max, Ordering},
@@ -26,6 +24,12 @@ pub struct NodeInfo {
     pub rank: u32,
     pub scheduled: bool,
     pub pc: u32,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct NodeMapInfo {
+    pub info: NodeInfo,
+    pub idx:  NodeIndex
 }
 
 #[derive(PartialEq, Debug, Clone, Default)]
@@ -203,7 +207,20 @@ impl HWNode for Lut {
 
 impl Debug for Lut {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Lut {:?}", self.info)
+            let mut table: u64 = 0;
+            assert!(
+                self.table.len() <= 6,
+                "can support up to 6 operands with u64"
+            );
+
+            for entry in self.table.iter() {
+                let mut x = 0;
+                for (i, e) in entry.iter().enumerate() {
+                    x = x + (e << i);
+                }
+                table = table | (1 << x);
+            }
+        write!(f, "Lut 0x{:x} {:?}", table, self.info)
     }
 }
 
@@ -456,7 +473,7 @@ pub struct Configuration {
 pub struct EmulatorInfo {
     pub cfg: Configuration,
     pub instructions: Vec<Vec<Instruction>>,
-    pub signal_map: IndexMap<String, NodeInfo>,
+    pub signal_map: IndexMap<String, NodeMapInfo>,
 }
 
 #[derive(Default, Clone)]
@@ -522,6 +539,67 @@ impl Circuit {
             }
         }
         Ok(())
+    }
+
+    pub fn debug_graph(&self, dbg_node: NodeIndex, module: &EmulModule) -> String {
+        let indent: &str = "    ";
+        let mut vis_map = self.graph.visit_map();
+        let mut q = vec![];
+        q.push(dbg_node);
+        let mut root = true;
+
+        while !q.is_empty() {
+            let nidx = q.remove(0);
+            vis_map.visit(nidx);
+
+            let node = self.graph.node_weight(nidx).unwrap();
+            if node.is() == Primitives::Gate || node.is() == Primitives::Latch {
+                if !root {
+                    continue;
+                } else {
+                    root = false;
+                }
+            }
+
+            let mut parents = self.graph.neighbors_directed(nidx, Incoming).detach();
+            while let Some(pidx) = parents.next_node(&self.graph) {
+                q.push(pidx);
+            }
+        }
+
+        let mut outstring = "digraph {\n".to_string();
+
+        // print nodes
+        for nidx in self.graph.node_indices() {
+            if vis_map.is_visited(&nidx) {
+                let node = self.graph.node_weight(nidx).unwrap();
+                let val = module.peek(node.name()).unwrap();
+                outstring.push_str(&format!(
+                        "{}{} [ label = \"{:?} {}\"]\n",
+                        indent,
+                        nidx.index(),
+                        node,
+                        val));
+            }
+        }
+
+        // print edges
+        for nidx in self.graph.node_indices() {
+            if vis_map.is_visited(&nidx) {
+                let mut childs = self.graph.neighbors_directed(nidx, Outgoing).detach();
+                while let Some(cidx) = childs.next_node(&self.graph) {
+                    if vis_map.is_visited(&cidx) {
+                        outstring.push_str(&format!("{}{} {} {} \n",
+                                indent,
+                                nidx.index(),
+                                "->",
+                                cidx.index()));
+                    }
+                }
+            }
+        }
+        outstring.push_str("}");
+        return outstring;
     }
 }
 

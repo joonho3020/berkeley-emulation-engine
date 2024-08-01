@@ -85,7 +85,7 @@ end
 
 initial begin
   clock  = 1'b1;
-  reset = 1'b0;
+  reset = 1'b1;
 
   #(T*2) reset = 1'b1;
   #(T*2) reset = 1'b0;
@@ -108,6 +108,7 @@ initial begin
         poke_str.push_str(&format!(");\n"));
 
         // poke inputs
+        poke_str.push_str("  @(posedge clock);\n\n");
         for key in input_stimuli.keys() {
             let val = input_stimuli[key].get(cycle);
             match val {
@@ -117,7 +118,6 @@ initial begin
                 None => {}
             }
         }
-        poke_str.push_str("  @(negedge clock); #(0);\n\n");
         testbench.push_str(&poke_str);
     }
     testbench.push_str(&format!(

@@ -82,11 +82,15 @@ fn main() -> std::io::Result<()> {
         &sim_output_file,
     )?;
 
+    let mut cwd = env::current_dir()?;
+    cwd.push(sim_dir.clone());
+
     let mut waveform_path = sim_dir.clone();
     waveform_path.push_str("/build/sim.vcd");
     let mut waveform_db = WaveformDB::new(waveform_path);
 
     let mut module = Module::from_circuit(&mapped_circuit);
+    let mut module_lag = Module::from_circuit(&mapped_circuit);
 
     let cycles = input_stimuli_blasted
         .values()
@@ -98,6 +102,7 @@ fn main() -> std::io::Result<()> {
             match val {
                 Some(b) => {
                     let _ = module.poke(key.to_string(), *b as Bit);
+                    let _ = module_lag.poke(key.to_string(), *b as Bit);
                 }
                 None => {}
             }
@@ -106,19 +111,46 @@ fn main() -> std::io::Result<()> {
         // run a cycle
         module.run_cycle();
 
+        let mut found_mismatch = false;
+
         let ref_signals = waveform_db.signal_values_at_cycle((cycle * 2 + 8) as u32);
         for (k, ref_bit) in ref_signals.iter() {
             let peek = module.peek(k);
             match peek {
                 Ok(bit) => {
                     if bit != *ref_bit {
+                        found_mismatch = true;
                         println!("cycle {} signal {} expected {} get {}", cycle, k, ref_bit, bit);
+
+                        match module.nodeindex(k) {
+                            Some(nodeidx) => {
+                                let debug_graph = mapped_circuit.debug_graph(nodeidx, &module);
+                                let debug_graph_file = format!("after-cycle-{}-signal-{}.dot", cycle, k);
+                                let mut debug_out_file =
+                                    fs::File::create(format!("{}/{}", cwd.to_str().unwrap(), debug_graph_file))?;
+                                debug_out_file.write(debug_graph.as_bytes())?;
+
+                                let debug_graph = mapped_circuit.debug_graph(nodeidx, &module_lag);
+                                let debug_graph_file = format!("before-cycle-{}-signal-{}.dot", cycle, k);
+                                let mut debug_out_file =
+                                    fs::File::create(format!("{}/{}", cwd.to_str().unwrap(), debug_graph_file))?;
+                                debug_out_file.write(debug_graph.as_bytes())?;
+                            }
+                            None => {
+                            }
+                        }
                     }
                 }
                 _ => {
                 }
             }
         }
+
+        if found_mismatch {
+            return Ok(());
+        }
+
+        module_lag.run_cycle();
 
         for opb in output_ports_blasted.iter() {
             let output = module.peek(opb).unwrap();
@@ -127,10 +159,7 @@ fn main() -> std::io::Result<()> {
     }
     let output_values = output_value_fmt(&aggregate_bitblasted_values(&ports, &mut output_blasted));
 
-
     let emul_output_file = format!("{}-emulation.out", top_mod);
-    let mut cwd = env::current_dir()?;
-    cwd.push(sim_dir);
     let mut emulation_out_file =
         fs::File::create(format!("{}/{}", cwd.to_str().unwrap(), emul_output_file))?;
     emulation_out_file.write(output_values.as_bytes())?;

@@ -2,8 +2,9 @@ use crate::fsim::common::*;
 use crate::fsim::processor::*;
 use crate::fsim::switch::*;
 use crate::instruction::Instruction;
-use crate::primitives::{Circuit, NodeInfo, Primitives};
+use crate::primitives::{Circuit, NodeMapInfo, Primitives};
 use indexmap::IndexMap;
+use petgraph::graph::NodeIndex;
 use std::cmp::max;
 use std::fmt::Debug;
 
@@ -13,7 +14,7 @@ pub struct Module {
     host_steps: usize, // Total number of host machine cycles to emulate one target cycle
     iprocs: Vec<usize>, // Processor indices that have input IO ports
     oprocs: Vec<usize>, // Processor indices that have output IO ports
-    signal_map: IndexMap<String, NodeInfo>,
+    signal_map: IndexMap<String, NodeMapInfo>,
 }
 
 impl Debug for Module {
@@ -75,7 +76,7 @@ impl Module {
         }
     }
 
-    pub fn set_signal_map(self: &mut Self, signal_map: &IndexMap<String, NodeInfo>) {
+    pub fn set_signal_map(self: &mut Self, signal_map: &IndexMap<String, NodeMapInfo>) {
         self.signal_map = signal_map.clone()
     }
 
@@ -114,20 +115,18 @@ impl Module {
     }
 
     pub fn peek(self: &Self, signal: &str) -> Result<Bit, String> {
-        let map = self.signal_map.get(signal);
-        match map {
-            Some(info) => Ok(self.procs[info.proc as usize].ldm[info.pc as usize]),
+        match self.signal_map.get(signal) {
+            Some(map) => Ok(self.procs[map.info.proc as usize].ldm[map.info.pc as usize]),
             None => Err(format!("Cannot find signal {} to peek", signal).to_string()),
         }
     }
 
     pub fn poke(self: &mut Self, signal: String, val: Bit) -> Result<Bit, String> {
-        let map = self.signal_map.get(&signal);
-        match map {
-            Some(info) => {
-                let inst = self.procs[info.proc as usize].imem[info.pc as usize].clone();
+        match self.signal_map.get(&signal) {
+            Some(map) => {
+                let inst = self.procs[map.info.proc as usize].imem[map.info.pc as usize].clone();
                 if inst.opcode == Primitives::Input {
-                    self.procs[info.proc as usize].set_io_i(val);
+                    self.procs[map.info.proc as usize].set_io_i(val);
                     Ok(val)
                 } else {
                     Err(format!("Signal {} to poke is not a Input", signal).to_string())
@@ -148,6 +147,17 @@ impl Module {
     pub fn run_cycle(self: &mut Self) {
         for _ in 0..self.host_steps {
             self.step();
+        }
+    }
+
+    pub fn nodeindex(self: &Self, signal: &str) -> Option<NodeIndex> {
+        match self.signal_map.get(signal) {
+            Some(map) => {
+                Some(map.idx)
+            }
+            None => {
+                None
+            }
         }
     }
 }

@@ -16,7 +16,7 @@ pub fn map_instructions(circuit: Circuit) -> Circuit {
         max_proc = max(max_proc, node.clone().get_info().proc);
     }
 
-    let mut signal_map: IndexMap<String, NodeInfo> = IndexMap::new();
+    let mut signal_map: IndexMap<String, NodeMapInfo> = IndexMap::new();
     let mut all_insts: Vec<Vec<Instruction>> = vec![];
     for _ in 0..(max_proc + 1) {
         let mut insts: Vec<Instruction> = vec![];
@@ -100,7 +100,8 @@ pub fn map_instructions(circuit: Circuit) -> Circuit {
         }
 
         // add to signal map
-        signal_map.insert(node.name().to_string(), node.get_info());
+        let nodemap = NodeMapInfo { info: node.get_info(), idx: nidx };
+        signal_map.insert(node.name().to_string(), nodemap);
     }
 
     return Circuit {
