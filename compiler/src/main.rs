@@ -147,6 +147,7 @@ fn main() -> std::io::Result<()> {
         }
 
         if found_mismatch {
+            println!("Test failed");
             return Ok(());
         }
 
@@ -164,20 +165,10 @@ fn main() -> std::io::Result<()> {
         fs::File::create(format!("{}/{}", cwd.to_str().unwrap(), emul_output_file))?;
     emulation_out_file.write(output_values.as_bytes())?;
 
-    let diff_out = Command::new("diff")
-        .current_dir(&cwd)
-        .arg(sim_output_file)
-        .arg(emul_output_file)
-        .status()?;
-
-    if diff_out.success() {
-        println!("test success! output matches with RTL simulation");
-    } else {
-        println!("RIP test failed!");
-    }
-
     let mut graph_file = fs::File::create(format!("{}/{}.dot", cwd.to_str().unwrap(), top_mod))?;
     graph_file.write(format!("{:?}", &mapped_circuit).as_bytes())?;
+
+    println!("Test success!");
 
     return Ok(());
 }

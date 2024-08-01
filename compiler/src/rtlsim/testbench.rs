@@ -70,17 +70,18 @@ module testharness;
 "
     .to_string();
     for p in io.iter() {
+        let reg_or_wire = if p.input { "reg" } else { "wire" };
         if p.width == 1 {
-            testbench.push_str(&format!("reg {};\n", p.name));
+            testbench.push_str(&format!("{} {};\n", reg_or_wire, p.name));
         } else {
-            testbench.push_str(&format!("reg [{}:0] {};\n", p.width - 1, p.name));
+            testbench.push_str(&format!("{} [{}:0] {};\n", reg_or_wire, p.width - 1, p.name));
         }
     }
     testbench.push_str(&format!(
         "
 localparam T=20;
 always begin
-  #(T/2) clock = ~clock;
+  #(T/2) clock <= ~clock;
 end
 
 initial begin
@@ -96,8 +97,12 @@ initial begin
     ));
     let cycles = input_stimuli.values().fold(0, |x, y| max(x, y.len()));
     for cycle in 0..cycles {
+        let mut poke_str = "".to_string();
+
+        poke_str.push_str("  @(posedge clock);#(0);\n");
+
         // generate display message
-        let mut poke_str = "  $display($time, \" ".to_string();
+        poke_str.push_str("  $display($time, \" ");
         for o in io.iter().filter(|x| !x.input) {
             poke_str.push_str(&format!("{} %x ", o.name));
         }
@@ -108,7 +113,6 @@ initial begin
         poke_str.push_str(&format!(");\n"));
 
         // poke inputs
-        poke_str.push_str("  @(posedge clock);\n\n");
         for key in input_stimuli.keys() {
             let val = input_stimuli[key].get(cycle);
             match val {
@@ -118,6 +122,9 @@ initial begin
                 None => {}
             }
         }
+        poke_str.push_str("\n");
+
+
         testbench.push_str(&poke_str);
     }
     testbench.push_str(&format!(
@@ -202,17 +209,30 @@ pub fn run_rtl_simulation(
 
     Command::new("mv").arg(&tb_name).arg(&cwd).status()?;
 
-    Command::new("verilator")
+    Command::new("mkdir")
         .current_dir(&cwd)
-        .arg("--trace")
-        .arg("--binary")
-        .arg(&tb_name)
-        .arg(verilog_file.file_name().unwrap())
-        .arg("-o")
-        .arg("rtlsim_binary")
-        .arg("--Mdir")
         .arg("build")
         .status()?;
+
+    Command::new("iverilog")
+        .current_dir(&cwd)
+        .arg("-o")
+        .arg("build/rtlsim_binary")
+        .arg(&tb_name)
+        .arg(verilog_file.file_name().unwrap())
+        .status()?;
+
+// Command::new("verilator")
+// .current_dir(&cwd)
+// .arg("--trace")
+// .arg("--binary")
+// .arg(&tb_name)
+// .arg(verilog_file.file_name().unwrap())
+// .arg("-o")
+// .arg("rtlsim_binary")
+// .arg("--Mdir")
+// .arg("build")
+// .status()?;
 
     let stdout = Command::new("./rtlsim_binary")
         .current_dir(cwd.join("build"))
