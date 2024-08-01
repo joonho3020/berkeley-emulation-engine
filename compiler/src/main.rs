@@ -10,6 +10,7 @@ use crate::passes::parser;
 use crate::passes::runner;
 use crate::primitives::Configuration;
 use crate::rtlsim::testbench::*;
+use crate::rtlsim::vcdparser::*;
 use indexmap::IndexMap;
 use std::cmp::max;
 use std::io::Write;
@@ -70,6 +71,21 @@ fn main() -> std::io::Result<()> {
         output_blasted.insert(opb.to_string(), vec![]);
     }
 
+    // Run reference RTL simulation
+    let sim_dir = format!("sim-dir-{}", top_mod);
+    let sim_output_file = format!("{}-simulation.out", top_mod);
+    run_rtl_simulation(
+        sv_file_path,
+        top_mod,
+        input_stimuli_path,
+        &sim_dir,
+        &sim_output_file,
+    )?;
+
+    let mut waveform_path = sim_dir.clone();
+    waveform_path.push_str("/build/sim.vcd");
+    let mut waveform_db = WaveformDB::new(waveform_path);
+
     let mut module = Module::from_circuit(&mapped_circuit);
 
     let cycles = input_stimuli_blasted
@@ -90,6 +106,20 @@ fn main() -> std::io::Result<()> {
         // run a cycle
         module.run_cycle();
 
+        let ref_signals = waveform_db.signal_values_at_cycle((cycle * 2 + 8) as u32);
+        for (k, ref_bit) in ref_signals.iter() {
+            let peek = module.peek(k);
+            match peek {
+                Ok(bit) => {
+                    if bit != *ref_bit {
+                        println!("cycle {} signal {} expected {} get {}", cycle, k, ref_bit, bit);
+                    }
+                }
+                _ => {
+                }
+            }
+        }
+
         for opb in output_ports_blasted.iter() {
             let output = module.peek(opb).unwrap();
             output_blasted.get_mut(opb).unwrap().push(output as u64);
@@ -97,16 +127,6 @@ fn main() -> std::io::Result<()> {
     }
     let output_values = output_value_fmt(&aggregate_bitblasted_values(&ports, &mut output_blasted));
 
-    // Run reference RTL simulation
-    let sim_dir = format!("sim-dir-{}", top_mod);
-    let sim_output_file = format!("{}-simulation.out", top_mod);
-    run_rtl_simulation(
-        sv_file_path,
-        top_mod,
-        input_stimuli_path,
-        &sim_dir,
-        &sim_output_file,
-    )?;
 
     let emul_output_file = format!("{}-emulation.out", top_mod);
     let mut cwd = env::current_dir()?;
