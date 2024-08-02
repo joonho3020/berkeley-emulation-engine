@@ -3,6 +3,7 @@ mod fsim;
 mod passes;
 mod primitives;
 mod rtlsim;
+mod utils;
 
 use crate::common::*;
 use crate::fsim::module::*;
@@ -13,7 +14,6 @@ use crate::rtlsim::testbench::*;
 use crate::rtlsim::vcdparser::*;
 use indexmap::IndexMap;
 use std::cmp::max;
-use std::io::Write;
 use std::{env, fs};
 
 fn main() -> std::io::Result<()> {
@@ -126,25 +126,25 @@ fn main() -> std::io::Result<()> {
 
                         match module.nodeindex(signal_name) {
                             Some(nodeidx) => {
-                                let debug_graph = circuit.debug_graph(nodeidx, &module);
-                                let debug_graph_file =
-                                    format!("after-cycle-{}-signal-{}.dot", cycle, signal_name);
-                                let mut debug_out_file = fs::File::create(format!(
-                                    "{}/{}",
-                                    cwd.to_str().unwrap(),
-                                    debug_graph_file
-                                ))?;
-                                debug_out_file.write(debug_graph.as_bytes())?;
+                                utils::write_string_to_file(
+                                    circuit.debug_graph(nodeidx, &module),
+                                    &format!(
+                                        "{}/after-cycle-{}-signal-{}.dot",
+                                        cwd.to_str().unwrap(),
+                                        cycle,
+                                        signal_name
+                                    ),
+                                )?;
 
-                                let debug_graph = circuit.debug_graph(nodeidx, &module_lag);
-                                let debug_graph_file =
-                                    format!("before-cycle-{}-signal-{}.dot", cycle, signal_name);
-                                let mut debug_out_file = fs::File::create(format!(
-                                    "{}/{}",
-                                    cwd.to_str().unwrap(),
-                                    debug_graph_file
-                                ))?;
-                                debug_out_file.write(debug_graph.as_bytes())?;
+                                utils::write_string_to_file(
+                                    circuit.debug_graph(nodeidx, &module_lag),
+                                    &format!(
+                                        "{}/before-cycle-{}-signal-{}.dot",
+                                        cwd.to_str().unwrap(),
+                                        cycle,
+                                        signal_name
+                                    ),
+                                )?;
                             }
                             None => {}
                         }
@@ -166,15 +166,15 @@ fn main() -> std::io::Result<()> {
             output_blasted.get_mut(opb).unwrap().push(output as u64);
         }
     }
-    let output_values = output_value_fmt(&aggregate_bitblasted_values(&ports, &mut output_blasted));
 
-    let emul_output_file = format!("{}-emulation.out", top_mod);
-    let mut emulation_out_file =
-        fs::File::create(format!("{}/{}", cwd.to_str().unwrap(), emul_output_file))?;
-    emulation_out_file.write(output_values.as_bytes())?;
-
-    let mut graph_file = fs::File::create(format!("{}/{}.dot", cwd.to_str().unwrap(), top_mod))?;
-    graph_file.write(format!("{:?}", &circuit).as_bytes())?;
+    utils::write_string_to_file(
+        output_value_fmt(&aggregate_bitblasted_values(&ports, &mut output_blasted)),
+        &format!("{}/{}-emulation.out", cwd.to_str().unwrap(), top_mod),
+    )?;
+    utils::write_string_to_file(
+        format!("{:?}", &circuit),
+        &format!("{}/{}.dot", cwd.to_str().unwrap(), top_mod),
+    )?;
 
     println!("Test success!");
 

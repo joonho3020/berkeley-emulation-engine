@@ -1,3 +1,4 @@
+use crate::utils;
 use indexmap::IndexMap;
 use std::cmp::max;
 use std::io::Write;
@@ -205,9 +206,8 @@ pub fn run_rtl_simulation(
 
     let verilog_file = Path::new(sv_file_path);
 
-    let tb_name = format!("{}-testbench.sv", top_mod);
-    let mut tb_file = fs::File::create(&tb_name)?;
-    tb_file.write(tb.as_bytes())?;
+    let tb_name = format!("{}-testbench.sv", top_mod).to_string();
+    utils::write_string_to_file(tb, &tb_name)?;
 
     let mut cwd = env::current_dir()?;
     cwd.push(sim_dir.to_string());
