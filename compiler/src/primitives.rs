@@ -545,6 +545,11 @@ impl Circuit {
         Ok(())
     }
 
+    /// #debug_graph
+    /// Given a `dbg_node` in the graph, search for all parents nodes up until
+    /// it reaches Gate, Latch or Input.
+    /// It will also print the bit-value associated with the node
+    /// computed by the emulation processor.
     pub fn debug_graph(&self, dbg_node: NodeIndex, module: &EmulModule) -> String {
         let indent: &str = "    ";
         let mut vis_map = self.graph.visit_map();
