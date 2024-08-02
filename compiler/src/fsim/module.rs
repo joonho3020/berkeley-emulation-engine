@@ -13,7 +13,7 @@ pub struct Module {
     host_steps: usize, // Total number of host machine cycles to emulate one target cycle
     iprocs: Vec<usize>, // Processor indices that have input IO ports
     oprocs: Vec<usize>, // Processor indices that have output IO ports
-    pub signal_map: IndexMap<String, NodeMapInfo>,
+    signal_map: IndexMap<String, NodeMapInfo>,
 }
 
 impl Debug for Module {
@@ -49,17 +49,12 @@ impl Module {
 
         let host_steps = max_pc + 1;
         let mut module = Module::new(nprocs, host_steps as usize);
-
-        // set instructions
         module.set_insts(all_insts.to_vec());
-
-        // set signal mapping
         module.set_signal_map(&c.emulator.signal_map);
-
         return module;
     }
 
-    pub fn set_insts(self: &mut Self, all_insts: Vec<Vec<Instruction>>) {
+    fn set_insts(self: &mut Self, all_insts: Vec<Vec<Instruction>>) {
         assert!(self.procs.len() >= all_insts.len());
         for (i, insts) in all_insts.iter().enumerate() {
             for (pc, inst) in insts.iter().enumerate() {
@@ -75,7 +70,7 @@ impl Module {
         }
     }
 
-    pub fn set_signal_map(self: &mut Self, signal_map: &IndexMap<String, NodeMapInfo>) {
+    fn set_signal_map(self: &mut Self, signal_map: &IndexMap<String, NodeMapInfo>) {
         self.signal_map = signal_map.clone()
     }
 
