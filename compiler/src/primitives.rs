@@ -213,7 +213,9 @@ impl Debug for Lut {
         let mut table: u64 = 0;
         assert!(
             self.table.len() <= 6,
-            "can support up to 6 operands with u64"
+            "Can support up to 6 operands with u64 Lut {} Table {:?}",
+            self.name(),
+            self.table
         );
 
         for entry in self.table.iter() {

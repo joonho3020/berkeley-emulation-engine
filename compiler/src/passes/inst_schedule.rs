@@ -1,4 +1,5 @@
 use crate::primitives::*;
+use crate::utils::write_string_to_file;
 use indexmap::{IndexMap, IndexSet};
 use petgraph::{
     graph::{Graph, NodeIndex},
@@ -206,5 +207,9 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
             }
         }
         pc += 1;
+        if pc >= circuit.emulator.cfg.gates_per_partition {
+            let _ = write_string_to_file(format!("{:?}", circuit), "schedule-failed.dot");
+            break;
+        }
     }
 }

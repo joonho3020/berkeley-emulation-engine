@@ -35,6 +35,7 @@ fn main() -> std::io::Result<()> {
             return Err(std::io::Error::other(format!("{}", e)));
         }
     };
+    println!("parsing blif file done");
 
     let cfg = Configuration {
         gates_per_partition: 128,
@@ -52,6 +53,7 @@ fn main() -> std::io::Result<()> {
             )));
         }
     };
+    println!("Compiler passes finished");
 
     // convert input stimuli to bit-blasted input stimuli
     let ports = get_io(verilog_str.to_string(), top_mod.to_string());
@@ -80,6 +82,7 @@ fn main() -> std::io::Result<()> {
         &sim_dir,
         &sim_output_file,
     )?;
+    println!("Reference RTL simulation finished");
 
     let mut cwd = env::current_dir()?;
     cwd.push(sim_dir.clone());
