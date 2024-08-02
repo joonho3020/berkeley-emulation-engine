@@ -1,4 +1,4 @@
-use crate::instruction::*;
+use crate::common::*;
 use crate::primitives::*;
 use indexmap::IndexMap;
 use petgraph::Direction::{Incoming, Outgoing};

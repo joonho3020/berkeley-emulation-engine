@@ -1,4 +1,4 @@
-use crate::instruction::Instruction;
+use crate::common::Instruction;
 use crate::fsim::module::Module as EmulModule;
 use indexmap::IndexMap;
 use petgraph::{
@@ -316,6 +316,7 @@ impl Debug for Gate {
 #[repr(u8)]
 #[derive(Debug, Clone)]
 pub enum LatchInit {
+    /// Defined in Yosys spec
     ZER0 = 0,
     ONE = 1,
     DONTCARE = 2,

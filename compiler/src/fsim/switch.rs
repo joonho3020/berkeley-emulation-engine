@@ -1,4 +1,4 @@
-use crate::fsim::common::*;
+use crate::common::*;
 
 #[derive(Default, Debug)]
 pub struct Switch {

@@ -1,3 +1,4 @@
+use crate::common::FourStateBit;
 use indexmap::IndexMap;
 use indicatif::ProgressStyle;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -81,46 +82,11 @@ impl WaveformDB {
         };
     }
 
-    pub fn print_all_signals(self: &mut Self) {
+    /// Returns a signal name to bit value map for all signals at `cycle`
+    pub fn signal_values_at_cycle(self: &mut Self, cycle: u32) -> IndexMap<String, FourStateBit> {
         let hierarchy = &self.header.hierarchy;
 
-        for var in hierarchy.get_unique_signals_vars().iter().flatten() {
-            let _signal_name: String = var.full_name(&hierarchy);
-            let ids = [var.signal_ref(); 1];
-            let loaded = self
-                .body
-                .source
-                .load_signals(&ids, &hierarchy, LOAD_OPTS.multi_thread);
-
-            println!("signal_name: {}\nloaded: {:?}", _signal_name, &loaded);
-
-            let (_, loaded_signal) = loaded.into_iter().next().unwrap();
-
-            println!("loaded_signal: {:?}", loaded_signal);
-
-            for x in loaded_signal.time_indices() {
-                let offset = loaded_signal.get_offset(*x);
-                match offset {
-                    Some(idx) => {
-                        for elemidx in 0..idx.elements {
-                            println!("{}", loaded_signal.get_value_at(&idx, elemidx));
-                        }
-                    }
-                    _ => {}
-                }
-                println!(
-                    "time_indices: {:?} value: {:?}",
-                    x,
-                    loaded_signal.get_offset(*x)
-                );
-            }
-        }
-    }
-
-    pub fn signal_values_at_cycle(self: &mut Self, cycle: u32) -> IndexMap<String, u8> {
-        let hierarchy = &self.header.hierarchy;
-
-        let mut ret: IndexMap<String, u8> = IndexMap::new();
+        let mut ret: IndexMap<String, FourStateBit> = IndexMap::new();
 
         for var in hierarchy.get_unique_signals_vars().iter().flatten() {
             let _signal_name: String = var.full_name(&hierarchy);
@@ -145,17 +111,17 @@ impl WaveformDB {
                             Some(bits_as_string) => bits_as_string,
                             _ => "".to_string(),
                         };
+                        let bits_array: Vec<char> = bits.chars().rev().collect();
+                        assert!(numbits == bits_array.len() as u32);
                         if numbits == 1 {
-                            ret.insert(name, bits.parse().unwrap());
+                            ret.insert(name, FourStateBit::from_char(bits_array[0]));
                         } else {
-                            assert!(numbits <= 64, "Currently only supports up to 64 bits");
-                            let bits_array: Vec<char> = bits.chars().rev().collect();
                             for bit in 0..numbits {
-                                let val = bits_array[bit as usize].to_digit(10).unwrap();
+                                let val = FourStateBit::from_char(bits_array[bit as usize]);
                                 let index = format!("[{}]", bit);
                                 let mut name_bit = name.clone();
                                 name_bit.push_str(&index);
-                                ret.insert(name_bit, val as u8);
+                                ret.insert(name_bit, val);
                             }
                         }
                     }

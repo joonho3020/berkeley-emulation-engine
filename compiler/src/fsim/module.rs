@@ -1,7 +1,6 @@
-use crate::fsim::common::*;
+use crate::common::*;
 use crate::fsim::processor::*;
 use crate::fsim::switch::*;
-use crate::instruction::Instruction;
 use crate::primitives::{Circuit, NodeMapInfo, Primitives};
 use indexmap::IndexMap;
 use petgraph::graph::NodeIndex;
@@ -114,34 +113,30 @@ impl Module {
         }
     }
 
-    pub fn peek(self: &Self, signal: &str) -> Result<Bit, String> {
+    pub fn peek(self: &Self, signal: &str) -> Option<Bit> {
         match self.signal_map.get(signal) {
-            Some(map) => Ok(self.procs[map.info.proc as usize].ldm[map.info.pc as usize]),
-            None => Err(format!("Cannot find signal {} to peek", signal).to_string()),
+            Some(map) => Some(self.procs[map.info.proc as usize].ldm[map.info.pc as usize]),
+            None => None
         }
     }
 
-    pub fn poke(self: &mut Self, signal: String, val: Bit) -> Result<Bit, String> {
+    pub fn poke(self: &mut Self, signal: String, val: Bit) -> Option<Bit> {
         match self.signal_map.get(&signal) {
             Some(map) => {
                 let inst = self.procs[map.info.proc as usize].imem[map.info.pc as usize].clone();
                 if inst.opcode == Primitives::Input {
                     self.procs[map.info.proc as usize].set_io_i(val);
-                    Ok(val)
+                    Some(val)
                 } else {
-                    Err(format!("Signal {} to poke is not a Input", signal).to_string())
+                    println!("Signal {} to poke is not a Input", signal);
+                    None
                 }
             }
-            None => Err(format!("Cannot find signal {} to poke", signal).to_string()),
+            None => {
+                println!("Cannot find signal {} to poke", signal);
+                None
+            }
         }
-    }
-
-    pub fn get_outputs(self: &mut Self) -> Vec<Bit> {
-        let mut ret = vec![];
-        for oproc in self.oprocs.iter() {
-            ret.push(self.procs[*oproc].get_io_o());
-        }
-        ret
     }
 
     pub fn run_cycle(self: &mut Self) {

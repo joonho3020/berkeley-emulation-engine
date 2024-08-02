@@ -1,5 +1,4 @@
-use crate::fsim::common::*;
-use crate::instruction::Instruction;
+use crate::common::*;
 use crate::primitives::Primitives;
 use std::fmt::Debug;
 

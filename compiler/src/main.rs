@@ -1,10 +1,10 @@
 mod fsim;
-mod instruction;
 mod passes;
 mod primitives;
+mod common;
 mod rtlsim;
 
-use crate::fsim::common::*;
+use crate::common::*;
 use crate::fsim::module::*;
 use crate::passes::parser;
 use crate::passes::runner;
@@ -14,7 +14,6 @@ use crate::rtlsim::vcdparser::*;
 use indexmap::IndexMap;
 use std::cmp::max;
 use std::io::Write;
-use std::process::Command;
 use std::{env, fs};
 
 fn main() -> std::io::Result<()> {
@@ -114,24 +113,24 @@ fn main() -> std::io::Result<()> {
         let mut found_mismatch = false;
 
         let ref_signals = waveform_db.signal_values_at_cycle((cycle * 2 + 8) as u32);
-        for (k, ref_bit) in ref_signals.iter() {
-            let peek = module.peek(k);
-            match peek {
-                Ok(bit) => {
-                    if bit != *ref_bit {
+        for (signal_name, four_state_bit) in ref_signals.iter() {
+            let peek = module.peek(signal_name);
+            match (peek, four_state_bit.to_bit()) {
+                (Some(bit), Some(ref_bit)) => {
+                    if bit != ref_bit {
                         found_mismatch = true;
-                        println!("cycle {} signal {} expected {} get {}", cycle, k, ref_bit, bit);
+                        println!("cycle {} signal {} expected {} get {}", cycle, signal_name, ref_bit, bit);
 
-                        match module.nodeindex(k) {
+                        match module.nodeindex(signal_name) {
                             Some(nodeidx) => {
                                 let debug_graph = mapped_circuit.debug_graph(nodeidx, &module);
-                                let debug_graph_file = format!("after-cycle-{}-signal-{}.dot", cycle, k);
+                                let debug_graph_file = format!("after-cycle-{}-signal-{}.dot", cycle, signal_name);
                                 let mut debug_out_file =
                                     fs::File::create(format!("{}/{}", cwd.to_str().unwrap(), debug_graph_file))?;
                                 debug_out_file.write(debug_graph.as_bytes())?;
 
                                 let debug_graph = mapped_circuit.debug_graph(nodeidx, &module_lag);
-                                let debug_graph_file = format!("before-cycle-{}-signal-{}.dot", cycle, k);
+                                let debug_graph_file = format!("before-cycle-{}-signal-{}.dot", cycle, signal_name);
                                 let mut debug_out_file =
                                     fs::File::create(format!("{}/{}", cwd.to_str().unwrap(), debug_graph_file))?;
                                 debug_out_file.write(debug_graph.as_bytes())?;
