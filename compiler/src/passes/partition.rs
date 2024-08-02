@@ -17,14 +17,11 @@ fn set_rank(graph: &mut HWGraph, nidx: NodeIndex, rank: u32) {
     })
 }
 
-pub fn find_rank_order(circuit: Circuit) -> Circuit {
-    let mut graph = circuit.graph;
-    let io_i = circuit.io_i;
-
+pub fn find_rank_order(circuit: &mut Circuit) {
     // Search for flip-flop nodes
     let mut ff_nodes: Vec<NodeIndex> = vec![];
-    for nidx in graph.node_indices() {
-        let node = graph.node_weight(nidx).unwrap();
+    for nidx in circuit.graph.node_indices() {
+        let node = circuit.graph.node_weight(nidx).unwrap();
         match node.is() {
             Primitives::Latch | Primitives::Gate => {
                 ff_nodes.push(nidx);
@@ -35,36 +32,36 @@ pub fn find_rank_order(circuit: Circuit) -> Circuit {
 
     // Push Input & FF nodes
     let mut q: Vec<NodeIndex> = vec![];
-    for nidx in io_i.keys() {
+    for nidx in circuit.io_i.keys() {
         q.push(*nidx);
-        set_rank(&mut graph, *nidx, 0);
+        set_rank(&mut circuit.graph, *nidx, 0);
     }
     for nidx in ff_nodes.iter() {
         q.push(*nidx);
-        set_rank(&mut graph, *nidx, 0);
+        set_rank(&mut circuit.graph, *nidx, 0);
     }
 
     // compute indeg
     let mut indeg: IndexMap<NodeIndex, u32> = IndexMap::new();
-    for nidx in graph.node_indices() {
+    for nidx in circuit.graph.node_indices() {
         indeg.insert(nidx, 0);
     }
-    for eidx in graph.edge_indices() {
-        let e = graph.edge_endpoints(eidx).unwrap();
+    for eidx in circuit.graph.edge_indices() {
+        let e = circuit.graph.edge_endpoints(eidx).unwrap();
         let dst = e.1;
         *indeg.get_mut(&dst).unwrap() += 1;
     }
 
     // BFS
     let mut topo_sort_order: Vec<NodeIndex> = vec![];
-    let mut vis_map = graph.visit_map();
+    let mut vis_map = circuit.graph.visit_map();
     while !q.is_empty() {
         let nidx = q.remove(0);
         vis_map.visit(nidx);
         topo_sort_order.push(nidx);
 
-        let mut childs = graph.neighbors_directed(nidx, Outgoing).detach();
-        while let Some(cidx) = childs.next_node(&graph) {
+        let mut childs = circuit.graph.neighbors_directed(nidx, Outgoing).detach();
+        while let Some(cidx) = childs.next_node(&circuit.graph) {
             *indeg.get_mut(&cidx).unwrap() -= 1;
             if *indeg.get(&cidx).unwrap() == 0 && !vis_map.is_visited(&cidx) {
                 q.push(cidx);
@@ -73,23 +70,17 @@ pub fn find_rank_order(circuit: Circuit) -> Circuit {
     }
 
     for nidx in topo_sort_order.iter() {
-        let node = graph.node_weight(*nidx).unwrap();
+        let node = circuit.graph.node_weight(*nidx).unwrap();
         if node.is() != Primitives::Gate || node.is() != Primitives::Latch {
             let mut max_parent_rank = 0;
-            let mut parents = graph.neighbors_directed(*nidx, Incoming).detach();
-            while let Some(pidx) = parents.next_node(&graph) {
-                let parent = graph.node_weight(pidx).unwrap();
+            let mut parents = circuit.graph.neighbors_directed(*nidx, Incoming).detach();
+            while let Some(pidx) = parents.next_node(&circuit.graph) {
+                let parent = circuit.graph.node_weight(pidx).unwrap();
                 max_parent_rank = max(max_parent_rank, parent.get_info().rank);
             }
-            set_rank(&mut graph, *nidx, max_parent_rank + 1);
+            set_rank(&mut circuit.graph, *nidx, max_parent_rank + 1);
         }
     }
-
-    return Circuit {
-        io_i: io_i,
-        graph: graph,
-        ..circuit
-    };
 }
 
 fn set_proc(
@@ -112,20 +103,17 @@ fn set_proc(
     );
 }
 
-pub fn map_to_processor(circuit: Circuit) -> Circuit {
-    let mut graph = circuit.graph;
-    let io_i = circuit.io_i;
-
+pub fn map_to_processor(circuit: &mut Circuit) {
     // Start from Input
     let mut q: Vec<NodeIndex> = vec![];
-    for nidx in io_i.keys() {
+    for nidx in circuit.io_i.keys() {
         q.push(*nidx);
     }
 
     let mut proc_id = 0;
     let max_gates = circuit.emulator.cfg.gates_per_partition;
 
-    let mut vis_map = graph.visit_map();
+    let mut vis_map = circuit.graph.visit_map();
     while !q.is_empty() {
         let root = q.remove(0);
 
@@ -138,11 +126,17 @@ pub fn map_to_processor(circuit: Circuit) -> Circuit {
                 continue;
             }
             vis_map.visit(nidx);
-            set_proc(&mut graph, nidx, proc_id, &mut cur_proc_size, max_gates);
+            set_proc(
+                &mut circuit.graph,
+                nidx,
+                proc_id,
+                &mut cur_proc_size,
+                max_gates,
+            );
 
-            let mut childs = graph.neighbors_directed(nidx, Outgoing).detach();
-            while let Some(cidx) = childs.next_node(&graph) {
-                let child_type = graph.node_weight_mut(cidx).unwrap().is();
+            let mut childs = circuit.graph.neighbors_directed(nidx, Outgoing).detach();
+            while let Some(cidx) = childs.next_node(&circuit.graph) {
+                let child_type = circuit.graph.node_weight_mut(cidx).unwrap().is();
                 if !vis_map.is_visited(&cidx) {
                     if (child_type != Primitives::Gate) && (child_type != Primitives::Latch) {
                         qq.push(cidx);
@@ -154,10 +148,4 @@ pub fn map_to_processor(circuit: Circuit) -> Circuit {
         }
         proc_id += 1;
     }
-
-    return Circuit {
-        io_i: io_i,
-        graph: graph,
-        ..circuit
-    };
 }

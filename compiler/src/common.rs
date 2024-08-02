@@ -9,7 +9,7 @@ pub enum FourStateBit {
     ZERO,
     ONE,
     X,
-    Z
+    Z,
 }
 
 impl FourStateBit {
@@ -19,19 +19,18 @@ impl FourStateBit {
             '1' => Self::ONE,
             'x' => Self::X,
             'z' => Self::Z,
-            _   => Self::X
+            _ => Self::X,
         }
     }
 
     pub fn to_bit(self: &Self) -> Option<Bit> {
         match self {
             Self::ZERO => Some(0),
-            Self::ONE  => Some(1),
-            _          => None
+            Self::ONE => Some(1),
+            _ => None,
         }
     }
 }
-
 
 #[derive(Debug, Clone, Default)]
 pub struct Operand {

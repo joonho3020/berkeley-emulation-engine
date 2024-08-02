@@ -12,6 +12,8 @@ pub struct Port {
     pub input: bool,
 }
 
+/// Parses a verilog file `verilog_str`, searches for the `top` module
+/// and returns a list of ports for that module
 pub fn get_io(verilog_str: String, top: String) -> Vec<Port> {
     let mut collect_io = false;
     let mut cur_dir_input = true;
@@ -57,6 +59,7 @@ pub fn get_io(verilog_str: String, top: String) -> Vec<Port> {
     return ret;
 }
 
+/// Generates a testharness String
 pub fn generate_testbench_string(
     input_stimuli: &IndexMap<String, Vec<u64>>,
     io: Vec<Port>,
@@ -74,7 +77,12 @@ module testharness;
         if p.width == 1 {
             testbench.push_str(&format!("{} {};\n", reg_or_wire, p.name));
         } else {
-            testbench.push_str(&format!("{} [{}:0] {};\n", reg_or_wire, p.width - 1, p.name));
+            testbench.push_str(&format!(
+                "{} [{}:0] {};\n",
+                reg_or_wire,
+                p.width - 1,
+                p.name
+            ));
         }
     }
     testbench.push_str(&format!(
@@ -99,6 +107,8 @@ initial begin
     for cycle in 0..cycles {
         let mut poke_str = "".to_string();
 
+        // Need a #(0) after a posedge as we want to push inputs "after"
+        // the posedge
         poke_str.push_str("  @(posedge clock);#(0);\n");
 
         // generate display message
@@ -123,7 +133,6 @@ initial begin
             }
         }
         poke_str.push_str("\n");
-
 
         testbench.push_str(&poke_str);
     }
@@ -160,6 +169,8 @@ end
     return testbench;
 }
 
+/// Reads from a verilog file, and returns the generated testharness String
+/// when successfull
 pub fn generate_testbench(
     file_path: &str,
     top_mod: &str,
@@ -222,17 +233,17 @@ pub fn run_rtl_simulation(
         .arg(verilog_file.file_name().unwrap())
         .status()?;
 
-// Command::new("verilator")
-// .current_dir(&cwd)
-// .arg("--trace")
-// .arg("--binary")
-// .arg(&tb_name)
-// .arg(verilog_file.file_name().unwrap())
-// .arg("-o")
-// .arg("rtlsim_binary")
-// .arg("--Mdir")
-// .arg("build")
-// .status()?;
+    // Command::new("verilator")
+    // .current_dir(&cwd)
+    // .arg("--trace")
+    // .arg("--binary")
+    // .arg(&tb_name)
+    // .arg(verilog_file.file_name().unwrap())
+    // .arg("-o")
+    // .arg("rtlsim_binary")
+    // .arg("--Mdir")
+    // .arg("build")
+    // .status()?;
 
     let stdout = Command::new("./rtlsim_binary")
         .current_dir(cwd.join("build"))
@@ -283,6 +294,7 @@ pub fn run_rtl_simulation(
     Ok(())
 }
 
+/// Parses a file containing the stimuli of a test module
 pub fn get_input_stimuli(file_path: &str) -> IndexMap<String, Vec<u64>> {
     let input_str = match fs::read_to_string(file_path) {
         Ok(content) => content,

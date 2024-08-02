@@ -1,7 +1,7 @@
+mod common;
 mod fsim;
 mod passes;
 mod primitives;
-mod common;
 mod rtlsim;
 
 use crate::common::*;
@@ -29,7 +29,7 @@ fn main() -> std::io::Result<()> {
     let blif_file_path = &args[4];
 
     let res = parser::parse_blif_file(&blif_file_path);
-    let mut parsed_circuit = match res {
+    let mut circuit = match res {
         Ok(c) => c,
         Err(e) => {
             return Err(std::io::Error::other(format!("{}", e)));
@@ -40,9 +40,9 @@ fn main() -> std::io::Result<()> {
         gates_per_partition: 128,
         network_latency: 1,
     };
-    parsed_circuit.set_cfg(cfg);
+    circuit.set_cfg(cfg);
 
-    let mapped_circuit = runner::run_compiler_passes(parsed_circuit);
+    runner::run_compiler_passes(&mut circuit);
     let verilog_str = match fs::read_to_string(sv_file_path) {
         Ok(content) => content,
         Err(e) => {
@@ -88,8 +88,8 @@ fn main() -> std::io::Result<()> {
     waveform_path.push_str("/build/sim.vcd");
     let mut waveform_db = WaveformDB::new(waveform_path);
 
-    let mut module = Module::from_circuit(&mapped_circuit);
-    let mut module_lag = Module::from_circuit(&mapped_circuit);
+    let mut module = Module::from_circuit(&circuit);
+    let mut module_lag = Module::from_circuit(&circuit);
 
     let cycles = input_stimuli_blasted
         .values()
@@ -119,29 +119,38 @@ fn main() -> std::io::Result<()> {
                 (Some(bit), Some(ref_bit)) => {
                     if bit != ref_bit {
                         found_mismatch = true;
-                        println!("cycle {} signal {} expected {} get {}", cycle, signal_name, ref_bit, bit);
+                        println!(
+                            "cycle {} signal {} expected {} get {}",
+                            cycle, signal_name, ref_bit, bit
+                        );
 
                         match module.nodeindex(signal_name) {
                             Some(nodeidx) => {
-                                let debug_graph = mapped_circuit.debug_graph(nodeidx, &module);
-                                let debug_graph_file = format!("after-cycle-{}-signal-{}.dot", cycle, signal_name);
-                                let mut debug_out_file =
-                                    fs::File::create(format!("{}/{}", cwd.to_str().unwrap(), debug_graph_file))?;
+                                let debug_graph = circuit.debug_graph(nodeidx, &module);
+                                let debug_graph_file =
+                                    format!("after-cycle-{}-signal-{}.dot", cycle, signal_name);
+                                let mut debug_out_file = fs::File::create(format!(
+                                    "{}/{}",
+                                    cwd.to_str().unwrap(),
+                                    debug_graph_file
+                                ))?;
                                 debug_out_file.write(debug_graph.as_bytes())?;
 
-                                let debug_graph = mapped_circuit.debug_graph(nodeidx, &module_lag);
-                                let debug_graph_file = format!("before-cycle-{}-signal-{}.dot", cycle, signal_name);
-                                let mut debug_out_file =
-                                    fs::File::create(format!("{}/{}", cwd.to_str().unwrap(), debug_graph_file))?;
+                                let debug_graph = circuit.debug_graph(nodeidx, &module_lag);
+                                let debug_graph_file =
+                                    format!("before-cycle-{}-signal-{}.dot", cycle, signal_name);
+                                let mut debug_out_file = fs::File::create(format!(
+                                    "{}/{}",
+                                    cwd.to_str().unwrap(),
+                                    debug_graph_file
+                                ))?;
                                 debug_out_file.write(debug_graph.as_bytes())?;
                             }
-                            None => {
-                            }
+                            None => {}
                         }
                     }
                 }
-                _ => {
-                }
+                _ => {}
             }
         }
 
@@ -165,7 +174,7 @@ fn main() -> std::io::Result<()> {
     emulation_out_file.write(output_values.as_bytes())?;
 
     let mut graph_file = fs::File::create(format!("{}/{}.dot", cwd.to_str().unwrap(), top_mod))?;
-    graph_file.write(format!("{:?}", &mapped_circuit).as_bytes())?;
+    graph_file.write(format!("{:?}", &circuit).as_bytes())?;
 
     println!("Test success!");
 

@@ -13,7 +13,7 @@ pub struct Module {
     host_steps: usize, // Total number of host machine cycles to emulate one target cycle
     iprocs: Vec<usize>, // Processor indices that have input IO ports
     oprocs: Vec<usize>, // Processor indices that have output IO ports
-    signal_map: IndexMap<String, NodeMapInfo>,
+    pub signal_map: IndexMap<String, NodeMapInfo>,
 }
 
 impl Debug for Module {
@@ -116,7 +116,7 @@ impl Module {
     pub fn peek(self: &Self, signal: &str) -> Option<Bit> {
         match self.signal_map.get(signal) {
             Some(map) => Some(self.procs[map.info.proc as usize].ldm[map.info.pc as usize]),
-            None => None
+            None => None,
         }
     }
 
@@ -147,12 +147,8 @@ impl Module {
 
     pub fn nodeindex(self: &Self, signal: &str) -> Option<NodeIndex> {
         match self.signal_map.get(signal) {
-            Some(map) => {
-                Some(map.idx)
-            }
-            None => {
-                None
-            }
+            Some(map) => Some(map.idx),
+            None => None,
         }
     }
 }

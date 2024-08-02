@@ -50,12 +50,10 @@ impl NodeArray {
 ///    - else insert nop
 /// - For each partition, if there is two ore more instructions that are parents scheduled in
 ///   step 2, unschedule some of them.
-pub fn schedule_instructions(circuit: Circuit) -> Circuit {
-    let mut graph = circuit.graph;
-
+pub fn schedule_instructions(circuit: &mut Circuit) {
     let mut max_proc = 0;
-    for nidx in graph.node_indices() {
-        let node = graph.node_weight(nidx).unwrap();
+    for nidx in circuit.graph.node_indices() {
+        let node = circuit.graph.node_weight(nidx).unwrap();
         max_proc = max(max_proc, node.clone().get_info().proc);
     }
 
@@ -65,8 +63,8 @@ pub fn schedule_instructions(circuit: Circuit) -> Circuit {
         subgraphs_rank_order.push(NodeArray::default());
     }
 
-    for nidx in graph.node_indices() {
-        let node = graph.node_weight(nidx).unwrap();
+    for nidx in circuit.graph.node_indices() {
+        let node = circuit.graph.node_weight(nidx).unwrap();
         subgraphs_rank_order
             .get_mut(node.get_info().proc as usize)
             .unwrap()
@@ -74,14 +72,14 @@ pub fn schedule_instructions(circuit: Circuit) -> Circuit {
     }
     for sro in subgraphs_rank_order.iter_mut() {
         sro.nodes.sort_by(|idx1, idx2| {
-            let n1 = graph.node_weight(*idx1).unwrap();
-            let n2 = graph.node_weight(*idx2).unwrap();
+            let n1 = circuit.graph.node_weight(*idx1).unwrap();
+            let n2 = circuit.graph.node_weight(*idx2).unwrap();
             n1.cmp(&n2)
         });
     }
 
     let mut pc = 0;
-    let mut scheduled_map = graph.visit_map();
+    let mut scheduled_map = circuit.graph.visit_map();
 
     while scheduled_map.count_ones(..) != scheduled_map.len() {
         let mut schedule_candidates: IndexSet<NodeIndex> = IndexSet::new();
@@ -91,7 +89,7 @@ pub fn schedule_instructions(circuit: Circuit) -> Circuit {
                 continue;
             }
             let nidx = node_array.current();
-            let node = graph.node_weight_mut(nidx).unwrap();
+            let node = circuit.graph.node_weight_mut(nidx).unwrap();
 
             if node.is() == Primitives::Input
                 || node.is() == Primitives::Gate
@@ -99,10 +97,10 @@ pub fn schedule_instructions(circuit: Circuit) -> Circuit {
             {
                 schedule_candidates.insert(nidx);
             } else {
-                let mut parents = graph.neighbors_directed(nidx, Incoming).detach();
+                let mut parents = circuit.graph.neighbors_directed(nidx, Incoming).detach();
                 let mut unresolved_dep = false;
-                while let Some(pidx) = parents.next_node(&graph) {
-                    let pnode = graph.node_weight(pidx).unwrap();
+                while let Some(pidx) = parents.next_node(&circuit.graph) {
+                    let pnode = circuit.graph.node_weight(pidx).unwrap();
                     if !pnode.get_info().scheduled {
                         unresolved_dep = true;
                         break;
@@ -129,12 +127,12 @@ pub fn schedule_instructions(circuit: Circuit) -> Circuit {
             let inst_node_idx = dep_graph.add_node(inst_node);
             let mut criticality = 0;
 
-            let mut childs = graph.neighbors_directed(*nidx, Outgoing).detach();
-            while let Some(cidx) = childs.next_node(&graph) {
+            let mut childs = circuit.graph.neighbors_directed(*nidx, Outgoing).detach();
+            while let Some(cidx) = childs.next_node(&circuit.graph) {
                 // for children nodes of this node, add the partition index
                 // into the dependency graph
-                let child_proc_idx = graph.node_weight(cidx).unwrap().get_info().proc;
-                let cur_proc_idx = graph.node_weight(*nidx).unwrap().get_info().proc;
+                let child_proc_idx = circuit.graph.node_weight(cidx).unwrap().get_info().proc;
+                let cur_proc_idx = circuit.graph.node_weight(*nidx).unwrap().get_info().proc;
                 if child_proc_idx != cur_proc_idx {
                     let proc_node = InstOrProc {
                         nidx: None,
@@ -152,7 +150,12 @@ pub fn schedule_instructions(circuit: Circuit) -> Circuit {
                         .get(child_proc_idx as usize)
                         .unwrap()
                         .max_rank_node();
-                    let max_rank = graph.node_weight(max_rank_node).unwrap().get_info().rank;
+                    let max_rank = circuit
+                        .graph
+                        .node_weight(max_rank_node)
+                        .unwrap()
+                        .get_info()
+                        .rank;
                     criticality = max(criticality, max_rank);
                 }
             }
@@ -187,7 +190,7 @@ pub fn schedule_instructions(circuit: Circuit) -> Circuit {
                 }
 
                 let original_node_idx = inst_node.nidx.unwrap();
-                let original_node = graph.node_weight_mut(original_node_idx).unwrap();
+                let original_node = circuit.graph.node_weight_mut(original_node_idx).unwrap();
                 let proc_idx = original_node.get_info().proc;
 
                 scheduled_map.visit(original_node_idx);
@@ -204,9 +207,4 @@ pub fn schedule_instructions(circuit: Circuit) -> Circuit {
         }
         pc += 1;
     }
-
-    return Circuit {
-        graph: graph,
-        ..circuit
-    };
 }

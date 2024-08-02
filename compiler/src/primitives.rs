@@ -2,7 +2,10 @@ use crate::common::Instruction;
 use crate::fsim::module::Module as EmulModule;
 use indexmap::IndexMap;
 use petgraph::{
-    dot::{Config, Dot}, graph::{Graph, NodeIndex}, visit::{EdgeRef, VisitMap, Visitable}, Direction::{Outgoing, Incoming}
+    dot::{Config, Dot},
+    graph::{Graph, NodeIndex},
+    visit::{EdgeRef, VisitMap, Visitable},
+    Direction::{Incoming, Outgoing},
 };
 use std::{
     cmp::{max, Ordering},
@@ -29,7 +32,7 @@ pub struct NodeInfo {
 #[derive(Debug, Clone, Default)]
 pub struct NodeMapInfo {
     pub info: NodeInfo,
-    pub idx:  NodeIndex
+    pub idx: NodeIndex,
 }
 
 #[derive(PartialEq, Debug, Clone, Default)]
@@ -207,19 +210,19 @@ impl HWNode for Lut {
 
 impl Debug for Lut {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            let mut table: u64 = 0;
-            assert!(
-                self.table.len() <= 6,
-                "can support up to 6 operands with u64"
-            );
+        let mut table: u64 = 0;
+        assert!(
+            self.table.len() <= 6,
+            "can support up to 6 operands with u64"
+        );
 
-            for entry in self.table.iter() {
-                let mut x = 0;
-                for (i, e) in entry.iter().enumerate() {
-                    x = x + (e << i);
-                }
-                table = table | (1 << x);
+        for entry in self.table.iter() {
+            let mut x = 0;
+            for (i, e) in entry.iter().enumerate() {
+                x = x + (e << i);
             }
+            table = table | (1 << x);
+        }
         write!(f, "Lut 0x{:x} {:?}", table, self.info)
     }
 }
@@ -576,11 +579,12 @@ impl Circuit {
                 let node = self.graph.node_weight(nidx).unwrap();
                 let val = module.peek(node.name()).unwrap();
                 outstring.push_str(&format!(
-                        "{}{} [ label = \"{:?} {}\"]\n",
-                        indent,
-                        nidx.index(),
-                        node,
-                        val));
+                    "{}{} [ label = \"{:?} {}\"]\n",
+                    indent,
+                    nidx.index(),
+                    node,
+                    val
+                ));
             }
         }
 
@@ -590,11 +594,13 @@ impl Circuit {
                 let mut childs = self.graph.neighbors_directed(nidx, Outgoing).detach();
                 while let Some(cidx) = childs.next_node(&self.graph) {
                     if vis_map.is_visited(&cidx) {
-                        outstring.push_str(&format!("{}{} {} {} \n",
-                                indent,
-                                nidx.index(),
-                                "->",
-                                cidx.index()));
+                        outstring.push_str(&format!(
+                            "{}{} {} {} \n",
+                            indent,
+                            nidx.index(),
+                            "->",
+                            cidx.index()
+                        ));
                     }
                 }
             }
