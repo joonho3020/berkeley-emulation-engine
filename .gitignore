@@ -7,6 +7,8 @@ examples/obj_dir
 **/.DS_STORE
 **/sim-dir-*
 
+emulator/out
+
 
 # Added by cargo
 
