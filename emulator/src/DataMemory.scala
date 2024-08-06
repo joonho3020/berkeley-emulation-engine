@@ -3,7 +3,6 @@ package emulator
 import chisel3._
 import chisel3.util._
 
-
 class DataMemoryReadPort(cfg: ModuleConfig) extends Bundle {
   val idx = Input(UInt(cfg.index_bits.W))
   val bit = Output(UInt(cfg.num_bits.W))

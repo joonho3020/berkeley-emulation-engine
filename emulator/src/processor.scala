@@ -11,7 +11,7 @@ class ProcessorConfigBundle(cfg: ModuleConfig) extends Bundle {
 class ProcessorBundle(cfg: ModuleConfig) extends Bundle {
   import cfg._
   val run  = Input(Bool())
-  val config  = Input(new ProcessorConfigBundle(cfg))
+  val host_steps  = Input(UInt(index_bits.W))
 
   val inst_i = Flipped(Decoupled(Instruction(cfg)))
   val inst_o = Decoupled(Instruction(cfg))
@@ -47,7 +47,7 @@ class Processor(cfg: ModuleConfig) extends Module {
       io.inst_i.ready := io.inst_o.ready
     } .otherwise {
       when (io.inst_i.valid) {
-        when (pc === io.config.host_steps - 1.U) {
+        when (pc === io.host_steps - 1.U) {
           pc := 0.U
           init := true.B
         } .otherwise {
@@ -59,7 +59,7 @@ class Processor(cfg: ModuleConfig) extends Module {
     }
   } .otherwise {
     when (io.run) {
-      pc := Mux(pc === io.config.host_steps - 1.U, 0.U, pc + 1.U)
+      pc := Mux(pc === io.host_steps - 1.U, 0.U, pc + 1.U)
     }
   }
 
