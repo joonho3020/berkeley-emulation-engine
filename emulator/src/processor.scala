@@ -13,7 +13,9 @@ class ProcessorBundle(cfg: ModuleConfig) extends Bundle {
   val run  = Input(Bool())
   val host_steps  = Input(UInt(index_bits.W))
 
+  val init_o = Output(Bool())
   val inst_i = Flipped(Decoupled(Instruction(cfg)))
+  val init_i = Input(Bool())
   val inst_o = Decoupled(Instruction(cfg))
 
   val swp  = new SwitchPort(cfg)
@@ -30,6 +32,7 @@ class Processor(cfg: ModuleConfig) extends Module {
 
   val pc = RegInit(0.U(index_bits.W))
   val init = RegInit(false.B)
+  io.init_o := init
 
   val imem = Module(new InstructionMemory(cfg))
   imem.io.pc := pc
@@ -38,14 +41,13 @@ class Processor(cfg: ModuleConfig) extends Module {
 
   io.inst_o.valid := false.B
   io.inst_o.bits  := DontCare
-  io.inst_i.ready := !init
+  io.inst_i.ready := false.B
 
   when (!init) {
-    when (io.inst_o.ready) {
-      io.inst_o.valid := io.inst_i.valid
-      io.inst_o.bits  := io.inst_i.bits
-      io.inst_i.ready := io.inst_o.ready
+    when (!io.init_i) {
+      io.inst_o <> io.inst_i
     } .otherwise {
+      io.inst_i.ready := true.B
       when (io.inst_i.valid) {
         when (pc === io.host_steps - 1.U) {
           pc := 0.U
@@ -54,9 +56,9 @@ class Processor(cfg: ModuleConfig) extends Module {
           pc := pc + 1.U
         }
         imem.io.wen := true.B
-        io.inst_i.ready := true.B
       }
     }
+
   } .otherwise {
     when (io.run) {
       pc := Mux(pc === io.host_steps - 1.U, 0.U, pc + 1.U)

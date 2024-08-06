@@ -34,6 +34,9 @@ class DataMemory(cfg: ModuleConfig) extends Module {
   }
 
   for (i <- 0 until cfg.lut_inputs) {
+    io.rd(i).bit := DontCare
+  }
+  for (i <- 0 until cfg.lut_inputs) {
     for (j <- 0 until cfg.max_steps) {
       when (io.rd(i).idx === j.U) {
         io.rd(i).bit := mem(j)

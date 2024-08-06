@@ -6,7 +6,7 @@ import _root_.circt.stage.ChiselStage
 
 object Main extends App {
   ChiselStage.emitSystemVerilogFile(
-    new Processor(new ModuleConfig),
+    new OpalKellyEmulatorModuleTop(new ModuleConfig, new OpalKellyConfig),
     firtoolOpts = Array(
       "-disable-all-randomization",
       "-strip-debug-info",

@@ -47,6 +47,7 @@ class EmulatorModule(cfg: ModuleConfig) extends Module {
 
   // instruction scan chain
   for (i <- 0 until module_sz - 1) {
+    procs(i+1).io.init_i := procs(i).io.init_o
     if (i % ireg_skip == ireg_skip - 1) {
       val q = Module(new Queue(Instruction(cfg), 1))
       q.io.enq <> procs(i+1).io.inst_o
@@ -55,6 +56,7 @@ class EmulatorModule(cfg: ModuleConfig) extends Module {
       procs(i).io.inst_i <> procs(i+1).io.inst_o
     }
   }
+  procs(0).io.init_i := true.B
   procs(0).io.inst_o.ready := false.B
   procs(module_sz-1).io.inst_i <> io.inst
 }
@@ -64,17 +66,18 @@ case class OpalKellyConfig(
 )
 
 class OpalKellyEmulatorModuleTop(cfg: ModuleConfig, fpga_cfg: OpalKellyConfig) extends Module {
-  assert(cfg.num_bits == 1)
+  import cfg._
+  assert(num_bits == 1)
 
   val wire_bits = fpga_cfg.wire_bits
   val insn_bits = Instruction(cfg).getWidth
   val wire_ins_per_insn = (insn_bits.toFloat / wire_bits.toFloat).ceil.toInt
-  val wire_ins_per_io = (cfg.module_sz.toFloat / wire_bits.toFloat).ceil.toInt
+  val wire_ins_per_io =   (module_sz.toFloat / wire_bits.toFloat).ceil.toInt
 
   println("----- Emulator Harness ----------------")
-  println("Instruction bits: ${insn_bits}")
-  println("wire_ins_per_insn: ${wire_ins_per_insn}")
-  println("wire_ins_per_io: ${wire_ins_per_io}")
+  println(f"Instruction bits: ${insn_bits}")
+  println(f"wire_ins_per_insn: ${wire_ins_per_insn}")
+  println(f"wire_ins_per_io: ${wire_ins_per_io}")
 
   val io = IO(new Bundle {
     val host_steps = Input(UInt(wire_bits.W))
@@ -88,7 +91,20 @@ class OpalKellyEmulatorModuleTop(cfg: ModuleConfig, fpga_cfg: OpalKellyConfig) e
   module.io.host_steps := io.host_steps
 
   val insns_q = Module(new Queue(Vec(wire_ins_per_insn, UInt(wire_bits.W)), 2))
-  module.io.inst <> insns_q.io.deq
+  module.io.inst.valid := insns_q.io.deq.valid
+  insns_q.io.deq.ready := module.io.inst.ready
+
+  val insns_q_bits = Cat(insns_q.io.deq.bits.reverse)
+  val op_start_bit = opcode_bits + lut_bits
+  val sin_start_bits = op_start_bit + (1 + index_bits) * lut_inputs
+  module.io.inst.bits.opcode := insns_q_bits(opcode_bits-1, 0)
+  module.io.inst.bits.lut    := insns_q_bits(opcode_bits+lut_bits-1, opcode_bits)
+  for (i <- 0 until lut_inputs) {
+    val start = op_start_bit + (1 + index_bits) * i
+    module.io.inst.bits.ops(i).rs    := insns_q_bits(index_bits+start-1, start)
+    module.io.inst.bits.ops(i).local := insns_q_bits(index_bits+start)
+  }
+  module.io.inst.bits.sin    := insns_q_bits(switch_bits-1+sin_start_bits, sin_start_bits)
 
   val insns_val_prev = RegNext(io.insns.valid)
   val insns_val_pulse = !insns_val_prev && io.insns.valid
@@ -107,7 +123,7 @@ class OpalKellyEmulatorModuleTop(cfg: ModuleConfig, fpga_cfg: OpalKellyConfig) e
   val io_o_q = Module(new Queue(Vec(wire_ins_per_io, UInt(wire_bits.W)), 2))
   io.io_o <> io_o_q.io.deq
 
-  val step = RegInit(0.U(cfg.index_bits.W))
+  val step = RegInit(0.U(index_bits.W))
 
   module.io.run := false.B
   io_i_q.io.deq.ready := false.B
@@ -126,12 +142,12 @@ class OpalKellyEmulatorModuleTop(cfg: ModuleConfig, fpga_cfg: OpalKellyConfig) e
   }
 
   // set input bits
-  for (i <- 0 until cfg.module_sz) {
-    module.io.i_bits(i) := Cat(io_i_q.io.deq.bits.reverse) >> (i * cfg.num_bits)
+  for (i <- 0 until module_sz) {
+    module.io.i_bits(i) := Cat(io_i_q.io.deq.bits.reverse) >> (i * num_bits)
   }
 
   // set output bits
   for (i <- 0 until wire_ins_per_io) {
-    io_o_q.io.deq.bits(i) := Cat(module.io.o_bits.reverse) >> (i * wire_bits)
+    io_o_q.io.enq.bits(i) := Cat(module.io.o_bits.reverse) >> (i * wire_bits)
   }
 }

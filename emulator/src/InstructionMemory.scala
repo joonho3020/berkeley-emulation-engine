@@ -40,7 +40,7 @@ class InstructionMemory(cfg: ModuleConfig) extends Module {
 
   io.rinst := DontCare
 
-  val mem = Seq.fill(cfg.max_steps)(Instruction(cfg))
+  val mem = Seq.fill(cfg.max_steps)(Reg(Instruction(cfg)))
   for (i <- 0 until max_steps) {
     when (i.U === io.pc) {
       when (io.wen) {
