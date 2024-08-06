@@ -1,11 +1,11 @@
-use std::env;
 use blif_parser::passes::parser;
 use blif_parser::passes::runner;
 use blif_parser::primitives::Configuration;
+use std::env;
 
 fn main() -> std::io::Result<()> {
     let args: Vec<String> = env::args().collect();
-    if args.len() < 4 {
+    if args.len() < 2 {
         println!("Usage: cargo run --bin instgen -- <blif file>");
         return Ok(());
     }
@@ -26,5 +26,6 @@ fn main() -> std::io::Result<()> {
     circuit.set_cfg(cfg);
 
     runner::run_compiler_passes(&mut circuit);
+    circuit.save_insts("instructions.inst".to_string())?;
     Ok(())
 }

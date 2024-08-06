@@ -478,6 +478,7 @@ pub struct Configuration {
 #[derive(Debug, Default, Clone)]
 pub struct EmulatorInfo {
     pub cfg: Configuration,
+    pub host_steps: u32,
     pub instructions: Vec<Vec<Instruction>>,
     pub signal_map: IndexMap<String, NodeMapInfo>,
 }
@@ -538,9 +539,13 @@ impl Circuit {
 
     pub fn save_insts(&self, file_pfx: String) -> std::io::Result<()> {
         let mut file = File::create(format!("{}.instructions", file_pfx))?;
+        let host_steps = self.emulator.host_steps;
         for (proc, insts) in self.emulator.instructions.iter().enumerate() {
             write!(&mut file, "-----------------------------\n")?;
             for (pc, inst) in insts.iter().enumerate() {
+                if pc >= host_steps as usize {
+                    break;
+                }
                 write!(&mut file, "{} {}: {:?}\n", proc, pc, inst)?;
             }
         }

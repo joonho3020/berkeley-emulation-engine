@@ -212,4 +212,5 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
             break;
         }
     }
+    circuit.emulator.host_steps = pc + 1;
 }

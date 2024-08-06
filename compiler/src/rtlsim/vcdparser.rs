@@ -48,13 +48,6 @@ impl WaveformDB {
                     // see if we are done
                     let now_done = done.load(Ordering::SeqCst);
                     if now_done {
-                        if bar.position() != body_len {
-                            println!(
-                                "WARN: Final progress value was: {}, expected {}",
-                                bar.position(),
-                                body_len
-                            );
-                        }
                         bar.finish_and_clear();
                         break;
                     }

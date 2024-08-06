@@ -38,19 +38,13 @@ impl Module {
     /// return a Module with instructions from the compiler pass mapped
     pub fn from_circuit(c: &Circuit) -> Self {
         let all_insts = &c.emulator.instructions;
-
-        // get max pc for entire emulator
         let nprocs = all_insts.len();
-        let mut max_pc = 0;
-        for nidx in c.graph.node_indices() {
-            let node = c.graph.node_weight(nidx).unwrap();
-            max_pc = max(max_pc, node.get_info().pc + c.emulator.cfg.network_latency);
-        }
+        let host_steps = c.emulator.host_steps;
 
-        let host_steps = max_pc + 1;
         let mut module = Module::new(nprocs, host_steps as usize);
         module.set_insts(all_insts.to_vec());
         module.set_signal_map(&c.emulator.signal_map);
+
         return module;
     }
 

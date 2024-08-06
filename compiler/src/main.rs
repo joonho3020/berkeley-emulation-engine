@@ -1,4 +1,3 @@
-use blif_parser::utils;
 use blif_parser::common::*;
 use blif_parser::fsim::module::*;
 use blif_parser::passes::parser;
@@ -6,9 +5,16 @@ use blif_parser::passes::runner;
 use blif_parser::primitives::Configuration;
 use blif_parser::rtlsim::testbench::*;
 use blif_parser::rtlsim::vcdparser::*;
+use blif_parser::utils;
 use indexmap::IndexMap;
 use std::cmp::max;
 use std::{env, fs};
+
+#[derive(Debug, PartialEq)]
+enum ReturnCode {
+    TestSuccess,
+    TestFailed,
+}
 
 fn main() -> std::io::Result<()> {
     let args: Vec<String> = env::args().collect();
@@ -22,6 +28,17 @@ fn main() -> std::io::Result<()> {
     let input_stimuli_path = &args[3];
     let blif_file_path = &args[4];
 
+    let _ = test_emulator(sv_file_path, top_mod, input_stimuli_path, blif_file_path);
+
+    Ok(())
+}
+
+fn test_emulator(
+    sv_file_path: &str,
+    top_mod: &str,
+    input_stimuli_path: &str,
+    blif_file_path: &str,
+) -> std::io::Result<ReturnCode> {
     let res = parser::parse_blif_file(&blif_file_path);
     let mut circuit = match res {
         Ok(c) => c,
@@ -153,7 +170,7 @@ fn main() -> std::io::Result<()> {
 
         if found_mismatch {
             println!("Test failed");
-            return Ok(());
+            return Ok(ReturnCode::TestFailed);
         }
 
         module_lag.run_cycle();
@@ -175,5 +192,66 @@ fn main() -> std::io::Result<()> {
 
     println!("Test success!");
 
-    return Ok(());
+    return Ok(ReturnCode::TestSuccess);
+}
+
+#[cfg(test)]
+pub mod emulation_tester {
+    use super::*;
+
+    fn perform_test(
+        sv_file_path: &str,
+        top_mod: &str,
+        input_stimuli_path: &str,
+        blif_file_path: &str,
+    ) -> bool {
+        let ret = test_emulator(sv_file_path, top_mod, input_stimuli_path, blif_file_path);
+        match ret {
+            Ok(rc) => {
+                return rc == ReturnCode::TestSuccess;
+            }
+            Err(_) => {
+                return false;
+            }
+        }
+    }
+
+    #[test]
+    pub fn test_fir() {
+        assert_eq!(
+            perform_test(
+                "../examples/Fir.sv",
+                "Fir",
+                "../examples/Fir.input",
+                "../examples/Fir.lut.blif"
+            ),
+            true
+        );
+    }
+
+    #[test]
+    pub fn test_gcd() {
+        assert_eq!(
+            perform_test(
+                "../examples/GCD.sv",
+                "GCD",
+                "../examples/GCD.input",
+                "../examples/GCD-2bit.lut.blif"
+            ),
+            true
+        );
+    }
+
+    #[test]
+    pub fn test_queue() {
+        assert_eq!(
+            perform_test(
+                "../examples/MyQueue.sv",
+                "MyQueue",
+                "../examples/MyQueue.input",
+                "../examples/MyQueue.lut.blif"
+            ),
+            true
+        );
+    }
 }
