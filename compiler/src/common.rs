@@ -41,13 +41,11 @@ pub struct Operand {
 
 #[derive(Debug, Clone, Default)]
 pub struct SwitchIn {
-    pub valid: bool, // valid
-    pub idx: u32,    // proc to receive bit from
+    pub idx: u32, // proc to receive bit from
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct Instruction {
-    pub valid: bool,
     pub opcode: Primitives,
     pub lut: u64,
     pub operands: Vec<Operand>,

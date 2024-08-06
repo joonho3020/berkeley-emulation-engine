@@ -42,9 +42,9 @@ pub enum Primitives {
     Input,
     Output,
     Lut,
-    Subckt,
     Gate,
     Latch,
+    Subckt,
     Module,
 }
 

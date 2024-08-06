@@ -30,7 +30,6 @@ pub fn map_instructions(circuit: &mut Circuit) {
         let node_inst = node_insts.get_mut(node.get_info().pc as usize).unwrap();
 
         // assign opcode
-        node_inst.valid = true;
         node_inst.opcode = node.is();
 
         if node.is() == Primitives::Lut {
@@ -91,8 +90,6 @@ pub fn map_instructions(circuit: &mut Circuit) {
                 let child_inst = child_insts
                     .get_mut((node.get_info().pc + circuit.emulator.cfg.network_latency) as usize)
                     .unwrap();
-                child_inst.valid = true;
-                child_inst.sin.valid = true;
                 child_inst.sin.idx = node.get_info().proc;
             }
         }
