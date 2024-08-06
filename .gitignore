@@ -8,6 +8,8 @@ examples/obj_dir
 **/sim-dir-*
 
 emulator/out
+emulator/.bloop
+emulator/.metals
 
 
 # Added by cargo
