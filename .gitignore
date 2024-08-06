@@ -11,6 +11,9 @@ emulator/out
 emulator/.bloop
 emulator/.metals
 emulator/*.sv
+emulator/__pycache__
+emulator/results.xml
+emulator/sim_build
 
 
 # Added by cargo
