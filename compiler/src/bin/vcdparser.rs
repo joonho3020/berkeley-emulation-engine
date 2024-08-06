@@ -1,6 +1,4 @@
-#[path = "../rtlsim/vcdparser.rs"]
-pub mod rtlsim;
-use crate::rtlsim::*;
+use blif_parser::rtlsim::vcdparser::*;
 use std::env;
 
 fn main() {

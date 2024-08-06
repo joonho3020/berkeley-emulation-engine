@@ -1,17 +1,11 @@
-mod common;
-mod fsim;
-mod passes;
-mod primitives;
-mod rtlsim;
-mod utils;
-
-use crate::common::*;
-use crate::fsim::module::*;
-use crate::passes::parser;
-use crate::passes::runner;
-use crate::primitives::Configuration;
-use crate::rtlsim::testbench::*;
-use crate::rtlsim::vcdparser::*;
+use blif_parser::utils;
+use blif_parser::common::*;
+use blif_parser::fsim::module::*;
+use blif_parser::passes::parser;
+use blif_parser::passes::runner;
+use blif_parser::primitives::Configuration;
+use blif_parser::rtlsim::testbench::*;
+use blif_parser::rtlsim::vcdparser::*;
 use indexmap::IndexMap;
 use std::cmp::max;
 use std::{env, fs};
