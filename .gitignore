@@ -10,6 +10,7 @@ examples/obj_dir
 emulator/out
 emulator/.bloop
 emulator/.metals
+emulator/*.sv
 
 
 # Added by cargo
