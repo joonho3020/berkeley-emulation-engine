@@ -1,4 +1,9 @@
 use crate::primitives::*;
+use std::fmt::Debug;
+use serde::{Deserialize, Serialize};
+use serde_json::Result;
+use serde_json::to_string;
+
 
 pub type Bit = u8;
 pub type Bits32 = u32;
@@ -32,19 +37,19 @@ impl FourStateBit {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct Operand {
     pub rs: u32,     // index into data memory
     pub local: bool, // ldm or sdm?
     pub idx: u32,    // for luts, which input does this operand correspond to
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct SwitchIn {
     pub idx: u32, // proc to receive bit from
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct Instruction {
     pub valid: bool,
     pub opcode: Primitives,

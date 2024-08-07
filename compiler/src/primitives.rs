@@ -7,6 +7,9 @@ use petgraph::{
     visit::{EdgeRef, VisitMap, Visitable},
     Direction::{Incoming, Outgoing},
 };
+use serde::{Deserialize, Serialize, Serializer};
+use serde::ser::SerializeStruct;
+
 use std::{
     cmp::{max, Ordering},
     fmt::Debug,
@@ -29,13 +32,39 @@ pub struct NodeInfo {
     pub pc: u32,
 }
 
+impl Serialize for NodeInfo {
+     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("NodeMapInfo", 4)?;
+        state.serialize_field("proc", &self.proc)?;
+        state.serialize_field("rank", &self.rank)?;
+        state.serialize_field("scheduled", &self.scheduled)?;
+        state.serialize_field("pc", &self.pc)?;
+        state.end()
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct NodeMapInfo {
     pub info: NodeInfo,
     pub idx: NodeIndex,
 }
 
-#[derive(PartialEq, Debug, Clone, Default)]
+impl Serialize for NodeMapInfo {
+     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        // 3 is the number of fields in the struct.
+        let mut state = serializer.serialize_struct("NodeMapInfo", 1)?;
+        state.serialize_field("info", &self.info)?;
+        state.end()
+    }
+}
+
+#[derive(PartialEq, Debug, Clone, Default, Deserialize, Serialize)]
 pub enum Primitives {
     #[default]
     NOP,
@@ -467,7 +496,7 @@ impl Debug for Module {
 
 /// # Context
 /// - Configuration of the underlying hardware emulation platform
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize)]
 pub struct Configuration {
     pub gates_per_partition: u32,
     pub network_latency: u32,
@@ -475,7 +504,7 @@ pub struct Configuration {
 
 /// # EmulatorInfo
 /// - Contains fields specific to the emulator hardware
-#[derive(Debug, Default, Clone)]
+#[derive(Serialize, Debug, Default, Clone)]
 pub struct EmulatorInfo {
     pub cfg: Configuration,
     pub host_steps: u32,
@@ -537,18 +566,9 @@ impl Circuit {
         Ok(())
     }
 
-    pub fn save_insts(&self, file_pfx: String) -> std::io::Result<()> {
-        let mut file = File::create(format!("{}.instructions", file_pfx))?;
-        let host_steps = self.emulator.host_steps;
-        for (proc, insts) in self.emulator.instructions.iter().enumerate() {
-            write!(&mut file, "-----------------------------\n")?;
-            for (pc, inst) in insts.iter().enumerate() {
-                if pc >= host_steps as usize {
-                    break;
-                }
-                write!(&mut file, "{} {}: {:?}\n", proc, pc, inst)?;
-            }
-        }
+    pub fn save_emulator_info(&self, file_path: String) -> std::io::Result<()> {
+        let mut file = File::create(file_path)?;
+        write!(&mut file, "{}", serde_json::to_string_pretty(&self.emulator)?)?;
         Ok(())
     }
 
