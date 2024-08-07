@@ -8,7 +8,7 @@ object Main extends App {
   ChiselStage.emitSystemVerilogFile(
     new OpalKellyEmulatorModuleTop(new ModuleConfig, new OpalKellyConfig),
     firtoolOpts = Array(
-      "-disable-all-randomization",
+// "-disable-all-randomization",
       "-strip-debug-info",
       "--lowering-options=disallowLocalVariables,noAlwaysComb,verifLabels,disallowPortDeclSharing"))
 }

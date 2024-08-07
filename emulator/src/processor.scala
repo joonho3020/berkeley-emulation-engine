@@ -28,7 +28,8 @@ class Processor(cfg: ModuleConfig) extends Module {
   import cfg._
 
   val io = IO(new ProcessorBundle(cfg))
-  io.io_o := DontCare
+  val io_o = RegInit(0.U(num_bits.W))
+  io.io_o := io_o
 
   val pc = RegInit(0.U(index_bits.W))
   val init = RegInit(false.B)
@@ -81,7 +82,7 @@ class Processor(cfg: ModuleConfig) extends Module {
   }
 
   val fout = Wire(UInt(num_bits.W))
-  fout := DontCare
+  fout := 0.U
   switch (inst.opcode) {
     is (Instruction.NOP.U) {
       fout := 0.U
@@ -93,7 +94,9 @@ class Processor(cfg: ModuleConfig) extends Module {
       fout := inst.lut >> (lut_idx * num_bits.U)
     }
     is (Instruction.Output.U) {
-      io.io_o := ops(0)
+      when (init) {
+        io_o := ops(0)
+      }
       fout := ops(0)
     }
     is (Instruction.Gate.U) {
