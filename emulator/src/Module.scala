@@ -18,10 +18,17 @@ case class ModuleConfig(
   val lut_bits    = 1 << lut_inputs
 }
 
+class EmulatorModuleConfigBundle(cfg: ModuleConfig) extends Bundle {
+  import cfg._
+  val host_steps  = UInt(index_bits.W)
+  val used_procs  = UInt(index_bits.W)
+}
+
 class EmulatorModuleBundle(cfg: ModuleConfig) extends Bundle {
   import cfg._
-  val host_steps  = Input(UInt(index_bits.W))
+  val cfg_in = Input(new EmulatorModuleConfigBundle(cfg))
   val run  = Input(Bool())
+  val init = Output(Bool())
   val inst = Flipped(Decoupled(Instruction(cfg)))
   val i_bits = Vec(module_sz, Input (UInt(num_bits.W)))
   val o_bits = Vec(module_sz, Output(UInt(num_bits.W)))
@@ -41,7 +48,7 @@ class EmulatorModule(cfg: ModuleConfig) extends Module {
   for (i <- 0 until module_sz) {
     procs(i).io.io_i   := io.i_bits(i)
     procs(i).io.run    := io.run
-    procs(i).io.host_steps := io.host_steps
+    procs(i).io.host_steps := io.cfg_in.host_steps
     io.o_bits(i) := procs(i).io.io_o
   }
 
@@ -59,6 +66,10 @@ class EmulatorModule(cfg: ModuleConfig) extends Module {
   procs(0).io.init_i := true.B
   procs(0).io.inst_o.ready := false.B
   procs(module_sz-1).io.inst_i <> io.inst
+
+  io.init := procs.zipWithIndex.map { case(p, i) => {
+    Mux(i.U < io.cfg_in.used_procs, p.io.init_o, true.B)
+  }}.reduce(_ && _)
 }
 
 case class OpalKellyConfig(
@@ -81,6 +92,7 @@ class OpalKellyEmulatorModuleTop(cfg: ModuleConfig, fpga_cfg: OpalKellyConfig) e
 
   val io = IO(new Bundle {
     val host_steps = Input(UInt(wire_bits.W))
+    val used_procs = Input(UInt(switch_bits.W))
     val insns  = Flipped(Decoupled(Vec(wire_ins_per_insn, Input(UInt(wire_bits.W)))))
 
     val io_i = Flipped(Decoupled(Vec(wire_ins_per_io, UInt(wire_bits.W))))
@@ -88,7 +100,8 @@ class OpalKellyEmulatorModuleTop(cfg: ModuleConfig, fpga_cfg: OpalKellyConfig) e
   })
 
   val module = Module(new EmulatorModule(cfg))
-  module.io.host_steps := io.host_steps
+  module.io.cfg_in.host_steps := io.host_steps
+  module.io.cfg_in.used_procs := io.used_procs
 
   val insns_q = Module(new Queue(Vec(wire_ins_per_insn, UInt(wire_bits.W)), 2))
   module.io.inst.valid := insns_q.io.deq.valid
@@ -129,7 +142,7 @@ class OpalKellyEmulatorModuleTop(cfg: ModuleConfig, fpga_cfg: OpalKellyConfig) e
   io_i_q.io.deq.ready := false.B
   io_o_q.io.enq.valid := false.B
 
-  when (io_i_q.io.deq.valid && io_o_q.io.enq.ready) {
+  when (io_i_q.io.deq.valid && io_o_q.io.enq.ready && module.io.init) {
     step := Mux(step === io.host_steps - 1.U, 0.U, step + 1.U)
     when (step === io.host_steps - 1.U) {
       step := 0.U
