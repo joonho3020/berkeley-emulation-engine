@@ -4,7 +4,7 @@ use std::env;
 fn main() -> std::io::Result<()> {
     let args: Vec<String> = env::args().collect();
     if args.len() < 4 {
-        println!("Usage: cargo run --bin rtlsim -- <sv input path> <top module name> <input stimuli file>");
+        println!("Usage: cargo run --bin run_refrtlsim -- <sv input path> <top module name> <input stimuli file>");
         return Ok(());
     }
 

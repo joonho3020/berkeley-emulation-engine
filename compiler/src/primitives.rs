@@ -1,5 +1,6 @@
 use crate::common::Instruction;
 use crate::fsim::module::Module as EmulModule;
+use crate::utils::write_string_to_file;
 use indexmap::IndexMap;
 use petgraph::{
     dot::{Config, Dot},
@@ -520,21 +521,34 @@ impl Default for Configuration {
 }
 
 impl Configuration {
+    fn power_of_2(self: &Self, v: u32) -> bool {
+        return v & (v - 1) == 0;
+    }
+
+    fn log2ceil(self: &Self, v: u32) -> u32 {
+        let log2x = u32::BITS - v.leading_zeros();
+        if self.power_of_2(v) {
+            log2x - 1
+        } else {
+            log2x
+        }
+    }
+
     /// log2Ceil(self.max_steps)
     pub fn index_bits(self: &Self) -> u32 {
-        u32::BITS - self.max_steps.leading_zeros() - 1
+        self.log2ceil(self.max_steps)
     }
 
     /// log2Ceil(self.module_sz)
     pub fn switch_bits(self: &Self) -> u32 {
-        u32::BITS - self.module_sz.leading_zeros() - 1
+        self.log2ceil(self.module_sz)
     }
 
     /// log2Ceil(number of Primitives)
     pub fn opcode_bits(self: &Self) -> u32 {
         // FIXME: Currently subtracting 2 to exclude Subckt and Module
         let num_prims: u32 = Primitives::COUNT as u32 - 2;
-        u32::BITS - num_prims.leading_zeros() - 1
+        self.log2ceil(num_prims)
     }
 
     /// number of bits for the LUT
@@ -609,13 +623,7 @@ impl Circuit {
     }
 
     pub fn save_emulator_info(&self, file_path: String) -> std::io::Result<()> {
-        let mut file = File::create(file_path)?;
-        write!(
-            &mut file,
-            "{}",
-            serde_json::to_string_pretty(&self.emulator)?
-        )?;
-        Ok(())
+        write_string_to_file(serde_json::to_string_pretty(&self.emulator)?, &file_path)
     }
 
     /// #debug_graph

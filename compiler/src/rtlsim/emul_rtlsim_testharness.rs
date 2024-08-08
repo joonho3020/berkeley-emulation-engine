@@ -1,5 +1,4 @@
 use crate::primitives::*;
-use crate::rtlsim::rtlsim_utils::*;
 use indexmap::IndexMap;
 use itertools::Itertools;
 use std::cmp::max;
@@ -148,9 +147,10 @@ initial begin
             let bitbuf = inst.to_bytes(&circuit.emulator.cfg);
             let mut bit_u16s = vec![];
             for two_bytes in &bitbuf.bytes.into_iter().chunks(2) {
-                let mut bit_u16 = 0;
+                let mut bit_u16: u16 = 0;
                 for (i, b) in two_bytes.enumerate() {
-                    bit_u16 = bit_u16 | (b << (i * 8));
+                    let shift = i * 8;
+                    bit_u16 = bit_u16 | ((b as u16) << shift);
                 }
                 bit_u16s.push(bit_u16);
             }
@@ -202,12 +202,12 @@ initial begin
   ",
         );
         for (i, b16) in input_bitvec.iter().rev().enumerate() {
-            testbench.push_str(&format!("16h{:x}", b16));
+            testbench.push_str(&format!("16'h{:x}", b16));
             if i != input_bitvec.len() - 1 {
                 testbench.push_str(", ");
             }
-            testbench.push_str(");");
         }
+        testbench.push_str(");");
 
         testbench.push_str(&format!(
             "
@@ -273,7 +273,9 @@ endmodule
     return testbench;
 }
 
-pub fn generate_emulator_testbench(input_stimuli_path: &str, circuit: &Circuit) -> String {
-    let input_stimuli = get_input_stimuli(input_stimuli_path);
-    return generate_testbench_string(&input_stimuli, circuit);
+pub fn generate_emulator_testbench(
+    input_stimuli_blasted: &IndexMap<String, Vec<u64>>,
+    circuit: &Circuit,
+) -> String {
+    return generate_testbench_string(input_stimuli_blasted, circuit);
 }

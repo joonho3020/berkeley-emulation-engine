@@ -1,5 +1,6 @@
 use crate::primitives::*;
 use serde::{Deserialize, Serialize};
+use std::cmp::min;
 use std::fmt::Debug;
 
 pub type Bit = u8;
@@ -64,6 +65,7 @@ impl Instruction {
             match self.operands.get(opidx as usize) {
                 Some(op) => {
                     ret.push_bits(op.rs as u64, cfg.index_bits());
+                    ret.push_bits(op.local as u64, 1); // local
                 }
                 None => {
                     ret.push_bits(0, cfg.index_bits()); // rs
@@ -87,16 +89,18 @@ impl BitBuf {
     pub fn push_bits(self: &mut Self, input: u64, nbits: u32) {
         let mut left = nbits;
         while left > 0 {
-            let cur_input = (input >> (nbits - left)) as u8;
-            let cur_consume = 8 - self.offset;
-            if cur_consume < 8 {
-                let last = self.bytes.last_mut().unwrap();
-                *last |= (cur_input << self.offset) as u8;
-            } else {
-                self.bytes.push(cur_input);
+            if self.offset == 0 {
+                self.bytes.push(0);
             }
-            self.offset = (self.offset + cur_consume) % 8;
-            left -= cur_consume;
+            let cur_input = (input >> (nbits - left)) as u8;
+            let free_bits = 8 - self.offset;
+            let consume_bits = min(free_bits, left);
+
+            let last = self.bytes.last_mut().unwrap();
+            *last |= (cur_input << self.offset) as u8;
+
+            self.offset = (self.offset + consume_bits) % 8;
+            left -= consume_bits;
         }
         self.size += nbits;
     }
