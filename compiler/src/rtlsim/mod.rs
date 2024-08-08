@@ -1,4 +1,4 @@
-pub mod emulrtltestharness;
-pub mod fmodeltestharness;
-pub mod rtlsimutils;
+pub mod emul_rtlsim_testharness;
+pub mod ref_rtlsim_testharness;
+pub mod rtlsim_utils;
 pub mod vcdparser;

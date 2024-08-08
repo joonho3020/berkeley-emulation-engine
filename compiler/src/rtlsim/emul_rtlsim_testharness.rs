@@ -1,5 +1,5 @@
 use crate::primitives::*;
-use crate::rtlsim::rtlsimutils::*;
+use crate::rtlsim::rtlsim_utils::*;
 use indexmap::IndexMap;
 use itertools::Itertools;
 use std::cmp::max;

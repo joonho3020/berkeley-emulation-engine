@@ -4,7 +4,6 @@ use crate::fsim::switch::*;
 use crate::primitives::{Circuit, NodeMapInfo, Primitives};
 use indexmap::IndexMap;
 use petgraph::graph::NodeIndex;
-use std::cmp::max;
 use std::fmt::Debug;
 
 pub struct Module {

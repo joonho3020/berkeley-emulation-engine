@@ -1,4 +1,4 @@
-use crate::rtlsim::rtlsimutils::*;
+use crate::rtlsim::rtlsim_utils::*;
 use crate::utils;
 use indexmap::IndexMap;
 use std::cmp::max;
