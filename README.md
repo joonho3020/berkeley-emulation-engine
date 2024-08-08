@@ -42,7 +42,7 @@ dot examples/Adder.dot -Tpdf > examples/Adder.pdf
 - Run:
 
 ```bash
-cargo run --bin rtlsim -- ../examples/GCD.sv GCD ../examples/GCD.input
+cargo run --bin run_refrtlsim -- ../examples/GCD.sv GCD ../examples/GCD.input
 ```
 
 ### Run both emulation functional simulation and RTL simulation and compare the generated outputs
