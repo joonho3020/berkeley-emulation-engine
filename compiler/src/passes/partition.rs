@@ -111,7 +111,7 @@ pub fn map_to_processor(circuit: &mut Circuit) {
     }
 
     let mut proc_id = 0;
-    let max_gates = circuit.emulator.cfg.gates_per_partition;
+    let max_gates = circuit.emulator.cfg.max_steps;
 
     let mut vis_map = circuit.graph.visit_map();
     while !q.is_empty() {
@@ -148,4 +148,5 @@ pub fn map_to_processor(circuit: &mut Circuit) {
         }
         proc_id += 1;
     }
+    circuit.emulator.used_procs = proc_id;
 }

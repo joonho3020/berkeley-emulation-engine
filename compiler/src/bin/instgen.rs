@@ -20,11 +20,7 @@ fn main() -> std::io::Result<()> {
     };
     println!("parsing blif file done");
 
-    let cfg = Configuration {
-        gates_per_partition: 128,
-        network_latency: 1,
-    };
-    circuit.set_cfg(cfg);
+    circuit.set_cfg(Configuration::default());
 
     runner::run_compiler_passes(&mut circuit);
     circuit.save_emulator_info(output_file.to_string())?;

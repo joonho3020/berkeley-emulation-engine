@@ -1,9 +1,6 @@
 use crate::primitives::*;
-use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
-use serde_json::Result;
-use serde_json::to_string;
-
+use std::fmt::Debug;
 
 pub type Bit = u8;
 pub type Bits32 = u32;
@@ -56,4 +53,51 @@ pub struct Instruction {
     pub lut: u64,
     pub operands: Vec<Operand>,
     pub sin: SwitchIn,
+}
+
+impl Instruction {
+    pub fn to_bytes(self: &Self, cfg: &Configuration) -> BitBuf {
+        let mut ret = BitBuf::default();
+        ret.push_bits(self.opcode as u64, cfg.opcode_bits());
+        ret.push_bits(self.lut as u64, cfg.lut_bits());
+        for opidx in 0..cfg.lut_inputs {
+            match self.operands.get(opidx as usize) {
+                Some(op) => {
+                    ret.push_bits(op.rs as u64, cfg.index_bits());
+                }
+                None => {
+                    ret.push_bits(0, cfg.index_bits()); // rs
+                    ret.push_bits(0, 1); // local
+                }
+            }
+        }
+        ret.push_bits(self.sin.idx as u64, cfg.switch_bits());
+        return ret;
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct BitBuf {
+    pub bytes: Vec<u8>,
+    pub offset: u32,
+    pub size: u32,
+}
+
+impl BitBuf {
+    pub fn push_bits(self: &mut Self, input: u64, nbits: u32) {
+        let mut left = nbits;
+        while left > 0 {
+            let cur_input = (input >> (nbits - left)) as u8;
+            let cur_consume = 8 - self.offset;
+            if cur_consume < 8 {
+                let last = self.bytes.last_mut().unwrap();
+                *last |= (cur_input << self.offset) as u8;
+            } else {
+                self.bytes.push(cur_input);
+            }
+            self.offset = (self.offset + cur_consume) % 8;
+            left -= cur_consume;
+        }
+        self.size += nbits;
+    }
 }

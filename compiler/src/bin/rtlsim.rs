@@ -1,4 +1,4 @@
-use blif_parser::rtlsim::testbench;
+use blif_parser::rtlsim::fmodeltestharness;
 use std::env;
 
 fn main() -> std::io::Result<()> {
@@ -13,7 +13,7 @@ fn main() -> std::io::Result<()> {
     let input_stimuli_path = &args[3];
     let sim_dir = format!("sim-dir-{}", top_mod);
     let sim_output_file = format!("{}-simulation.out", top_mod);
-    testbench::run_rtl_simulation(
+    fmodeltestharness::run_rtl_simulation(
         sv_file_path,
         top_mod,
         input_stimuli_path,

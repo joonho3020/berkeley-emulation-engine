@@ -3,7 +3,8 @@ use blif_parser::fsim::module::*;
 use blif_parser::passes::parser;
 use blif_parser::passes::runner;
 use blif_parser::primitives::Configuration;
-use blif_parser::rtlsim::testbench::*;
+use blif_parser::rtlsim::fmodeltestharness::*;
+use blif_parser::rtlsim::rtlsimutils::*;
 use blif_parser::rtlsim::vcdparser::*;
 use blif_parser::utils;
 use indexmap::IndexMap;
@@ -48,11 +49,7 @@ fn test_emulator(
     };
     println!("parsing blif file done");
 
-    let cfg = Configuration {
-        gates_per_partition: 128,
-        network_latency: 1,
-    };
-    circuit.set_cfg(cfg);
+    circuit.set_cfg(Configuration::default());
 
     runner::run_compiler_passes(&mut circuit);
     let verilog_str = match fs::read_to_string(sv_file_path) {

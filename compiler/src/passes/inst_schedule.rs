@@ -207,7 +207,7 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
             }
         }
         pc += 1;
-        if pc >= circuit.emulator.cfg.gates_per_partition {
+        if pc >= circuit.emulator.cfg.max_steps {
             let _ = write_string_to_file(format!("{:?}", circuit), "schedule-failed.dot");
             break;
         }

@@ -7,15 +7,16 @@ use petgraph::{
     visit::{EdgeRef, VisitMap, Visitable},
     Direction::{Incoming, Outgoing},
 };
-use serde::{Deserialize, Serialize, Serializer};
 use serde::ser::SerializeStruct;
-
+use serde::{Deserialize, Serialize, Serializer};
 use std::{
     cmp::{max, Ordering},
     fmt::Debug,
     fs::File,
     io::Write,
 };
+use strum::EnumCount;
+use strum_macros::EnumCount as EnumCountMacro;
 
 pub type HWGraph = Graph<Box<dyn HWNode>, String>;
 
@@ -33,7 +34,7 @@ pub struct NodeInfo {
 }
 
 impl Serialize for NodeInfo {
-     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -53,7 +54,7 @@ pub struct NodeMapInfo {
 }
 
 impl Serialize for NodeMapInfo {
-     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -64,10 +65,10 @@ impl Serialize for NodeMapInfo {
     }
 }
 
-#[derive(PartialEq, Debug, Clone, Default, Deserialize, Serialize)]
+#[derive(PartialEq, Debug, Copy, Clone, Default, Deserialize, Serialize, EnumCountMacro)]
 pub enum Primitives {
     #[default]
-    NOP,
+    NOP = 0,
     Input,
     Output,
     Lut,
@@ -496,10 +497,50 @@ impl Debug for Module {
 
 /// # Context
 /// - Configuration of the underlying hardware emulation platform
-#[derive(Debug, Default, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Configuration {
-    pub gates_per_partition: u32,
+    pub max_steps: u32,
+    /// Maximum host steps that can be run
+    pub module_sz: u32,
+    /// Number of processor in a module
+    pub lut_inputs: u32,
+    /// Number of lut inputs
     pub network_latency: u32,
+}
+
+impl Default for Configuration {
+    fn default() -> Self {
+        Configuration {
+            max_steps: 128,
+            module_sz: 64,
+            lut_inputs: 3,
+            network_latency: 1,
+        }
+    }
+}
+
+impl Configuration {
+    /// log2Ceil(self.max_steps)
+    pub fn index_bits(self: &Self) -> u32 {
+        u32::BITS - self.max_steps.leading_zeros() - 1
+    }
+
+    /// log2Ceil(self.module_sz)
+    pub fn switch_bits(self: &Self) -> u32 {
+        u32::BITS - self.module_sz.leading_zeros() - 1
+    }
+
+    /// log2Ceil(number of Primitives)
+    pub fn opcode_bits(self: &Self) -> u32 {
+        // FIXME: Currently subtracting 2 to exclude Subckt and Module
+        let num_prims: u32 = Primitives::COUNT as u32 - 2;
+        u32::BITS - num_prims.leading_zeros() - 1
+    }
+
+    /// number of bits for the LUT
+    pub fn lut_bits(self: &Self) -> u32 {
+        1 << self.lut_inputs
+    }
 }
 
 /// # EmulatorInfo
@@ -508,6 +549,7 @@ pub struct Configuration {
 pub struct EmulatorInfo {
     pub cfg: Configuration,
     pub host_steps: u32,
+    pub used_procs: u32,
     pub instructions: Vec<Vec<Instruction>>,
     pub signal_map: IndexMap<String, NodeMapInfo>,
 }
@@ -568,7 +610,11 @@ impl Circuit {
 
     pub fn save_emulator_info(&self, file_path: String) -> std::io::Result<()> {
         let mut file = File::create(file_path)?;
-        write!(&mut file, "{}", serde_json::to_string_pretty(&self.emulator)?)?;
+        write!(
+            &mut file,
+            "{}",
+            serde_json::to_string_pretty(&self.emulator)?
+        )?;
         Ok(())
     }
 

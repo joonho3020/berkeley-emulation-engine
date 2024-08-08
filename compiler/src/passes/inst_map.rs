@@ -2,23 +2,16 @@ use crate::common::*;
 use crate::primitives::*;
 use indexmap::IndexMap;
 use petgraph::Direction::{Incoming, Outgoing};
-use std::cmp::max;
 
 /// # `map_instructions`
 /// - After the instructions are scheduled, set the appropriate registers and
 /// network input values
 pub fn map_instructions(circuit: &mut Circuit) {
-    let mut max_proc = 0;
-    for nidx in circuit.graph.node_indices() {
-        let node = circuit.graph.node_weight(nidx).unwrap();
-        max_proc = max(max_proc, node.clone().get_info().proc);
-    }
-
     let mut signal_map: IndexMap<String, NodeMapInfo> = IndexMap::new();
     let mut all_insts: Vec<Vec<Instruction>> = vec![];
-    for _ in 0..(max_proc + 1) {
+    for _ in 0..circuit.emulator.used_procs {
         let mut insts: Vec<Instruction> = vec![];
-        for _ in 0..circuit.emulator.cfg.gates_per_partition {
+        for _ in 0..circuit.emulator.cfg.max_steps {
             insts.push(Instruction::default());
         }
         all_insts.push(insts);
