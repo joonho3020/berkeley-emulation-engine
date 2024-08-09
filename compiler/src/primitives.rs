@@ -515,7 +515,7 @@ impl Default for Configuration {
             max_steps: 128,
             module_sz: 64,
             lut_inputs: 3,
-            network_latency: 1,
+            network_latency: 0,
         }
     }
 }

@@ -1,3 +1,5 @@
+use std::borrow::BorrowMut;
+
 use crate::common::*;
 use crate::primitives::*;
 use indexmap::IndexMap;
@@ -30,6 +32,7 @@ pub fn map_instructions(circuit: &mut Circuit) {
             let lut_node = node.get_lut().unwrap();
             let table_vec = lut_node.table;
             let mut table: u64 = 0;
+            let mut ops: u32 = 0;
             assert!(
                 table_vec.len() <= 6,
                 "can support up to 6 operands with u64"
@@ -37,10 +40,15 @@ pub fn map_instructions(circuit: &mut Circuit) {
 
             for entry in table_vec.iter() {
                 let mut x = 0;
+                ops = entry.len() as u32;
                 for (i, e) in entry.iter().enumerate() {
                     x = x + (e << i);
                 }
                 table = table | (1 << x);
+            }
+            let nops = circuit.emulator.cfg.lut_inputs - ops;
+            for i in 0..(1 << nops) {
+                table |= table << ((1 << ops) * i);
             }
             node_inst.lut = table;
         }

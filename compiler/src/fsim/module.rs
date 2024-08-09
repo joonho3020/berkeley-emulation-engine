@@ -67,8 +67,15 @@ impl Module {
         self.signal_map = signal_map.clone()
     }
 
+    fn print_2(self: &Self) {
+        println!("--------------------------");
+        for (i, p) in self.procs.iter().enumerate() {
+            println!("i: {}\n{:?}", i, p);
+        }
+    }
+
     fn print(self: &Self) {
-        print!("    ");
+        print!("      ");
         for (i, _) in self.procs.iter().enumerate() {
             print!("   {:02}   ", i);
         }
@@ -95,7 +102,8 @@ impl Module {
         for (_, proc) in self.procs.iter_mut().enumerate() {
             proc.step();
         }
-        // self.print();
+        self.print();
+// self.print_2();
         for (i, proc) in self.procs.iter_mut().enumerate() {
             self.switch.set_port_val(i, proc.get_switch_out());
         }
@@ -128,6 +136,7 @@ impl Module {
     }
 
     pub fn run_cycle(self: &mut Self) {
+        println!("=============================================================");
         for _ in 0..self.host_steps {
             self.step();
         }

@@ -45,11 +45,6 @@ impl Processor {
         // Instruction fetch
         let cur_inst = &self.imem[self.pc];
 
-        // Update SDM
-        self.sdm[self.pc] = self.s_port.ip;
-
-        // println!("cur_inst: {:?}", cur_inst);
-
         // Read the operands from the LDM and SDM
         let mut operands: Vec<Bit> = Vec::new();
         for op in cur_inst.operands.iter() {
@@ -96,6 +91,9 @@ impl Processor {
         // Update LDM
         self.ldm[self.pc] = f_out;
 
+        // Update SDM
+        self.sdm[self.pc] = self.s_port.ip;
+
         // Increment step
         if self.pc == (self.host_steps - 1) {
             self.target_cycle += 1;
@@ -128,22 +126,22 @@ impl Processor {
 
 impl Debug for Processor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Proc[\n  {:?}\n  {:?}\n  io_i {} io_o {}\n",
-            self.imem[self.pc], self.s_port, self.io_i, self.io_o
-        )?;
+// write!(
+// f,
+// "Proc[\n  {:?}\n  {:?}\n  io_i {} io_o {}\n",
+// self.imem[self.pc], self.s_port, self.io_i, self.io_o
+// )?;
 
-        write!(f, "  ldm:\n")?;
-        for chunk in self.ldm.chunks(8) {
-            write!(f, "\t{:?}\n", chunk)?;
+        write!(f, "  ldm: ")?;
+        for chunk in self.ldm.chunks(16) {
+            write!(f, "\t{:x?}\n", chunk)?;
         }
 
-        write!(f, "  sdm:\n")?;
-        for chunk in self.sdm.chunks(8) {
-            write!(f, "\t{:?}\n", chunk)?;
+        write!(f, "  sdm: ")?;
+        for chunk in self.sdm.chunks(16) {
+            write!(f, "\t{:x?}\n", chunk)?;
         }
-        write!(f, "]\n")?;
+// write!(f, "]\n")?;
         Ok(())
     }
 }
