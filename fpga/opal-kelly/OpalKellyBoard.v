@@ -43,18 +43,12 @@ wire [15:0] ep_insns_bits_2;
 wire [15:0] ep_io_i_ready;
 wire [15:0] ep_io_i_valid;
 wire [15:0] ep_io_i_bits_0;
-wire [15:0] ep_io_i_bits_1;
-wire [15:0] ep_io_i_bits_2;
-wire [15:0] ep_io_i_bits_3;
 wire [15:0] ep_io_o_ready;
 wire [15:0] ep_io_o_valid;
 wire [15:0] ep_io_o_bits_0;
-wire [15:0] ep_io_o_bits_1;
-wire [15:0] ep_io_o_bits_2;
-wire [15:0] ep_io_o_bits_3;
 
 wire [15:0] io_host_steps;
-wire [5:0]  io_used_procs;
+wire [3:0]  io_used_procs;
 wire        io_insns_ready;
 wire        io_insns_valid;
 wire [15:0] io_insns_bits_0;
@@ -74,7 +68,7 @@ wire [15:0] io_io_o_bits_2;
 wire [15:0] io_io_o_bits_3;
 
 assign io_host_steps = ep_host_steps;
-assign io_used_procs = ep_used_procs[5:0];
+assign io_used_procs = ep_used_procs[3:0];
 
 assign ep_insns_ready = {15'h0, io_insns_ready};
 assign io_insns_valid = ep_insns_valid[0];
@@ -85,16 +79,10 @@ assign io_insns_bits_2 = ep_insns_bits_2;
 assign ep_io_i_ready = {15'h0, io_io_i_ready};
 assign io_io_i_valid = ep_io_i_valid[0];
 assign io_io_i_bits_0 = ep_io_i_bits_0;
-assign io_io_i_bits_1 = ep_io_i_bits_1;
-assign io_io_i_bits_2 = ep_io_i_bits_2;
-assign io_io_i_bits_3 = ep_io_i_bits_3;
 
 assign ep_io_o_valid = {15'h0, io_io_o_valid};
 assign io_io_o_ready = ep_io_o_ready[0];
 assign ep_io_o_bits_0 = io_io_o_bits_0;
-assign ep_io_o_bits_1 = io_io_o_bits_1;
-assign ep_io_o_bits_2 = io_io_o_bits_2;
-assign ep_io_o_bits_3 = io_io_o_bits_3;
 
 assign led[0] = !(io_io_i_valid && io_io_i_ready);
 assign led[1] = !(io_io_o_valid && io_io_o_ready);
@@ -102,12 +90,12 @@ assign led[2] = !(io_insns_valid && io_insns_ready);
 assign led[3] = reset;
 
 // Instantiate the okHost and connect endpoints.
-wire [17*7-1:0]  ok2x;
+wire [17*4-1:0]  ok2x;
 okHost okHI(
   .hi_in(hi_in), .hi_out(hi_out), .hi_inout(hi_inout), .hi_aa(hi_aa), .ti_clk(ti_clk),
   .ok1(ok1), .ok2(ok2));
 
-okWireOR # (.N(7)) wireOR (ok2, ok2x);
+okWireOR # (.N(4)) wireOR (ok2, ok2x);
 
 okWireIn     okin0 (.ok1(ok1),                         .ep_addr(8'h00), .ep_dataout(ep_reset));
 okWireIn     okin1 (.ok1(ok1),                         .ep_addr(8'h01), .ep_dataout(ep_host_steps));
@@ -118,18 +106,12 @@ okWireIn     okin5 (.ok1(ok1),                         .ep_addr(8'h05), .ep_data
 okWireIn     okin6 (.ok1(ok1),                         .ep_addr(8'h06), .ep_dataout(ep_insns_bits_2));
 okWireIn     okin7 (.ok1(ok1),                         .ep_addr(8'h07), .ep_dataout(ep_io_i_valid));
 okWireIn     okin8 (.ok1(ok1),                         .ep_addr(8'h08), .ep_dataout(ep_io_i_bits_0));
-okWireIn     okin9 (.ok1(ok1),                         .ep_addr(8'h09), .ep_dataout(ep_io_i_bits_1));
-okWireIn     okin10(.ok1(ok1),                         .ep_addr(8'h0A), .ep_dataout(ep_io_i_bits_2));
-okWireIn     okin11(.ok1(ok1),                         .ep_addr(8'h0B), .ep_dataout(ep_io_i_bits_3));
 okWireIn     okin12(.ok1(ok1),                         .ep_addr(8'h0C), .ep_dataout(ep_io_o_ready));
 
 okWireOut    okout0(.ok1(ok1), .ok2(ok2x[ 0*17 +: 17 ]), .ep_addr(8'h20), .ep_datain(ep_insns_ready));
 okWireOut    okout1(.ok1(ok1), .ok2(ok2x[ 1*17 +: 17 ]), .ep_addr(8'h21), .ep_datain(ep_io_i_ready));
 okWireOut    okout2(.ok1(ok1), .ok2(ok2x[ 2*17 +: 17 ]), .ep_addr(8'h22), .ep_datain(ep_io_o_valid));
 okWireOut    okout3(.ok1(ok1), .ok2(ok2x[ 3*17 +: 17 ]), .ep_addr(8'h23), .ep_datain(ep_io_o_bits_0));
-okWireOut    okout4(.ok1(ok1), .ok2(ok2x[ 4*17 +: 17 ]), .ep_addr(8'h24), .ep_datain(ep_io_o_bits_1));
-okWireOut    okout5(.ok1(ok1), .ok2(ok2x[ 5*17 +: 17 ]), .ep_addr(8'h25), .ep_datain(ep_io_o_bits_2));
-okWireOut    okout6(.ok1(ok1), .ok2(ok2x[ 6*17 +: 17 ]), .ep_addr(8'h26), .ep_datain(ep_io_o_bits_3));
 
 
 OpalKellyEmulatorModuleTop tester(
@@ -145,15 +127,9 @@ OpalKellyEmulatorModuleTop tester(
   .io_io_i_ready(io_io_i_ready),
   .io_io_i_valid(io_io_i_valid),
   .io_io_i_bits_0(io_io_i_bits_0),
-  .io_io_i_bits_1(io_io_i_bits_1),
-  .io_io_i_bits_2(io_io_i_bits_2),
-  .io_io_i_bits_3(io_io_i_bits_3),
   .io_io_o_ready(io_io_o_ready),
   .io_io_o_valid(io_io_o_valid),
-  .io_io_o_bits_0(io_io_o_bits_0),
-  .io_io_o_bits_1(io_io_o_bits_1),
-  .io_io_o_bits_2(io_io_o_bits_2),
-  .io_io_o_bits_3(io_io_o_bits_3)
+  .io_io_o_bits_0(io_io_o_bits_0)
 );
 endmodule
 `default_nettype wire
