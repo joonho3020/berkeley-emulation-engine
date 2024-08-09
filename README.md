@@ -28,15 +28,6 @@ yosys
 > script yosys.cmd
 ```
 
-### Parse the blif file and obtain a pdf of the graph using graphviz
-
-- By hand:
-
-```bash
-cargo run > examples/Adder.dot
-dot examples/Adder.dot -Tpdf > examples/Adder.pdf
-```
-
 ### Run RTL simulation to obtain a reference output
 
 - Run:
@@ -50,5 +41,33 @@ cargo run --bin run_refrtlsim -- ../examples/GCD.sv GCD ../examples/GCD.input
 - Run:
 
 ```bash
+cd compiler
 cargo run --bin blif-parser -- ../examples/GCD.sv GCD  ../examples/GCD.input ../examples/GCD-2bit.lut.blif
+```
+
+### Running RTL simulations of the emulation processor
+
+- To generate the RTL processor run:
+
+```bash
+cd emulator
+mill emulator.run
+mv OpalKellyEmulatorModuleTop.sv test/
+```
+
+- To generate the testharness run:
+
+```bash
+cd compiler
+cargo run --bin run_emulrtlsim  ../examples/GCD.sv GCD ../examples/GCD.input ../examples/GCD-2bit.lut.blif
+mv TestHarness.sv ../emulator/test
+```
+
+- To generate RTL simulations, run it, and see waveforms:
+
+```
+cd emulator/test
+iverilog TestHarness.sv OpalKellyEmulatorModuleTop.sv
+./a.out
+gtkwave sim.vcd
 ```
