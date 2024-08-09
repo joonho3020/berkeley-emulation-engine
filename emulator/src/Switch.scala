@@ -16,10 +16,10 @@ class Switch(cfg: ModuleConfig) extends Module {
     val ports = Vec(cfg.module_sz, Flipped(new SwitchPort(cfg)))
   })
 
-  val o_prev = Seq.fill(cfg.module_sz)(Reg(UInt(num_bits.W)))
-  for (i <- 0 until module_sz) {
-    o_prev(i) := io.ports(i).o
-  }
+// val o_prev = Seq.fill(cfg.module_sz)(Reg(UInt(num_bits.W)))
+// for (i <- 0 until module_sz) {
+// o_prev(i) := io.ports(i).o
+// }
 
   for (i <- 0 until module_sz) {
     io.ports(i).i := DontCare
@@ -29,7 +29,7 @@ class Switch(cfg: ModuleConfig) extends Module {
   for (i <- 0 until module_sz) {
     for (j <- 0 until module_sz) {
       when (j.U === io.ports(i).id) {
-        io.ports(i).i := o_prev(j)
+        io.ports(i).i := io.ports(j).o
       }
     }
   }

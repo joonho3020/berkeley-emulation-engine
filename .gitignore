@@ -14,6 +14,7 @@ emulator/*.sv
 emulator/__pycache__
 emulator/results.xml
 emulator/sim_build
+emulator/test/*
 
 
 # Added by cargo

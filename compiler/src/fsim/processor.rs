@@ -121,6 +121,30 @@ impl Processor {
     pub fn get_io_o(self: &mut Self) -> Bit {
         self.io_o
     }
+
+    fn print_bitvec(self: &Self, bitvec: &Vec<Bit>) {
+        let mut hex_bits = vec![];
+        for chunk in bitvec.chunks(64) {
+            let mut hex: u64 = 0;
+            for (i, b) in chunk.iter().enumerate() {
+                hex |= (*b as u64) << i;
+            }
+            hex_bits.push(hex);
+        }
+        print!("0x");
+        for h in hex_bits.iter().rev() {
+            print!("{:x},", h);
+        }
+        print!("\n");
+    }
+
+    pub fn print_ldm(self: &Self) {
+        self.print_bitvec(&self.ldm)
+    }
+
+    pub fn print_sdm(self: &Self) {
+        self.print_bitvec(&self.sdm)
+    }
 }
 
 impl Debug for Processor {

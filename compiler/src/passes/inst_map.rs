@@ -46,11 +46,12 @@ pub fn map_instructions(circuit: &mut Circuit) {
                 }
                 table = table | (1 << x);
             }
+            let mut table_repeated: u64 = table;
             let nops = circuit.emulator.cfg.lut_inputs - ops;
             for i in 0..(1 << nops) {
-                table |= table << ((1 << ops) * i);
+                table_repeated |= table << ((1 << ops) * i);
             }
-            node_inst.lut = table;
+            node_inst.lut = table_repeated;
         }
 
         // assign operands

@@ -68,9 +68,15 @@ impl Module {
     }
 
     fn print_2(self: &Self) {
-        println!("--------------------------");
-        for (i, p) in self.procs.iter().enumerate() {
-            println!("i: {}\n{:?}", i, p);
+        println!("----- LDM -----");
+        for (i, proc) in self.procs.iter().enumerate() {
+            print!("{} ", i);
+            proc.print_ldm();
+        }
+        println!("----- SDM -----");
+        for (i, proc) in self.procs.iter().enumerate() {
+            print!("{} ", i);
+            proc.print_sdm();
         }
     }
 
@@ -115,7 +121,6 @@ impl Module {
         for (_, proc) in self.procs.iter_mut().enumerate() {
             proc.update_sdm_and_pc();
         }
-        self.print();
     }
 
     pub fn peek(self: &Self, signal: &str) -> Option<Bit> {
@@ -146,8 +151,10 @@ impl Module {
 
     pub fn run_cycle(self: &mut Self) {
         println!("=============================================================");
-        for _ in 0..self.host_steps {
+        for i in 0..self.host_steps {
             self.step();
+            println!("pc: {}", i);
+            self.print_2();
         }
     }
 
