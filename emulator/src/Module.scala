@@ -16,6 +16,7 @@ case class ModuleConfig(
   val switch_bits = log2Ceil(module_sz)
   val opcode_bits = log2Ceil(num_prims)
   val lut_bits    = 1 << lut_inputs
+  val dmem_bits   = max_steps * num_bits
 }
 
 class EmulatorModuleConfigBundle(cfg: ModuleConfig) extends Bundle {
@@ -32,6 +33,8 @@ class EmulatorModuleBundle(cfg: ModuleConfig) extends Bundle {
   val inst = Flipped(Decoupled(Instruction(cfg)))
   val i_bits = Vec(module_sz, Input (UInt(num_bits.W)))
   val o_bits = Vec(module_sz, Output(UInt(num_bits.W)))
+
+  val dbg = Vec(module_sz, Output(new ProcessorDebugBundle(cfg)))
 }
 
 class EmulatorModule(cfg: ModuleConfig) extends Module {
@@ -51,6 +54,11 @@ class EmulatorModule(cfg: ModuleConfig) extends Module {
     procs(i).io.host_steps := io.cfg_in.host_steps
     io.o_bits(i) := procs(i).io.io_o
   }
+
+  for (i <- 0 until module_sz) {
+    io.dbg(i) := procs(i).io.dbg
+  }
+  dontTouch(io.dbg)
 
   // instruction scan chain
   for (i <- 0 until module_sz - 1) {

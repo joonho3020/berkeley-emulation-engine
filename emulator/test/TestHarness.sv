@@ -1,5 +1,4 @@
 
-
 `timescale 1 ns/10 ps
 
 module testharness;
@@ -97,9 +96,9 @@ initial begin
 
   $display($time, " ** Start Simulation **");
 
-  io_host_steps = 2;
-  io_used_procs = 2;
-
+      io_host_steps = 16;
+      io_used_procs = 9;
+      
   io_insns_valid = 0;
   io_insns_bits_0 = 0;
   io_insns_bits_1 = 0;
@@ -115,30 +114,762 @@ initial begin
 
   @(posedge clock);#(0);
   @(posedge clock);#(0);
-
+  
   @(posedge clock);#(0);
-  enq_instructions(16'hDEAD, 16'hCAFE, 16'hBEAF);
-
+  enq_instructions(
+  16'h0, 16'h0, 16'h1
+            );
   @(posedge clock);#(0);
-  enq_instructions(16'hDADA, 16'hDEAF, 16'hABEF);
-
+  enq_instructions(
+  16'h8, 16'h0, 16'h0
+            );
   @(posedge clock);#(0);
-  enq_instructions(16'hDEAD, 16'hFEAD, 16'hEDAF);
-
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
   @(posedge clock);#(0);
-  enq_instructions(16'hCAFE, 16'hCAFE, 16'hCAFE);
-
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
   @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
   @(posedge clock);#(0);
-  enq_inputs(16'hDEAD, 16'hBEAF, 16'hCAFE, 16'hBADD);
-
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
   @(posedge clock);#(0);
-  enq_inputs(16'hFEAD, 16'hABEE, 16'hBADD, 16'hDADD);
-
-  repeat (200) begin
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h28, 16'h6400, 16'hec3
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h1
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h10, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h18, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h20, 16'h1c, 16'h113
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h28, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h28, 16'h303c, 16'hab
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h2c, 16'h385c, 16'h1a2b
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h28, 16'h86c, 16'h723
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h28, 16'h7014, 16'h6c3
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h1
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h1
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h1
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h6805
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h30, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h38, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h40, 16'h1c, 16'h8b
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'hc00, 16'h1453
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'hc, 16'h113
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h1c00, 16'h1043
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h4, 16'h10, 16'h1813
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h4, 16'h18, 16'h843
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h4, 16'h1802
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h420, 16'h1913
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h42c, 16'h3333
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h440, 16'h1333
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h4, 16'h3438, 16'h813
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h7805
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h4, 16'h5553
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h4, 16'h802
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h8, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h7005
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h4, 16'h5d53
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h4, 16'h1002
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h8, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h6005
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h8, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_instructions(
+  16'h0, 16'h0, 16'h0
+            );
+  @(posedge clock);#(0);
+  enq_inputs(
+  16'h0, 16'h0, 16'h0, 16'h0);
+  repeat (16) begin
     @(posedge clock);#(0);
   end
-
+  
+  @(posedge clock);#(0);
+  enq_inputs(
+  16'h0, 16'h0, 16'h0, 16'h0);
+  repeat (16) begin
+    @(posedge clock);#(0);
+  end
+  
+  @(posedge clock);#(0);
+  enq_inputs(
+  16'h0, 16'h0, 16'h0, 16'h1e);
+  repeat (16) begin
+    @(posedge clock);#(0);
+  end
+  
+  @(posedge clock);#(0);
+  enq_inputs(
+  16'h0, 16'h0, 16'h0, 16'h1c);
+  repeat (16) begin
+    @(posedge clock);#(0);
+  end
+  
+  @(posedge clock);#(0);
+  enq_inputs(
+  16'h0, 16'h0, 16'h0, 16'h1c);
+  repeat (16) begin
+    @(posedge clock);#(0);
+  end
+  
+  @(posedge clock);#(0);
+  enq_inputs(
+  16'h0, 16'h0, 16'h0, 16'h1c);
+  repeat (16) begin
+    @(posedge clock);#(0);
+  end
+  
+  @(posedge clock);#(0);
+  enq_inputs(
+  16'h0, 16'h0, 16'h0, 16'h1c);
+  repeat (16) begin
+    @(posedge clock);#(0);
+  end
+  
+  @(posedge clock);#(0);
+  enq_inputs(
+  16'h0, 16'h0, 16'h0, 16'h1c);
+  repeat (16) begin
+    @(posedge clock);#(0);
+  end
+  
+  @(posedge clock);#(0);
+  enq_inputs(
+  16'h0, 16'h0, 16'h0, 16'h1c);
+  repeat (16) begin
+    @(posedge clock);#(0);
+  end
+  
+  @(posedge clock);#(0);
+  enq_inputs(
+  16'h0, 16'h0, 16'h0, 16'ha);
+  repeat (16) begin
+    @(posedge clock);#(0);
+  end
+  
+  @(posedge clock);#(0);
+  enq_inputs(
+  16'h0, 16'h0, 16'h0, 16'h1c);
+  repeat (16) begin
+    @(posedge clock);#(0);
+  end
+  
+  @(posedge clock);#(0);
+  enq_inputs(
+  16'h0, 16'h0, 16'h0, 16'h18);
+  repeat (16) begin
+    @(posedge clock);#(0);
+  end
+  
+  @(posedge clock);#(0);
+  enq_inputs(
+  16'h0, 16'h0, 16'h0, 16'h14);
+  repeat (16) begin
+    @(posedge clock);#(0);
+  end
+  
+  @(posedge clock);#(0);
+  enq_inputs(
+  16'h0, 16'h0, 16'h0, 16'h16);
+  repeat (16) begin
+    @(posedge clock);#(0);
+  end
+  
+  @(posedge clock);#(0);
+  enq_inputs(
+  16'h0, 16'h0, 16'h0, 16'h0);
+  repeat (16) begin
+    @(posedge clock);#(0);
+  end
+  
+  @(posedge clock);#(0);
+  enq_inputs(
+  16'h0, 16'h0, 16'h0, 16'h1c);
+  repeat (16) begin
+    @(posedge clock);#(0);
+  end
+  
+  @(posedge clock);#(0);
+  enq_inputs(
+  16'h0, 16'h0, 16'h0, 16'hb);
+  repeat (16) begin
+    @(posedge clock);#(0);
+  end
+  
+  @(posedge clock);#(0);
+  enq_inputs(
+  16'h0, 16'h0, 16'h0, 16'h1c);
+  repeat (16) begin
+    @(posedge clock);#(0);
+  end
+  
+  @(posedge clock);#(0);
+  enq_inputs(
+  16'h0, 16'h0, 16'h0, 16'h1c);
+  repeat (16) begin
+    @(posedge clock);#(0);
+  end
+  
+  @(posedge clock);#(0);
+  enq_inputs(
+  16'h0, 16'h0, 16'h0, 16'hb);
+  repeat (16) begin
+    @(posedge clock);#(0);
+  end
+  
+  @(posedge clock);#(0);
+  enq_inputs(
+  16'h0, 16'h0, 16'h0, 16'h3);
+  repeat (16) begin
+    @(posedge clock);#(0);
+  end
+  
+  @(posedge clock);#(0);
+  enq_inputs(
+  16'h0, 16'h0, 16'h0, 16'hb);
+  repeat (16) begin
+    @(posedge clock);#(0);
+  end
+  
+  @(posedge clock);#(0);
+  enq_inputs(
+  16'h0, 16'h0, 16'h0, 16'hb);
+  repeat (16) begin
+    @(posedge clock);#(0);
+  end
+  
+  @(posedge clock);#(0);
+  enq_inputs(
+  16'h0, 16'h0, 16'h0, 16'hb);
+  repeat (16) begin
+    @(posedge clock);#(0);
+  end
+  
+  @(posedge clock);#(0);
+  enq_inputs(
+  16'h0, 16'h0, 16'h0, 16'hb);
+  repeat (16) begin
+    @(posedge clock);#(0);
+  end
+  
+  repeat (64) begin
+    @(posedge clock);#(0);
+  end
+  
   $display($time, " ** End Simulation **=");
   $finish;
 end
@@ -175,3 +906,4 @@ OpalKellyEmulatorModuleTop dut(
 );
 
 endmodule
+    

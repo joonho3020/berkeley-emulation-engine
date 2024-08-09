@@ -4996,15 +4996,17 @@ module InstructionMemory(
 endmodule
 
 module DataMemory(
-  input        clock,
-  input  [6:0] io_rd_0_idx,
-  output       io_rd_0_bit,
-  input  [6:0] io_rd_1_idx,
-  output       io_rd_1_bit,
-  input  [6:0] io_rd_2_idx,
-  output       io_rd_2_bit,
-  input  [6:0] io_wr_idx,
-  input        io_wr_bit
+  input          clock,
+  input          reset,
+  input  [6:0]   io_rd_0_idx,
+  output         io_rd_0_bit,
+  input  [6:0]   io_rd_1_idx,
+  output         io_rd_1_bit,
+  input  [6:0]   io_rd_2_idx,
+  output         io_rd_2_bit,
+  input  [6:0]   io_wr_idx,
+  input          io_wr_bit,
+  output [127:0] io_dbg
 );
 
   reg          mem_0;
@@ -5135,6 +5137,135 @@ module DataMemory(
   reg          mem_125;
   reg          mem_126;
   reg          mem_127;
+  wire [127:0] dbg =
+    {mem_127,
+     mem_126,
+     mem_125,
+     mem_124,
+     mem_123,
+     mem_122,
+     mem_121,
+     mem_120,
+     mem_119,
+     mem_118,
+     mem_117,
+     mem_116,
+     mem_115,
+     mem_114,
+     mem_113,
+     mem_112,
+     mem_111,
+     mem_110,
+     mem_109,
+     mem_108,
+     mem_107,
+     mem_106,
+     mem_105,
+     mem_104,
+     mem_103,
+     mem_102,
+     mem_101,
+     mem_100,
+     mem_99,
+     mem_98,
+     mem_97,
+     mem_96,
+     mem_95,
+     mem_94,
+     mem_93,
+     mem_92,
+     mem_91,
+     mem_90,
+     mem_89,
+     mem_88,
+     mem_87,
+     mem_86,
+     mem_85,
+     mem_84,
+     mem_83,
+     mem_82,
+     mem_81,
+     mem_80,
+     mem_79,
+     mem_78,
+     mem_77,
+     mem_76,
+     mem_75,
+     mem_74,
+     mem_73,
+     mem_72,
+     mem_71,
+     mem_70,
+     mem_69,
+     mem_68,
+     mem_67,
+     mem_66,
+     mem_65,
+     mem_64,
+     mem_63,
+     mem_62,
+     mem_61,
+     mem_60,
+     mem_59,
+     mem_58,
+     mem_57,
+     mem_56,
+     mem_55,
+     mem_54,
+     mem_53,
+     mem_52,
+     mem_51,
+     mem_50,
+     mem_49,
+     mem_48,
+     mem_47,
+     mem_46,
+     mem_45,
+     mem_44,
+     mem_43,
+     mem_42,
+     mem_41,
+     mem_40,
+     mem_39,
+     mem_38,
+     mem_37,
+     mem_36,
+     mem_35,
+     mem_34,
+     mem_33,
+     mem_32,
+     mem_31,
+     mem_30,
+     mem_29,
+     mem_28,
+     mem_27,
+     mem_26,
+     mem_25,
+     mem_24,
+     mem_23,
+     mem_22,
+     mem_21,
+     mem_20,
+     mem_19,
+     mem_18,
+     mem_17,
+     mem_16,
+     mem_15,
+     mem_14,
+     mem_13,
+     mem_12,
+     mem_11,
+     mem_10,
+     mem_9,
+     mem_8,
+     mem_7,
+     mem_6,
+     mem_5,
+     mem_4,
+     mem_3,
+     mem_2,
+     mem_1,
+     mem_0};
   wire [127:0] _GEN =
     {{mem_127},
      {mem_126},
@@ -5263,264 +5394,654 @@ module DataMemory(
      {mem_3},
      {mem_2},
      {mem_1},
-     {mem_0}};
+     {io_rd_0_idx == 7'h0 & mem_0}};
+  wire [127:0] _GEN_0 =
+    {{mem_127},
+     {mem_126},
+     {mem_125},
+     {mem_124},
+     {mem_123},
+     {mem_122},
+     {mem_121},
+     {mem_120},
+     {mem_119},
+     {mem_118},
+     {mem_117},
+     {mem_116},
+     {mem_115},
+     {mem_114},
+     {mem_113},
+     {mem_112},
+     {mem_111},
+     {mem_110},
+     {mem_109},
+     {mem_108},
+     {mem_107},
+     {mem_106},
+     {mem_105},
+     {mem_104},
+     {mem_103},
+     {mem_102},
+     {mem_101},
+     {mem_100},
+     {mem_99},
+     {mem_98},
+     {mem_97},
+     {mem_96},
+     {mem_95},
+     {mem_94},
+     {mem_93},
+     {mem_92},
+     {mem_91},
+     {mem_90},
+     {mem_89},
+     {mem_88},
+     {mem_87},
+     {mem_86},
+     {mem_85},
+     {mem_84},
+     {mem_83},
+     {mem_82},
+     {mem_81},
+     {mem_80},
+     {mem_79},
+     {mem_78},
+     {mem_77},
+     {mem_76},
+     {mem_75},
+     {mem_74},
+     {mem_73},
+     {mem_72},
+     {mem_71},
+     {mem_70},
+     {mem_69},
+     {mem_68},
+     {mem_67},
+     {mem_66},
+     {mem_65},
+     {mem_64},
+     {mem_63},
+     {mem_62},
+     {mem_61},
+     {mem_60},
+     {mem_59},
+     {mem_58},
+     {mem_57},
+     {mem_56},
+     {mem_55},
+     {mem_54},
+     {mem_53},
+     {mem_52},
+     {mem_51},
+     {mem_50},
+     {mem_49},
+     {mem_48},
+     {mem_47},
+     {mem_46},
+     {mem_45},
+     {mem_44},
+     {mem_43},
+     {mem_42},
+     {mem_41},
+     {mem_40},
+     {mem_39},
+     {mem_38},
+     {mem_37},
+     {mem_36},
+     {mem_35},
+     {mem_34},
+     {mem_33},
+     {mem_32},
+     {mem_31},
+     {mem_30},
+     {mem_29},
+     {mem_28},
+     {mem_27},
+     {mem_26},
+     {mem_25},
+     {mem_24},
+     {mem_23},
+     {mem_22},
+     {mem_21},
+     {mem_20},
+     {mem_19},
+     {mem_18},
+     {mem_17},
+     {mem_16},
+     {mem_15},
+     {mem_14},
+     {mem_13},
+     {mem_12},
+     {mem_11},
+     {mem_10},
+     {mem_9},
+     {mem_8},
+     {mem_7},
+     {mem_6},
+     {mem_5},
+     {mem_4},
+     {mem_3},
+     {mem_2},
+     {mem_1},
+     {io_rd_1_idx == 7'h0 & mem_0}};
+  wire [127:0] _GEN_1 =
+    {{mem_127},
+     {mem_126},
+     {mem_125},
+     {mem_124},
+     {mem_123},
+     {mem_122},
+     {mem_121},
+     {mem_120},
+     {mem_119},
+     {mem_118},
+     {mem_117},
+     {mem_116},
+     {mem_115},
+     {mem_114},
+     {mem_113},
+     {mem_112},
+     {mem_111},
+     {mem_110},
+     {mem_109},
+     {mem_108},
+     {mem_107},
+     {mem_106},
+     {mem_105},
+     {mem_104},
+     {mem_103},
+     {mem_102},
+     {mem_101},
+     {mem_100},
+     {mem_99},
+     {mem_98},
+     {mem_97},
+     {mem_96},
+     {mem_95},
+     {mem_94},
+     {mem_93},
+     {mem_92},
+     {mem_91},
+     {mem_90},
+     {mem_89},
+     {mem_88},
+     {mem_87},
+     {mem_86},
+     {mem_85},
+     {mem_84},
+     {mem_83},
+     {mem_82},
+     {mem_81},
+     {mem_80},
+     {mem_79},
+     {mem_78},
+     {mem_77},
+     {mem_76},
+     {mem_75},
+     {mem_74},
+     {mem_73},
+     {mem_72},
+     {mem_71},
+     {mem_70},
+     {mem_69},
+     {mem_68},
+     {mem_67},
+     {mem_66},
+     {mem_65},
+     {mem_64},
+     {mem_63},
+     {mem_62},
+     {mem_61},
+     {mem_60},
+     {mem_59},
+     {mem_58},
+     {mem_57},
+     {mem_56},
+     {mem_55},
+     {mem_54},
+     {mem_53},
+     {mem_52},
+     {mem_51},
+     {mem_50},
+     {mem_49},
+     {mem_48},
+     {mem_47},
+     {mem_46},
+     {mem_45},
+     {mem_44},
+     {mem_43},
+     {mem_42},
+     {mem_41},
+     {mem_40},
+     {mem_39},
+     {mem_38},
+     {mem_37},
+     {mem_36},
+     {mem_35},
+     {mem_34},
+     {mem_33},
+     {mem_32},
+     {mem_31},
+     {mem_30},
+     {mem_29},
+     {mem_28},
+     {mem_27},
+     {mem_26},
+     {mem_25},
+     {mem_24},
+     {mem_23},
+     {mem_22},
+     {mem_21},
+     {mem_20},
+     {mem_19},
+     {mem_18},
+     {mem_17},
+     {mem_16},
+     {mem_15},
+     {mem_14},
+     {mem_13},
+     {mem_12},
+     {mem_11},
+     {mem_10},
+     {mem_9},
+     {mem_8},
+     {mem_7},
+     {mem_6},
+     {mem_5},
+     {mem_4},
+     {mem_3},
+     {mem_2},
+     {mem_1},
+     {io_rd_2_idx == 7'h0 & mem_0}};
   always @(posedge clock) begin
-    if (io_wr_idx == 7'h0)
-      mem_0 <= io_wr_bit;
-    if (io_wr_idx == 7'h1)
-      mem_1 <= io_wr_bit;
-    if (io_wr_idx == 7'h2)
-      mem_2 <= io_wr_bit;
-    if (io_wr_idx == 7'h3)
-      mem_3 <= io_wr_bit;
-    if (io_wr_idx == 7'h4)
-      mem_4 <= io_wr_bit;
-    if (io_wr_idx == 7'h5)
-      mem_5 <= io_wr_bit;
-    if (io_wr_idx == 7'h6)
-      mem_6 <= io_wr_bit;
-    if (io_wr_idx == 7'h7)
-      mem_7 <= io_wr_bit;
-    if (io_wr_idx == 7'h8)
-      mem_8 <= io_wr_bit;
-    if (io_wr_idx == 7'h9)
-      mem_9 <= io_wr_bit;
-    if (io_wr_idx == 7'hA)
-      mem_10 <= io_wr_bit;
-    if (io_wr_idx == 7'hB)
-      mem_11 <= io_wr_bit;
-    if (io_wr_idx == 7'hC)
-      mem_12 <= io_wr_bit;
-    if (io_wr_idx == 7'hD)
-      mem_13 <= io_wr_bit;
-    if (io_wr_idx == 7'hE)
-      mem_14 <= io_wr_bit;
-    if (io_wr_idx == 7'hF)
-      mem_15 <= io_wr_bit;
-    if (io_wr_idx == 7'h10)
-      mem_16 <= io_wr_bit;
-    if (io_wr_idx == 7'h11)
-      mem_17 <= io_wr_bit;
-    if (io_wr_idx == 7'h12)
-      mem_18 <= io_wr_bit;
-    if (io_wr_idx == 7'h13)
-      mem_19 <= io_wr_bit;
-    if (io_wr_idx == 7'h14)
-      mem_20 <= io_wr_bit;
-    if (io_wr_idx == 7'h15)
-      mem_21 <= io_wr_bit;
-    if (io_wr_idx == 7'h16)
-      mem_22 <= io_wr_bit;
-    if (io_wr_idx == 7'h17)
-      mem_23 <= io_wr_bit;
-    if (io_wr_idx == 7'h18)
-      mem_24 <= io_wr_bit;
-    if (io_wr_idx == 7'h19)
-      mem_25 <= io_wr_bit;
-    if (io_wr_idx == 7'h1A)
-      mem_26 <= io_wr_bit;
-    if (io_wr_idx == 7'h1B)
-      mem_27 <= io_wr_bit;
-    if (io_wr_idx == 7'h1C)
-      mem_28 <= io_wr_bit;
-    if (io_wr_idx == 7'h1D)
-      mem_29 <= io_wr_bit;
-    if (io_wr_idx == 7'h1E)
-      mem_30 <= io_wr_bit;
-    if (io_wr_idx == 7'h1F)
-      mem_31 <= io_wr_bit;
-    if (io_wr_idx == 7'h20)
-      mem_32 <= io_wr_bit;
-    if (io_wr_idx == 7'h21)
-      mem_33 <= io_wr_bit;
-    if (io_wr_idx == 7'h22)
-      mem_34 <= io_wr_bit;
-    if (io_wr_idx == 7'h23)
-      mem_35 <= io_wr_bit;
-    if (io_wr_idx == 7'h24)
-      mem_36 <= io_wr_bit;
-    if (io_wr_idx == 7'h25)
-      mem_37 <= io_wr_bit;
-    if (io_wr_idx == 7'h26)
-      mem_38 <= io_wr_bit;
-    if (io_wr_idx == 7'h27)
-      mem_39 <= io_wr_bit;
-    if (io_wr_idx == 7'h28)
-      mem_40 <= io_wr_bit;
-    if (io_wr_idx == 7'h29)
-      mem_41 <= io_wr_bit;
-    if (io_wr_idx == 7'h2A)
-      mem_42 <= io_wr_bit;
-    if (io_wr_idx == 7'h2B)
-      mem_43 <= io_wr_bit;
-    if (io_wr_idx == 7'h2C)
-      mem_44 <= io_wr_bit;
-    if (io_wr_idx == 7'h2D)
-      mem_45 <= io_wr_bit;
-    if (io_wr_idx == 7'h2E)
-      mem_46 <= io_wr_bit;
-    if (io_wr_idx == 7'h2F)
-      mem_47 <= io_wr_bit;
-    if (io_wr_idx == 7'h30)
-      mem_48 <= io_wr_bit;
-    if (io_wr_idx == 7'h31)
-      mem_49 <= io_wr_bit;
-    if (io_wr_idx == 7'h32)
-      mem_50 <= io_wr_bit;
-    if (io_wr_idx == 7'h33)
-      mem_51 <= io_wr_bit;
-    if (io_wr_idx == 7'h34)
-      mem_52 <= io_wr_bit;
-    if (io_wr_idx == 7'h35)
-      mem_53 <= io_wr_bit;
-    if (io_wr_idx == 7'h36)
-      mem_54 <= io_wr_bit;
-    if (io_wr_idx == 7'h37)
-      mem_55 <= io_wr_bit;
-    if (io_wr_idx == 7'h38)
-      mem_56 <= io_wr_bit;
-    if (io_wr_idx == 7'h39)
-      mem_57 <= io_wr_bit;
-    if (io_wr_idx == 7'h3A)
-      mem_58 <= io_wr_bit;
-    if (io_wr_idx == 7'h3B)
-      mem_59 <= io_wr_bit;
-    if (io_wr_idx == 7'h3C)
-      mem_60 <= io_wr_bit;
-    if (io_wr_idx == 7'h3D)
-      mem_61 <= io_wr_bit;
-    if (io_wr_idx == 7'h3E)
-      mem_62 <= io_wr_bit;
-    if (io_wr_idx == 7'h3F)
-      mem_63 <= io_wr_bit;
-    if (io_wr_idx == 7'h40)
-      mem_64 <= io_wr_bit;
-    if (io_wr_idx == 7'h41)
-      mem_65 <= io_wr_bit;
-    if (io_wr_idx == 7'h42)
-      mem_66 <= io_wr_bit;
-    if (io_wr_idx == 7'h43)
-      mem_67 <= io_wr_bit;
-    if (io_wr_idx == 7'h44)
-      mem_68 <= io_wr_bit;
-    if (io_wr_idx == 7'h45)
-      mem_69 <= io_wr_bit;
-    if (io_wr_idx == 7'h46)
-      mem_70 <= io_wr_bit;
-    if (io_wr_idx == 7'h47)
-      mem_71 <= io_wr_bit;
-    if (io_wr_idx == 7'h48)
-      mem_72 <= io_wr_bit;
-    if (io_wr_idx == 7'h49)
-      mem_73 <= io_wr_bit;
-    if (io_wr_idx == 7'h4A)
-      mem_74 <= io_wr_bit;
-    if (io_wr_idx == 7'h4B)
-      mem_75 <= io_wr_bit;
-    if (io_wr_idx == 7'h4C)
-      mem_76 <= io_wr_bit;
-    if (io_wr_idx == 7'h4D)
-      mem_77 <= io_wr_bit;
-    if (io_wr_idx == 7'h4E)
-      mem_78 <= io_wr_bit;
-    if (io_wr_idx == 7'h4F)
-      mem_79 <= io_wr_bit;
-    if (io_wr_idx == 7'h50)
-      mem_80 <= io_wr_bit;
-    if (io_wr_idx == 7'h51)
-      mem_81 <= io_wr_bit;
-    if (io_wr_idx == 7'h52)
-      mem_82 <= io_wr_bit;
-    if (io_wr_idx == 7'h53)
-      mem_83 <= io_wr_bit;
-    if (io_wr_idx == 7'h54)
-      mem_84 <= io_wr_bit;
-    if (io_wr_idx == 7'h55)
-      mem_85 <= io_wr_bit;
-    if (io_wr_idx == 7'h56)
-      mem_86 <= io_wr_bit;
-    if (io_wr_idx == 7'h57)
-      mem_87 <= io_wr_bit;
-    if (io_wr_idx == 7'h58)
-      mem_88 <= io_wr_bit;
-    if (io_wr_idx == 7'h59)
-      mem_89 <= io_wr_bit;
-    if (io_wr_idx == 7'h5A)
-      mem_90 <= io_wr_bit;
-    if (io_wr_idx == 7'h5B)
-      mem_91 <= io_wr_bit;
-    if (io_wr_idx == 7'h5C)
-      mem_92 <= io_wr_bit;
-    if (io_wr_idx == 7'h5D)
-      mem_93 <= io_wr_bit;
-    if (io_wr_idx == 7'h5E)
-      mem_94 <= io_wr_bit;
-    if (io_wr_idx == 7'h5F)
-      mem_95 <= io_wr_bit;
-    if (io_wr_idx == 7'h60)
-      mem_96 <= io_wr_bit;
-    if (io_wr_idx == 7'h61)
-      mem_97 <= io_wr_bit;
-    if (io_wr_idx == 7'h62)
-      mem_98 <= io_wr_bit;
-    if (io_wr_idx == 7'h63)
-      mem_99 <= io_wr_bit;
-    if (io_wr_idx == 7'h64)
-      mem_100 <= io_wr_bit;
-    if (io_wr_idx == 7'h65)
-      mem_101 <= io_wr_bit;
-    if (io_wr_idx == 7'h66)
-      mem_102 <= io_wr_bit;
-    if (io_wr_idx == 7'h67)
-      mem_103 <= io_wr_bit;
-    if (io_wr_idx == 7'h68)
-      mem_104 <= io_wr_bit;
-    if (io_wr_idx == 7'h69)
-      mem_105 <= io_wr_bit;
-    if (io_wr_idx == 7'h6A)
-      mem_106 <= io_wr_bit;
-    if (io_wr_idx == 7'h6B)
-      mem_107 <= io_wr_bit;
-    if (io_wr_idx == 7'h6C)
-      mem_108 <= io_wr_bit;
-    if (io_wr_idx == 7'h6D)
-      mem_109 <= io_wr_bit;
-    if (io_wr_idx == 7'h6E)
-      mem_110 <= io_wr_bit;
-    if (io_wr_idx == 7'h6F)
-      mem_111 <= io_wr_bit;
-    if (io_wr_idx == 7'h70)
-      mem_112 <= io_wr_bit;
-    if (io_wr_idx == 7'h71)
-      mem_113 <= io_wr_bit;
-    if (io_wr_idx == 7'h72)
-      mem_114 <= io_wr_bit;
-    if (io_wr_idx == 7'h73)
-      mem_115 <= io_wr_bit;
-    if (io_wr_idx == 7'h74)
-      mem_116 <= io_wr_bit;
-    if (io_wr_idx == 7'h75)
-      mem_117 <= io_wr_bit;
-    if (io_wr_idx == 7'h76)
-      mem_118 <= io_wr_bit;
-    if (io_wr_idx == 7'h77)
-      mem_119 <= io_wr_bit;
-    if (io_wr_idx == 7'h78)
-      mem_120 <= io_wr_bit;
-    if (io_wr_idx == 7'h79)
-      mem_121 <= io_wr_bit;
-    if (io_wr_idx == 7'h7A)
-      mem_122 <= io_wr_bit;
-    if (io_wr_idx == 7'h7B)
-      mem_123 <= io_wr_bit;
-    if (io_wr_idx == 7'h7C)
-      mem_124 <= io_wr_bit;
-    if (io_wr_idx == 7'h7D)
-      mem_125 <= io_wr_bit;
-    if (io_wr_idx == 7'h7E)
-      mem_126 <= io_wr_bit;
-    if (&io_wr_idx)
-      mem_127 <= io_wr_bit;
+    if (reset) begin
+      mem_0 <= 1'h0;
+      mem_1 <= 1'h0;
+      mem_2 <= 1'h0;
+      mem_3 <= 1'h0;
+      mem_4 <= 1'h0;
+      mem_5 <= 1'h0;
+      mem_6 <= 1'h0;
+      mem_7 <= 1'h0;
+      mem_8 <= 1'h0;
+      mem_9 <= 1'h0;
+      mem_10 <= 1'h0;
+      mem_11 <= 1'h0;
+      mem_12 <= 1'h0;
+      mem_13 <= 1'h0;
+      mem_14 <= 1'h0;
+      mem_15 <= 1'h0;
+      mem_16 <= 1'h0;
+      mem_17 <= 1'h0;
+      mem_18 <= 1'h0;
+      mem_19 <= 1'h0;
+      mem_20 <= 1'h0;
+      mem_21 <= 1'h0;
+      mem_22 <= 1'h0;
+      mem_23 <= 1'h0;
+      mem_24 <= 1'h0;
+      mem_25 <= 1'h0;
+      mem_26 <= 1'h0;
+      mem_27 <= 1'h0;
+      mem_28 <= 1'h0;
+      mem_29 <= 1'h0;
+      mem_30 <= 1'h0;
+      mem_31 <= 1'h0;
+      mem_32 <= 1'h0;
+      mem_33 <= 1'h0;
+      mem_34 <= 1'h0;
+      mem_35 <= 1'h0;
+      mem_36 <= 1'h0;
+      mem_37 <= 1'h0;
+      mem_38 <= 1'h0;
+      mem_39 <= 1'h0;
+      mem_40 <= 1'h0;
+      mem_41 <= 1'h0;
+      mem_42 <= 1'h0;
+      mem_43 <= 1'h0;
+      mem_44 <= 1'h0;
+      mem_45 <= 1'h0;
+      mem_46 <= 1'h0;
+      mem_47 <= 1'h0;
+      mem_48 <= 1'h0;
+      mem_49 <= 1'h0;
+      mem_50 <= 1'h0;
+      mem_51 <= 1'h0;
+      mem_52 <= 1'h0;
+      mem_53 <= 1'h0;
+      mem_54 <= 1'h0;
+      mem_55 <= 1'h0;
+      mem_56 <= 1'h0;
+      mem_57 <= 1'h0;
+      mem_58 <= 1'h0;
+      mem_59 <= 1'h0;
+      mem_60 <= 1'h0;
+      mem_61 <= 1'h0;
+      mem_62 <= 1'h0;
+      mem_63 <= 1'h0;
+      mem_64 <= 1'h0;
+      mem_65 <= 1'h0;
+      mem_66 <= 1'h0;
+      mem_67 <= 1'h0;
+      mem_68 <= 1'h0;
+      mem_69 <= 1'h0;
+      mem_70 <= 1'h0;
+      mem_71 <= 1'h0;
+      mem_72 <= 1'h0;
+      mem_73 <= 1'h0;
+      mem_74 <= 1'h0;
+      mem_75 <= 1'h0;
+      mem_76 <= 1'h0;
+      mem_77 <= 1'h0;
+      mem_78 <= 1'h0;
+      mem_79 <= 1'h0;
+      mem_80 <= 1'h0;
+      mem_81 <= 1'h0;
+      mem_82 <= 1'h0;
+      mem_83 <= 1'h0;
+      mem_84 <= 1'h0;
+      mem_85 <= 1'h0;
+      mem_86 <= 1'h0;
+      mem_87 <= 1'h0;
+      mem_88 <= 1'h0;
+      mem_89 <= 1'h0;
+      mem_90 <= 1'h0;
+      mem_91 <= 1'h0;
+      mem_92 <= 1'h0;
+      mem_93 <= 1'h0;
+      mem_94 <= 1'h0;
+      mem_95 <= 1'h0;
+      mem_96 <= 1'h0;
+      mem_97 <= 1'h0;
+      mem_98 <= 1'h0;
+      mem_99 <= 1'h0;
+      mem_100 <= 1'h0;
+      mem_101 <= 1'h0;
+      mem_102 <= 1'h0;
+      mem_103 <= 1'h0;
+      mem_104 <= 1'h0;
+      mem_105 <= 1'h0;
+      mem_106 <= 1'h0;
+      mem_107 <= 1'h0;
+      mem_108 <= 1'h0;
+      mem_109 <= 1'h0;
+      mem_110 <= 1'h0;
+      mem_111 <= 1'h0;
+      mem_112 <= 1'h0;
+      mem_113 <= 1'h0;
+      mem_114 <= 1'h0;
+      mem_115 <= 1'h0;
+      mem_116 <= 1'h0;
+      mem_117 <= 1'h0;
+      mem_118 <= 1'h0;
+      mem_119 <= 1'h0;
+      mem_120 <= 1'h0;
+      mem_121 <= 1'h0;
+      mem_122 <= 1'h0;
+      mem_123 <= 1'h0;
+      mem_124 <= 1'h0;
+      mem_125 <= 1'h0;
+      mem_126 <= 1'h0;
+      mem_127 <= 1'h0;
+    end
+    else begin
+      if (io_wr_idx == 7'h0)
+        mem_0 <= io_wr_bit;
+      if (io_wr_idx == 7'h1)
+        mem_1 <= io_wr_bit;
+      if (io_wr_idx == 7'h2)
+        mem_2 <= io_wr_bit;
+      if (io_wr_idx == 7'h3)
+        mem_3 <= io_wr_bit;
+      if (io_wr_idx == 7'h4)
+        mem_4 <= io_wr_bit;
+      if (io_wr_idx == 7'h5)
+        mem_5 <= io_wr_bit;
+      if (io_wr_idx == 7'h6)
+        mem_6 <= io_wr_bit;
+      if (io_wr_idx == 7'h7)
+        mem_7 <= io_wr_bit;
+      if (io_wr_idx == 7'h8)
+        mem_8 <= io_wr_bit;
+      if (io_wr_idx == 7'h9)
+        mem_9 <= io_wr_bit;
+      if (io_wr_idx == 7'hA)
+        mem_10 <= io_wr_bit;
+      if (io_wr_idx == 7'hB)
+        mem_11 <= io_wr_bit;
+      if (io_wr_idx == 7'hC)
+        mem_12 <= io_wr_bit;
+      if (io_wr_idx == 7'hD)
+        mem_13 <= io_wr_bit;
+      if (io_wr_idx == 7'hE)
+        mem_14 <= io_wr_bit;
+      if (io_wr_idx == 7'hF)
+        mem_15 <= io_wr_bit;
+      if (io_wr_idx == 7'h10)
+        mem_16 <= io_wr_bit;
+      if (io_wr_idx == 7'h11)
+        mem_17 <= io_wr_bit;
+      if (io_wr_idx == 7'h12)
+        mem_18 <= io_wr_bit;
+      if (io_wr_idx == 7'h13)
+        mem_19 <= io_wr_bit;
+      if (io_wr_idx == 7'h14)
+        mem_20 <= io_wr_bit;
+      if (io_wr_idx == 7'h15)
+        mem_21 <= io_wr_bit;
+      if (io_wr_idx == 7'h16)
+        mem_22 <= io_wr_bit;
+      if (io_wr_idx == 7'h17)
+        mem_23 <= io_wr_bit;
+      if (io_wr_idx == 7'h18)
+        mem_24 <= io_wr_bit;
+      if (io_wr_idx == 7'h19)
+        mem_25 <= io_wr_bit;
+      if (io_wr_idx == 7'h1A)
+        mem_26 <= io_wr_bit;
+      if (io_wr_idx == 7'h1B)
+        mem_27 <= io_wr_bit;
+      if (io_wr_idx == 7'h1C)
+        mem_28 <= io_wr_bit;
+      if (io_wr_idx == 7'h1D)
+        mem_29 <= io_wr_bit;
+      if (io_wr_idx == 7'h1E)
+        mem_30 <= io_wr_bit;
+      if (io_wr_idx == 7'h1F)
+        mem_31 <= io_wr_bit;
+      if (io_wr_idx == 7'h20)
+        mem_32 <= io_wr_bit;
+      if (io_wr_idx == 7'h21)
+        mem_33 <= io_wr_bit;
+      if (io_wr_idx == 7'h22)
+        mem_34 <= io_wr_bit;
+      if (io_wr_idx == 7'h23)
+        mem_35 <= io_wr_bit;
+      if (io_wr_idx == 7'h24)
+        mem_36 <= io_wr_bit;
+      if (io_wr_idx == 7'h25)
+        mem_37 <= io_wr_bit;
+      if (io_wr_idx == 7'h26)
+        mem_38 <= io_wr_bit;
+      if (io_wr_idx == 7'h27)
+        mem_39 <= io_wr_bit;
+      if (io_wr_idx == 7'h28)
+        mem_40 <= io_wr_bit;
+      if (io_wr_idx == 7'h29)
+        mem_41 <= io_wr_bit;
+      if (io_wr_idx == 7'h2A)
+        mem_42 <= io_wr_bit;
+      if (io_wr_idx == 7'h2B)
+        mem_43 <= io_wr_bit;
+      if (io_wr_idx == 7'h2C)
+        mem_44 <= io_wr_bit;
+      if (io_wr_idx == 7'h2D)
+        mem_45 <= io_wr_bit;
+      if (io_wr_idx == 7'h2E)
+        mem_46 <= io_wr_bit;
+      if (io_wr_idx == 7'h2F)
+        mem_47 <= io_wr_bit;
+      if (io_wr_idx == 7'h30)
+        mem_48 <= io_wr_bit;
+      if (io_wr_idx == 7'h31)
+        mem_49 <= io_wr_bit;
+      if (io_wr_idx == 7'h32)
+        mem_50 <= io_wr_bit;
+      if (io_wr_idx == 7'h33)
+        mem_51 <= io_wr_bit;
+      if (io_wr_idx == 7'h34)
+        mem_52 <= io_wr_bit;
+      if (io_wr_idx == 7'h35)
+        mem_53 <= io_wr_bit;
+      if (io_wr_idx == 7'h36)
+        mem_54 <= io_wr_bit;
+      if (io_wr_idx == 7'h37)
+        mem_55 <= io_wr_bit;
+      if (io_wr_idx == 7'h38)
+        mem_56 <= io_wr_bit;
+      if (io_wr_idx == 7'h39)
+        mem_57 <= io_wr_bit;
+      if (io_wr_idx == 7'h3A)
+        mem_58 <= io_wr_bit;
+      if (io_wr_idx == 7'h3B)
+        mem_59 <= io_wr_bit;
+      if (io_wr_idx == 7'h3C)
+        mem_60 <= io_wr_bit;
+      if (io_wr_idx == 7'h3D)
+        mem_61 <= io_wr_bit;
+      if (io_wr_idx == 7'h3E)
+        mem_62 <= io_wr_bit;
+      if (io_wr_idx == 7'h3F)
+        mem_63 <= io_wr_bit;
+      if (io_wr_idx == 7'h40)
+        mem_64 <= io_wr_bit;
+      if (io_wr_idx == 7'h41)
+        mem_65 <= io_wr_bit;
+      if (io_wr_idx == 7'h42)
+        mem_66 <= io_wr_bit;
+      if (io_wr_idx == 7'h43)
+        mem_67 <= io_wr_bit;
+      if (io_wr_idx == 7'h44)
+        mem_68 <= io_wr_bit;
+      if (io_wr_idx == 7'h45)
+        mem_69 <= io_wr_bit;
+      if (io_wr_idx == 7'h46)
+        mem_70 <= io_wr_bit;
+      if (io_wr_idx == 7'h47)
+        mem_71 <= io_wr_bit;
+      if (io_wr_idx == 7'h48)
+        mem_72 <= io_wr_bit;
+      if (io_wr_idx == 7'h49)
+        mem_73 <= io_wr_bit;
+      if (io_wr_idx == 7'h4A)
+        mem_74 <= io_wr_bit;
+      if (io_wr_idx == 7'h4B)
+        mem_75 <= io_wr_bit;
+      if (io_wr_idx == 7'h4C)
+        mem_76 <= io_wr_bit;
+      if (io_wr_idx == 7'h4D)
+        mem_77 <= io_wr_bit;
+      if (io_wr_idx == 7'h4E)
+        mem_78 <= io_wr_bit;
+      if (io_wr_idx == 7'h4F)
+        mem_79 <= io_wr_bit;
+      if (io_wr_idx == 7'h50)
+        mem_80 <= io_wr_bit;
+      if (io_wr_idx == 7'h51)
+        mem_81 <= io_wr_bit;
+      if (io_wr_idx == 7'h52)
+        mem_82 <= io_wr_bit;
+      if (io_wr_idx == 7'h53)
+        mem_83 <= io_wr_bit;
+      if (io_wr_idx == 7'h54)
+        mem_84 <= io_wr_bit;
+      if (io_wr_idx == 7'h55)
+        mem_85 <= io_wr_bit;
+      if (io_wr_idx == 7'h56)
+        mem_86 <= io_wr_bit;
+      if (io_wr_idx == 7'h57)
+        mem_87 <= io_wr_bit;
+      if (io_wr_idx == 7'h58)
+        mem_88 <= io_wr_bit;
+      if (io_wr_idx == 7'h59)
+        mem_89 <= io_wr_bit;
+      if (io_wr_idx == 7'h5A)
+        mem_90 <= io_wr_bit;
+      if (io_wr_idx == 7'h5B)
+        mem_91 <= io_wr_bit;
+      if (io_wr_idx == 7'h5C)
+        mem_92 <= io_wr_bit;
+      if (io_wr_idx == 7'h5D)
+        mem_93 <= io_wr_bit;
+      if (io_wr_idx == 7'h5E)
+        mem_94 <= io_wr_bit;
+      if (io_wr_idx == 7'h5F)
+        mem_95 <= io_wr_bit;
+      if (io_wr_idx == 7'h60)
+        mem_96 <= io_wr_bit;
+      if (io_wr_idx == 7'h61)
+        mem_97 <= io_wr_bit;
+      if (io_wr_idx == 7'h62)
+        mem_98 <= io_wr_bit;
+      if (io_wr_idx == 7'h63)
+        mem_99 <= io_wr_bit;
+      if (io_wr_idx == 7'h64)
+        mem_100 <= io_wr_bit;
+      if (io_wr_idx == 7'h65)
+        mem_101 <= io_wr_bit;
+      if (io_wr_idx == 7'h66)
+        mem_102 <= io_wr_bit;
+      if (io_wr_idx == 7'h67)
+        mem_103 <= io_wr_bit;
+      if (io_wr_idx == 7'h68)
+        mem_104 <= io_wr_bit;
+      if (io_wr_idx == 7'h69)
+        mem_105 <= io_wr_bit;
+      if (io_wr_idx == 7'h6A)
+        mem_106 <= io_wr_bit;
+      if (io_wr_idx == 7'h6B)
+        mem_107 <= io_wr_bit;
+      if (io_wr_idx == 7'h6C)
+        mem_108 <= io_wr_bit;
+      if (io_wr_idx == 7'h6D)
+        mem_109 <= io_wr_bit;
+      if (io_wr_idx == 7'h6E)
+        mem_110 <= io_wr_bit;
+      if (io_wr_idx == 7'h6F)
+        mem_111 <= io_wr_bit;
+      if (io_wr_idx == 7'h70)
+        mem_112 <= io_wr_bit;
+      if (io_wr_idx == 7'h71)
+        mem_113 <= io_wr_bit;
+      if (io_wr_idx == 7'h72)
+        mem_114 <= io_wr_bit;
+      if (io_wr_idx == 7'h73)
+        mem_115 <= io_wr_bit;
+      if (io_wr_idx == 7'h74)
+        mem_116 <= io_wr_bit;
+      if (io_wr_idx == 7'h75)
+        mem_117 <= io_wr_bit;
+      if (io_wr_idx == 7'h76)
+        mem_118 <= io_wr_bit;
+      if (io_wr_idx == 7'h77)
+        mem_119 <= io_wr_bit;
+      if (io_wr_idx == 7'h78)
+        mem_120 <= io_wr_bit;
+      if (io_wr_idx == 7'h79)
+        mem_121 <= io_wr_bit;
+      if (io_wr_idx == 7'h7A)
+        mem_122 <= io_wr_bit;
+      if (io_wr_idx == 7'h7B)
+        mem_123 <= io_wr_bit;
+      if (io_wr_idx == 7'h7C)
+        mem_124 <= io_wr_bit;
+      if (io_wr_idx == 7'h7D)
+        mem_125 <= io_wr_bit;
+      if (io_wr_idx == 7'h7E)
+        mem_126 <= io_wr_bit;
+      if (&io_wr_idx)
+        mem_127 <= io_wr_bit;
+    end
   end // always @(posedge)
   `ifdef ENABLE_INITIAL_REG_
     `ifdef FIRRTL_BEFORE_INITIAL
@@ -5670,44 +6191,50 @@ module DataMemory(
     `endif // FIRRTL_AFTER_INITIAL
   `endif // ENABLE_INITIAL_REG_
   assign io_rd_0_bit = _GEN[io_rd_0_idx];
-  assign io_rd_1_bit = _GEN[io_rd_1_idx];
-  assign io_rd_2_bit = _GEN[io_rd_2_idx];
+  assign io_rd_1_bit = _GEN_0[io_rd_1_idx];
+  assign io_rd_2_bit = _GEN_1[io_rd_2_idx];
+  assign io_dbg = dbg;
 endmodule
 
 module Processor(
-  input        clock,
-  input        reset,
-  input        io_run,
-  input  [6:0] io_host_steps,
-  output       io_init_o,
-  output       io_inst_i_ready,
-  input        io_inst_i_valid,
-  input  [2:0] io_inst_i_bits_opcode,
-  input  [7:0] io_inst_i_bits_lut,
-  input  [6:0] io_inst_i_bits_ops_0_rs,
-  input        io_inst_i_bits_ops_0_local,
-  input  [6:0] io_inst_i_bits_ops_1_rs,
-  input        io_inst_i_bits_ops_1_local,
-  input  [6:0] io_inst_i_bits_ops_2_rs,
-  input        io_inst_i_bits_ops_2_local,
-  input  [5:0] io_inst_i_bits_sin,
-  input        io_init_i,
-  input        io_inst_o_ready,
-  output       io_inst_o_valid,
-  output [2:0] io_inst_o_bits_opcode,
-  output [7:0] io_inst_o_bits_lut,
-  output [6:0] io_inst_o_bits_ops_0_rs,
-  output       io_inst_o_bits_ops_0_local,
-  output [6:0] io_inst_o_bits_ops_1_rs,
-  output       io_inst_o_bits_ops_1_local,
-  output [6:0] io_inst_o_bits_ops_2_rs,
-  output       io_inst_o_bits_ops_2_local,
-  output [5:0] io_inst_o_bits_sin,
-  output [5:0] io_swp_id,
-  output       io_swp_o,
-  input        io_swp_i,
-  input        io_io_i,
-  output       io_io_o
+  input          clock,
+  input          reset,
+  input          io_run,
+  input  [6:0]   io_host_steps,
+  output         io_init_o,
+  output         io_inst_i_ready,
+  input          io_inst_i_valid,
+  input  [2:0]   io_inst_i_bits_opcode,
+  input  [7:0]   io_inst_i_bits_lut,
+  input  [6:0]   io_inst_i_bits_ops_0_rs,
+  input          io_inst_i_bits_ops_0_local,
+  input  [6:0]   io_inst_i_bits_ops_1_rs,
+  input          io_inst_i_bits_ops_1_local,
+  input  [6:0]   io_inst_i_bits_ops_2_rs,
+  input          io_inst_i_bits_ops_2_local,
+  input  [5:0]   io_inst_i_bits_sin,
+  input          io_init_i,
+  input          io_inst_o_ready,
+  output         io_inst_o_valid,
+  output [2:0]   io_inst_o_bits_opcode,
+  output [7:0]   io_inst_o_bits_lut,
+  output [6:0]   io_inst_o_bits_ops_0_rs,
+  output         io_inst_o_bits_ops_0_local,
+  output [6:0]   io_inst_o_bits_ops_1_rs,
+  output         io_inst_o_bits_ops_1_local,
+  output [6:0]   io_inst_o_bits_ops_2_rs,
+  output         io_inst_o_bits_ops_2_local,
+  output [5:0]   io_inst_o_bits_sin,
+  output [5:0]   io_swp_id,
+  output         io_swp_o,
+  input          io_swp_i,
+  input          io_io_i,
+  output         io_io_o,
+  output [127:0] io_dbg_ldm,
+  output [127:0] io_dbg_sdm,
+  output         io_dbg_ops_0,
+  output         io_dbg_ops_1,
+  output         io_dbg_ops_2
 );
 
   wire       _sdm_io_rd_0_bit;
@@ -5728,18 +6255,15 @@ module Processor(
   reg  [6:0] pc;
   reg        init;
   wire       ops_0 = _imem_io_rinst_ops_0_local ? _ldm_io_rd_0_bit : _sdm_io_rd_0_bit;
+  wire       ops_1 = _imem_io_rinst_ops_1_local ? _ldm_io_rd_1_bit : _sdm_io_rd_1_bit;
+  wire       ops_2 = _imem_io_rinst_ops_2_local ? _ldm_io_rd_2_bit : _sdm_io_rd_2_bit;
   wire       _GEN = _imem_io_rinst_opcode == 3'h0;
   wire       _GEN_0 = _imem_io_rinst_opcode == 3'h1;
   wire       _GEN_1 = _imem_io_rinst_opcode == 3'h3;
-  wire [7:0] _fout_T_1 =
-    _imem_io_rinst_lut
-    >> {5'h0,
-        _imem_io_rinst_ops_2_local ? _ldm_io_rd_2_bit : _sdm_io_rd_2_bit,
-        _imem_io_rinst_ops_1_local ? _ldm_io_rd_1_bit : _sdm_io_rd_1_bit,
-        ops_0};
+  wire [7:0] _fout_T_1 = _imem_io_rinst_lut >> {5'h0, ops_2, ops_1, ops_0};
   wire       _GEN_2 = _imem_io_rinst_opcode == 3'h2;
-  wire       fout =
-    ~_GEN
+  wire       io_swp_o_0 =
+    io_run & ~_GEN
     & (_GEN_0
          ? io_io_i
          : _GEN_1
@@ -5820,6 +6344,7 @@ module Processor(
   );
   DataMemory ldm (
     .clock       (clock),
+    .reset       (reset),
     .io_rd_0_idx (_imem_io_rinst_ops_0_rs),
     .io_rd_0_bit (_ldm_io_rd_0_bit),
     .io_rd_1_idx (_imem_io_rinst_ops_1_rs),
@@ -5827,10 +6352,12 @@ module Processor(
     .io_rd_2_idx (_imem_io_rinst_ops_2_rs),
     .io_rd_2_bit (_ldm_io_rd_2_bit),
     .io_wr_idx   (pc),
-    .io_wr_bit   (fout)
+    .io_wr_bit   (io_swp_o_0),
+    .io_dbg      (io_dbg_ldm)
   );
   DataMemory sdm (
     .clock       (clock),
+    .reset       (reset),
     .io_rd_0_idx (_imem_io_rinst_ops_0_rs),
     .io_rd_0_bit (_sdm_io_rd_0_bit),
     .io_rd_1_idx (_imem_io_rinst_ops_1_rs),
@@ -5838,7 +6365,8 @@ module Processor(
     .io_rd_2_idx (_imem_io_rinst_ops_2_rs),
     .io_rd_2_bit (_sdm_io_rd_2_bit),
     .io_wr_idx   (pc),
-    .io_wr_bit   (io_swp_i)
+    .io_wr_bit   (io_run & io_swp_i),
+    .io_dbg      (io_dbg_sdm)
   );
   assign io_init_o = init;
   assign io_inst_i_ready = ~init & (io_init_i | io_inst_o_ready);
@@ -5852,8 +6380,11 @@ module Processor(
   assign io_inst_o_bits_ops_2_rs = io_inst_i_bits_ops_2_rs;
   assign io_inst_o_bits_ops_2_local = io_inst_i_bits_ops_2_local;
   assign io_inst_o_bits_sin = io_inst_i_bits_sin;
-  assign io_swp_o = fout;
+  assign io_swp_o = io_swp_o_0;
   assign io_io_o = io_o;
+  assign io_dbg_ops_0 = ops_0;
+  assign io_dbg_ops_1 = ops_1;
+  assign io_dbg_ops_2 = ops_2;
 endmodule
 
 module Switch(
@@ -6478,151 +7009,471 @@ module Queue1_Instruction(
 endmodule
 
 module EmulatorModule(
-  input        clock,
-  input        reset,
-  input  [6:0] io_cfg_in_host_steps,
-  input  [6:0] io_cfg_in_used_procs,
-  input        io_run,
-  output       io_init,
-  output       io_inst_ready,
-  input        io_inst_valid,
-  input  [2:0] io_inst_bits_opcode,
-  input  [7:0] io_inst_bits_lut,
-  input  [6:0] io_inst_bits_ops_0_rs,
-  input        io_inst_bits_ops_0_local,
-  input  [6:0] io_inst_bits_ops_1_rs,
-  input        io_inst_bits_ops_1_local,
-  input  [6:0] io_inst_bits_ops_2_rs,
-  input        io_inst_bits_ops_2_local,
-  input  [5:0] io_inst_bits_sin,
-  input        io_i_bits_0,
-  input        io_i_bits_1,
-  input        io_i_bits_2,
-  input        io_i_bits_3,
-  input        io_i_bits_4,
-  input        io_i_bits_5,
-  input        io_i_bits_6,
-  input        io_i_bits_7,
-  input        io_i_bits_8,
-  input        io_i_bits_9,
-  input        io_i_bits_10,
-  input        io_i_bits_11,
-  input        io_i_bits_12,
-  input        io_i_bits_13,
-  input        io_i_bits_14,
-  input        io_i_bits_15,
-  input        io_i_bits_16,
-  input        io_i_bits_17,
-  input        io_i_bits_18,
-  input        io_i_bits_19,
-  input        io_i_bits_20,
-  input        io_i_bits_21,
-  input        io_i_bits_22,
-  input        io_i_bits_23,
-  input        io_i_bits_24,
-  input        io_i_bits_25,
-  input        io_i_bits_26,
-  input        io_i_bits_27,
-  input        io_i_bits_28,
-  input        io_i_bits_29,
-  input        io_i_bits_30,
-  input        io_i_bits_31,
-  input        io_i_bits_32,
-  input        io_i_bits_33,
-  input        io_i_bits_34,
-  input        io_i_bits_35,
-  input        io_i_bits_36,
-  input        io_i_bits_37,
-  input        io_i_bits_38,
-  input        io_i_bits_39,
-  input        io_i_bits_40,
-  input        io_i_bits_41,
-  input        io_i_bits_42,
-  input        io_i_bits_43,
-  input        io_i_bits_44,
-  input        io_i_bits_45,
-  input        io_i_bits_46,
-  input        io_i_bits_47,
-  input        io_i_bits_48,
-  input        io_i_bits_49,
-  input        io_i_bits_50,
-  input        io_i_bits_51,
-  input        io_i_bits_52,
-  input        io_i_bits_53,
-  input        io_i_bits_54,
-  input        io_i_bits_55,
-  input        io_i_bits_56,
-  input        io_i_bits_57,
-  input        io_i_bits_58,
-  input        io_i_bits_59,
-  input        io_i_bits_60,
-  input        io_i_bits_61,
-  input        io_i_bits_62,
-  input        io_i_bits_63,
-  output       io_o_bits_0,
-  output       io_o_bits_1,
-  output       io_o_bits_2,
-  output       io_o_bits_3,
-  output       io_o_bits_4,
-  output       io_o_bits_5,
-  output       io_o_bits_6,
-  output       io_o_bits_7,
-  output       io_o_bits_8,
-  output       io_o_bits_9,
-  output       io_o_bits_10,
-  output       io_o_bits_11,
-  output       io_o_bits_12,
-  output       io_o_bits_13,
-  output       io_o_bits_14,
-  output       io_o_bits_15,
-  output       io_o_bits_16,
-  output       io_o_bits_17,
-  output       io_o_bits_18,
-  output       io_o_bits_19,
-  output       io_o_bits_20,
-  output       io_o_bits_21,
-  output       io_o_bits_22,
-  output       io_o_bits_23,
-  output       io_o_bits_24,
-  output       io_o_bits_25,
-  output       io_o_bits_26,
-  output       io_o_bits_27,
-  output       io_o_bits_28,
-  output       io_o_bits_29,
-  output       io_o_bits_30,
-  output       io_o_bits_31,
-  output       io_o_bits_32,
-  output       io_o_bits_33,
-  output       io_o_bits_34,
-  output       io_o_bits_35,
-  output       io_o_bits_36,
-  output       io_o_bits_37,
-  output       io_o_bits_38,
-  output       io_o_bits_39,
-  output       io_o_bits_40,
-  output       io_o_bits_41,
-  output       io_o_bits_42,
-  output       io_o_bits_43,
-  output       io_o_bits_44,
-  output       io_o_bits_45,
-  output       io_o_bits_46,
-  output       io_o_bits_47,
-  output       io_o_bits_48,
-  output       io_o_bits_49,
-  output       io_o_bits_50,
-  output       io_o_bits_51,
-  output       io_o_bits_52,
-  output       io_o_bits_53,
-  output       io_o_bits_54,
-  output       io_o_bits_55,
-  output       io_o_bits_56,
-  output       io_o_bits_57,
-  output       io_o_bits_58,
-  output       io_o_bits_59,
-  output       io_o_bits_60,
-  output       io_o_bits_61,
-  output       io_o_bits_62,
-  output       io_o_bits_63
+  input          clock,
+  input          reset,
+  input  [6:0]   io_cfg_in_host_steps,
+  input  [6:0]   io_cfg_in_used_procs,
+  input          io_run,
+  output         io_init,
+  output         io_inst_ready,
+  input          io_inst_valid,
+  input  [2:0]   io_inst_bits_opcode,
+  input  [7:0]   io_inst_bits_lut,
+  input  [6:0]   io_inst_bits_ops_0_rs,
+  input          io_inst_bits_ops_0_local,
+  input  [6:0]   io_inst_bits_ops_1_rs,
+  input          io_inst_bits_ops_1_local,
+  input  [6:0]   io_inst_bits_ops_2_rs,
+  input          io_inst_bits_ops_2_local,
+  input  [5:0]   io_inst_bits_sin,
+  input          io_i_bits_0,
+  input          io_i_bits_1,
+  input          io_i_bits_2,
+  input          io_i_bits_3,
+  input          io_i_bits_4,
+  input          io_i_bits_5,
+  input          io_i_bits_6,
+  input          io_i_bits_7,
+  input          io_i_bits_8,
+  input          io_i_bits_9,
+  input          io_i_bits_10,
+  input          io_i_bits_11,
+  input          io_i_bits_12,
+  input          io_i_bits_13,
+  input          io_i_bits_14,
+  input          io_i_bits_15,
+  input          io_i_bits_16,
+  input          io_i_bits_17,
+  input          io_i_bits_18,
+  input          io_i_bits_19,
+  input          io_i_bits_20,
+  input          io_i_bits_21,
+  input          io_i_bits_22,
+  input          io_i_bits_23,
+  input          io_i_bits_24,
+  input          io_i_bits_25,
+  input          io_i_bits_26,
+  input          io_i_bits_27,
+  input          io_i_bits_28,
+  input          io_i_bits_29,
+  input          io_i_bits_30,
+  input          io_i_bits_31,
+  input          io_i_bits_32,
+  input          io_i_bits_33,
+  input          io_i_bits_34,
+  input          io_i_bits_35,
+  input          io_i_bits_36,
+  input          io_i_bits_37,
+  input          io_i_bits_38,
+  input          io_i_bits_39,
+  input          io_i_bits_40,
+  input          io_i_bits_41,
+  input          io_i_bits_42,
+  input          io_i_bits_43,
+  input          io_i_bits_44,
+  input          io_i_bits_45,
+  input          io_i_bits_46,
+  input          io_i_bits_47,
+  input          io_i_bits_48,
+  input          io_i_bits_49,
+  input          io_i_bits_50,
+  input          io_i_bits_51,
+  input          io_i_bits_52,
+  input          io_i_bits_53,
+  input          io_i_bits_54,
+  input          io_i_bits_55,
+  input          io_i_bits_56,
+  input          io_i_bits_57,
+  input          io_i_bits_58,
+  input          io_i_bits_59,
+  input          io_i_bits_60,
+  input          io_i_bits_61,
+  input          io_i_bits_62,
+  input          io_i_bits_63,
+  output         io_o_bits_0,
+  output         io_o_bits_1,
+  output         io_o_bits_2,
+  output         io_o_bits_3,
+  output         io_o_bits_4,
+  output         io_o_bits_5,
+  output         io_o_bits_6,
+  output         io_o_bits_7,
+  output         io_o_bits_8,
+  output         io_o_bits_9,
+  output         io_o_bits_10,
+  output         io_o_bits_11,
+  output         io_o_bits_12,
+  output         io_o_bits_13,
+  output         io_o_bits_14,
+  output         io_o_bits_15,
+  output         io_o_bits_16,
+  output         io_o_bits_17,
+  output         io_o_bits_18,
+  output         io_o_bits_19,
+  output         io_o_bits_20,
+  output         io_o_bits_21,
+  output         io_o_bits_22,
+  output         io_o_bits_23,
+  output         io_o_bits_24,
+  output         io_o_bits_25,
+  output         io_o_bits_26,
+  output         io_o_bits_27,
+  output         io_o_bits_28,
+  output         io_o_bits_29,
+  output         io_o_bits_30,
+  output         io_o_bits_31,
+  output         io_o_bits_32,
+  output         io_o_bits_33,
+  output         io_o_bits_34,
+  output         io_o_bits_35,
+  output         io_o_bits_36,
+  output         io_o_bits_37,
+  output         io_o_bits_38,
+  output         io_o_bits_39,
+  output         io_o_bits_40,
+  output         io_o_bits_41,
+  output         io_o_bits_42,
+  output         io_o_bits_43,
+  output         io_o_bits_44,
+  output         io_o_bits_45,
+  output         io_o_bits_46,
+  output         io_o_bits_47,
+  output         io_o_bits_48,
+  output         io_o_bits_49,
+  output         io_o_bits_50,
+  output         io_o_bits_51,
+  output         io_o_bits_52,
+  output         io_o_bits_53,
+  output         io_o_bits_54,
+  output         io_o_bits_55,
+  output         io_o_bits_56,
+  output         io_o_bits_57,
+  output         io_o_bits_58,
+  output         io_o_bits_59,
+  output         io_o_bits_60,
+  output         io_o_bits_61,
+  output         io_o_bits_62,
+  output         io_o_bits_63,
+  output [127:0] io_dbg_0_ldm,
+  output [127:0] io_dbg_0_sdm,
+  output         io_dbg_0_ops_0,
+  output         io_dbg_0_ops_1,
+  output         io_dbg_0_ops_2,
+  output [127:0] io_dbg_1_ldm,
+  output [127:0] io_dbg_1_sdm,
+  output         io_dbg_1_ops_0,
+  output         io_dbg_1_ops_1,
+  output         io_dbg_1_ops_2,
+  output [127:0] io_dbg_2_ldm,
+  output [127:0] io_dbg_2_sdm,
+  output         io_dbg_2_ops_0,
+  output         io_dbg_2_ops_1,
+  output         io_dbg_2_ops_2,
+  output [127:0] io_dbg_3_ldm,
+  output [127:0] io_dbg_3_sdm,
+  output         io_dbg_3_ops_0,
+  output         io_dbg_3_ops_1,
+  output         io_dbg_3_ops_2,
+  output [127:0] io_dbg_4_ldm,
+  output [127:0] io_dbg_4_sdm,
+  output         io_dbg_4_ops_0,
+  output         io_dbg_4_ops_1,
+  output         io_dbg_4_ops_2,
+  output [127:0] io_dbg_5_ldm,
+  output [127:0] io_dbg_5_sdm,
+  output         io_dbg_5_ops_0,
+  output         io_dbg_5_ops_1,
+  output         io_dbg_5_ops_2,
+  output [127:0] io_dbg_6_ldm,
+  output [127:0] io_dbg_6_sdm,
+  output         io_dbg_6_ops_0,
+  output         io_dbg_6_ops_1,
+  output         io_dbg_6_ops_2,
+  output [127:0] io_dbg_7_ldm,
+  output [127:0] io_dbg_7_sdm,
+  output         io_dbg_7_ops_0,
+  output         io_dbg_7_ops_1,
+  output         io_dbg_7_ops_2,
+  output [127:0] io_dbg_8_ldm,
+  output [127:0] io_dbg_8_sdm,
+  output         io_dbg_8_ops_0,
+  output         io_dbg_8_ops_1,
+  output         io_dbg_8_ops_2,
+  output [127:0] io_dbg_9_ldm,
+  output [127:0] io_dbg_9_sdm,
+  output         io_dbg_9_ops_0,
+  output         io_dbg_9_ops_1,
+  output         io_dbg_9_ops_2,
+  output [127:0] io_dbg_10_ldm,
+  output [127:0] io_dbg_10_sdm,
+  output         io_dbg_10_ops_0,
+  output         io_dbg_10_ops_1,
+  output         io_dbg_10_ops_2,
+  output [127:0] io_dbg_11_ldm,
+  output [127:0] io_dbg_11_sdm,
+  output         io_dbg_11_ops_0,
+  output         io_dbg_11_ops_1,
+  output         io_dbg_11_ops_2,
+  output [127:0] io_dbg_12_ldm,
+  output [127:0] io_dbg_12_sdm,
+  output         io_dbg_12_ops_0,
+  output         io_dbg_12_ops_1,
+  output         io_dbg_12_ops_2,
+  output [127:0] io_dbg_13_ldm,
+  output [127:0] io_dbg_13_sdm,
+  output         io_dbg_13_ops_0,
+  output         io_dbg_13_ops_1,
+  output         io_dbg_13_ops_2,
+  output [127:0] io_dbg_14_ldm,
+  output [127:0] io_dbg_14_sdm,
+  output         io_dbg_14_ops_0,
+  output         io_dbg_14_ops_1,
+  output         io_dbg_14_ops_2,
+  output [127:0] io_dbg_15_ldm,
+  output [127:0] io_dbg_15_sdm,
+  output         io_dbg_15_ops_0,
+  output         io_dbg_15_ops_1,
+  output         io_dbg_15_ops_2,
+  output [127:0] io_dbg_16_ldm,
+  output [127:0] io_dbg_16_sdm,
+  output         io_dbg_16_ops_0,
+  output         io_dbg_16_ops_1,
+  output         io_dbg_16_ops_2,
+  output [127:0] io_dbg_17_ldm,
+  output [127:0] io_dbg_17_sdm,
+  output         io_dbg_17_ops_0,
+  output         io_dbg_17_ops_1,
+  output         io_dbg_17_ops_2,
+  output [127:0] io_dbg_18_ldm,
+  output [127:0] io_dbg_18_sdm,
+  output         io_dbg_18_ops_0,
+  output         io_dbg_18_ops_1,
+  output         io_dbg_18_ops_2,
+  output [127:0] io_dbg_19_ldm,
+  output [127:0] io_dbg_19_sdm,
+  output         io_dbg_19_ops_0,
+  output         io_dbg_19_ops_1,
+  output         io_dbg_19_ops_2,
+  output [127:0] io_dbg_20_ldm,
+  output [127:0] io_dbg_20_sdm,
+  output         io_dbg_20_ops_0,
+  output         io_dbg_20_ops_1,
+  output         io_dbg_20_ops_2,
+  output [127:0] io_dbg_21_ldm,
+  output [127:0] io_dbg_21_sdm,
+  output         io_dbg_21_ops_0,
+  output         io_dbg_21_ops_1,
+  output         io_dbg_21_ops_2,
+  output [127:0] io_dbg_22_ldm,
+  output [127:0] io_dbg_22_sdm,
+  output         io_dbg_22_ops_0,
+  output         io_dbg_22_ops_1,
+  output         io_dbg_22_ops_2,
+  output [127:0] io_dbg_23_ldm,
+  output [127:0] io_dbg_23_sdm,
+  output         io_dbg_23_ops_0,
+  output         io_dbg_23_ops_1,
+  output         io_dbg_23_ops_2,
+  output [127:0] io_dbg_24_ldm,
+  output [127:0] io_dbg_24_sdm,
+  output         io_dbg_24_ops_0,
+  output         io_dbg_24_ops_1,
+  output         io_dbg_24_ops_2,
+  output [127:0] io_dbg_25_ldm,
+  output [127:0] io_dbg_25_sdm,
+  output         io_dbg_25_ops_0,
+  output         io_dbg_25_ops_1,
+  output         io_dbg_25_ops_2,
+  output [127:0] io_dbg_26_ldm,
+  output [127:0] io_dbg_26_sdm,
+  output         io_dbg_26_ops_0,
+  output         io_dbg_26_ops_1,
+  output         io_dbg_26_ops_2,
+  output [127:0] io_dbg_27_ldm,
+  output [127:0] io_dbg_27_sdm,
+  output         io_dbg_27_ops_0,
+  output         io_dbg_27_ops_1,
+  output         io_dbg_27_ops_2,
+  output [127:0] io_dbg_28_ldm,
+  output [127:0] io_dbg_28_sdm,
+  output         io_dbg_28_ops_0,
+  output         io_dbg_28_ops_1,
+  output         io_dbg_28_ops_2,
+  output [127:0] io_dbg_29_ldm,
+  output [127:0] io_dbg_29_sdm,
+  output         io_dbg_29_ops_0,
+  output         io_dbg_29_ops_1,
+  output         io_dbg_29_ops_2,
+  output [127:0] io_dbg_30_ldm,
+  output [127:0] io_dbg_30_sdm,
+  output         io_dbg_30_ops_0,
+  output         io_dbg_30_ops_1,
+  output         io_dbg_30_ops_2,
+  output [127:0] io_dbg_31_ldm,
+  output [127:0] io_dbg_31_sdm,
+  output         io_dbg_31_ops_0,
+  output         io_dbg_31_ops_1,
+  output         io_dbg_31_ops_2,
+  output [127:0] io_dbg_32_ldm,
+  output [127:0] io_dbg_32_sdm,
+  output         io_dbg_32_ops_0,
+  output         io_dbg_32_ops_1,
+  output         io_dbg_32_ops_2,
+  output [127:0] io_dbg_33_ldm,
+  output [127:0] io_dbg_33_sdm,
+  output         io_dbg_33_ops_0,
+  output         io_dbg_33_ops_1,
+  output         io_dbg_33_ops_2,
+  output [127:0] io_dbg_34_ldm,
+  output [127:0] io_dbg_34_sdm,
+  output         io_dbg_34_ops_0,
+  output         io_dbg_34_ops_1,
+  output         io_dbg_34_ops_2,
+  output [127:0] io_dbg_35_ldm,
+  output [127:0] io_dbg_35_sdm,
+  output         io_dbg_35_ops_0,
+  output         io_dbg_35_ops_1,
+  output         io_dbg_35_ops_2,
+  output [127:0] io_dbg_36_ldm,
+  output [127:0] io_dbg_36_sdm,
+  output         io_dbg_36_ops_0,
+  output         io_dbg_36_ops_1,
+  output         io_dbg_36_ops_2,
+  output [127:0] io_dbg_37_ldm,
+  output [127:0] io_dbg_37_sdm,
+  output         io_dbg_37_ops_0,
+  output         io_dbg_37_ops_1,
+  output         io_dbg_37_ops_2,
+  output [127:0] io_dbg_38_ldm,
+  output [127:0] io_dbg_38_sdm,
+  output         io_dbg_38_ops_0,
+  output         io_dbg_38_ops_1,
+  output         io_dbg_38_ops_2,
+  output [127:0] io_dbg_39_ldm,
+  output [127:0] io_dbg_39_sdm,
+  output         io_dbg_39_ops_0,
+  output         io_dbg_39_ops_1,
+  output         io_dbg_39_ops_2,
+  output [127:0] io_dbg_40_ldm,
+  output [127:0] io_dbg_40_sdm,
+  output         io_dbg_40_ops_0,
+  output         io_dbg_40_ops_1,
+  output         io_dbg_40_ops_2,
+  output [127:0] io_dbg_41_ldm,
+  output [127:0] io_dbg_41_sdm,
+  output         io_dbg_41_ops_0,
+  output         io_dbg_41_ops_1,
+  output         io_dbg_41_ops_2,
+  output [127:0] io_dbg_42_ldm,
+  output [127:0] io_dbg_42_sdm,
+  output         io_dbg_42_ops_0,
+  output         io_dbg_42_ops_1,
+  output         io_dbg_42_ops_2,
+  output [127:0] io_dbg_43_ldm,
+  output [127:0] io_dbg_43_sdm,
+  output         io_dbg_43_ops_0,
+  output         io_dbg_43_ops_1,
+  output         io_dbg_43_ops_2,
+  output [127:0] io_dbg_44_ldm,
+  output [127:0] io_dbg_44_sdm,
+  output         io_dbg_44_ops_0,
+  output         io_dbg_44_ops_1,
+  output         io_dbg_44_ops_2,
+  output [127:0] io_dbg_45_ldm,
+  output [127:0] io_dbg_45_sdm,
+  output         io_dbg_45_ops_0,
+  output         io_dbg_45_ops_1,
+  output         io_dbg_45_ops_2,
+  output [127:0] io_dbg_46_ldm,
+  output [127:0] io_dbg_46_sdm,
+  output         io_dbg_46_ops_0,
+  output         io_dbg_46_ops_1,
+  output         io_dbg_46_ops_2,
+  output [127:0] io_dbg_47_ldm,
+  output [127:0] io_dbg_47_sdm,
+  output         io_dbg_47_ops_0,
+  output         io_dbg_47_ops_1,
+  output         io_dbg_47_ops_2,
+  output [127:0] io_dbg_48_ldm,
+  output [127:0] io_dbg_48_sdm,
+  output         io_dbg_48_ops_0,
+  output         io_dbg_48_ops_1,
+  output         io_dbg_48_ops_2,
+  output [127:0] io_dbg_49_ldm,
+  output [127:0] io_dbg_49_sdm,
+  output         io_dbg_49_ops_0,
+  output         io_dbg_49_ops_1,
+  output         io_dbg_49_ops_2,
+  output [127:0] io_dbg_50_ldm,
+  output [127:0] io_dbg_50_sdm,
+  output         io_dbg_50_ops_0,
+  output         io_dbg_50_ops_1,
+  output         io_dbg_50_ops_2,
+  output [127:0] io_dbg_51_ldm,
+  output [127:0] io_dbg_51_sdm,
+  output         io_dbg_51_ops_0,
+  output         io_dbg_51_ops_1,
+  output         io_dbg_51_ops_2,
+  output [127:0] io_dbg_52_ldm,
+  output [127:0] io_dbg_52_sdm,
+  output         io_dbg_52_ops_0,
+  output         io_dbg_52_ops_1,
+  output         io_dbg_52_ops_2,
+  output [127:0] io_dbg_53_ldm,
+  output [127:0] io_dbg_53_sdm,
+  output         io_dbg_53_ops_0,
+  output         io_dbg_53_ops_1,
+  output         io_dbg_53_ops_2,
+  output [127:0] io_dbg_54_ldm,
+  output [127:0] io_dbg_54_sdm,
+  output         io_dbg_54_ops_0,
+  output         io_dbg_54_ops_1,
+  output         io_dbg_54_ops_2,
+  output [127:0] io_dbg_55_ldm,
+  output [127:0] io_dbg_55_sdm,
+  output         io_dbg_55_ops_0,
+  output         io_dbg_55_ops_1,
+  output         io_dbg_55_ops_2,
+  output [127:0] io_dbg_56_ldm,
+  output [127:0] io_dbg_56_sdm,
+  output         io_dbg_56_ops_0,
+  output         io_dbg_56_ops_1,
+  output         io_dbg_56_ops_2,
+  output [127:0] io_dbg_57_ldm,
+  output [127:0] io_dbg_57_sdm,
+  output         io_dbg_57_ops_0,
+  output         io_dbg_57_ops_1,
+  output         io_dbg_57_ops_2,
+  output [127:0] io_dbg_58_ldm,
+  output [127:0] io_dbg_58_sdm,
+  output         io_dbg_58_ops_0,
+  output         io_dbg_58_ops_1,
+  output         io_dbg_58_ops_2,
+  output [127:0] io_dbg_59_ldm,
+  output [127:0] io_dbg_59_sdm,
+  output         io_dbg_59_ops_0,
+  output         io_dbg_59_ops_1,
+  output         io_dbg_59_ops_2,
+  output [127:0] io_dbg_60_ldm,
+  output [127:0] io_dbg_60_sdm,
+  output         io_dbg_60_ops_0,
+  output         io_dbg_60_ops_1,
+  output         io_dbg_60_ops_2,
+  output [127:0] io_dbg_61_ldm,
+  output [127:0] io_dbg_61_sdm,
+  output         io_dbg_61_ops_0,
+  output         io_dbg_61_ops_1,
+  output         io_dbg_61_ops_2,
+  output [127:0] io_dbg_62_ldm,
+  output [127:0] io_dbg_62_sdm,
+  output         io_dbg_62_ops_0,
+  output         io_dbg_62_ops_1,
+  output         io_dbg_62_ops_2,
+  output [127:0] io_dbg_63_ldm,
+  output [127:0] io_dbg_63_sdm,
+  output         io_dbg_63_ops_0,
+  output         io_dbg_63_ops_1,
+  output         io_dbg_63_ops_2
 );
 
   wire       _q_14_io_enq_ready;
@@ -7772,7 +8623,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_0_io_swp_o),
     .io_swp_i                   (_switch_io_ports_0_i),
     .io_io_i                    (io_i_bits_0),
-    .io_io_o                    (io_o_bits_0)
+    .io_io_o                    (io_o_bits_0),
+    .io_dbg_ldm                 (io_dbg_0_ldm),
+    .io_dbg_sdm                 (io_dbg_0_sdm),
+    .io_dbg_ops_0               (io_dbg_0_ops_0),
+    .io_dbg_ops_1               (io_dbg_0_ops_1),
+    .io_dbg_ops_2               (io_dbg_0_ops_2)
   );
   Processor procs_1 (
     .clock                      (clock),
@@ -7807,7 +8663,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_1_io_swp_o),
     .io_swp_i                   (_switch_io_ports_1_i),
     .io_io_i                    (io_i_bits_1),
-    .io_io_o                    (io_o_bits_1)
+    .io_io_o                    (io_o_bits_1),
+    .io_dbg_ldm                 (io_dbg_1_ldm),
+    .io_dbg_sdm                 (io_dbg_1_sdm),
+    .io_dbg_ops_0               (io_dbg_1_ops_0),
+    .io_dbg_ops_1               (io_dbg_1_ops_1),
+    .io_dbg_ops_2               (io_dbg_1_ops_2)
   );
   Processor procs_2 (
     .clock                      (clock),
@@ -7842,7 +8703,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_2_io_swp_o),
     .io_swp_i                   (_switch_io_ports_2_i),
     .io_io_i                    (io_i_bits_2),
-    .io_io_o                    (io_o_bits_2)
+    .io_io_o                    (io_o_bits_2),
+    .io_dbg_ldm                 (io_dbg_2_ldm),
+    .io_dbg_sdm                 (io_dbg_2_sdm),
+    .io_dbg_ops_0               (io_dbg_2_ops_0),
+    .io_dbg_ops_1               (io_dbg_2_ops_1),
+    .io_dbg_ops_2               (io_dbg_2_ops_2)
   );
   Processor procs_3 (
     .clock                      (clock),
@@ -7877,7 +8743,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_3_io_swp_o),
     .io_swp_i                   (_switch_io_ports_3_i),
     .io_io_i                    (io_i_bits_3),
-    .io_io_o                    (io_o_bits_3)
+    .io_io_o                    (io_o_bits_3),
+    .io_dbg_ldm                 (io_dbg_3_ldm),
+    .io_dbg_sdm                 (io_dbg_3_sdm),
+    .io_dbg_ops_0               (io_dbg_3_ops_0),
+    .io_dbg_ops_1               (io_dbg_3_ops_1),
+    .io_dbg_ops_2               (io_dbg_3_ops_2)
   );
   Processor procs_4 (
     .clock                      (clock),
@@ -7912,7 +8783,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_4_io_swp_o),
     .io_swp_i                   (_switch_io_ports_4_i),
     .io_io_i                    (io_i_bits_4),
-    .io_io_o                    (io_o_bits_4)
+    .io_io_o                    (io_o_bits_4),
+    .io_dbg_ldm                 (io_dbg_4_ldm),
+    .io_dbg_sdm                 (io_dbg_4_sdm),
+    .io_dbg_ops_0               (io_dbg_4_ops_0),
+    .io_dbg_ops_1               (io_dbg_4_ops_1),
+    .io_dbg_ops_2               (io_dbg_4_ops_2)
   );
   Processor procs_5 (
     .clock                      (clock),
@@ -7947,7 +8823,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_5_io_swp_o),
     .io_swp_i                   (_switch_io_ports_5_i),
     .io_io_i                    (io_i_bits_5),
-    .io_io_o                    (io_o_bits_5)
+    .io_io_o                    (io_o_bits_5),
+    .io_dbg_ldm                 (io_dbg_5_ldm),
+    .io_dbg_sdm                 (io_dbg_5_sdm),
+    .io_dbg_ops_0               (io_dbg_5_ops_0),
+    .io_dbg_ops_1               (io_dbg_5_ops_1),
+    .io_dbg_ops_2               (io_dbg_5_ops_2)
   );
   Processor procs_6 (
     .clock                      (clock),
@@ -7982,7 +8863,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_6_io_swp_o),
     .io_swp_i                   (_switch_io_ports_6_i),
     .io_io_i                    (io_i_bits_6),
-    .io_io_o                    (io_o_bits_6)
+    .io_io_o                    (io_o_bits_6),
+    .io_dbg_ldm                 (io_dbg_6_ldm),
+    .io_dbg_sdm                 (io_dbg_6_sdm),
+    .io_dbg_ops_0               (io_dbg_6_ops_0),
+    .io_dbg_ops_1               (io_dbg_6_ops_1),
+    .io_dbg_ops_2               (io_dbg_6_ops_2)
   );
   Processor procs_7 (
     .clock                      (clock),
@@ -8017,7 +8903,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_7_io_swp_o),
     .io_swp_i                   (_switch_io_ports_7_i),
     .io_io_i                    (io_i_bits_7),
-    .io_io_o                    (io_o_bits_7)
+    .io_io_o                    (io_o_bits_7),
+    .io_dbg_ldm                 (io_dbg_7_ldm),
+    .io_dbg_sdm                 (io_dbg_7_sdm),
+    .io_dbg_ops_0               (io_dbg_7_ops_0),
+    .io_dbg_ops_1               (io_dbg_7_ops_1),
+    .io_dbg_ops_2               (io_dbg_7_ops_2)
   );
   Processor procs_8 (
     .clock                      (clock),
@@ -8052,7 +8943,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_8_io_swp_o),
     .io_swp_i                   (_switch_io_ports_8_i),
     .io_io_i                    (io_i_bits_8),
-    .io_io_o                    (io_o_bits_8)
+    .io_io_o                    (io_o_bits_8),
+    .io_dbg_ldm                 (io_dbg_8_ldm),
+    .io_dbg_sdm                 (io_dbg_8_sdm),
+    .io_dbg_ops_0               (io_dbg_8_ops_0),
+    .io_dbg_ops_1               (io_dbg_8_ops_1),
+    .io_dbg_ops_2               (io_dbg_8_ops_2)
   );
   Processor procs_9 (
     .clock                      (clock),
@@ -8087,7 +8983,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_9_io_swp_o),
     .io_swp_i                   (_switch_io_ports_9_i),
     .io_io_i                    (io_i_bits_9),
-    .io_io_o                    (io_o_bits_9)
+    .io_io_o                    (io_o_bits_9),
+    .io_dbg_ldm                 (io_dbg_9_ldm),
+    .io_dbg_sdm                 (io_dbg_9_sdm),
+    .io_dbg_ops_0               (io_dbg_9_ops_0),
+    .io_dbg_ops_1               (io_dbg_9_ops_1),
+    .io_dbg_ops_2               (io_dbg_9_ops_2)
   );
   Processor procs_10 (
     .clock                      (clock),
@@ -8122,7 +9023,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_10_io_swp_o),
     .io_swp_i                   (_switch_io_ports_10_i),
     .io_io_i                    (io_i_bits_10),
-    .io_io_o                    (io_o_bits_10)
+    .io_io_o                    (io_o_bits_10),
+    .io_dbg_ldm                 (io_dbg_10_ldm),
+    .io_dbg_sdm                 (io_dbg_10_sdm),
+    .io_dbg_ops_0               (io_dbg_10_ops_0),
+    .io_dbg_ops_1               (io_dbg_10_ops_1),
+    .io_dbg_ops_2               (io_dbg_10_ops_2)
   );
   Processor procs_11 (
     .clock                      (clock),
@@ -8157,7 +9063,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_11_io_swp_o),
     .io_swp_i                   (_switch_io_ports_11_i),
     .io_io_i                    (io_i_bits_11),
-    .io_io_o                    (io_o_bits_11)
+    .io_io_o                    (io_o_bits_11),
+    .io_dbg_ldm                 (io_dbg_11_ldm),
+    .io_dbg_sdm                 (io_dbg_11_sdm),
+    .io_dbg_ops_0               (io_dbg_11_ops_0),
+    .io_dbg_ops_1               (io_dbg_11_ops_1),
+    .io_dbg_ops_2               (io_dbg_11_ops_2)
   );
   Processor procs_12 (
     .clock                      (clock),
@@ -8192,7 +9103,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_12_io_swp_o),
     .io_swp_i                   (_switch_io_ports_12_i),
     .io_io_i                    (io_i_bits_12),
-    .io_io_o                    (io_o_bits_12)
+    .io_io_o                    (io_o_bits_12),
+    .io_dbg_ldm                 (io_dbg_12_ldm),
+    .io_dbg_sdm                 (io_dbg_12_sdm),
+    .io_dbg_ops_0               (io_dbg_12_ops_0),
+    .io_dbg_ops_1               (io_dbg_12_ops_1),
+    .io_dbg_ops_2               (io_dbg_12_ops_2)
   );
   Processor procs_13 (
     .clock                      (clock),
@@ -8227,7 +9143,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_13_io_swp_o),
     .io_swp_i                   (_switch_io_ports_13_i),
     .io_io_i                    (io_i_bits_13),
-    .io_io_o                    (io_o_bits_13)
+    .io_io_o                    (io_o_bits_13),
+    .io_dbg_ldm                 (io_dbg_13_ldm),
+    .io_dbg_sdm                 (io_dbg_13_sdm),
+    .io_dbg_ops_0               (io_dbg_13_ops_0),
+    .io_dbg_ops_1               (io_dbg_13_ops_1),
+    .io_dbg_ops_2               (io_dbg_13_ops_2)
   );
   Processor procs_14 (
     .clock                      (clock),
@@ -8262,7 +9183,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_14_io_swp_o),
     .io_swp_i                   (_switch_io_ports_14_i),
     .io_io_i                    (io_i_bits_14),
-    .io_io_o                    (io_o_bits_14)
+    .io_io_o                    (io_o_bits_14),
+    .io_dbg_ldm                 (io_dbg_14_ldm),
+    .io_dbg_sdm                 (io_dbg_14_sdm),
+    .io_dbg_ops_0               (io_dbg_14_ops_0),
+    .io_dbg_ops_1               (io_dbg_14_ops_1),
+    .io_dbg_ops_2               (io_dbg_14_ops_2)
   );
   Processor procs_15 (
     .clock                      (clock),
@@ -8297,7 +9223,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_15_io_swp_o),
     .io_swp_i                   (_switch_io_ports_15_i),
     .io_io_i                    (io_i_bits_15),
-    .io_io_o                    (io_o_bits_15)
+    .io_io_o                    (io_o_bits_15),
+    .io_dbg_ldm                 (io_dbg_15_ldm),
+    .io_dbg_sdm                 (io_dbg_15_sdm),
+    .io_dbg_ops_0               (io_dbg_15_ops_0),
+    .io_dbg_ops_1               (io_dbg_15_ops_1),
+    .io_dbg_ops_2               (io_dbg_15_ops_2)
   );
   Processor procs_16 (
     .clock                      (clock),
@@ -8332,7 +9263,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_16_io_swp_o),
     .io_swp_i                   (_switch_io_ports_16_i),
     .io_io_i                    (io_i_bits_16),
-    .io_io_o                    (io_o_bits_16)
+    .io_io_o                    (io_o_bits_16),
+    .io_dbg_ldm                 (io_dbg_16_ldm),
+    .io_dbg_sdm                 (io_dbg_16_sdm),
+    .io_dbg_ops_0               (io_dbg_16_ops_0),
+    .io_dbg_ops_1               (io_dbg_16_ops_1),
+    .io_dbg_ops_2               (io_dbg_16_ops_2)
   );
   Processor procs_17 (
     .clock                      (clock),
@@ -8367,7 +9303,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_17_io_swp_o),
     .io_swp_i                   (_switch_io_ports_17_i),
     .io_io_i                    (io_i_bits_17),
-    .io_io_o                    (io_o_bits_17)
+    .io_io_o                    (io_o_bits_17),
+    .io_dbg_ldm                 (io_dbg_17_ldm),
+    .io_dbg_sdm                 (io_dbg_17_sdm),
+    .io_dbg_ops_0               (io_dbg_17_ops_0),
+    .io_dbg_ops_1               (io_dbg_17_ops_1),
+    .io_dbg_ops_2               (io_dbg_17_ops_2)
   );
   Processor procs_18 (
     .clock                      (clock),
@@ -8402,7 +9343,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_18_io_swp_o),
     .io_swp_i                   (_switch_io_ports_18_i),
     .io_io_i                    (io_i_bits_18),
-    .io_io_o                    (io_o_bits_18)
+    .io_io_o                    (io_o_bits_18),
+    .io_dbg_ldm                 (io_dbg_18_ldm),
+    .io_dbg_sdm                 (io_dbg_18_sdm),
+    .io_dbg_ops_0               (io_dbg_18_ops_0),
+    .io_dbg_ops_1               (io_dbg_18_ops_1),
+    .io_dbg_ops_2               (io_dbg_18_ops_2)
   );
   Processor procs_19 (
     .clock                      (clock),
@@ -8437,7 +9383,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_19_io_swp_o),
     .io_swp_i                   (_switch_io_ports_19_i),
     .io_io_i                    (io_i_bits_19),
-    .io_io_o                    (io_o_bits_19)
+    .io_io_o                    (io_o_bits_19),
+    .io_dbg_ldm                 (io_dbg_19_ldm),
+    .io_dbg_sdm                 (io_dbg_19_sdm),
+    .io_dbg_ops_0               (io_dbg_19_ops_0),
+    .io_dbg_ops_1               (io_dbg_19_ops_1),
+    .io_dbg_ops_2               (io_dbg_19_ops_2)
   );
   Processor procs_20 (
     .clock                      (clock),
@@ -8472,7 +9423,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_20_io_swp_o),
     .io_swp_i                   (_switch_io_ports_20_i),
     .io_io_i                    (io_i_bits_20),
-    .io_io_o                    (io_o_bits_20)
+    .io_io_o                    (io_o_bits_20),
+    .io_dbg_ldm                 (io_dbg_20_ldm),
+    .io_dbg_sdm                 (io_dbg_20_sdm),
+    .io_dbg_ops_0               (io_dbg_20_ops_0),
+    .io_dbg_ops_1               (io_dbg_20_ops_1),
+    .io_dbg_ops_2               (io_dbg_20_ops_2)
   );
   Processor procs_21 (
     .clock                      (clock),
@@ -8507,7 +9463,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_21_io_swp_o),
     .io_swp_i                   (_switch_io_ports_21_i),
     .io_io_i                    (io_i_bits_21),
-    .io_io_o                    (io_o_bits_21)
+    .io_io_o                    (io_o_bits_21),
+    .io_dbg_ldm                 (io_dbg_21_ldm),
+    .io_dbg_sdm                 (io_dbg_21_sdm),
+    .io_dbg_ops_0               (io_dbg_21_ops_0),
+    .io_dbg_ops_1               (io_dbg_21_ops_1),
+    .io_dbg_ops_2               (io_dbg_21_ops_2)
   );
   Processor procs_22 (
     .clock                      (clock),
@@ -8542,7 +9503,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_22_io_swp_o),
     .io_swp_i                   (_switch_io_ports_22_i),
     .io_io_i                    (io_i_bits_22),
-    .io_io_o                    (io_o_bits_22)
+    .io_io_o                    (io_o_bits_22),
+    .io_dbg_ldm                 (io_dbg_22_ldm),
+    .io_dbg_sdm                 (io_dbg_22_sdm),
+    .io_dbg_ops_0               (io_dbg_22_ops_0),
+    .io_dbg_ops_1               (io_dbg_22_ops_1),
+    .io_dbg_ops_2               (io_dbg_22_ops_2)
   );
   Processor procs_23 (
     .clock                      (clock),
@@ -8577,7 +9543,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_23_io_swp_o),
     .io_swp_i                   (_switch_io_ports_23_i),
     .io_io_i                    (io_i_bits_23),
-    .io_io_o                    (io_o_bits_23)
+    .io_io_o                    (io_o_bits_23),
+    .io_dbg_ldm                 (io_dbg_23_ldm),
+    .io_dbg_sdm                 (io_dbg_23_sdm),
+    .io_dbg_ops_0               (io_dbg_23_ops_0),
+    .io_dbg_ops_1               (io_dbg_23_ops_1),
+    .io_dbg_ops_2               (io_dbg_23_ops_2)
   );
   Processor procs_24 (
     .clock                      (clock),
@@ -8612,7 +9583,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_24_io_swp_o),
     .io_swp_i                   (_switch_io_ports_24_i),
     .io_io_i                    (io_i_bits_24),
-    .io_io_o                    (io_o_bits_24)
+    .io_io_o                    (io_o_bits_24),
+    .io_dbg_ldm                 (io_dbg_24_ldm),
+    .io_dbg_sdm                 (io_dbg_24_sdm),
+    .io_dbg_ops_0               (io_dbg_24_ops_0),
+    .io_dbg_ops_1               (io_dbg_24_ops_1),
+    .io_dbg_ops_2               (io_dbg_24_ops_2)
   );
   Processor procs_25 (
     .clock                      (clock),
@@ -8647,7 +9623,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_25_io_swp_o),
     .io_swp_i                   (_switch_io_ports_25_i),
     .io_io_i                    (io_i_bits_25),
-    .io_io_o                    (io_o_bits_25)
+    .io_io_o                    (io_o_bits_25),
+    .io_dbg_ldm                 (io_dbg_25_ldm),
+    .io_dbg_sdm                 (io_dbg_25_sdm),
+    .io_dbg_ops_0               (io_dbg_25_ops_0),
+    .io_dbg_ops_1               (io_dbg_25_ops_1),
+    .io_dbg_ops_2               (io_dbg_25_ops_2)
   );
   Processor procs_26 (
     .clock                      (clock),
@@ -8682,7 +9663,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_26_io_swp_o),
     .io_swp_i                   (_switch_io_ports_26_i),
     .io_io_i                    (io_i_bits_26),
-    .io_io_o                    (io_o_bits_26)
+    .io_io_o                    (io_o_bits_26),
+    .io_dbg_ldm                 (io_dbg_26_ldm),
+    .io_dbg_sdm                 (io_dbg_26_sdm),
+    .io_dbg_ops_0               (io_dbg_26_ops_0),
+    .io_dbg_ops_1               (io_dbg_26_ops_1),
+    .io_dbg_ops_2               (io_dbg_26_ops_2)
   );
   Processor procs_27 (
     .clock                      (clock),
@@ -8717,7 +9703,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_27_io_swp_o),
     .io_swp_i                   (_switch_io_ports_27_i),
     .io_io_i                    (io_i_bits_27),
-    .io_io_o                    (io_o_bits_27)
+    .io_io_o                    (io_o_bits_27),
+    .io_dbg_ldm                 (io_dbg_27_ldm),
+    .io_dbg_sdm                 (io_dbg_27_sdm),
+    .io_dbg_ops_0               (io_dbg_27_ops_0),
+    .io_dbg_ops_1               (io_dbg_27_ops_1),
+    .io_dbg_ops_2               (io_dbg_27_ops_2)
   );
   Processor procs_28 (
     .clock                      (clock),
@@ -8752,7 +9743,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_28_io_swp_o),
     .io_swp_i                   (_switch_io_ports_28_i),
     .io_io_i                    (io_i_bits_28),
-    .io_io_o                    (io_o_bits_28)
+    .io_io_o                    (io_o_bits_28),
+    .io_dbg_ldm                 (io_dbg_28_ldm),
+    .io_dbg_sdm                 (io_dbg_28_sdm),
+    .io_dbg_ops_0               (io_dbg_28_ops_0),
+    .io_dbg_ops_1               (io_dbg_28_ops_1),
+    .io_dbg_ops_2               (io_dbg_28_ops_2)
   );
   Processor procs_29 (
     .clock                      (clock),
@@ -8787,7 +9783,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_29_io_swp_o),
     .io_swp_i                   (_switch_io_ports_29_i),
     .io_io_i                    (io_i_bits_29),
-    .io_io_o                    (io_o_bits_29)
+    .io_io_o                    (io_o_bits_29),
+    .io_dbg_ldm                 (io_dbg_29_ldm),
+    .io_dbg_sdm                 (io_dbg_29_sdm),
+    .io_dbg_ops_0               (io_dbg_29_ops_0),
+    .io_dbg_ops_1               (io_dbg_29_ops_1),
+    .io_dbg_ops_2               (io_dbg_29_ops_2)
   );
   Processor procs_30 (
     .clock                      (clock),
@@ -8822,7 +9823,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_30_io_swp_o),
     .io_swp_i                   (_switch_io_ports_30_i),
     .io_io_i                    (io_i_bits_30),
-    .io_io_o                    (io_o_bits_30)
+    .io_io_o                    (io_o_bits_30),
+    .io_dbg_ldm                 (io_dbg_30_ldm),
+    .io_dbg_sdm                 (io_dbg_30_sdm),
+    .io_dbg_ops_0               (io_dbg_30_ops_0),
+    .io_dbg_ops_1               (io_dbg_30_ops_1),
+    .io_dbg_ops_2               (io_dbg_30_ops_2)
   );
   Processor procs_31 (
     .clock                      (clock),
@@ -8857,7 +9863,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_31_io_swp_o),
     .io_swp_i                   (_switch_io_ports_31_i),
     .io_io_i                    (io_i_bits_31),
-    .io_io_o                    (io_o_bits_31)
+    .io_io_o                    (io_o_bits_31),
+    .io_dbg_ldm                 (io_dbg_31_ldm),
+    .io_dbg_sdm                 (io_dbg_31_sdm),
+    .io_dbg_ops_0               (io_dbg_31_ops_0),
+    .io_dbg_ops_1               (io_dbg_31_ops_1),
+    .io_dbg_ops_2               (io_dbg_31_ops_2)
   );
   Processor procs_32 (
     .clock                      (clock),
@@ -8892,7 +9903,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_32_io_swp_o),
     .io_swp_i                   (_switch_io_ports_32_i),
     .io_io_i                    (io_i_bits_32),
-    .io_io_o                    (io_o_bits_32)
+    .io_io_o                    (io_o_bits_32),
+    .io_dbg_ldm                 (io_dbg_32_ldm),
+    .io_dbg_sdm                 (io_dbg_32_sdm),
+    .io_dbg_ops_0               (io_dbg_32_ops_0),
+    .io_dbg_ops_1               (io_dbg_32_ops_1),
+    .io_dbg_ops_2               (io_dbg_32_ops_2)
   );
   Processor procs_33 (
     .clock                      (clock),
@@ -8927,7 +9943,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_33_io_swp_o),
     .io_swp_i                   (_switch_io_ports_33_i),
     .io_io_i                    (io_i_bits_33),
-    .io_io_o                    (io_o_bits_33)
+    .io_io_o                    (io_o_bits_33),
+    .io_dbg_ldm                 (io_dbg_33_ldm),
+    .io_dbg_sdm                 (io_dbg_33_sdm),
+    .io_dbg_ops_0               (io_dbg_33_ops_0),
+    .io_dbg_ops_1               (io_dbg_33_ops_1),
+    .io_dbg_ops_2               (io_dbg_33_ops_2)
   );
   Processor procs_34 (
     .clock                      (clock),
@@ -8962,7 +9983,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_34_io_swp_o),
     .io_swp_i                   (_switch_io_ports_34_i),
     .io_io_i                    (io_i_bits_34),
-    .io_io_o                    (io_o_bits_34)
+    .io_io_o                    (io_o_bits_34),
+    .io_dbg_ldm                 (io_dbg_34_ldm),
+    .io_dbg_sdm                 (io_dbg_34_sdm),
+    .io_dbg_ops_0               (io_dbg_34_ops_0),
+    .io_dbg_ops_1               (io_dbg_34_ops_1),
+    .io_dbg_ops_2               (io_dbg_34_ops_2)
   );
   Processor procs_35 (
     .clock                      (clock),
@@ -8997,7 +10023,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_35_io_swp_o),
     .io_swp_i                   (_switch_io_ports_35_i),
     .io_io_i                    (io_i_bits_35),
-    .io_io_o                    (io_o_bits_35)
+    .io_io_o                    (io_o_bits_35),
+    .io_dbg_ldm                 (io_dbg_35_ldm),
+    .io_dbg_sdm                 (io_dbg_35_sdm),
+    .io_dbg_ops_0               (io_dbg_35_ops_0),
+    .io_dbg_ops_1               (io_dbg_35_ops_1),
+    .io_dbg_ops_2               (io_dbg_35_ops_2)
   );
   Processor procs_36 (
     .clock                      (clock),
@@ -9032,7 +10063,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_36_io_swp_o),
     .io_swp_i                   (_switch_io_ports_36_i),
     .io_io_i                    (io_i_bits_36),
-    .io_io_o                    (io_o_bits_36)
+    .io_io_o                    (io_o_bits_36),
+    .io_dbg_ldm                 (io_dbg_36_ldm),
+    .io_dbg_sdm                 (io_dbg_36_sdm),
+    .io_dbg_ops_0               (io_dbg_36_ops_0),
+    .io_dbg_ops_1               (io_dbg_36_ops_1),
+    .io_dbg_ops_2               (io_dbg_36_ops_2)
   );
   Processor procs_37 (
     .clock                      (clock),
@@ -9067,7 +10103,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_37_io_swp_o),
     .io_swp_i                   (_switch_io_ports_37_i),
     .io_io_i                    (io_i_bits_37),
-    .io_io_o                    (io_o_bits_37)
+    .io_io_o                    (io_o_bits_37),
+    .io_dbg_ldm                 (io_dbg_37_ldm),
+    .io_dbg_sdm                 (io_dbg_37_sdm),
+    .io_dbg_ops_0               (io_dbg_37_ops_0),
+    .io_dbg_ops_1               (io_dbg_37_ops_1),
+    .io_dbg_ops_2               (io_dbg_37_ops_2)
   );
   Processor procs_38 (
     .clock                      (clock),
@@ -9102,7 +10143,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_38_io_swp_o),
     .io_swp_i                   (_switch_io_ports_38_i),
     .io_io_i                    (io_i_bits_38),
-    .io_io_o                    (io_o_bits_38)
+    .io_io_o                    (io_o_bits_38),
+    .io_dbg_ldm                 (io_dbg_38_ldm),
+    .io_dbg_sdm                 (io_dbg_38_sdm),
+    .io_dbg_ops_0               (io_dbg_38_ops_0),
+    .io_dbg_ops_1               (io_dbg_38_ops_1),
+    .io_dbg_ops_2               (io_dbg_38_ops_2)
   );
   Processor procs_39 (
     .clock                      (clock),
@@ -9137,7 +10183,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_39_io_swp_o),
     .io_swp_i                   (_switch_io_ports_39_i),
     .io_io_i                    (io_i_bits_39),
-    .io_io_o                    (io_o_bits_39)
+    .io_io_o                    (io_o_bits_39),
+    .io_dbg_ldm                 (io_dbg_39_ldm),
+    .io_dbg_sdm                 (io_dbg_39_sdm),
+    .io_dbg_ops_0               (io_dbg_39_ops_0),
+    .io_dbg_ops_1               (io_dbg_39_ops_1),
+    .io_dbg_ops_2               (io_dbg_39_ops_2)
   );
   Processor procs_40 (
     .clock                      (clock),
@@ -9172,7 +10223,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_40_io_swp_o),
     .io_swp_i                   (_switch_io_ports_40_i),
     .io_io_i                    (io_i_bits_40),
-    .io_io_o                    (io_o_bits_40)
+    .io_io_o                    (io_o_bits_40),
+    .io_dbg_ldm                 (io_dbg_40_ldm),
+    .io_dbg_sdm                 (io_dbg_40_sdm),
+    .io_dbg_ops_0               (io_dbg_40_ops_0),
+    .io_dbg_ops_1               (io_dbg_40_ops_1),
+    .io_dbg_ops_2               (io_dbg_40_ops_2)
   );
   Processor procs_41 (
     .clock                      (clock),
@@ -9207,7 +10263,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_41_io_swp_o),
     .io_swp_i                   (_switch_io_ports_41_i),
     .io_io_i                    (io_i_bits_41),
-    .io_io_o                    (io_o_bits_41)
+    .io_io_o                    (io_o_bits_41),
+    .io_dbg_ldm                 (io_dbg_41_ldm),
+    .io_dbg_sdm                 (io_dbg_41_sdm),
+    .io_dbg_ops_0               (io_dbg_41_ops_0),
+    .io_dbg_ops_1               (io_dbg_41_ops_1),
+    .io_dbg_ops_2               (io_dbg_41_ops_2)
   );
   Processor procs_42 (
     .clock                      (clock),
@@ -9242,7 +10303,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_42_io_swp_o),
     .io_swp_i                   (_switch_io_ports_42_i),
     .io_io_i                    (io_i_bits_42),
-    .io_io_o                    (io_o_bits_42)
+    .io_io_o                    (io_o_bits_42),
+    .io_dbg_ldm                 (io_dbg_42_ldm),
+    .io_dbg_sdm                 (io_dbg_42_sdm),
+    .io_dbg_ops_0               (io_dbg_42_ops_0),
+    .io_dbg_ops_1               (io_dbg_42_ops_1),
+    .io_dbg_ops_2               (io_dbg_42_ops_2)
   );
   Processor procs_43 (
     .clock                      (clock),
@@ -9277,7 +10343,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_43_io_swp_o),
     .io_swp_i                   (_switch_io_ports_43_i),
     .io_io_i                    (io_i_bits_43),
-    .io_io_o                    (io_o_bits_43)
+    .io_io_o                    (io_o_bits_43),
+    .io_dbg_ldm                 (io_dbg_43_ldm),
+    .io_dbg_sdm                 (io_dbg_43_sdm),
+    .io_dbg_ops_0               (io_dbg_43_ops_0),
+    .io_dbg_ops_1               (io_dbg_43_ops_1),
+    .io_dbg_ops_2               (io_dbg_43_ops_2)
   );
   Processor procs_44 (
     .clock                      (clock),
@@ -9312,7 +10383,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_44_io_swp_o),
     .io_swp_i                   (_switch_io_ports_44_i),
     .io_io_i                    (io_i_bits_44),
-    .io_io_o                    (io_o_bits_44)
+    .io_io_o                    (io_o_bits_44),
+    .io_dbg_ldm                 (io_dbg_44_ldm),
+    .io_dbg_sdm                 (io_dbg_44_sdm),
+    .io_dbg_ops_0               (io_dbg_44_ops_0),
+    .io_dbg_ops_1               (io_dbg_44_ops_1),
+    .io_dbg_ops_2               (io_dbg_44_ops_2)
   );
   Processor procs_45 (
     .clock                      (clock),
@@ -9347,7 +10423,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_45_io_swp_o),
     .io_swp_i                   (_switch_io_ports_45_i),
     .io_io_i                    (io_i_bits_45),
-    .io_io_o                    (io_o_bits_45)
+    .io_io_o                    (io_o_bits_45),
+    .io_dbg_ldm                 (io_dbg_45_ldm),
+    .io_dbg_sdm                 (io_dbg_45_sdm),
+    .io_dbg_ops_0               (io_dbg_45_ops_0),
+    .io_dbg_ops_1               (io_dbg_45_ops_1),
+    .io_dbg_ops_2               (io_dbg_45_ops_2)
   );
   Processor procs_46 (
     .clock                      (clock),
@@ -9382,7 +10463,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_46_io_swp_o),
     .io_swp_i                   (_switch_io_ports_46_i),
     .io_io_i                    (io_i_bits_46),
-    .io_io_o                    (io_o_bits_46)
+    .io_io_o                    (io_o_bits_46),
+    .io_dbg_ldm                 (io_dbg_46_ldm),
+    .io_dbg_sdm                 (io_dbg_46_sdm),
+    .io_dbg_ops_0               (io_dbg_46_ops_0),
+    .io_dbg_ops_1               (io_dbg_46_ops_1),
+    .io_dbg_ops_2               (io_dbg_46_ops_2)
   );
   Processor procs_47 (
     .clock                      (clock),
@@ -9417,7 +10503,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_47_io_swp_o),
     .io_swp_i                   (_switch_io_ports_47_i),
     .io_io_i                    (io_i_bits_47),
-    .io_io_o                    (io_o_bits_47)
+    .io_io_o                    (io_o_bits_47),
+    .io_dbg_ldm                 (io_dbg_47_ldm),
+    .io_dbg_sdm                 (io_dbg_47_sdm),
+    .io_dbg_ops_0               (io_dbg_47_ops_0),
+    .io_dbg_ops_1               (io_dbg_47_ops_1),
+    .io_dbg_ops_2               (io_dbg_47_ops_2)
   );
   Processor procs_48 (
     .clock                      (clock),
@@ -9452,7 +10543,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_48_io_swp_o),
     .io_swp_i                   (_switch_io_ports_48_i),
     .io_io_i                    (io_i_bits_48),
-    .io_io_o                    (io_o_bits_48)
+    .io_io_o                    (io_o_bits_48),
+    .io_dbg_ldm                 (io_dbg_48_ldm),
+    .io_dbg_sdm                 (io_dbg_48_sdm),
+    .io_dbg_ops_0               (io_dbg_48_ops_0),
+    .io_dbg_ops_1               (io_dbg_48_ops_1),
+    .io_dbg_ops_2               (io_dbg_48_ops_2)
   );
   Processor procs_49 (
     .clock                      (clock),
@@ -9487,7 +10583,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_49_io_swp_o),
     .io_swp_i                   (_switch_io_ports_49_i),
     .io_io_i                    (io_i_bits_49),
-    .io_io_o                    (io_o_bits_49)
+    .io_io_o                    (io_o_bits_49),
+    .io_dbg_ldm                 (io_dbg_49_ldm),
+    .io_dbg_sdm                 (io_dbg_49_sdm),
+    .io_dbg_ops_0               (io_dbg_49_ops_0),
+    .io_dbg_ops_1               (io_dbg_49_ops_1),
+    .io_dbg_ops_2               (io_dbg_49_ops_2)
   );
   Processor procs_50 (
     .clock                      (clock),
@@ -9522,7 +10623,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_50_io_swp_o),
     .io_swp_i                   (_switch_io_ports_50_i),
     .io_io_i                    (io_i_bits_50),
-    .io_io_o                    (io_o_bits_50)
+    .io_io_o                    (io_o_bits_50),
+    .io_dbg_ldm                 (io_dbg_50_ldm),
+    .io_dbg_sdm                 (io_dbg_50_sdm),
+    .io_dbg_ops_0               (io_dbg_50_ops_0),
+    .io_dbg_ops_1               (io_dbg_50_ops_1),
+    .io_dbg_ops_2               (io_dbg_50_ops_2)
   );
   Processor procs_51 (
     .clock                      (clock),
@@ -9557,7 +10663,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_51_io_swp_o),
     .io_swp_i                   (_switch_io_ports_51_i),
     .io_io_i                    (io_i_bits_51),
-    .io_io_o                    (io_o_bits_51)
+    .io_io_o                    (io_o_bits_51),
+    .io_dbg_ldm                 (io_dbg_51_ldm),
+    .io_dbg_sdm                 (io_dbg_51_sdm),
+    .io_dbg_ops_0               (io_dbg_51_ops_0),
+    .io_dbg_ops_1               (io_dbg_51_ops_1),
+    .io_dbg_ops_2               (io_dbg_51_ops_2)
   );
   Processor procs_52 (
     .clock                      (clock),
@@ -9592,7 +10703,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_52_io_swp_o),
     .io_swp_i                   (_switch_io_ports_52_i),
     .io_io_i                    (io_i_bits_52),
-    .io_io_o                    (io_o_bits_52)
+    .io_io_o                    (io_o_bits_52),
+    .io_dbg_ldm                 (io_dbg_52_ldm),
+    .io_dbg_sdm                 (io_dbg_52_sdm),
+    .io_dbg_ops_0               (io_dbg_52_ops_0),
+    .io_dbg_ops_1               (io_dbg_52_ops_1),
+    .io_dbg_ops_2               (io_dbg_52_ops_2)
   );
   Processor procs_53 (
     .clock                      (clock),
@@ -9627,7 +10743,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_53_io_swp_o),
     .io_swp_i                   (_switch_io_ports_53_i),
     .io_io_i                    (io_i_bits_53),
-    .io_io_o                    (io_o_bits_53)
+    .io_io_o                    (io_o_bits_53),
+    .io_dbg_ldm                 (io_dbg_53_ldm),
+    .io_dbg_sdm                 (io_dbg_53_sdm),
+    .io_dbg_ops_0               (io_dbg_53_ops_0),
+    .io_dbg_ops_1               (io_dbg_53_ops_1),
+    .io_dbg_ops_2               (io_dbg_53_ops_2)
   );
   Processor procs_54 (
     .clock                      (clock),
@@ -9662,7 +10783,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_54_io_swp_o),
     .io_swp_i                   (_switch_io_ports_54_i),
     .io_io_i                    (io_i_bits_54),
-    .io_io_o                    (io_o_bits_54)
+    .io_io_o                    (io_o_bits_54),
+    .io_dbg_ldm                 (io_dbg_54_ldm),
+    .io_dbg_sdm                 (io_dbg_54_sdm),
+    .io_dbg_ops_0               (io_dbg_54_ops_0),
+    .io_dbg_ops_1               (io_dbg_54_ops_1),
+    .io_dbg_ops_2               (io_dbg_54_ops_2)
   );
   Processor procs_55 (
     .clock                      (clock),
@@ -9697,7 +10823,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_55_io_swp_o),
     .io_swp_i                   (_switch_io_ports_55_i),
     .io_io_i                    (io_i_bits_55),
-    .io_io_o                    (io_o_bits_55)
+    .io_io_o                    (io_o_bits_55),
+    .io_dbg_ldm                 (io_dbg_55_ldm),
+    .io_dbg_sdm                 (io_dbg_55_sdm),
+    .io_dbg_ops_0               (io_dbg_55_ops_0),
+    .io_dbg_ops_1               (io_dbg_55_ops_1),
+    .io_dbg_ops_2               (io_dbg_55_ops_2)
   );
   Processor procs_56 (
     .clock                      (clock),
@@ -9732,7 +10863,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_56_io_swp_o),
     .io_swp_i                   (_switch_io_ports_56_i),
     .io_io_i                    (io_i_bits_56),
-    .io_io_o                    (io_o_bits_56)
+    .io_io_o                    (io_o_bits_56),
+    .io_dbg_ldm                 (io_dbg_56_ldm),
+    .io_dbg_sdm                 (io_dbg_56_sdm),
+    .io_dbg_ops_0               (io_dbg_56_ops_0),
+    .io_dbg_ops_1               (io_dbg_56_ops_1),
+    .io_dbg_ops_2               (io_dbg_56_ops_2)
   );
   Processor procs_57 (
     .clock                      (clock),
@@ -9767,7 +10903,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_57_io_swp_o),
     .io_swp_i                   (_switch_io_ports_57_i),
     .io_io_i                    (io_i_bits_57),
-    .io_io_o                    (io_o_bits_57)
+    .io_io_o                    (io_o_bits_57),
+    .io_dbg_ldm                 (io_dbg_57_ldm),
+    .io_dbg_sdm                 (io_dbg_57_sdm),
+    .io_dbg_ops_0               (io_dbg_57_ops_0),
+    .io_dbg_ops_1               (io_dbg_57_ops_1),
+    .io_dbg_ops_2               (io_dbg_57_ops_2)
   );
   Processor procs_58 (
     .clock                      (clock),
@@ -9802,7 +10943,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_58_io_swp_o),
     .io_swp_i                   (_switch_io_ports_58_i),
     .io_io_i                    (io_i_bits_58),
-    .io_io_o                    (io_o_bits_58)
+    .io_io_o                    (io_o_bits_58),
+    .io_dbg_ldm                 (io_dbg_58_ldm),
+    .io_dbg_sdm                 (io_dbg_58_sdm),
+    .io_dbg_ops_0               (io_dbg_58_ops_0),
+    .io_dbg_ops_1               (io_dbg_58_ops_1),
+    .io_dbg_ops_2               (io_dbg_58_ops_2)
   );
   Processor procs_59 (
     .clock                      (clock),
@@ -9837,7 +10983,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_59_io_swp_o),
     .io_swp_i                   (_switch_io_ports_59_i),
     .io_io_i                    (io_i_bits_59),
-    .io_io_o                    (io_o_bits_59)
+    .io_io_o                    (io_o_bits_59),
+    .io_dbg_ldm                 (io_dbg_59_ldm),
+    .io_dbg_sdm                 (io_dbg_59_sdm),
+    .io_dbg_ops_0               (io_dbg_59_ops_0),
+    .io_dbg_ops_1               (io_dbg_59_ops_1),
+    .io_dbg_ops_2               (io_dbg_59_ops_2)
   );
   Processor procs_60 (
     .clock                      (clock),
@@ -9872,7 +11023,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_60_io_swp_o),
     .io_swp_i                   (_switch_io_ports_60_i),
     .io_io_i                    (io_i_bits_60),
-    .io_io_o                    (io_o_bits_60)
+    .io_io_o                    (io_o_bits_60),
+    .io_dbg_ldm                 (io_dbg_60_ldm),
+    .io_dbg_sdm                 (io_dbg_60_sdm),
+    .io_dbg_ops_0               (io_dbg_60_ops_0),
+    .io_dbg_ops_1               (io_dbg_60_ops_1),
+    .io_dbg_ops_2               (io_dbg_60_ops_2)
   );
   Processor procs_61 (
     .clock                      (clock),
@@ -9907,7 +11063,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_61_io_swp_o),
     .io_swp_i                   (_switch_io_ports_61_i),
     .io_io_i                    (io_i_bits_61),
-    .io_io_o                    (io_o_bits_61)
+    .io_io_o                    (io_o_bits_61),
+    .io_dbg_ldm                 (io_dbg_61_ldm),
+    .io_dbg_sdm                 (io_dbg_61_sdm),
+    .io_dbg_ops_0               (io_dbg_61_ops_0),
+    .io_dbg_ops_1               (io_dbg_61_ops_1),
+    .io_dbg_ops_2               (io_dbg_61_ops_2)
   );
   Processor procs_62 (
     .clock                      (clock),
@@ -9942,7 +11103,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_62_io_swp_o),
     .io_swp_i                   (_switch_io_ports_62_i),
     .io_io_i                    (io_i_bits_62),
-    .io_io_o                    (io_o_bits_62)
+    .io_io_o                    (io_o_bits_62),
+    .io_dbg_ldm                 (io_dbg_62_ldm),
+    .io_dbg_sdm                 (io_dbg_62_sdm),
+    .io_dbg_ops_0               (io_dbg_62_ops_0),
+    .io_dbg_ops_1               (io_dbg_62_ops_1),
+    .io_dbg_ops_2               (io_dbg_62_ops_2)
   );
   Processor procs_63 (
     .clock                      (clock),
@@ -9977,7 +11143,12 @@ module EmulatorModule(
     .io_swp_o                   (_procs_63_io_swp_o),
     .io_swp_i                   (_switch_io_ports_63_i),
     .io_io_i                    (io_i_bits_63),
-    .io_io_o                    (io_o_bits_63)
+    .io_io_o                    (io_o_bits_63),
+    .io_dbg_ldm                 (io_dbg_63_ldm),
+    .io_dbg_sdm                 (io_dbg_63_sdm),
+    .io_dbg_ops_0               (io_dbg_63_ops_0),
+    .io_dbg_ops_1               (io_dbg_63_ops_1),
+    .io_dbg_ops_2               (io_dbg_63_ops_2)
   );
   Switch switch (
     .clock          (clock),
@@ -11139,7 +12310,327 @@ module OpalKellyEmulatorModuleTop(
     .io_o_bits_60             (_module_io_o_bits_60),
     .io_o_bits_61             (_module_io_o_bits_61),
     .io_o_bits_62             (_module_io_o_bits_62),
-    .io_o_bits_63             (_module_io_o_bits_63)
+    .io_o_bits_63             (_module_io_o_bits_63),
+    .io_dbg_0_ldm             (/* unused */),
+    .io_dbg_0_sdm             (/* unused */),
+    .io_dbg_0_ops_0           (/* unused */),
+    .io_dbg_0_ops_1           (/* unused */),
+    .io_dbg_0_ops_2           (/* unused */),
+    .io_dbg_1_ldm             (/* unused */),
+    .io_dbg_1_sdm             (/* unused */),
+    .io_dbg_1_ops_0           (/* unused */),
+    .io_dbg_1_ops_1           (/* unused */),
+    .io_dbg_1_ops_2           (/* unused */),
+    .io_dbg_2_ldm             (/* unused */),
+    .io_dbg_2_sdm             (/* unused */),
+    .io_dbg_2_ops_0           (/* unused */),
+    .io_dbg_2_ops_1           (/* unused */),
+    .io_dbg_2_ops_2           (/* unused */),
+    .io_dbg_3_ldm             (/* unused */),
+    .io_dbg_3_sdm             (/* unused */),
+    .io_dbg_3_ops_0           (/* unused */),
+    .io_dbg_3_ops_1           (/* unused */),
+    .io_dbg_3_ops_2           (/* unused */),
+    .io_dbg_4_ldm             (/* unused */),
+    .io_dbg_4_sdm             (/* unused */),
+    .io_dbg_4_ops_0           (/* unused */),
+    .io_dbg_4_ops_1           (/* unused */),
+    .io_dbg_4_ops_2           (/* unused */),
+    .io_dbg_5_ldm             (/* unused */),
+    .io_dbg_5_sdm             (/* unused */),
+    .io_dbg_5_ops_0           (/* unused */),
+    .io_dbg_5_ops_1           (/* unused */),
+    .io_dbg_5_ops_2           (/* unused */),
+    .io_dbg_6_ldm             (/* unused */),
+    .io_dbg_6_sdm             (/* unused */),
+    .io_dbg_6_ops_0           (/* unused */),
+    .io_dbg_6_ops_1           (/* unused */),
+    .io_dbg_6_ops_2           (/* unused */),
+    .io_dbg_7_ldm             (/* unused */),
+    .io_dbg_7_sdm             (/* unused */),
+    .io_dbg_7_ops_0           (/* unused */),
+    .io_dbg_7_ops_1           (/* unused */),
+    .io_dbg_7_ops_2           (/* unused */),
+    .io_dbg_8_ldm             (/* unused */),
+    .io_dbg_8_sdm             (/* unused */),
+    .io_dbg_8_ops_0           (/* unused */),
+    .io_dbg_8_ops_1           (/* unused */),
+    .io_dbg_8_ops_2           (/* unused */),
+    .io_dbg_9_ldm             (/* unused */),
+    .io_dbg_9_sdm             (/* unused */),
+    .io_dbg_9_ops_0           (/* unused */),
+    .io_dbg_9_ops_1           (/* unused */),
+    .io_dbg_9_ops_2           (/* unused */),
+    .io_dbg_10_ldm            (/* unused */),
+    .io_dbg_10_sdm            (/* unused */),
+    .io_dbg_10_ops_0          (/* unused */),
+    .io_dbg_10_ops_1          (/* unused */),
+    .io_dbg_10_ops_2          (/* unused */),
+    .io_dbg_11_ldm            (/* unused */),
+    .io_dbg_11_sdm            (/* unused */),
+    .io_dbg_11_ops_0          (/* unused */),
+    .io_dbg_11_ops_1          (/* unused */),
+    .io_dbg_11_ops_2          (/* unused */),
+    .io_dbg_12_ldm            (/* unused */),
+    .io_dbg_12_sdm            (/* unused */),
+    .io_dbg_12_ops_0          (/* unused */),
+    .io_dbg_12_ops_1          (/* unused */),
+    .io_dbg_12_ops_2          (/* unused */),
+    .io_dbg_13_ldm            (/* unused */),
+    .io_dbg_13_sdm            (/* unused */),
+    .io_dbg_13_ops_0          (/* unused */),
+    .io_dbg_13_ops_1          (/* unused */),
+    .io_dbg_13_ops_2          (/* unused */),
+    .io_dbg_14_ldm            (/* unused */),
+    .io_dbg_14_sdm            (/* unused */),
+    .io_dbg_14_ops_0          (/* unused */),
+    .io_dbg_14_ops_1          (/* unused */),
+    .io_dbg_14_ops_2          (/* unused */),
+    .io_dbg_15_ldm            (/* unused */),
+    .io_dbg_15_sdm            (/* unused */),
+    .io_dbg_15_ops_0          (/* unused */),
+    .io_dbg_15_ops_1          (/* unused */),
+    .io_dbg_15_ops_2          (/* unused */),
+    .io_dbg_16_ldm            (/* unused */),
+    .io_dbg_16_sdm            (/* unused */),
+    .io_dbg_16_ops_0          (/* unused */),
+    .io_dbg_16_ops_1          (/* unused */),
+    .io_dbg_16_ops_2          (/* unused */),
+    .io_dbg_17_ldm            (/* unused */),
+    .io_dbg_17_sdm            (/* unused */),
+    .io_dbg_17_ops_0          (/* unused */),
+    .io_dbg_17_ops_1          (/* unused */),
+    .io_dbg_17_ops_2          (/* unused */),
+    .io_dbg_18_ldm            (/* unused */),
+    .io_dbg_18_sdm            (/* unused */),
+    .io_dbg_18_ops_0          (/* unused */),
+    .io_dbg_18_ops_1          (/* unused */),
+    .io_dbg_18_ops_2          (/* unused */),
+    .io_dbg_19_ldm            (/* unused */),
+    .io_dbg_19_sdm            (/* unused */),
+    .io_dbg_19_ops_0          (/* unused */),
+    .io_dbg_19_ops_1          (/* unused */),
+    .io_dbg_19_ops_2          (/* unused */),
+    .io_dbg_20_ldm            (/* unused */),
+    .io_dbg_20_sdm            (/* unused */),
+    .io_dbg_20_ops_0          (/* unused */),
+    .io_dbg_20_ops_1          (/* unused */),
+    .io_dbg_20_ops_2          (/* unused */),
+    .io_dbg_21_ldm            (/* unused */),
+    .io_dbg_21_sdm            (/* unused */),
+    .io_dbg_21_ops_0          (/* unused */),
+    .io_dbg_21_ops_1          (/* unused */),
+    .io_dbg_21_ops_2          (/* unused */),
+    .io_dbg_22_ldm            (/* unused */),
+    .io_dbg_22_sdm            (/* unused */),
+    .io_dbg_22_ops_0          (/* unused */),
+    .io_dbg_22_ops_1          (/* unused */),
+    .io_dbg_22_ops_2          (/* unused */),
+    .io_dbg_23_ldm            (/* unused */),
+    .io_dbg_23_sdm            (/* unused */),
+    .io_dbg_23_ops_0          (/* unused */),
+    .io_dbg_23_ops_1          (/* unused */),
+    .io_dbg_23_ops_2          (/* unused */),
+    .io_dbg_24_ldm            (/* unused */),
+    .io_dbg_24_sdm            (/* unused */),
+    .io_dbg_24_ops_0          (/* unused */),
+    .io_dbg_24_ops_1          (/* unused */),
+    .io_dbg_24_ops_2          (/* unused */),
+    .io_dbg_25_ldm            (/* unused */),
+    .io_dbg_25_sdm            (/* unused */),
+    .io_dbg_25_ops_0          (/* unused */),
+    .io_dbg_25_ops_1          (/* unused */),
+    .io_dbg_25_ops_2          (/* unused */),
+    .io_dbg_26_ldm            (/* unused */),
+    .io_dbg_26_sdm            (/* unused */),
+    .io_dbg_26_ops_0          (/* unused */),
+    .io_dbg_26_ops_1          (/* unused */),
+    .io_dbg_26_ops_2          (/* unused */),
+    .io_dbg_27_ldm            (/* unused */),
+    .io_dbg_27_sdm            (/* unused */),
+    .io_dbg_27_ops_0          (/* unused */),
+    .io_dbg_27_ops_1          (/* unused */),
+    .io_dbg_27_ops_2          (/* unused */),
+    .io_dbg_28_ldm            (/* unused */),
+    .io_dbg_28_sdm            (/* unused */),
+    .io_dbg_28_ops_0          (/* unused */),
+    .io_dbg_28_ops_1          (/* unused */),
+    .io_dbg_28_ops_2          (/* unused */),
+    .io_dbg_29_ldm            (/* unused */),
+    .io_dbg_29_sdm            (/* unused */),
+    .io_dbg_29_ops_0          (/* unused */),
+    .io_dbg_29_ops_1          (/* unused */),
+    .io_dbg_29_ops_2          (/* unused */),
+    .io_dbg_30_ldm            (/* unused */),
+    .io_dbg_30_sdm            (/* unused */),
+    .io_dbg_30_ops_0          (/* unused */),
+    .io_dbg_30_ops_1          (/* unused */),
+    .io_dbg_30_ops_2          (/* unused */),
+    .io_dbg_31_ldm            (/* unused */),
+    .io_dbg_31_sdm            (/* unused */),
+    .io_dbg_31_ops_0          (/* unused */),
+    .io_dbg_31_ops_1          (/* unused */),
+    .io_dbg_31_ops_2          (/* unused */),
+    .io_dbg_32_ldm            (/* unused */),
+    .io_dbg_32_sdm            (/* unused */),
+    .io_dbg_32_ops_0          (/* unused */),
+    .io_dbg_32_ops_1          (/* unused */),
+    .io_dbg_32_ops_2          (/* unused */),
+    .io_dbg_33_ldm            (/* unused */),
+    .io_dbg_33_sdm            (/* unused */),
+    .io_dbg_33_ops_0          (/* unused */),
+    .io_dbg_33_ops_1          (/* unused */),
+    .io_dbg_33_ops_2          (/* unused */),
+    .io_dbg_34_ldm            (/* unused */),
+    .io_dbg_34_sdm            (/* unused */),
+    .io_dbg_34_ops_0          (/* unused */),
+    .io_dbg_34_ops_1          (/* unused */),
+    .io_dbg_34_ops_2          (/* unused */),
+    .io_dbg_35_ldm            (/* unused */),
+    .io_dbg_35_sdm            (/* unused */),
+    .io_dbg_35_ops_0          (/* unused */),
+    .io_dbg_35_ops_1          (/* unused */),
+    .io_dbg_35_ops_2          (/* unused */),
+    .io_dbg_36_ldm            (/* unused */),
+    .io_dbg_36_sdm            (/* unused */),
+    .io_dbg_36_ops_0          (/* unused */),
+    .io_dbg_36_ops_1          (/* unused */),
+    .io_dbg_36_ops_2          (/* unused */),
+    .io_dbg_37_ldm            (/* unused */),
+    .io_dbg_37_sdm            (/* unused */),
+    .io_dbg_37_ops_0          (/* unused */),
+    .io_dbg_37_ops_1          (/* unused */),
+    .io_dbg_37_ops_2          (/* unused */),
+    .io_dbg_38_ldm            (/* unused */),
+    .io_dbg_38_sdm            (/* unused */),
+    .io_dbg_38_ops_0          (/* unused */),
+    .io_dbg_38_ops_1          (/* unused */),
+    .io_dbg_38_ops_2          (/* unused */),
+    .io_dbg_39_ldm            (/* unused */),
+    .io_dbg_39_sdm            (/* unused */),
+    .io_dbg_39_ops_0          (/* unused */),
+    .io_dbg_39_ops_1          (/* unused */),
+    .io_dbg_39_ops_2          (/* unused */),
+    .io_dbg_40_ldm            (/* unused */),
+    .io_dbg_40_sdm            (/* unused */),
+    .io_dbg_40_ops_0          (/* unused */),
+    .io_dbg_40_ops_1          (/* unused */),
+    .io_dbg_40_ops_2          (/* unused */),
+    .io_dbg_41_ldm            (/* unused */),
+    .io_dbg_41_sdm            (/* unused */),
+    .io_dbg_41_ops_0          (/* unused */),
+    .io_dbg_41_ops_1          (/* unused */),
+    .io_dbg_41_ops_2          (/* unused */),
+    .io_dbg_42_ldm            (/* unused */),
+    .io_dbg_42_sdm            (/* unused */),
+    .io_dbg_42_ops_0          (/* unused */),
+    .io_dbg_42_ops_1          (/* unused */),
+    .io_dbg_42_ops_2          (/* unused */),
+    .io_dbg_43_ldm            (/* unused */),
+    .io_dbg_43_sdm            (/* unused */),
+    .io_dbg_43_ops_0          (/* unused */),
+    .io_dbg_43_ops_1          (/* unused */),
+    .io_dbg_43_ops_2          (/* unused */),
+    .io_dbg_44_ldm            (/* unused */),
+    .io_dbg_44_sdm            (/* unused */),
+    .io_dbg_44_ops_0          (/* unused */),
+    .io_dbg_44_ops_1          (/* unused */),
+    .io_dbg_44_ops_2          (/* unused */),
+    .io_dbg_45_ldm            (/* unused */),
+    .io_dbg_45_sdm            (/* unused */),
+    .io_dbg_45_ops_0          (/* unused */),
+    .io_dbg_45_ops_1          (/* unused */),
+    .io_dbg_45_ops_2          (/* unused */),
+    .io_dbg_46_ldm            (/* unused */),
+    .io_dbg_46_sdm            (/* unused */),
+    .io_dbg_46_ops_0          (/* unused */),
+    .io_dbg_46_ops_1          (/* unused */),
+    .io_dbg_46_ops_2          (/* unused */),
+    .io_dbg_47_ldm            (/* unused */),
+    .io_dbg_47_sdm            (/* unused */),
+    .io_dbg_47_ops_0          (/* unused */),
+    .io_dbg_47_ops_1          (/* unused */),
+    .io_dbg_47_ops_2          (/* unused */),
+    .io_dbg_48_ldm            (/* unused */),
+    .io_dbg_48_sdm            (/* unused */),
+    .io_dbg_48_ops_0          (/* unused */),
+    .io_dbg_48_ops_1          (/* unused */),
+    .io_dbg_48_ops_2          (/* unused */),
+    .io_dbg_49_ldm            (/* unused */),
+    .io_dbg_49_sdm            (/* unused */),
+    .io_dbg_49_ops_0          (/* unused */),
+    .io_dbg_49_ops_1          (/* unused */),
+    .io_dbg_49_ops_2          (/* unused */),
+    .io_dbg_50_ldm            (/* unused */),
+    .io_dbg_50_sdm            (/* unused */),
+    .io_dbg_50_ops_0          (/* unused */),
+    .io_dbg_50_ops_1          (/* unused */),
+    .io_dbg_50_ops_2          (/* unused */),
+    .io_dbg_51_ldm            (/* unused */),
+    .io_dbg_51_sdm            (/* unused */),
+    .io_dbg_51_ops_0          (/* unused */),
+    .io_dbg_51_ops_1          (/* unused */),
+    .io_dbg_51_ops_2          (/* unused */),
+    .io_dbg_52_ldm            (/* unused */),
+    .io_dbg_52_sdm            (/* unused */),
+    .io_dbg_52_ops_0          (/* unused */),
+    .io_dbg_52_ops_1          (/* unused */),
+    .io_dbg_52_ops_2          (/* unused */),
+    .io_dbg_53_ldm            (/* unused */),
+    .io_dbg_53_sdm            (/* unused */),
+    .io_dbg_53_ops_0          (/* unused */),
+    .io_dbg_53_ops_1          (/* unused */),
+    .io_dbg_53_ops_2          (/* unused */),
+    .io_dbg_54_ldm            (/* unused */),
+    .io_dbg_54_sdm            (/* unused */),
+    .io_dbg_54_ops_0          (/* unused */),
+    .io_dbg_54_ops_1          (/* unused */),
+    .io_dbg_54_ops_2          (/* unused */),
+    .io_dbg_55_ldm            (/* unused */),
+    .io_dbg_55_sdm            (/* unused */),
+    .io_dbg_55_ops_0          (/* unused */),
+    .io_dbg_55_ops_1          (/* unused */),
+    .io_dbg_55_ops_2          (/* unused */),
+    .io_dbg_56_ldm            (/* unused */),
+    .io_dbg_56_sdm            (/* unused */),
+    .io_dbg_56_ops_0          (/* unused */),
+    .io_dbg_56_ops_1          (/* unused */),
+    .io_dbg_56_ops_2          (/* unused */),
+    .io_dbg_57_ldm            (/* unused */),
+    .io_dbg_57_sdm            (/* unused */),
+    .io_dbg_57_ops_0          (/* unused */),
+    .io_dbg_57_ops_1          (/* unused */),
+    .io_dbg_57_ops_2          (/* unused */),
+    .io_dbg_58_ldm            (/* unused */),
+    .io_dbg_58_sdm            (/* unused */),
+    .io_dbg_58_ops_0          (/* unused */),
+    .io_dbg_58_ops_1          (/* unused */),
+    .io_dbg_58_ops_2          (/* unused */),
+    .io_dbg_59_ldm            (/* unused */),
+    .io_dbg_59_sdm            (/* unused */),
+    .io_dbg_59_ops_0          (/* unused */),
+    .io_dbg_59_ops_1          (/* unused */),
+    .io_dbg_59_ops_2          (/* unused */),
+    .io_dbg_60_ldm            (/* unused */),
+    .io_dbg_60_sdm            (/* unused */),
+    .io_dbg_60_ops_0          (/* unused */),
+    .io_dbg_60_ops_1          (/* unused */),
+    .io_dbg_60_ops_2          (/* unused */),
+    .io_dbg_61_ldm            (/* unused */),
+    .io_dbg_61_sdm            (/* unused */),
+    .io_dbg_61_ops_0          (/* unused */),
+    .io_dbg_61_ops_1          (/* unused */),
+    .io_dbg_61_ops_2          (/* unused */),
+    .io_dbg_62_ldm            (/* unused */),
+    .io_dbg_62_sdm            (/* unused */),
+    .io_dbg_62_ops_0          (/* unused */),
+    .io_dbg_62_ops_1          (/* unused */),
+    .io_dbg_62_ops_2          (/* unused */),
+    .io_dbg_63_ldm            (/* unused */),
+    .io_dbg_63_sdm            (/* unused */),
+    .io_dbg_63_ops_0          (/* unused */),
+    .io_dbg_63_ops_1          (/* unused */),
+    .io_dbg_63_ops_2          (/* unused */)
   );
   Queue2_Vec3_UInt16 insns_q (
     .clock         (clock),

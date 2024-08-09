@@ -8,6 +8,12 @@ class ProcessorConfigBundle(cfg: ModuleConfig) extends Bundle {
   val host_steps = UInt(cfg.index_bits.W)
 }
 
+class ProcessorDebugBundle(cfg: ModuleConfig) extends Bundle {
+  val ldm = UInt(cfg.dmem_bits.W)
+  val sdm = UInt(cfg.dmem_bits.W)
+  val ops = Vec(cfg.lut_inputs, UInt(cfg.num_bits.W))
+}
+
 class ProcessorBundle(cfg: ModuleConfig) extends Bundle {
   import cfg._
   val run  = Input(Bool())
@@ -22,6 +28,8 @@ class ProcessorBundle(cfg: ModuleConfig) extends Bundle {
 
   val io_i = Input (UInt(num_bits.W))
   val io_o = Output(UInt(num_bits.W))
+
+  val dbg = Output(new ProcessorDebugBundle(cfg))
 }
 
 class Processor(cfg: ModuleConfig) extends Module {
@@ -108,11 +116,16 @@ class Processor(cfg: ModuleConfig) extends Module {
   }
 
   sdm.io.wr.idx := pc
-  sdm.io.wr.bit := io.swp.i
+  sdm.io.wr.bit := Mux(io.run, io.swp.i, 0.U)
 
   ldm.io.wr.idx := pc
-  ldm.io.wr.bit := fout
+  ldm.io.wr.bit := Mux(io.run, fout, 0.U)
 
-  io.swp.o := fout
+  io.swp.o := Mux(io.run, fout, 0.U)
   io.swp.id := inst.sin
+
+  io.dbg.ldm := ldm.io.dbg
+  io.dbg.sdm := sdm.io.dbg
+  io.dbg.ops := ops
+  dontTouch(io.dbg)
 }
