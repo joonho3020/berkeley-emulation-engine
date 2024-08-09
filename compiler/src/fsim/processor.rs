@@ -41,7 +41,7 @@ impl Processor {
         self.imem[step] = inst;
     }
 
-    pub fn step(self: &mut Self) {
+    pub fn compute_fout(self: &mut Self) {
         // Instruction fetch
         let cur_inst = &self.imem[self.pc];
 
@@ -82,15 +82,14 @@ impl Processor {
             }
             _ => 0,
         };
-
-        // println!("f_out: {:?}", f_out);
-
-        // Set switch out
-        self.s_port.op = f_out;
-
         // Update LDM
         self.ldm[self.pc] = f_out;
 
+        // Set switch out
+        self.s_port.op = f_out;
+    }
+
+    pub fn update_sdm_and_pc(self: &mut Self) {
         // Update SDM
         self.sdm[self.pc] = self.s_port.ip;
 

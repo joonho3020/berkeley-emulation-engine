@@ -178,6 +178,8 @@ fn test_emulator(
         }
     }
 
+    circuit.save_emulator_instructions(format!("{}/instructions", cwd.to_str().unwrap()))?;
+
     utils::write_string_to_file(
         output_value_fmt(&aggregate_bitblasted_values(&ports, &mut output_blasted)),
         &format!("{}/{}-emulation.out", cwd.to_str().unwrap(), top_mod),

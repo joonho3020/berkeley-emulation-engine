@@ -95,18 +95,27 @@ impl Module {
     }
 
     fn step(self: &mut Self) {
+        // compute fout
+        for (_, proc) in self.procs.iter_mut().enumerate() {
+            proc.compute_fout();
+        }
+
+        // swizzle outputs
+        for (i, proc) in self.procs.iter_mut().enumerate() {
+            self.switch.set_port_val(i, proc.get_switch_out());
+        }
+
+        // set inputs
         for (_, proc) in self.procs.iter_mut().enumerate() {
             let switch_in_idx = proc.get_switch_in_id() as usize;
             proc.set_switch_in(self.switch.get_port_val(switch_in_idx));
         }
+
+        // consume network inputs and update processor state
         for (_, proc) in self.procs.iter_mut().enumerate() {
-            proc.step();
+            proc.update_sdm_and_pc();
         }
         self.print();
-// self.print_2();
-        for (i, proc) in self.procs.iter_mut().enumerate() {
-            self.switch.set_port_val(i, proc.get_switch_out());
-        }
     }
 
     pub fn peek(self: &Self, signal: &str) -> Option<Bit> {

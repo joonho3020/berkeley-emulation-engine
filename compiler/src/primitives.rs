@@ -626,6 +626,21 @@ impl Circuit {
         write_string_to_file(serde_json::to_string_pretty(&self.emulator)?, &file_path)
     }
 
+    pub fn save_emulator_instructions(&self, file_path: String) -> std::io::Result<()> {
+        let mut inst_str = "".to_string();
+        for (pi, proc_insts) in self.emulator.instructions.iter().enumerate() {
+            inst_str.push_str(&format!("------------ processor {} ------------\n", pi));
+            for (i, inst) in proc_insts.iter().enumerate() {
+                if (i as u32) < self.emulator.host_steps {
+                    inst_str.push_str(&format!("{} {:?}\n", i, inst));
+                } else {
+                    break;
+                }
+            }
+        }
+        write_string_to_file(inst_str, &file_path)
+    }
+
     /// #debug_graph
     /// Given a `dbg_node` in the graph, search for all parents nodes up until
     /// it reaches Gate, Latch or Input.
