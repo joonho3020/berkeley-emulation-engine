@@ -6,7 +6,7 @@ import _root_.circt.stage.ChiselStage
 
 object Main extends App {
   val config = new ModuleConfig(max_steps = 8, module_sz = 8)
-  val opalkelly = new OpalKellyConfig(wire_bits = 32)
+  val opalkelly = new OpalKellyConfig(wire_bits = 16)
 
   ChiselStage.emitSystemVerilogFile(
     new OpalKellyEmulatorModuleTop(config, opalkelly),

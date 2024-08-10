@@ -42,7 +42,11 @@ fn main() -> std::io::Result<()> {
         }
     };
 
-    circuit.set_cfg(Configuration::default());
+    circuit.set_cfg(Configuration{
+        max_steps: 8,
+        module_sz: 8,
+        ..Configuration::default()
+    });
     runner::run_compiler_passes(&mut circuit);
     let tb = generate_emulator_testbench(&input_stimuli_blasted, &circuit);
 
