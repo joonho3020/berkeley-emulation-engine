@@ -142,7 +142,11 @@ class OpalKellyEmulatorModuleTop(cfg: ModuleConfig, fpga_cfg: OpalKellyConfig) e
   io.io_i.ready := io_i_q.io.enq.ready
 
   val io_o_q = Module(new Queue(Vec(wire_ins_per_io, UInt(wire_bits.W)), 2))
-  io.io_o <> io_o_q.io.deq
+  val io_o_prev = RegNext(io.io_o.ready)
+  val io_o_pulse = !io_o_prev && io.io_o.ready
+  io.io_o.valid := io_o_q.io.deq.valid
+  io.io_o.bits  := io_o_q.io.deq.bits
+  io_o_q.io.deq.ready := io_o_pulse
 
   val step = RegInit(0.U(index_bits.W))
 
