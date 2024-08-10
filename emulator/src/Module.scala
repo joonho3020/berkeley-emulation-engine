@@ -5,9 +5,9 @@ import chisel3.util._
 import chisel3.util.Decoupled
 
 case class ModuleConfig(
-  max_steps: Int = 128, // Maximum host steps that can be run
+  max_steps: Int = 8, // Maximum host steps that can be run
   num_bits:  Int = 1,   // Width of the datapath
-  module_sz: Int = 64,  // Number of processor in a module
+  module_sz: Int = 8,  // Number of processor in a module
   num_prims: Int = 6,   // Number of primitives
   lut_inputs: Int = 3,  // Number of lut inputs
   ireg_skip: Int  = 4,  // Insert queues for instruction scan chain every ireg_skip processors
