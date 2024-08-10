@@ -145,7 +145,7 @@ initial begin
         for inst_idx in 0..circuit.emulator.host_steps {
             let inst = &proc_insts[inst_idx as usize];
             let bitbuf = inst.to_bytes(&circuit.emulator.cfg);
-            println!("proc_idx {} bitbut {:x?}", proc_idx, bitbuf);
+// println!("proc_idx {} bitbut {:x?}", proc_idx, bitbuf);
 
             let mut bit_u16s = vec![];
             for two_bytes in &bitbuf.bytes.into_iter().chunks(2) {
