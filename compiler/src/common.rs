@@ -64,7 +64,7 @@ impl Instruction {
         for opidx in 0..cfg.lut_inputs {
             match self.operands.get(opidx as usize) {
                 Some(op) => {
-                    println!("op.rs: {} local: {}", op.rs, op.local);
+// println!("op.rs: {} local: {}", op.rs, op.local);
                     ret.push_bits(op.rs as u64, cfg.index_bits());
                     ret.push_bits(op.local as u64, 1); // local
                 }
@@ -100,8 +100,8 @@ impl BitBuf {
             let last = self.bytes.last_mut().unwrap();
             *last |= (cur_input << self.offset) as u8;
 
-            println!("input: {:x} cur_input: {:x} offset: {} free_bits: {} consume_bits: {} last: {}",
-                input, cur_input, self.offset, free_bits, consume_bits, *last);
+// println!("input: {:x} cur_input: {:x} offset: {} free_bits: {} consume_bits: {} last: {}",
+// input, cur_input, self.offset, free_bits, consume_bits, *last);
 
             self.offset = (self.offset + consume_bits) % 8;
             left -= consume_bits;
