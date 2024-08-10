@@ -7,6 +7,8 @@ examples/obj_dir
 **/.DS_STORE
 **/sim-dir-*
 
+**/ise_project
+
 emulator/out
 emulator/.bloop
 emulator/.metals

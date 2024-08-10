@@ -39,7 +39,6 @@ wire [15:0] ep_insns_ready;
 wire [15:0] ep_insns_valid;
 wire [15:0] ep_insns_bits_0;
 wire [15:0] ep_insns_bits_1;
-wire [15:0] ep_insns_bits_2;
 wire [15:0] ep_io_i_ready;
 wire [15:0] ep_io_i_valid;
 wire [15:0] ep_io_i_bits_0;
@@ -48,12 +47,11 @@ wire [15:0] ep_io_o_valid;
 wire [15:0] ep_io_o_bits_0;
 
 wire [15:0] io_host_steps;
-wire [3:0]  io_used_procs;
+wire [1:0]  io_used_procs;
 wire        io_insns_ready;
 wire        io_insns_valid;
 wire [15:0] io_insns_bits_0;
 wire [15:0] io_insns_bits_1;
-wire [15:0] io_insns_bits_2;
 wire        io_io_i_ready;
 wire        io_io_i_valid;
 wire [15:0] io_io_i_bits_0;
@@ -68,13 +66,12 @@ wire [15:0] io_io_o_bits_2;
 wire [15:0] io_io_o_bits_3;
 
 assign io_host_steps = ep_host_steps;
-assign io_used_procs = ep_used_procs[3:0];
+assign io_used_procs = ep_used_procs[1:0];
 
 assign ep_insns_ready = {15'h0, io_insns_ready};
 assign io_insns_valid = ep_insns_valid[0];
 assign io_insns_bits_0 = ep_insns_bits_0;
 assign io_insns_bits_1 = ep_insns_bits_1;
-assign io_insns_bits_2 = ep_insns_bits_2;
 
 assign ep_io_i_ready = {15'h0, io_io_i_ready};
 assign io_io_i_valid = ep_io_i_valid[0];
@@ -103,7 +100,6 @@ okWireIn     okin2 (.ok1(ok1),                         .ep_addr(8'h02), .ep_data
 okWireIn     okin3 (.ok1(ok1),                         .ep_addr(8'h03), .ep_dataout(ep_insns_valid));
 okWireIn     okin4 (.ok1(ok1),                         .ep_addr(8'h04), .ep_dataout(ep_insns_bits_0));
 okWireIn     okin5 (.ok1(ok1),                         .ep_addr(8'h05), .ep_dataout(ep_insns_bits_1));
-okWireIn     okin6 (.ok1(ok1),                         .ep_addr(8'h06), .ep_dataout(ep_insns_bits_2));
 okWireIn     okin7 (.ok1(ok1),                         .ep_addr(8'h07), .ep_dataout(ep_io_i_valid));
 okWireIn     okin8 (.ok1(ok1),                         .ep_addr(8'h08), .ep_dataout(ep_io_i_bits_0));
 okWireIn     okin12(.ok1(ok1),                         .ep_addr(8'h0C), .ep_dataout(ep_io_o_ready));
@@ -123,7 +119,6 @@ OpalKellyEmulatorModuleTop tester(
   .io_insns_valid(io_insns_valid),
   .io_insns_bits_0(io_insns_bits_0),
   .io_insns_bits_1(io_insns_bits_1),
-  .io_insns_bits_2(io_insns_bits_2),
   .io_io_i_ready(io_io_i_ready),
   .io_io_i_valid(io_io_i_valid),
   .io_io_i_bits_0(io_io_i_bits_0),
