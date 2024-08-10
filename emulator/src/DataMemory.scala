@@ -21,7 +21,7 @@ class DataMemory(cfg: ModuleConfig) extends Module {
     val dbg = Output(UInt(dmem_bits.W))
   })
 
-  val mem = Seq.fill(max_steps)(RegInit(0.U(num_bits.W)))
+  val mem = RegInit(VecInit(Seq.fill(max_steps)(0.U(num_bits.W))))
 
   val dbg = Cat(mem.reverse)
   io.dbg := dbg
