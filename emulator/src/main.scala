@@ -9,7 +9,7 @@ object Main extends App {
   val opalkelly = new OpalKellyConfig(wire_bits = 16)
 
   ChiselStage.emitSystemVerilogFile(
-    new OpalKellyEmulatorModuleTop(config, opalkelly),
+    new OpalKellyFPGATop(config, opalkelly),
     firtoolOpts = Array(
       "-disable-all-randomization",
       "-strip-debug-info",

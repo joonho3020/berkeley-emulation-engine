@@ -82,11 +82,11 @@ assign io_io_i_bits_0 = ep_io_i_bits_0[15:0];
 
 assign ep_io_o_valid = {31'h0, io_io_o_valid};
 assign io_io_o_ready = ep_io_o_ready[0];
-assign ep_io_o_bits_0 = io_io_o_bits_0[15:0];
+assign ep_io_o_bits_0 = {16'h0, io_io_o_bits_0};
 
-assign led[0] = !(io_io_i_valid && io_io_i_ready);
-assign led[1] = !(io_io_o_valid && io_io_o_ready);
-assign led[2] = !(io_insns_valid && io_insns_ready);
+assign led[0] = !io_io_o_valid;
+assign led[1] = !io_io_i_ready;
+assign led[2] = !io_insns_ready;
 assign led[3] = reset;
 
 // Instantiate the okHost and connect endpoints.
