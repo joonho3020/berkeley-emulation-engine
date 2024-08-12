@@ -1,13 +1,15 @@
-examples/*.blif
 **/*.dot
+**/.DS_STORE
+**/sim-dir-*
+**/ise_project
+
+examples/*.blif
 examples/*.pdf
 examples/*.tar.gz
 examples/*.instructions
 examples/obj_dir
-**/.DS_STORE
-**/sim-dir-*
 
-**/ise_project
+compiler/emulation-info
 
 emulator/out
 emulator/.bloop
