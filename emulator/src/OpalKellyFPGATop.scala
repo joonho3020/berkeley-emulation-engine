@@ -53,6 +53,7 @@ class xpm_cdc_handshake(
 class DecoupledClockCrossingModule(wire_ins: Int, wire_bits: Int) extends Module {
   val io = IO(new Bundle {
     val in_clock = Input(Clock())
+    val in_reset = Input(Bool())
     val in  = Flipped(Decoupled(Vec(wire_ins, UInt(wire_bits.W))))
     val out =         Decoupled(Vec(wire_ins, UInt(wire_bits.W)))
   })
@@ -62,7 +63,7 @@ class DecoupledClockCrossingModule(wire_ins: Int, wire_bits: Int) extends Module
   handshake_cdc.io.dest_ack := handshake_cdc.io.dest_req
   handshake_cdc.io.src_in   := Cat(io.in.bits.reverse)
 
-  withClock (io.in_clock) {
+  withClockAndReset (io.in_clock, io.in_reset) {
     val handshake_done = RegInit(false.B)
     val prev_in_valid = RegNext(io.in.valid)
     handshake_cdc.io.src_send := io.in.valid && !handshake_done
@@ -103,6 +104,7 @@ class OpalKellyClockCrossingModule(cfg: ModuleConfig, fpga_cfg: OpalKellyConfig)
 
   val io = IO(new Bundle {
     val host_clock = Input(Clock())
+    val host_reset = Input(Bool())
     val host_host_steps = Input(UInt(wire_bits.W))
     val host_used_procs = Input(UInt(switch_bits.W))
     val host_insns = Flipped(Decoupled(Vec(wire_ins_per_insn, UInt(wire_bits.W))))
@@ -116,7 +118,7 @@ class OpalKellyClockCrossingModule(cfg: ModuleConfig, fpga_cfg: OpalKellyConfig)
     val fpga_io_o  = Flipped(Decoupled(Vec(wire_ins_per_io,   UInt(wire_bits.W))))
   })
 
-  if (false) {
+  if (true) {
     val host_steps_cdc = Module(new xpm_cdc_handshake(1, 4, 1, 0, 4, wire_bits))
     host_steps_cdc.io.dest_ack := host_steps_cdc.io.dest_req
     host_steps_cdc.io.src_clk := io.host_clock
@@ -124,15 +126,11 @@ class OpalKellyClockCrossingModule(cfg: ModuleConfig, fpga_cfg: OpalKellyConfig)
     host_steps_cdc.io.src_in := io.host_host_steps
     io.fpga_host_steps := host_steps_cdc.io.dest_out
 
-    withClock (io.host_clock) {
-      val sent_nonzero = RegInit(false.B)
-      val recv_nonzero = RegInit(false.B)
-      host_steps_cdc.io.src_send := !(sent_nonzero && recv_nonzero) && (io.host_host_steps =/= 0.U)
-      when (host_steps_cdc.io.dest_out =/= 0.U) {
-        sent_nonzero := true.B
-      }
+    withClockAndReset (io.host_clock, io.host_reset) {
+      val sent = RegInit(false.B)
+      host_steps_cdc.io.src_send := !sent && (io.host_host_steps =/= 0.U)
       when (host_steps_cdc.io.src_rcv) {
-        recv_nonzero := true.B
+        sent := true.B
       }
     }
 
@@ -143,31 +141,30 @@ class OpalKellyClockCrossingModule(cfg: ModuleConfig, fpga_cfg: OpalKellyConfig)
     used_procs_cdc.io.src_in := io.host_used_procs
     io.fpga_used_procs := used_procs_cdc.io.dest_out
 
-    withClock (io.host_clock) {
-      val sent_nonzero = RegInit(false.B)
-      val recv_nonzero = RegInit(false.B)
-      used_procs_cdc.io.src_send := !(sent_nonzero && recv_nonzero) && (io.host_used_procs =/= 0.U)
-      when (used_procs_cdc.io.dest_out =/= 0.U) {
-        sent_nonzero := true.B
-      }
+    withClockAndReset (io.host_clock, io.host_reset) {
+      val sent = RegInit(false.B)
+      used_procs_cdc.io.src_send := !sent && (io.host_used_procs =/= 0.U)
       when (used_procs_cdc.io.src_rcv) {
-        recv_nonzero := true.B
+        sent := true.B
       }
     }
 
     val insns_cdc = Module(new DecoupledClockCrossingModule(wire_ins_per_insn, wire_bits))
     insns_cdc.io.in_clock := io.host_clock
+    insns_cdc.io.in_reset := io.host_reset
     insns_cdc.io.in <> io.host_insns
     io.fpga_insns <> insns_cdc.io.out
 
     val input_cdc = Module(new DecoupledClockCrossingModule(wire_ins_per_io, wire_bits))
     input_cdc.io.in_clock := io.host_clock
+    input_cdc.io.in_reset := io.host_reset
     input_cdc.io.in <> io.host_io_i
     io.fpga_io_i <> input_cdc.io.out
 
-    withClock (io.host_clock) {
+    withClockAndReset (io.host_clock, io.host_reset) {
       val output_cdc = Module(new DecoupledClockCrossingModule(wire_ins_per_io, wire_bits))
       output_cdc.io.in_clock := clock
+      output_cdc.io.in_reset := reset
       output_cdc.io.in <> io.fpga_io_o
       io.host_io_o <> output_cdc.io.out
     }
@@ -299,6 +296,7 @@ class OpalKellyFPGATop(cfg: ModuleConfig, fpga_cfg: OpalKellyConfig) extends Mod
 
   val io = IO(new Bundle {
     val host_clock = Input(Clock())
+    val host_reset = Input(Bool())
     val host_host_steps = Input(UInt(wire_bits.W))
     val host_used_procs = Input(UInt(switch_bits.W))
     val host_insns  = Flipped(Decoupled(Vec(wire_ins_per_insn, Input(UInt(wire_bits.W)))))
@@ -308,10 +306,13 @@ class OpalKellyFPGATop(cfg: ModuleConfig, fpga_cfg: OpalKellyConfig) extends Mod
 
     val i_q_bits_fired = Output(UInt(wire_bits.W))
     val o_q_bits_fired = Output(UInt(wire_bits.W))
+    val fpga_io_o_ready = Output(Bool())
+    val host_io_o_ready = Output(Bool())
   })
 
   val clock_crossing = Module(new OpalKellyClockCrossingModule(cfg, fpga_cfg))
   clock_crossing.io.host_clock := io.host_clock
+  clock_crossing.io.host_reset := io.host_reset
   clock_crossing.io.host_host_steps := io.host_host_steps
   clock_crossing.io.host_used_procs := io.host_used_procs
   clock_crossing.io.host_insns <> io.host_insns
@@ -327,4 +328,6 @@ class OpalKellyFPGATop(cfg: ModuleConfig, fpga_cfg: OpalKellyConfig) extends Mod
 
   io.i_q_bits_fired := emulation_module_wrapper.io.i_q_bits_fired
   io.o_q_bits_fired := emulation_module_wrapper.io.o_q_bits_fired
+  io.fpga_io_o_ready := clock_crossing.io.fpga_io_o.ready
+  io.host_io_o_ready := io.host_io_o.ready
 }

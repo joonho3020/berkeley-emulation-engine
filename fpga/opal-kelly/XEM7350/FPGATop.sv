@@ -95,10 +95,14 @@ assign ep_io_o_valid = {31'h0, io_io_o_valid};
 assign io_io_o_ready = ep_io_o_ready[0];
 assign ep_io_o_bits_0 = {16'h0, io_io_o_bits_0};
 
-assign led[0] = !io_o_q_bits_fired[3];
-assign led[1] = !io_o_q_bits_fired[4];
-assign led[2] = !io_o_q_bits_fired[5];
-assign led[3] = !io_o_q_bits_fired[6];
+
+wire io_fpga_io_o_ready;
+wire io_host_io_o_ready_0;
+
+assign led[0] = !io_io_o_valid;
+assign led[1] = !io_io_o_ready;
+assign led[2] = !io_fpga_io_o_ready;
+assign led[3] = !io_host_io_o_ready_0;
 
 // Instantiate the okHost and connect endpoints.
 wire [65*4-1:0]  okEHx;
@@ -129,10 +133,24 @@ okWireOut    okout1(.okHE(okHE), .okEH(okEHx[ 1*65 +: 65 ]), .ep_addr(8'h21), .e
 okWireOut    okout2(.okHE(okHE), .okEH(okEHx[ 2*65 +: 65 ]), .ep_addr(8'h22), .ep_datain(ep_io_o_valid));
 okWireOut    okout3(.okHE(okHE), .okEH(okEHx[ 3*65 +: 65 ]), .ep_addr(8'h23), .ep_datain(ep_io_o_bits_0));
 
+
+wire dut_reset;
+
+xpm_cdc_single #(
+  .DEST_SYNC_FF(4),
+  .SRC_INPUT_REG(0)
+) reset_cdc (
+  .src_clk  (okClk),
+  .src_in   (reset),
+  .dest_clk (dut_clk),
+  .dest_out (dut_reset)
+);
+
 OpalKellyFPGATop dut(
-  .clock(okClk),
-  .reset(reset),
+  .clock(dut_clk),
+  .reset(dut_reset),
   .io_host_clock(okClk),
+  .io_host_reset(reset),
   .io_host_host_steps(io_host_steps),
   .io_host_used_procs(io_used_procs),
   .io_host_insns_ready(io_insns_ready),
@@ -146,7 +164,9 @@ OpalKellyFPGATop dut(
   .io_host_io_o_valid(io_io_o_valid),
   .io_host_io_o_bits_0(io_io_o_bits_0),
   .io_i_q_bits_fired(io_i_q_bits_fired),
-  .io_o_q_bits_fired(io_o_q_bits_fired)
+  .io_o_q_bits_fired(io_o_q_bits_fired),
+  .io_fpga_io_o_ready(io_fpga_io_o_ready),
+  .io_host_io_o_ready_0(io_host_io_o_ready_0)
 );
 
 endmodule
