@@ -46,7 +46,7 @@ reg sys_clkn;
 
 // FIXME: sys_clkp has a period of 5ns (200MHz). Is it okay to use T/2 for
 // that or is that a bit sus?
-localparam real T=10;
+localparam real T=5;
 assign sys_clkn = ~sys_clkp;
 always begin
   #(T/2) sys_clkp <= ~sys_clkp;
@@ -116,25 +116,25 @@ initial o_bits_0 = 0;
 
 
 
-// task enq_instruction;
-//   input [31:0] bits_1;
-//   input [31:0] bits_0;
-//   begin
-//     while (insns_ready == 0) begin
-//       UpdateWireOuts;
-//       insns_ready = GetWireOutValue(8'h20);
-//       @(posedge okUH[0]);
-//     end
-//     SetWireInValue(8'h04, bits_0, 32'hffff_ffff); // bits0
-//     UpdateWireIns;
-//     SetWireInValue(8'h05, bits_1, 32'hffff_ffff); // bits1
-//     UpdateWireIns;
-//     SetWireInValue(8'h03, 32'h01, 32'hffff_ffff); // valid
-//     UpdateWireIns;
-//     SetWireInValue(8'h03, 32'h00, 32'hffff_ffff); // valid
-//     UpdateWireIns;
-//   end
-// endtask
+task enq_instruction;
+  input [31:0] bits_1;
+  input [31:0] bits_0;
+  begin
+    while (insns_ready == 0) begin
+      UpdateWireOuts;
+      insns_ready = GetWireOutValue(8'h20);
+      @(posedge okUH[0]);
+    end
+    SetWireInValue(8'h04, bits_0, 32'hffff_ffff); // bits0
+    UpdateWireIns;
+    SetWireInValue(8'h05, bits_1, 32'hffff_ffff); // bits1
+    UpdateWireIns;
+    SetWireInValue(8'h03, 32'h01, 32'hffff_ffff); // valid
+    UpdateWireIns;
+    SetWireInValue(8'h03, 32'h00, 32'hffff_ffff); // valid
+    UpdateWireIns;
+  end
+endtask
 // 
 // task enq_inputs;
 //   input [31:0] bits_0;
@@ -166,11 +166,11 @@ initial begin
   UpdateWireIns;
 
   // host steps
-  SetWireInValue(8'h01, 32'h2, 32'hffff_ffff);
+  SetWireInValue(8'h01, 32'h6, 32'hffff_ffff);
   UpdateWireIns;
 
   // used procs
-  SetWireInValue(8'h02, 32'h2, 32'hffff_ffff);
+  SetWireInValue(8'h02, 32'h6, 32'hffff_ffff);
   UpdateWireIns;
 
   // enq_instruction(32'h80, 32'h01);
@@ -190,48 +190,46 @@ initial begin
   // enq_inputs(32'h8);
   // enq_inputs(32'h9);
 
-  // instruction
-  SetWireInValue(8'h04, 32'h01, 32'hffff_ffff);
-  UpdateWireIns;
-  SetWireInValue(8'h05, 32'h80, 32'hffff_ffff);
-  UpdateWireIns;
-  SetWireInValue(8'h03, 32'h01, 32'hffff_ffff);
-  UpdateWireIns;
-  SetWireInValue(8'h03, 32'h00, 32'hffff_ffff);
-  UpdateWireIns;
 
-  // instruction
-  SetWireInValue(8'h04, 32'h0, 32'hffff_ffff);
-  UpdateWireIns;
-  SetWireInValue(8'h05, 32'h100, 32'hffff_ffff);
-  UpdateWireIns;
-  SetWireInValue(8'h03, 32'h01,   32'hffff_ffff);
-  UpdateWireIns;
-  SetWireInValue(8'h03, 32'h00, 32'hffff_ffff);
-  UpdateWireIns;
-
-  // instruction
-  SetWireInValue(8'h04, 32'hb33, 32'hffff_ffff);
-  UpdateWireIns;
-  SetWireInValue(8'h05, 32'h184, 32'hffff_ffff);
-  UpdateWireIns;
-  SetWireInValue(8'h03, 32'h01, 32'hffff_ffff);
-  UpdateWireIns;
-  SetWireInValue(8'h03, 32'h00, 32'hffff_ffff);
-  UpdateWireIns;
-
-  // instruction
-  SetWireInValue(8'h04, 32'hc43, 32'hffff_ffff);
-  UpdateWireIns;
-  SetWireInValue(8'h05, 32'h4, 32'hffff_ffff);
-  UpdateWireIns;
-  SetWireInValue(8'h03, 32'h01, 32'hffff_ffff);
-  UpdateWireIns;
-  SetWireInValue(8'h03, 32'h00, 32'hffff_ffff);
-  UpdateWireIns;
+  enq_instruction(32'h80,  32'h01);
+  enq_instruction(32'h100, 32'h0);
+  enq_instruction(32'h184, 32'hb33);
+  enq_instruction(32'h4,   32'hc43);
+  enq_instruction(32'h58,  32'h14b3);
+  enq_instruction(32'h0,   32'h0);
+  enq_instruction(32'h0,   32'h1);
+  enq_instruction(32'h0,   32'h0);
+  enq_instruction(32'h0,   32'h0);
+  enq_instruction(32'h0,   32'h0);
+  enq_instruction(32'h0,   32'h0);
+  enq_instruction(32'h0,   32'h0);
+  enq_instruction(32'h0,   32'h0);
+  enq_instruction(32'h0,   32'h1);
+  enq_instruction(32'h0,   32'h0);
+  enq_instruction(32'h0,   32'h0);
+  enq_instruction(32'h0,   32'h0);
+  enq_instruction(32'h0,   32'h0);
+  enq_instruction(32'h0,   32'h0);
+  enq_instruction(32'h0,   32'h0);
+  enq_instruction(32'h0,   32'h1);
+  enq_instruction(32'h0,   32'h0);
+  enq_instruction(32'h0,   32'h0);
+  enq_instruction(32'h0,   32'h0);
+  enq_instruction(32'h0,   32'h1005);
+  enq_instruction(32'h0,   32'h4553);
+  enq_instruction(32'h0,   32'h4802);
+  enq_instruction(32'h0,   32'h0);
+  enq_instruction(32'h0,   32'h0);
+  enq_instruction(32'h0,   32'h0);
+  enq_instruction(32'h0,   32'h2005);
+  enq_instruction(32'h0,   32'h4553);
+  enq_instruction(32'h0,   32'h4802);
+  enq_instruction(32'h0,   32'h0);
+  enq_instruction(32'h0,   32'h0);
+  enq_instruction(32'h0,   32'h0);
 
   // inputs
-  SetWireInValue(8'h07, 32'h04, 32'hffff_ffff);
+  SetWireInValue(8'h07, 32'h00, 32'hffff_ffff);
   UpdateWireIns;
   SetWireInValue(8'h06, 32'h01, 32'hffff_ffff);
   UpdateWireIns;
@@ -267,7 +265,7 @@ initial begin
   UpdateWireIns;
 
   // inputs
-  SetWireInValue(8'h07, 32'h04, 32'hffff_ffff);
+  SetWireInValue(8'h07, 32'h09, 32'hffff_ffff);
   UpdateWireIns;
   SetWireInValue(8'h06, 32'h01, 32'hffff_ffff);
   UpdateWireIns;
@@ -285,7 +283,7 @@ initial begin
   UpdateWireIns;
 
   // inputs
-  SetWireInValue(8'h07, 32'h04, 32'hffff_ffff);
+  SetWireInValue(8'h07, 32'h0f, 32'hffff_ffff);
   UpdateWireIns;
   SetWireInValue(8'h06, 32'h01, 32'hffff_ffff);
   UpdateWireIns;
