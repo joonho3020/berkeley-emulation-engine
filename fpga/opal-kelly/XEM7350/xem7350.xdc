@@ -112,6 +112,7 @@ set_property DIFF_TERM FALSE [get_ports {sys_clkp}]
 
 create_clock -name sys_clk -period 5 [get_ports sys_clkp]
 set_clock_groups -asynchronous -group [get_clocks {sys_clk}] -group [get_clocks {mmcm0_clk0 okUH0}]
+# set_false_path -from [get_clocks -of_objects [get_pins okHI/mmcm0/CLKOUT0]] -to [get_clocks -of_objects [get_pins clkwiz/mmcm_adv_inst/CLKOUT0]]
 
 # LEDs #####################################################################
 set_property PACKAGE_PIN T24 [get_ports {led[0]}]

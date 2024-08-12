@@ -32,6 +32,15 @@ assign VREF = 4'bZZZZ;
 wire sys_clk;
 IBUFGDS osc_clk(.O(sys_clk), .I(sys_clkp), .IB(sys_clkn));
 
+// wire dut_clk;
+// wire clk_wiz_locked;
+// 
+// clk_wiz_0_clk_wiz clkwiz(
+//   .clk_in1(sys_clk),
+//   .clk_out1(dut_clk),
+//   .locked(clk_wiz_locked)
+// );
+
 // Target interface bus:
 wire         okClk;
 wire [112:0] okHE;
@@ -87,6 +96,7 @@ assign ep_io_o_bits_0 = {16'h0, io_io_o_bits_0};
 assign led[0] = !io_io_o_valid;
 assign led[1] = !io_io_i_ready;
 assign led[2] = !io_insns_ready;
+// assign led[3] = clk_wiz_locked;
 assign led[3] = reset;
 
 // Instantiate the okHost and connect endpoints.
@@ -118,21 +128,22 @@ okWireOut    okout1(.okHE(okHE), .okEH(okEHx[ 1*65 +: 65 ]), .ep_addr(8'h21), .e
 okWireOut    okout2(.okHE(okHE), .okEH(okEHx[ 2*65 +: 65 ]), .ep_addr(8'h22), .ep_datain(ep_io_o_valid));
 okWireOut    okout3(.okHE(okHE), .okEH(okEHx[ 3*65 +: 65 ]), .ep_addr(8'h23), .ep_datain(ep_io_o_bits_0));
 
-OpalKellyEmulatorModuleTop dut(
+OpalKellyFPGATop dut(
   .clock(sys_clk),
   .reset(reset),
-  .io_host_steps(io_host_steps),
-  .io_used_procs(io_used_procs),
-  .io_insns_ready(io_insns_ready),
-  .io_insns_valid(io_insns_valid),
-  .io_insns_bits_0(io_insns_bits_0),
-  .io_insns_bits_1(io_insns_bits_1),
-  .io_io_i_ready(io_io_i_ready),
-  .io_io_i_valid(io_io_i_valid),
-  .io_io_i_bits_0(io_io_i_bits_0),
-  .io_io_o_ready(io_io_o_ready),
-  .io_io_o_valid(io_io_o_valid),
-  .io_io_o_bits_0(io_io_o_bits_0)
+  .io_host_clock(okClk),
+  .io_host_host_steps(io_host_steps),
+  .io_host_used_procs(io_used_procs),
+  .io_host_insns_ready(io_insns_ready),
+  .io_host_insns_valid(io_insns_valid),
+  .io_host_insns_bits_0(io_insns_bits_0),
+  .io_host_insns_bits_1(io_insns_bits_1),
+  .io_host_io_i_ready(io_io_i_ready),
+  .io_host_io_i_valid(io_io_i_valid),
+  .io_host_io_i_bits_0(io_io_i_bits_0),
+  .io_host_io_o_ready(io_io_o_ready),
+  .io_host_io_o_valid(io_io_o_valid),
+  .io_host_io_o_bits_0(io_io_o_bits_0)
 );
 
 endmodule
