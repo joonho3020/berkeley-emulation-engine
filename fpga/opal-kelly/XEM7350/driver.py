@@ -172,27 +172,27 @@ def main():
   print("enq instructions done")
 
   tester.enq_inputs(0x0)
-  print('bits:',hex(tester.read(tester.addr_map['io_o_bits_0'])),
+  print('bits:',  hex(tester.read(tester.addr_map['io_o_bits_0'])),
         'valid:', hex(tester.read(tester.addr_map['io_o_valid'])))
   tester.write(tester.addr_map['io_o_ready'], 1)
   tester.write(tester.addr_map['io_o_ready'], 0)
 
 
   tester.enq_inputs(0x4)
-  print('bits:',hex(tester.read(tester.addr_map['io_o_bits_0'])),
+  print('bits:',  hex(tester.read(tester.addr_map['io_o_bits_0'])),
         'valid:', hex(tester.read(tester.addr_map['io_o_valid'])))
   tester.write(tester.addr_map['io_o_ready'], 1)
   tester.write(tester.addr_map['io_o_ready'], 0)
 
 
   tester.enq_inputs(0x9)
-  print('bits:',hex(tester.read(tester.addr_map['io_o_bits_0'])),
+  print('bits:',  hex(tester.read(tester.addr_map['io_o_bits_0'])),
         'valid:', hex(tester.read(tester.addr_map['io_o_valid'])))
   tester.write(tester.addr_map['io_o_ready'], 1)
   tester.write(tester.addr_map['io_o_ready'], 0)
 
   tester.enq_inputs(0xf)
-  print('bits:',hex(tester.read(tester.addr_map['io_o_bits_0'])),
+  print('bits:',  hex(tester.read(tester.addr_map['io_o_bits_0'])),
         'valid:', hex(tester.read(tester.addr_map['io_o_valid'])))
   tester.write(tester.addr_map['io_o_ready'], 1)
   tester.write(tester.addr_map['io_o_ready'], 0)
