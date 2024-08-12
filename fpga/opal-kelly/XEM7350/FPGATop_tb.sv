@@ -166,11 +166,11 @@ initial begin
   UpdateWireIns;
 
   // host steps
-  SetWireInValue(8'h01, 32'h6, 32'hffff_ffff);
+  SetWireInValue(8'h01, 32'h2, 32'hffff_ffff);
   UpdateWireIns;
 
   // used procs
-  SetWireInValue(8'h02, 32'h6, 32'hffff_ffff);
+  SetWireInValue(8'h02, 32'h2, 32'hffff_ffff);
   UpdateWireIns;
 
   // enq_instruction(32'h80, 32'h01);
@@ -198,6 +198,108 @@ initial begin
   SetWireInValue(8'h03, 32'h01, 32'hffff_ffff);
   UpdateWireIns;
   SetWireInValue(8'h03, 32'h00, 32'hffff_ffff);
+  UpdateWireIns;
+
+  // instruction
+  SetWireInValue(8'h04, 32'h0, 32'hffff_ffff);
+  UpdateWireIns;
+  SetWireInValue(8'h05, 32'h100, 32'hffff_ffff);
+  UpdateWireIns;
+  SetWireInValue(8'h03, 32'h01,   32'hffff_ffff);
+  UpdateWireIns;
+  SetWireInValue(8'h03, 32'h00, 32'hffff_ffff);
+  UpdateWireIns;
+
+  // instruction
+  SetWireInValue(8'h04, 32'hb33, 32'hffff_ffff);
+  UpdateWireIns;
+  SetWireInValue(8'h05, 32'h184, 32'hffff_ffff);
+  UpdateWireIns;
+  SetWireInValue(8'h03, 32'h01, 32'hffff_ffff);
+  UpdateWireIns;
+  SetWireInValue(8'h03, 32'h00, 32'hffff_ffff);
+  UpdateWireIns;
+
+  // instruction
+  SetWireInValue(8'h04, 32'hc43, 32'hffff_ffff);
+  UpdateWireIns;
+  SetWireInValue(8'h05, 32'h4, 32'hffff_ffff);
+  UpdateWireIns;
+  SetWireInValue(8'h03, 32'h01, 32'hffff_ffff);
+  UpdateWireIns;
+  SetWireInValue(8'h03, 32'h00, 32'hffff_ffff);
+  UpdateWireIns;
+
+  // inputs
+  SetWireInValue(8'h07, 32'h04, 32'hffff_ffff);
+  UpdateWireIns;
+  SetWireInValue(8'h06, 32'h01, 32'hffff_ffff);
+  UpdateWireIns;
+  SetWireInValue(8'h06, 32'h00, 32'hffff_ffff);
+  UpdateWireIns;
+
+  // outputs
+  UpdateWireOuts;
+  o_valid = GetWireOutValue(8'h22);
+  o_bits_0 = GetWireOutValue(8'h23);
+  $display("o_valid: %x o_bit: %x\n", o_valid, o_bits_0);
+  SetWireInValue(8'h08, 32'h01, 32'hffff_ffff);
+  UpdateWireIns;
+  SetWireInValue(8'h08, 32'h00, 32'hffff_ffff);
+  UpdateWireIns;
+
+  // inputs
+  SetWireInValue(8'h07, 32'h04, 32'hffff_ffff);
+  UpdateWireIns;
+  SetWireInValue(8'h06, 32'h01, 32'hffff_ffff);
+  UpdateWireIns;
+  SetWireInValue(8'h06, 32'h00, 32'hffff_ffff);
+  UpdateWireIns;
+
+  // outputs
+  UpdateWireOuts;
+  o_valid = GetWireOutValue(8'h22);
+  o_bits_0 = GetWireOutValue(8'h23);
+  $display("o_valid: %x o_bit: %x\n", o_valid, o_bits_0);
+  SetWireInValue(8'h08, 32'h01, 32'hffff_ffff);
+  UpdateWireIns;
+  SetWireInValue(8'h08, 32'h00, 32'hffff_ffff);
+  UpdateWireIns;
+
+  // inputs
+  SetWireInValue(8'h07, 32'h04, 32'hffff_ffff);
+  UpdateWireIns;
+  SetWireInValue(8'h06, 32'h01, 32'hffff_ffff);
+  UpdateWireIns;
+  SetWireInValue(8'h06, 32'h00, 32'hffff_ffff);
+  UpdateWireIns;
+
+  // outputs
+  UpdateWireOuts;
+  o_valid = GetWireOutValue(8'h22);
+  o_bits_0 = GetWireOutValue(8'h23);
+  $display("o_valid: %x o_bit: %x\n", o_valid, o_bits_0);
+  SetWireInValue(8'h08, 32'h01, 32'hffff_ffff);
+  UpdateWireIns;
+  SetWireInValue(8'h08, 32'h00, 32'hffff_ffff);
+  UpdateWireIns;
+
+  // inputs
+  SetWireInValue(8'h07, 32'h04, 32'hffff_ffff);
+  UpdateWireIns;
+  SetWireInValue(8'h06, 32'h01, 32'hffff_ffff);
+  UpdateWireIns;
+  SetWireInValue(8'h06, 32'h00, 32'hffff_ffff);
+  UpdateWireIns;
+
+  // outputs
+  UpdateWireOuts;
+  o_valid = GetWireOutValue(8'h22);
+  o_bits_0 = GetWireOutValue(8'h23);
+  $display("o_valid: %x o_bit: %x\n", o_valid, o_bits_0);
+  SetWireInValue(8'h08, 32'h01, 32'hffff_ffff);
+  UpdateWireIns;
+  SetWireInValue(8'h08, 32'h00, 32'hffff_ffff);
   UpdateWireIns;
 
   // ready insns_ready

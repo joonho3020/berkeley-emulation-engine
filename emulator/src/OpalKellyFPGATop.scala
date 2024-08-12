@@ -116,17 +116,43 @@ class OpalKellyClockCrossingModule(cfg: ModuleConfig, fpga_cfg: OpalKellyConfig)
     val fpga_io_o  = Flipped(Decoupled(Vec(wire_ins_per_io,   UInt(wire_bits.W))))
   })
 
-  val host_steps_cdc = Module(new xpm_cdc_single(4, 0))
+  val host_steps_cdc = Module(new xpm_cdc_handshake(1, 4, 1, 0, 4, wire_bits))
+  host_steps_cdc.io.dest_ack := host_steps_cdc.io.dest_req
   host_steps_cdc.io.src_clk := io.host_clock
   host_steps_cdc.io.dest_clk := clock
   host_steps_cdc.io.src_in := io.host_host_steps
   io.fpga_host_steps := host_steps_cdc.io.dest_out
 
-  val used_procs_cdc = Module(new xpm_cdc_single(4, 0))
+  withClock (io.host_clock) {
+    val sent_nonzero = RegInit(false.B)
+    val recv_nonzero = RegInit(false.B)
+    host_steps_cdc.io.src_send := !(sent_nonzero && recv_nonzero) && (io.host_host_steps =/= 0.U)
+    when (host_steps_cdc.io.dest_out =/= 0.U) {
+      sent_nonzero := true.B
+    }
+    when (host_steps_cdc.io.src_rcv) {
+      recv_nonzero := true.B
+    }
+  }
+
+  val used_procs_cdc = Module(new xpm_cdc_handshake(1, 4, 1, 0, 4, wire_bits))
+  used_procs_cdc.io.dest_ack := used_procs_cdc.io.dest_req
   used_procs_cdc.io.src_clk := io.host_clock
   used_procs_cdc.io.dest_clk := clock
   used_procs_cdc.io.src_in := io.host_used_procs
   io.fpga_used_procs := used_procs_cdc.io.dest_out
+
+  withClock (io.host_clock) {
+    val sent_nonzero = RegInit(false.B)
+    val recv_nonzero = RegInit(false.B)
+    used_procs_cdc.io.src_send := !(sent_nonzero && recv_nonzero) && (io.host_used_procs =/= 0.U)
+    when (used_procs_cdc.io.dest_out =/= 0.U) {
+      sent_nonzero := true.B
+    }
+    when (used_procs_cdc.io.src_rcv) {
+      recv_nonzero := true.B
+    }
+  }
 
   val insns_cdc = Module(new DecoupledClockCrossingModule(wire_ins_per_insn, wire_bits))
   insns_cdc.io.in_clock := io.host_clock
