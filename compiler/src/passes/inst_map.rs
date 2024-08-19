@@ -75,7 +75,7 @@ pub fn map_instructions(circuit: &mut Circuit) {
                 });
             } else {
                 node_inst.operands.push(Operand {
-                    rs: parent.get_info().pc + circuit.emulator.cfg.network_latency,
+                    rs: parent.get_info().pc + circuit.emulator.cfg.network_lat,
                     local: false,
                     idx: op_idx as u32,
                 });
@@ -91,7 +91,7 @@ pub fn map_instructions(circuit: &mut Circuit) {
             if child.get_info().proc != node.get_info().proc {
                 let child_insts = all_insts.get_mut(child.get_info().proc as usize).unwrap();
                 let child_inst = child_insts
-                    .get_mut((node.get_info().pc + circuit.emulator.cfg.network_latency) as usize)
+                    .get_mut((node.get_info().pc + circuit.emulator.cfg.network_lat) as usize)
                     .unwrap();
                 child_inst.valid = true;
                 child_inst.sin.idx = node.get_info().proc;

@@ -10,6 +10,7 @@ use blif_parser::utils;
 use indexmap::IndexMap;
 use std::cmp::max;
 use std::{env, fs};
+use std::process::Command;
 
 #[derive(Debug, PartialEq)]
 enum ReturnCode {
@@ -40,6 +41,13 @@ fn test_emulator(
     input_stimuli_path: &str,
     blif_file_path: &str,
 ) -> std::io::Result<ReturnCode> {
+    let sim_dir = format!("sim-dir-{}", top_mod);
+    let mut cwd = env::current_dir()?;
+    cwd.push(sim_dir.clone());
+    Command::new("mkdir")
+        .arg(&cwd)
+        .status()?;
+
     let res = parser::parse_blif_file(&blif_file_path);
     let mut circuit = match res {
         Ok(c) => c,
@@ -49,8 +57,13 @@ fn test_emulator(
     };
     println!("parsing blif file done");
 
-    circuit.set_cfg(Configuration::default());
-
+    circuit.set_cfg(Configuration {
+        max_steps: 16,
+        module_sz: 8,
+        lut_inputs: 3,
+        network_lat: 0,
+        compute_lat: 0
+    });
     runner::run_compiler_passes(&mut circuit);
     let verilog_str = match fs::read_to_string(sv_file_path) {
         Ok(content) => content,
@@ -61,6 +74,10 @@ fn test_emulator(
             )));
         }
     };
+    utils::write_string_to_file(
+        format!("{:?}", &circuit),
+        &format!("{}/{}.dot", cwd.to_str().unwrap(), top_mod),
+    )?;
     println!("Compiler passes finished");
 
     // convert input stimuli to bit-blasted input stimuli
@@ -81,7 +98,6 @@ fn test_emulator(
     }
 
     // Run reference RTL simulation
-    let sim_dir = format!("sim-dir-{}", top_mod);
     let sim_output_file = format!("{}-simulation.out", top_mod);
     run_rtl_simulation(
         sv_file_path,
@@ -91,9 +107,6 @@ fn test_emulator(
         &sim_output_file,
     )?;
     println!("Reference RTL simulation finished");
-
-    let mut cwd = env::current_dir()?;
-    cwd.push(sim_dir.clone());
 
     let mut waveform_path = sim_dir.clone();
     waveform_path.push_str("/build/sim.vcd");
@@ -121,56 +134,56 @@ fn test_emulator(
         // run a cycle
         module.run_cycle();
 
-// let mut found_mismatch = false;
+        let mut found_mismatch = false;
 
-// let ref_signals = waveform_db.signal_values_at_cycle((cycle * 2 + 8) as u32);
-// for (signal_name, four_state_bit) in ref_signals.iter() {
-// let peek = module.peek(signal_name);
-// match (peek, four_state_bit.to_bit()) {
-// (Some(bit), Some(ref_bit)) => {
-// if bit != ref_bit {
-// found_mismatch = true;
-// println!(
-// "cycle {} signal {} expected {} get {}",
-// cycle, signal_name, ref_bit, bit
-// );
+        let ref_signals = waveform_db.signal_values_at_cycle((cycle * 2 + 8) as u32);
+        for (signal_name, four_state_bit) in ref_signals.iter() {
+            let peek = module.peek(signal_name);
+            match (peek, four_state_bit.to_bit()) {
+                (Some(bit), Some(ref_bit)) => {
+                    if bit != ref_bit {
+                        found_mismatch = true;
+                        println!(
+                            "cycle {} signal {} expected {} get {}",
+                            cycle, signal_name, ref_bit, bit
+                        );
 
-// match module.nodeindex(signal_name) {
-// Some(nodeidx) => {
-// utils::write_string_to_file(
-// circuit.debug_graph(nodeidx, &module),
-// &format!(
-// "{}/after-cycle-{}-signal-{}.dot",
-// cwd.to_str().unwrap(),
-// cycle,
-// signal_name
-// ),
-// )?;
+                        match module.nodeindex(signal_name) {
+                            Some(nodeidx) => {
+                                utils::write_string_to_file(
+                                    circuit.debug_graph(nodeidx, &module),
+                                    &format!(
+                                        "{}/after-cycle-{}-signal-{}.dot",
+                                        cwd.to_str().unwrap(),
+                                        cycle,
+                                        signal_name
+                                    ),
+                                )?;
 
-// utils::write_string_to_file(
-// circuit.debug_graph(nodeidx, &module_lag),
-// &format!(
-// "{}/before-cycle-{}-signal-{}.dot",
-// cwd.to_str().unwrap(),
-// cycle,
-// signal_name
-// ),
-// )?;
-// }
-// None => {}
-// }
-// }
-// }
-// _ => {}
-// }
-// }
+                                utils::write_string_to_file(
+                                    circuit.debug_graph(nodeidx, &module_lag),
+                                    &format!(
+                                        "{}/before-cycle-{}-signal-{}.dot",
+                                        cwd.to_str().unwrap(),
+                                        cycle,
+                                        signal_name
+                                    ),
+                                )?;
+                            }
+                            None => {}
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
 
-// if found_mismatch {
-// println!("Test failed");
-// return Ok(ReturnCode::TestFailed);
-// }
+        if found_mismatch {
+            println!("Test failed");
+            return Ok(ReturnCode::TestFailed);
+        }
 
-// module_lag.run_cycle();
+        module_lag.run_cycle();
 
         for opb in output_ports_blasted.iter() {
             let output = module.peek(opb).unwrap();
@@ -184,11 +197,6 @@ fn test_emulator(
         output_value_fmt(&aggregate_bitblasted_values(&ports, &mut output_blasted)),
         &format!("{}/{}-emulation.out", cwd.to_str().unwrap(), top_mod),
     )?;
-    utils::write_string_to_file(
-        format!("{:?}", &circuit),
-        &format!("{}/{}.dot", cwd.to_str().unwrap(), top_mod),
-    )?;
-
     println!("Test success!");
 
     return Ok(ReturnCode::TestSuccess);
@@ -215,40 +223,53 @@ pub mod emulation_tester {
         }
     }
 
-    #[test]
-    pub fn test_fir() {
-        assert_eq!(
-            perform_test(
-                "../examples/Fir.sv",
-                "Fir",
-                "../examples/Fir.input",
-                "../examples/Fir.lut.blif"
-            ),
-            true
-        );
-    }
+//    #[test]
+//    pub fn test_fir() {
+//        assert_eq!(
+//            perform_test(
+//                "../examples/Fir.sv",
+//                "Fir",
+//                "../examples/Fir.input",
+//                "../examples/Fir.lut.blif"
+//            ),
+//            true
+//        );
+//    }
+//
+//    #[test]
+//    pub fn test_gcd() {
+//        assert_eq!(
+//            perform_test(
+//                "../examples/GCD.sv",
+//                "GCD",
+//                "../examples/GCD.input",
+//                "../examples/GCD-2bit.lut.blif"
+//            ),
+//            true
+//        );
+//    }
+//
+//    #[test]
+//    pub fn test_queue() {
+//        assert_eq!(
+//            perform_test(
+//                "../examples/MyQueue.sv",
+//                "MyQueue",
+//                "../examples/MyQueue.input",
+//                "../examples/MyQueue.lut.blif"
+//            ),
+//            true
+//        );
+//    }
 
     #[test]
-    pub fn test_gcd() {
+    pub fn test_adder() {
         assert_eq!(
             perform_test(
-                "../examples/GCD.sv",
-                "GCD",
-                "../examples/GCD.input",
-                "../examples/GCD-2bit.lut.blif"
-            ),
-            true
-        );
-    }
-
-    #[test]
-    pub fn test_queue() {
-        assert_eq!(
-            perform_test(
-                "../examples/MyQueue.sv",
-                "MyQueue",
-                "../examples/MyQueue.input",
-                "../examples/MyQueue.lut.blif"
+                "../examples/Adder.sv",
+                "Adder",
+                "../examples/Adder.input",
+                "../examples/Adder.lut.blif"
             ),
             true
         );

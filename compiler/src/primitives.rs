@@ -500,13 +500,16 @@ impl Debug for Module {
 /// - Configuration of the underlying hardware emulation platform
 #[derive(Debug, Clone, Serialize)]
 pub struct Configuration {
-    pub max_steps: u32,
     /// Maximum host steps that can be run
-    pub module_sz: u32,
+    pub max_steps: u32,
     /// Number of processor in a module
-    pub lut_inputs: u32,
+    pub module_sz: u32,
     /// Number of lut inputs
-    pub network_latency: u32,
+    pub lut_inputs: u32,
+    /// Latency of the switch network
+    pub network_lat: u32,
+    /// Numer of cycles to perform
+    pub compute_lat: u32,
 }
 
 impl Default for Configuration {
@@ -515,7 +518,8 @@ impl Default for Configuration {
             max_steps: 128,
             module_sz: 64,
             lut_inputs: 3,
-            network_latency: 0,
+            network_lat: 0,
+            compute_lat: 0,
         }
     }
 }
@@ -554,6 +558,16 @@ impl Configuration {
     /// number of bits for the LUT
     pub fn lut_bits(self: &Self) -> u32 {
         1 << self.lut_inputs
+    }
+
+    /// Cost function for performing local compute within a processor
+    pub fn compute_cost(self: &Self) -> u32 {
+        self.compute_lat + 1
+    }
+
+    /// Cost function for performing inter-processor communication
+    pub fn network_cost(self: &Self) -> u32 {
+        self.network_lat + 2
     }
 }
 
@@ -708,6 +722,58 @@ impl Circuit {
         }
         outstring.push_str("}");
         return outstring;
+    }
+
+    pub fn topo_sorted_nodes(&self) -> Vec<NodeIndex> {
+        // Search for flip-flop nodes
+        let mut ff_nodes: Vec<NodeIndex> = vec![];
+        for nidx in self.graph.node_indices() {
+            let node = self.graph.node_weight(nidx).unwrap();
+            match node.is() {
+                Primitives::Latch | Primitives::Gate => {
+                    ff_nodes.push(nidx);
+                }
+                _ => {}
+            }
+        }
+
+        // Push Input & FF nodes
+        let mut q: Vec<NodeIndex> = vec![];
+        for nidx in self.io_i.keys() {
+            q.push(*nidx);
+        }
+        for nidx in ff_nodes.iter() {
+            q.push(*nidx);
+        }
+
+        // compute indeg
+        let mut indeg: IndexMap<NodeIndex, u32> = IndexMap::new();
+        for nidx in self.graph.node_indices() {
+            indeg.insert(nidx, 0);
+        }
+        for eidx in self.graph.edge_indices() {
+            let e = self.graph.edge_endpoints(eidx).unwrap();
+            let dst = e.1;
+            *indeg.get_mut(&dst).unwrap() += 1;
+        }
+
+        // BFS
+        let mut topo_sort_order: Vec<NodeIndex> = vec![];
+        let mut vis_map = self.graph.visit_map();
+        while !q.is_empty() {
+            let nidx = q.remove(0);
+            vis_map.visit(nidx);
+            topo_sort_order.push(nidx);
+
+            let mut childs = self.graph.neighbors_directed(nidx, Outgoing).detach();
+            while let Some(cidx) = childs.next_node(&self.graph) {
+                *indeg.get_mut(&cidx).unwrap() -= 1;
+                if *indeg.get(&cidx).unwrap() == 0 && !vis_map.is_visited(&cidx) {
+                    q.push(cidx);
+                }
+            }
+        }
+        return topo_sort_order;
     }
 }
 
