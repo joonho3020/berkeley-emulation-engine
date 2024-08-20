@@ -150,11 +150,11 @@ impl Module {
     }
 
     pub fn run_cycle(self: &mut Self) {
-        println!("=============================================================");
+// println!("=============================================================");
         for i in 0..self.host_steps {
             self.step();
-            println!("pc: {}", i);
-            self.print_2();
+// println!("pc: {}", i);
+// self.print_2();
         }
     }
 

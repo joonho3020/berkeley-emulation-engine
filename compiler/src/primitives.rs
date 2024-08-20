@@ -496,6 +496,23 @@ impl Debug for Module {
     }
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct KaMinParConfig {
+    pub seed: u64,
+    pub epsilon: f64,
+    pub nthreads: u32,
+}
+
+impl Default for KaMinParConfig {
+    fn default() -> Self {
+        KaMinParConfig {
+            seed: 123,
+            epsilon: 0.03,
+            nthreads: 8
+        }
+    }
+}
+
 /// # Context
 /// - Configuration of the underlying hardware emulation platform
 #[derive(Debug, Clone, Serialize)]
@@ -510,6 +527,8 @@ pub struct Configuration {
     pub network_lat: u32,
     /// Numer of cycles to perform
     pub compute_lat: u32,
+    /// Configuration for KaMinPar partitioning
+    pub kaminpar: KaMinParConfig
 }
 
 impl Default for Configuration {
@@ -520,6 +539,7 @@ impl Default for Configuration {
             lut_inputs: 3,
             network_lat: 0,
             compute_lat: 0,
+            kaminpar: KaMinParConfig::default(),
         }
     }
 }

@@ -3,6 +3,7 @@ use blif_parser::fsim::module::*;
 use blif_parser::passes::parser;
 use blif_parser::passes::runner;
 use blif_parser::primitives::Configuration;
+use blif_parser::primitives::KaMinParConfig;
 use blif_parser::rtlsim::ref_rtlsim_testharness::*;
 use blif_parser::rtlsim::rtlsim_utils::*;
 use blif_parser::rtlsim::vcdparser::*;
@@ -58,11 +59,12 @@ fn test_emulator(
     println!("parsing blif file done");
 
     circuit.set_cfg(Configuration {
-        max_steps: 16,
+        max_steps: 128,
         module_sz: 8,
         lut_inputs: 3,
         network_lat: 0,
-        compute_lat: 0
+        compute_lat: 0,
+        kaminpar: KaMinParConfig::default()
     });
     runner::run_compiler_passes(&mut circuit);
     let verilog_str = match fs::read_to_string(sv_file_path) {
@@ -223,44 +225,44 @@ pub mod emulation_tester {
         }
     }
 
-//    #[test]
-//    pub fn test_fir() {
-//        assert_eq!(
-//            perform_test(
-//                "../examples/Fir.sv",
-//                "Fir",
-//                "../examples/Fir.input",
-//                "../examples/Fir.lut.blif"
-//            ),
-//            true
-//        );
-//    }
-//
-//    #[test]
-//    pub fn test_gcd() {
-//        assert_eq!(
-//            perform_test(
-//                "../examples/GCD.sv",
-//                "GCD",
-//                "../examples/GCD.input",
-//                "../examples/GCD-2bit.lut.blif"
-//            ),
-//            true
-//        );
-//    }
-//
-//    #[test]
-//    pub fn test_queue() {
-//        assert_eq!(
-//            perform_test(
-//                "../examples/MyQueue.sv",
-//                "MyQueue",
-//                "../examples/MyQueue.input",
-//                "../examples/MyQueue.lut.blif"
-//            ),
-//            true
-//        );
-//    }
+    #[test]
+    pub fn test_fir() {
+        assert_eq!(
+            perform_test(
+                "../examples/Fir.sv",
+                "Fir",
+                "../examples/Fir.input",
+                "../examples/Fir.lut.blif"
+            ),
+            true
+        );
+    }
+
+    #[test]
+    pub fn test_gcd() {
+        assert_eq!(
+            perform_test(
+                "../examples/GCD.sv",
+                "GCD",
+                "../examples/GCD.input",
+                "../examples/GCD-2bit.lut.blif"
+            ),
+            true
+        );
+    }
+
+    #[test]
+    pub fn test_queue() {
+        assert_eq!(
+            perform_test(
+                "../examples/MyQueue.sv",
+                "MyQueue",
+                "../examples/MyQueue.input",
+                "../examples/MyQueue.lut.blif"
+            ),
+            true
+        );
+    }
 
     #[test]
     pub fn test_adder() {
