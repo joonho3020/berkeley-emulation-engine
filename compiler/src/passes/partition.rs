@@ -88,5 +88,4 @@ fn kaminpar_partition(circuit: &mut Circuit) {
             println!("Kaminpar partitioning failed");
         }
     }
-
 }
