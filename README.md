@@ -4,6 +4,12 @@
 
 ## Example usage
 
+### Base conda env
+
+```bash
+conda-lock install -p <conda env installation path> scripts/conda-lock.yml
+```
+
 ### Setup yosys (can be skipped if yosys is already installed)
 
 ```bash

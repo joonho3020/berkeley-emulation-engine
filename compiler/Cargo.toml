@@ -18,4 +18,4 @@ indexmap = { version = "2.2.6", features=["serde"] }
 strum = "0.26.3"
 strum_macros = "0.26.4"
 itertools = "0.13.0"
-# kaminpar = { git = "https://github.com/joonho3020/kaminpar-rs.git", branch = "joonho-main" }
+kaminpar = { git = "https://github.com/joonho3020/kaminpar-rs.git", branch = "joonho-main" }
