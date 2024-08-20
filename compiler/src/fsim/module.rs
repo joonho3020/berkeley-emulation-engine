@@ -130,8 +130,8 @@ impl Module {
         }
     }
 
-    pub fn poke(self: &mut Self, signal: String, val: Bit) -> Option<Bit> {
-        match self.signal_map.get(&signal) {
+    pub fn poke(self: &mut Self, signal: &str, val: Bit) -> Option<Bit> {
+        match self.signal_map.get(signal) {
             Some(map) => {
                 let inst = self.procs[map.info.proc as usize].imem[map.info.pc as usize].clone();
                 if inst.opcode == Primitives::Input {
@@ -149,12 +149,17 @@ impl Module {
         }
     }
 
-    pub fn run_cycle(self: &mut Self) {
-// println!("=============================================================");
-        for i in 0..self.host_steps {
+    pub fn run_cycle(self: &mut Self, input_stimuli: &IndexMap<u32, Vec<(&str, Bit)>>) {
+        for step in 0..self.host_steps {
+            match input_stimuli.get(&(step as u32)) {
+                Some(vec) => {
+                    for (sig, bit) in vec.iter() {
+                        self.poke(sig, *bit);
+                    }
+                }
+                None => {}
+            };
             self.step();
-// println!("pc: {}", i);
-// self.print_2();
         }
     }
 

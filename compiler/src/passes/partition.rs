@@ -2,7 +2,7 @@ use crate::primitives::*;
 use petgraph::{
     graph::NodeIndex,
     visit::{VisitMap, Visitable},
-    Direction::Outgoing, Undirected,
+    Direction::Outgoing
 };
 
 fn set_proc(

@@ -102,30 +102,39 @@ fn test_emulator(
     waveform_path.push_str("/build/sim.vcd");
     let mut waveform_db = WaveformDB::new(waveform_path);
 
-    let mut module = Module::from_circuit(&circuit);
+    let mut module     = Module::from_circuit(&circuit);
     let mut module_lag = Module::from_circuit(&circuit);
 
-    let cycles = input_stimuli_blasted
-        .values()
-        .fold(0, |x, y| max(x, y.len()));
+    let cycles = input_stimuli_blasted.values().fold(0, |x, y| max(x, y.len()));
     for cycle in 0..cycles {
-        // poke inputs
+
+        // Collect input stimuli for the current cycle by name
+        let mut input_stimuli_by_name: IndexMap<String, Bit> = IndexMap::new();
         for key in input_stimuli_blasted.keys() {
             let val = input_stimuli_blasted[key].get(cycle);
             match val {
-                Some(b) => {
-                    let _ = module.poke(key.to_string(), *b as Bit);
-                    let _ = module_lag.poke(key.to_string(), *b as Bit);
-                }
-                None => {}
+                Some(b) => input_stimuli_by_name.insert(key.to_string(), *b as Bit),
+                None => None
+            };
+        }
+
+        // Find the step at which the input has to be poked
+        // Save that in the input_stimuli_by_step
+        let mut input_stimuli_by_step: IndexMap<u32, Vec<(&str, Bit)>> = IndexMap::new();
+        for (sig, bit) in input_stimuli_by_name.iter() {
+            let nidx = module.nodeindex(sig).unwrap();
+            let pc = circuit.graph.node_weight(nidx).unwrap().get_info().pc;
+            if input_stimuli_by_step.get(&pc) == None {
+                input_stimuli_by_step.insert(pc, vec![]);
             }
+            input_stimuli_by_step.get_mut(&pc).unwrap().push((sig, *bit));
         }
 
         // run a cycle
-        module.run_cycle();
+        module.run_cycle(&input_stimuli_by_step);
 
+        // Compare the emulated signals with the reference RTL simulation
         let mut found_mismatch = false;
-
         let ref_signals = waveform_db.signal_values_at_cycle((cycle * 2 + 8) as u32);
         for (signal_name, four_state_bit) in ref_signals.iter() {
             let peek = module.peek(signal_name);
@@ -173,7 +182,7 @@ fn test_emulator(
             return Ok(ReturnCode::TestFailed);
         }
 
-        module_lag.run_cycle();
+        module_lag.run_cycle(&input_stimuli_by_step);
 
         for opb in output_ports_blasted.iter() {
             let output = module.peek(opb).unwrap();
