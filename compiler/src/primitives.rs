@@ -507,7 +507,7 @@ impl Default for KaMinParConfig {
         KaMinParConfig {
             seed: 123,
             epsilon: 0.03,
-            nthreads: 8
+            nthreads: 1
         }
     }
 }
@@ -619,17 +619,26 @@ impl Circuit {
     }
 
     pub fn save_emulator_instructions(&self, file_path: &str) -> std::io::Result<()> {
+        let mut nops = 0;
+        let total = self.emulator.host_steps * self.emulator.used_procs;
+
         let mut inst_str = "".to_string();
         for (pi, proc_insts) in self.emulator.instructions.iter().enumerate() {
             inst_str.push_str(&format!("------------ processor {} ------------\n", pi));
             for (i, inst) in proc_insts.iter().enumerate() {
                 if (i as u32) < self.emulator.host_steps {
                     inst_str.push_str(&format!("{} {:?}\n", i, inst));
+                    match inst.opcode {
+                        Primitives::NOP => nops += 1,
+                        _ => ()
+                    };
                 } else {
                     break;
                 }
             }
         }
+        inst_str.push_str(&format!("Overal stats\nNOPs: {}\nTotal insts: {}\nUtilization: {}%\n",
+                                   nops, total, ((total - nops) as f32)/(total as f32) * 100 as f32));
         write_string_to_file(inst_str, &file_path)
     }
 

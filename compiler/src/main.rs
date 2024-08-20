@@ -55,7 +55,7 @@ fn test_emulator(
     runner::run_compiler_passes(&mut circuit);
 
     circuit.save_emulator_instructions(
-        &format!("{}/instructions", cwd.to_str().unwrap()))?;
+        &format!("{}/{}.insts", cwd.to_str().unwrap(), args.top_mod))?;
     circuit.save_graph_pdf(
         &format!("{}/{}.dot", cwd.to_str().unwrap(), args.top_mod),
         &format!("{}/{}.pdf", cwd.to_str().unwrap(), args.top_mod))?;
