@@ -3,23 +3,13 @@ use blif_parser::passes::runner;
 use blif_parser::primitives::Configuration;
 use blif_parser::rtlsim::emul_rtlsim_testharness::generate_emulator_testbench;
 use blif_parser::rtlsim::rtlsim_utils::*;
-use blif_parser::utils::write_string_to_file;
-use std::env;
+use blif_parser::utils::*;
 use std::fs;
+use clap::Parser;
 
 fn main() -> std::io::Result<()> {
-    let args: Vec<String> = env::args().collect();
-    if args.len() < 5 {
-        println!("Usage: cargo run --bin blif-parser -- <sv input path> <top module name> <input stimuli file> <blif input path>");
-        return Ok(());
-    }
-
-    let sv_file_path = &args[1];
-    let top_mod = &args[2];
-    let input_stimuli_path = &args[3];
-    let blif_file_path = &args[4];
-
-    let verilog_str = match fs::read_to_string(sv_file_path) {
+    let args = Args::parse();
+    let verilog_str = match fs::read_to_string(args.sv_file_path) {
         Ok(content) => content,
         Err(e) => {
             return Err(std::io::Error::other(format!(
@@ -30,11 +20,11 @@ fn main() -> std::io::Result<()> {
     };
 
     // convert input stimuli to bit-blasted input stimuli
-    let ports = get_io(verilog_str.to_string(), top_mod.to_string());
-    let input_stimuli = get_input_stimuli(input_stimuli_path);
+    let ports = get_io(verilog_str.to_string(), args.top_mod.to_string());
+    let input_stimuli = get_input_stimuli(&args.input_stimuli_path);
     let input_stimuli_blasted = bitblast_input_stimuli(&input_stimuli, &ports);
 
-    let res = parser::parse_blif_file(&blif_file_path);
+    let res = parser::parse_blif_file(&args.blif_file_path);
     let mut circuit = match res {
         Ok(c) => c,
         Err(e) => {

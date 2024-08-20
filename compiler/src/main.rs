@@ -7,11 +7,12 @@ use blif_parser::primitives::KaMinParConfig;
 use blif_parser::rtlsim::ref_rtlsim_testharness::*;
 use blif_parser::rtlsim::rtlsim_utils::*;
 use blif_parser::rtlsim::vcdparser::*;
-use blif_parser::utils;
+use blif_parser::utils::*;
 use indexmap::IndexMap;
 use std::cmp::max;
 use std::{env, fs};
 use std::process::Command;
+use clap::Parser;
 
 #[derive(Debug, PartialEq)]
 enum ReturnCode {
@@ -20,44 +21,29 @@ enum ReturnCode {
 }
 
 fn main() -> std::io::Result<()> {
-    let args: Vec<String> = env::args().collect();
-    if args.len() < 5 {
-        println!("Usage: cargo run --bin blif-parser -- <sv input path> <top module name> <input stimuli file> <blif input path>");
-        return Ok(());
-    }
-
-    let sv_file_path = &args[1];
-    let top_mod = &args[2];
-    let input_stimuli_path = &args[3];
-    let blif_file_path = &args[4];
-
-    let _ = test_emulator(sv_file_path, top_mod, input_stimuli_path, blif_file_path);
-
+    let args = Args::parse();
+    let _ = test_emulator(args);
     Ok(())
 }
 
 fn test_emulator(
-    sv_file_path: &str,
-    top_mod: &str,
-    input_stimuli_path: &str,
-    blif_file_path: &str,
+    args: Args
 ) -> std::io::Result<ReturnCode> {
-    let sim_dir = format!("sim-dir-{}", top_mod);
+    let sim_dir = format!("sim-dir-{}", args.top_mod);
     let mut cwd = env::current_dir()?;
     cwd.push(sim_dir.clone());
-    Command::new("mkdir")
-        .arg(&cwd)
-        .status()?;
+    Command::new("mkdir").arg(&cwd).status()?;
 
-    let res = parser::parse_blif_file(&blif_file_path);
+    println!("Parsing blif file");
+    let res = parser::parse_blif_file(&args.blif_file_path);
     let mut circuit = match res {
         Ok(c) => c,
         Err(e) => {
             return Err(std::io::Error::other(format!("{}", e)));
         }
     };
-    println!("parsing blif file done");
 
+    println!("Running compiler passes");
     circuit.set_cfg(Configuration {
         max_steps: 128,
         module_sz: 8,
@@ -67,7 +53,14 @@ fn test_emulator(
         kaminpar: KaMinParConfig::default()
     });
     runner::run_compiler_passes(&mut circuit);
-    let verilog_str = match fs::read_to_string(sv_file_path) {
+
+    circuit.save_emulator_instructions(
+        &format!("{}/instructions", cwd.to_str().unwrap()))?;
+    circuit.save_graph_pdf(
+        &format!("{}/{}.dot", cwd.to_str().unwrap(), args.top_mod),
+        &format!("{}/{}.pdf", cwd.to_str().unwrap(), args.top_mod))?;
+
+    let verilog_str = match fs::read_to_string(&args.sv_file_path) {
         Ok(content) => content,
         Err(e) => {
             return Err(std::io::Error::other(format!(
@@ -76,15 +69,10 @@ fn test_emulator(
             )));
         }
     };
-    utils::write_string_to_file(
-        format!("{:?}", &circuit),
-        &format!("{}/{}.dot", cwd.to_str().unwrap(), top_mod),
-    )?;
-    println!("Compiler passes finished");
 
     // convert input stimuli to bit-blasted input stimuli
-    let ports = get_io(verilog_str.to_string(), top_mod.to_string());
-    let input_stimuli = get_input_stimuli(input_stimuli_path);
+    let ports = get_io(verilog_str.to_string(), args.top_mod.to_string());
+    let input_stimuli = get_input_stimuli(&args.input_stimuli_path);
     let input_stimuli_blasted = bitblast_input_stimuli(&input_stimuli, &ports);
 
     // bit-blasted output stimuli
@@ -100,11 +88,11 @@ fn test_emulator(
     }
 
     // Run reference RTL simulation
-    let sim_output_file = format!("{}-simulation.out", top_mod);
+    let sim_output_file = format!("{}-simulation.out", args.top_mod);
     run_rtl_simulation(
-        sv_file_path,
-        top_mod,
-        input_stimuli_path,
+        &args.sv_file_path,
+        &args.top_mod,
+        &args.input_stimuli_path,
         &sim_dir,
         &sim_output_file,
     )?;
@@ -152,7 +140,7 @@ fn test_emulator(
 
                         match module.nodeindex(signal_name) {
                             Some(nodeidx) => {
-                                utils::write_string_to_file(
+                                write_string_to_file(
                                     circuit.debug_graph(nodeidx, &module),
                                     &format!(
                                         "{}/after-cycle-{}-signal-{}.dot",
@@ -162,7 +150,7 @@ fn test_emulator(
                                     ),
                                 )?;
 
-                                utils::write_string_to_file(
+                                write_string_to_file(
                                     circuit.debug_graph(nodeidx, &module_lag),
                                     &format!(
                                         "{}/before-cycle-{}-signal-{}.dot",
@@ -193,11 +181,9 @@ fn test_emulator(
         }
     }
 
-    circuit.save_emulator_instructions(format!("{}/instructions", cwd.to_str().unwrap()))?;
-
-    utils::write_string_to_file(
+    write_string_to_file(
         output_value_fmt(&aggregate_bitblasted_values(&ports, &mut output_blasted)),
-        &format!("{}/{}-emulation.out", cwd.to_str().unwrap(), top_mod),
+        &format!("{}/{}-emulation.out", cwd.to_str().unwrap(), args.top_mod),
     )?;
     println!("Test success!");
 
@@ -214,14 +200,15 @@ pub mod emulation_tester {
         input_stimuli_path: &str,
         blif_file_path: &str,
     ) -> bool {
-        let ret = test_emulator(sv_file_path, top_mod, input_stimuli_path, blif_file_path);
+        let ret = test_emulator(Args {
+            sv_file_path:       sv_file_path.to_string(),
+            top_mod:            top_mod.to_string(),
+            input_stimuli_path: input_stimuli_path.to_string(),
+            blif_file_path:     blif_file_path.to_string()
+        });
         match ret {
-            Ok(rc) => {
-                return rc == ReturnCode::TestSuccess;
-            }
-            Err(_) => {
-                return false;
-            }
+            Ok(rc) => return rc == ReturnCode::TestSuccess,
+            Err(_) => return false
         }
     }
 

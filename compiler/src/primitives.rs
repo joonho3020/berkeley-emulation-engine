@@ -3,7 +3,6 @@ use crate::fsim::module::Module as EmulModule;
 use crate::utils::write_string_to_file;
 use indexmap::IndexMap;
 use petgraph::{
-    dot::{Config, Dot},
     graph::{Graph, NodeIndex},
     visit::{EdgeRef, VisitMap, Visitable},
     Direction::{Incoming, Outgoing},
@@ -11,10 +10,10 @@ use petgraph::{
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Serialize, Serializer};
 use std::{
-    cmp::{max, Ordering},
+    fs,
+    process::{Command, Stdio},
+    cmp::Ordering,
     fmt::Debug,
-    fs::File,
-    io::Write,
 };
 use strum::EnumCount;
 use strum_macros::EnumCount as EnumCountMacro;
@@ -615,52 +614,11 @@ impl Circuit {
         self.emulator.cfg = cfg;
     }
 
-    pub fn proc_subgraph(&self, proc_id: u32) -> Graph<&Box<dyn HWNode>, &String> {
-        return self.graph.filter_map(
-            |_, y| {
-                if y.clone().get_info().proc == proc_id {
-                    Some(y)
-                } else {
-                    None
-                }
-            },
-            |_, y| Some(y),
-        );
-    }
-
-    pub fn save_all_subgraphs(&self, file_pfx: String) -> std::io::Result<()> {
-        // save main graph
-        let mut file = File::create(format!("{}-tot.dot", file_pfx))?;
-        write!(
-            &mut file,
-            "{:?}",
-            Dot::with_config(&self.graph, &[Config::EdgeNoLabel])
-        )?;
-
-        // save subgraphs
-        let mut max_proc = 0;
-        for nidx in self.graph.node_indices() {
-            let node = self.graph.node_weight(nidx).unwrap();
-            max_proc = max(max_proc, node.clone().get_info().proc);
-        }
-
-        for proc_id in 0..(max_proc + 1) {
-            let psg = self.proc_subgraph(proc_id);
-            let mut file = File::create(format!("{}-{}.dot", file_pfx, proc_id))?;
-            write!(
-                &mut file,
-                "{:?}",
-                Dot::with_config(&psg, &[Config::EdgeNoLabel])
-            )?;
-        }
-        Ok(())
-    }
-
     pub fn save_emulator_info(&self, file_path: String) -> std::io::Result<()> {
         write_string_to_file(serde_json::to_string_pretty(&self.emulator)?, &file_path)
     }
 
-    pub fn save_emulator_instructions(&self, file_path: String) -> std::io::Result<()> {
+    pub fn save_emulator_instructions(&self, file_path: &str) -> std::io::Result<()> {
         let mut inst_str = "".to_string();
         for (pi, proc_insts) in self.emulator.instructions.iter().enumerate() {
             inst_str.push_str(&format!("------------ processor {} ------------\n", pi));
@@ -673,6 +631,23 @@ impl Circuit {
             }
         }
         write_string_to_file(inst_str, &file_path)
+    }
+
+    pub fn save_graph_pdf(&self, dot_file: &str, pdf_file: &str) -> std::io::Result<()> {
+        write_string_to_file(
+            format!("{:?}", &self),
+            dot_file)?;
+
+        let file = fs::File::create(pdf_file).unwrap();
+        let stdio = Stdio::from(file);
+
+        Command::new("dot")
+            .arg(dot_file)
+            .arg("-Tpdf")
+            .stdout(stdio)
+            .status()?;
+
+        Ok(())
     }
 
     /// #debug_graph

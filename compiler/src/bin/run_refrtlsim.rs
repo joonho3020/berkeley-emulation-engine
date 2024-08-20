@@ -1,25 +1,18 @@
 use blif_parser::rtlsim::ref_rtlsim_testharness;
-use std::env;
+use blif_parser::utils::*;
+use clap::Parser;
 
 fn main() -> std::io::Result<()> {
-    let args: Vec<String> = env::args().collect();
-    if args.len() < 4 {
-        println!("Usage: cargo run --bin run_refrtlsim -- <sv input path> <top module name> <input stimuli file>");
-        return Ok(());
-    }
+    let args = Args::parse();
+    let sim_dir = format!("sim-dir-{}", args.top_mod);
+    let sim_output_file = format!("{}-simulation.out", args.top_mod);
 
-    let sv_file_path = &args[1];
-    let top_mod = &args[2];
-    let input_stimuli_path = &args[3];
-    let sim_dir = format!("sim-dir-{}", top_mod);
-    let sim_output_file = format!("{}-simulation.out", top_mod);
     ref_rtlsim_testharness::run_rtl_simulation(
-        sv_file_path,
-        top_mod,
-        input_stimuli_path,
+        &args.sv_file_path,
+        &args.top_mod,
+        &args.input_stimuli_path,
         &sim_dir,
         &sim_output_file,
     )?;
-
     Ok(())
 }
