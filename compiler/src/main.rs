@@ -3,7 +3,6 @@ use blif_parser::fsim::module::*;
 use blif_parser::passes::parser;
 use blif_parser::passes::runner;
 use blif_parser::primitives::Configuration;
-use blif_parser::primitives::KaMinParConfig;
 use blif_parser::rtlsim::ref_rtlsim_testharness::*;
 use blif_parser::rtlsim::rtlsim_utils::*;
 use blif_parser::rtlsim::vcdparser::*;
@@ -43,20 +42,22 @@ fn test_emulator(
         }
     };
 
-    println!("Running compiler passes");
     circuit.set_cfg(Configuration {
-        max_steps: 128,
-        module_sz: 8,
-        lut_inputs: 3,
-        network_lat: 0,
-        compute_lat: 0,
-        kaminpar: KaMinParConfig::default()
+        max_steps:   args.max_steps,
+        module_sz:   args.module_sz,
+        lut_inputs:  args.lut_inputs,
+        network_lat: args.network_lat,
+        imem_lat:    args.imem_lat,
+        dmem_rd_lat: args.dmem_rd_lat,
+        dmem_wr_lat: args.dmem_wr_lat,
     });
+    println!("Running compiler passes with config: {:#?}", &circuit.emulator.cfg);
     runner::run_compiler_passes(&mut circuit);
 
     circuit.save_emulator_instructions(
         &format!("{}/{}.insts", cwd.to_str().unwrap(), args.top_mod))?;
-    circuit.save_graph_pdf(
+    save_graph_pdf(
+        &format!("{:?}", circuit),
         &format!("{}/{}.dot", cwd.to_str().unwrap(), args.top_mod),
         &format!("{}/{}.pdf", cwd.to_str().unwrap(), args.top_mod))?;
 
@@ -124,14 +125,19 @@ fn test_emulator(
         for (sig, bit) in input_stimuli_by_name.iter() {
             let nidx = module.nodeindex(sig).unwrap();
             let pc = circuit.graph.node_weight(nidx).unwrap().get_info().pc;
-            if input_stimuli_by_step.get(&pc) == None {
-                input_stimuli_by_step.insert(pc, vec![]);
+            let step = pc + circuit.emulator.cfg.pc_ldm_offset();
+            if input_stimuli_by_step.get(&step) == None {
+                input_stimuli_by_step.insert(step, vec![]);
             }
-            input_stimuli_by_step.get_mut(&pc).unwrap().push((sig, *bit));
+            input_stimuli_by_step.get_mut(&step).unwrap().push((sig, *bit));
         }
 
         // run a cycle
-        module.run_cycle(&input_stimuli_by_step);
+        if args.verbose {
+            module.run_cycle_verbose(&input_stimuli_by_step);
+        } else {
+            module.run_cycle(&input_stimuli_by_step);
+        }
 
         // Compare the emulated signals with the reference RTL simulation
         let mut found_mismatch = false;
@@ -149,27 +155,24 @@ fn test_emulator(
 
                         match module.nodeindex(signal_name) {
                             Some(nodeidx) => {
-                                write_string_to_file(
-                                    circuit.debug_graph(nodeidx, &module),
-                                    &format!(
-                                        "{}/after-cycle-{}-signal-{}.dot",
-                                        cwd.to_str().unwrap(),
-                                        cycle,
-                                        signal_name
-                                    ),
-                                )?;
-
-                                write_string_to_file(
-                                    circuit.debug_graph(nodeidx, &module_lag),
-                                    &format!(
-                                        "{}/before-cycle-{}-signal-{}.dot",
-                                        cwd.to_str().unwrap(),
-                                        cycle,
-                                        signal_name
-                                    ),
-                                )?;
+                                save_graph_pdf(
+                                    &circuit.debug_graph(nodeidx, &module),
+                                    &format!("{}/after-cycle-{}-signal-{}.dot", cwd.to_str().unwrap(), cycle, signal_name),
+                                    &format!("{}/after-cycle-{}-signal-{}.pdf", cwd.to_str().unwrap(), cycle, signal_name))?;
+                                save_graph_pdf(
+                                    &circuit.debug_graph(nodeidx, &module_lag),
+                                    &format!("{}/before-cycle-{}-signal-{}.dot", cwd.to_str().unwrap(), cycle, signal_name),
+                                    &format!("{}/before-cycle-{}-signal-{}.pdf", cwd.to_str().unwrap(), cycle, signal_name))?;
                             }
                             None => {}
+                        }
+                        if args.verbose {
+                            println!("============= Module ================");
+                            module.print();
+                            println!("============= Module Lag ================");
+                            module_lag.print();
+                            println!("============= Sig Map ================");
+                            module.print_sigmap();
                         }
                     }
                 }
@@ -201,6 +204,7 @@ fn test_emulator(
 
 #[cfg(test)]
 pub mod emulation_tester {
+    use test_case::test_case;
     use super::*;
 
     fn perform_test(
@@ -208,12 +212,24 @@ pub mod emulation_tester {
         top_mod: &str,
         input_stimuli_path: &str,
         blif_file_path: &str,
+        network_lat: u32,
+        imem_lat: u32,
+        dmem_rd_lat: u32,
+        dmem_wr_lat: u32
     ) -> bool {
         let ret = test_emulator(Args {
+            verbose:            false,
             sv_file_path:       sv_file_path.to_string(),
             top_mod:            top_mod.to_string(),
             input_stimuli_path: input_stimuli_path.to_string(),
-            blif_file_path:     blif_file_path.to_string()
+            blif_file_path:     blif_file_path.to_string(),
+            max_steps:          128,
+            module_sz:          8,
+            lut_inputs:         3,
+            network_lat:        network_lat,
+            imem_lat:           imem_lat,
+            dmem_rd_lat:        dmem_rd_lat,
+            dmem_wr_lat:        dmem_wr_lat
         });
         match ret {
             Ok(rc) => return rc == ReturnCode::TestSuccess,
@@ -221,53 +237,62 @@ pub mod emulation_tester {
         }
     }
 
-    #[test]
-    pub fn test_fir() {
+    #[test_case(0, 0, 1, 0; "imem 0 dmem rd 0 wr 1 network 0")]
+    #[test_case(1, 0, 1, 0; "imem 1 dmem rd 0 wr 1 network 0")]
+    #[test_case(2, 0, 1, 0; "imem 2 dmem rd 0 wr 1 network 0")]
+    #[test_case(0, 1, 1, 0; "imem 0 dmem rd 1 wr 1 network 0")]
+    #[test_case(0, 2, 1, 0; "imem 0 dmem rd 2 wr 1 network 0")]
+    #[test_case(1, 1, 1, 0; "imem 1 dmem rd 1 wr 1 network 0")]
+    #[test_case(1, 2, 1, 0; "imem 1 dmem rd 2 wr 1 network 0")]
+    #[test_case(0, 0, 2, 0; "imem 0 dmem rd 0 wr 2 network 0")]
+    #[test_case(1, 0, 2, 0; "imem 1 dmem rd 0 wr 2 network 0")]
+    #[test_case(0, 1, 2, 0; "imem 0 dmem rd 1 wr 2 network 0")]
+    #[test_case(1, 1, 2, 0; "imem 1 dmem rd 1 wr 2 network 0")]
+    #[test_case(2, 2, 2, 0; "imem 2 dmem rd 2 wr 2 network 0")]
+    #[test_case(0, 0, 1, 1; "imem 0 dmem rd 0 wr 1 network 1")]
+    #[test_case(2, 2, 2, 1; "imem 2 dmem rd 2 wr 2 network 1")]
+    #[test_case(2, 2, 2, 2; "imem 2 dmem rd 2 wr 2 network 2")]
+    pub fn test(imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
         assert_eq!(
             perform_test(
                 "../examples/Fir.sv",
                 "Fir",
                 "../examples/Fir.input",
-                "../examples/Fir.lut.blif"
+                "../examples/Fir.lut.blif",
+                network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
             ),
             true
         );
-    }
 
-    #[test]
-    pub fn test_gcd() {
         assert_eq!(
             perform_test(
                 "../examples/GCD.sv",
                 "GCD",
                 "../examples/GCD.input",
-                "../examples/GCD-2bit.lut.blif"
+                "../examples/GCD-2bit.lut.blif",
+                network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
             ),
             true
         );
-    }
 
-    #[test]
-    pub fn test_queue() {
         assert_eq!(
             perform_test(
                 "../examples/MyQueue.sv",
                 "MyQueue",
                 "../examples/MyQueue.input",
-                "../examples/MyQueue.lut.blif"
+                "../examples/MyQueue.lut.blif",
+                network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat 
             ),
             true
         );
-    }
 
-    #[test]
-    pub fn test_adder() {
         assert_eq!(
             perform_test(
                 "../examples/Adder.sv",
                 "Adder",
                 "../examples/Adder.input",
-                "../examples/Adder.lut.blif"
+                "../examples/Adder.lut.blif",
+                network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
             ),
             true
         );

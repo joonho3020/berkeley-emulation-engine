@@ -19,3 +19,4 @@ strum = "0.26.3"
 strum_macros = "0.26.4"
 itertools = "0.13.0"
 kaminpar = { git = "https://github.com/joonho3020/kaminpar-rs.git", branch = "joonho-main" }
+test-case = "3.3.1"

@@ -4,7 +4,8 @@ use std::cmp::min;
 use std::fmt::Debug;
 
 pub type Bit = u8;
-pub type Bits32 = u32;
+pub type Bits = u32;
+pub type Cycle = u32;
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub enum FourStateBit {
@@ -37,14 +38,20 @@ impl FourStateBit {
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct Operand {
-    pub rs: u32,     // index into data memory
-    pub local: bool, // ldm or sdm?
-    pub idx: u32,    // for luts, which input does this operand correspond to
+    /// index into data memory
+    pub rs: u32,
+
+    /// ldm or sdm?
+    pub local: bool,
+
+    /// for luts, which input does this operand correspond to
+    pub idx: u32,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct SwitchIn {
-    pub idx: u32, // proc to receive bit from
+     /// proc to receive bit from
+    pub idx: u32,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
@@ -64,7 +71,6 @@ impl Instruction {
         for opidx in 0..cfg.lut_inputs {
             match self.operands.get(opidx as usize) {
                 Some(op) => {
-// println!("op.rs: {} local: {}", op.rs, op.local);
                     ret.push_bits(op.rs as u64, cfg.index_bits());
                     ret.push_bits(op.local as u64, 1); // local
                 }
@@ -99,9 +105,6 @@ impl BitBuf {
 
             let last = self.bytes.last_mut().unwrap();
             *last |= (cur_input << self.offset) as u8;
-
-// println!("input: {:x} cur_input: {:x} offset: {} free_bits: {} consume_bits: {} last: {}",
-// input, cur_input, self.offset, free_bits, consume_bits, *last);
 
             self.offset = (self.offset + consume_bits) % 8;
             left -= consume_bits;

@@ -17,18 +17,20 @@ pub fn map_instructions(circuit: &mut Circuit) {
         all_insts.push(insts);
     }
 
+    let cfg = &circuit.emulator.cfg;
     for nidx in circuit.graph.node_indices() {
         let node = circuit.graph.node_weight(nidx).unwrap();
         let node_insts = all_insts.get_mut(node.get_info().proc as usize).unwrap();
-        let node_inst = node_insts.get_mut(node.get_info().pc as usize).unwrap();
+        let node_inst = node_insts.get_mut(node.get_info().pc   as usize).unwrap();
 
         // assign opcode
         node_inst.valid = true;
         node_inst.opcode = node.is();
 
+        // build LUT table
         if node.is() == Primitives::Lut {
             let lut_node = node.get_lut().unwrap();
-            let table_vec = lut_node.table;
+            let table_vec = &lut_node.table;
             let mut table: u64 = 0;
             let mut ops: u32 = 0;
             assert!(
@@ -45,7 +47,7 @@ pub fn map_instructions(circuit: &mut Circuit) {
                 table = table | (1 << x);
             }
             let mut table_repeated: u64 = table;
-            let nops = circuit.emulator.cfg.lut_inputs - ops;
+            let nops = cfg.lut_inputs - ops;
             for i in 0..(1 << nops) {
                 table_repeated |= table << ((1 << ops) * i);
             }
@@ -73,7 +75,7 @@ pub fn map_instructions(circuit: &mut Circuit) {
                 });
             } else {
                 node_inst.operands.push(Operand {
-                    rs: parent.get_info().pc + circuit.emulator.cfg.network_lat,
+                    rs: parent.get_info().pc,
                     local: false,
                     idx: op_idx as u32,
                 });
@@ -87,9 +89,10 @@ pub fn map_instructions(circuit: &mut Circuit) {
             let child = circuit.graph.node_weight(cidx).unwrap();
 
             if child.get_info().proc != node.get_info().proc {
-                let child_insts = all_insts.get_mut(child.get_info().proc as usize).unwrap();
+                let child_insts = all_insts
+                    .get_mut(child.get_info().proc as usize).unwrap();
                 let child_inst = child_insts
-                    .get_mut((node.get_info().pc + circuit.emulator.cfg.network_lat) as usize)
+                    .get_mut((node.get_info().pc + cfg.remote_sin_lat()) as usize)
                     .unwrap();
                 child_inst.valid = true;
                 child_inst.sin.idx = node.get_info().proc;

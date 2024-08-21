@@ -17,7 +17,7 @@ pub fn partition(circuit: &mut Circuit) {
 
 /// Partition the circuit using the KaMinPar partitioning algorithm
 fn kaminpar_partition(circuit: &mut Circuit) {
-    let kaminpar = &circuit.emulator.cfg.kaminpar;
+    let kaminpar = &circuit.emulator.kaminpar;
     let undirected_graph = circuit.graph.clone().into_edge_type();
     let result = kaminpar::PartitionerBuilder::with_epsilon(kaminpar.epsilon)
         .seed(kaminpar.seed)

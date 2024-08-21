@@ -1,4 +1,4 @@
-use crate::common::Instruction;
+use crate::common::*;
 use crate::fsim::module::Module as EmulModule;
 use crate::utils::write_string_to_file;
 use indexmap::IndexMap;
@@ -10,8 +10,6 @@ use petgraph::{
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Serialize, Serializer};
 use std::{
-    fs,
-    process::{Command, Stdio},
     cmp::Ordering,
     fmt::Debug,
 };
@@ -518,16 +516,24 @@ impl Default for KaMinParConfig {
 pub struct Configuration {
     /// Maximum host steps that can be run
     pub max_steps: u32,
+
     /// Number of processor in a module
     pub module_sz: u32,
+
     /// Number of lut inputs
-    pub lut_inputs: u32,
+    pub lut_inputs: Cycle,
+
     /// Latency of the switch network
-    pub network_lat: u32,
-    /// Numer of cycles to perform
-    pub compute_lat: u32,
-    /// Configuration for KaMinPar partitioning
-    pub kaminpar: KaMinParConfig
+    pub network_lat: Cycle,
+
+    /// Number of cycles to access i-mem
+    pub imem_lat: Cycle,
+
+    /// Number of cycles to read d-mem
+    pub dmem_rd_lat: Cycle,
+
+    /// Number of cycles to write d-mem
+    pub dmem_wr_lat: Cycle,
 }
 
 impl Default for Configuration {
@@ -537,8 +543,9 @@ impl Default for Configuration {
             module_sz: 64,
             lut_inputs: 3,
             network_lat: 0,
-            compute_lat: 0,
-            kaminpar: KaMinParConfig::default(),
+            imem_lat: 0,
+            dmem_rd_lat: 0,
+            dmem_wr_lat: 1,
         }
     }
 }
@@ -579,14 +586,36 @@ impl Configuration {
         1 << self.lut_inputs
     }
 
-    /// Cost function for performing local compute within a processor
-    pub fn compute_cost(self: &Self) -> u32 {
-        self.compute_lat + 1
+    /// - Assuming that we can access the ports of these modules every cycle
+    /// - if i want to use bits computed from a local processor
+    ///   | read imem | read dmem | lut + write dmem |
+    ///                                  | read imem | read  dmem | compute 
+    ///   - should start reading instruction after dmem_rd_lat + compute_lat + dmem_wr_lat
+    pub fn local_dep_lat(self: &Self) -> Cycle {
+        self.dmem_rd_lat + self.dmem_wr_lat
     }
 
-    /// Cost function for performing inter-processor communication
-    pub fn network_cost(self: &Self) -> u32 {
-        self.network_lat + 2
+    /// - Assuming that we can access the ports of these modules every cycle
+    /// - if bits are traveling through the network, i receive it at
+    ///   <other> | read imem | read dmem | lut + network | write dmem |
+    ///   <me>                                             | read imem | read dmem | compute |
+    ///   - should start reading instruction after dmem_rd_lat + compute_lat + network + dmem_wr_lat
+    pub fn remote_dep_lat(self: &Self) -> Cycle {
+        self.dmem_rd_lat + self.network_lat + self.dmem_wr_lat
+    }
+
+    /// <me>                 | read imem | read dmem | compute + write dmem | 
+    ///      | read imem | read dmem | lut + network | write dmem |
+    pub fn remote_sin_lat(self: &Self) -> Cycle {
+        self.network_lat
+    }
+
+    pub fn pc_ldm_offset(self: &Self) -> Cycle {
+        self.imem_lat + self.dmem_rd_lat
+    }
+
+    pub fn pc_sdm_offset(self: &Self) -> Cycle {
+        self.imem_lat + self.dmem_rd_lat + self.network_lat
     }
 }
 
@@ -594,7 +623,9 @@ impl Configuration {
 /// - Contains fields specific to the emulator hardware
 #[derive(Serialize, Debug, Default, Clone)]
 pub struct EmulatorInfo {
+    /// Configuration of the emulation HW
     pub cfg: Configuration,
+    pub kaminpar: KaMinParConfig,
     pub host_steps: u32,
     pub used_procs: u32,
     pub instructions: Vec<Vec<Instruction>>,
@@ -640,23 +671,6 @@ impl Circuit {
         inst_str.push_str(&format!("Overal stats\nNOPs: {}\nTotal insts: {}\nUtilization: {}%\n",
                                    nops, total, ((total - nops) as f32)/(total as f32) * 100 as f32));
         write_string_to_file(inst_str, &file_path)
-    }
-
-    pub fn save_graph_pdf(&self, dot_file: &str, pdf_file: &str) -> std::io::Result<()> {
-        write_string_to_file(
-            format!("{:?}", &self),
-            dot_file)?;
-
-        let file = fs::File::create(pdf_file).unwrap();
-        let stdio = Stdio::from(file);
-
-        Command::new("dot")
-            .arg(dot_file)
-            .arg("-Tpdf")
-            .stdout(stdio)
-            .status()?;
-
-        Ok(())
     }
 
     /// #debug_graph

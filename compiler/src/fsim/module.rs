@@ -1,15 +1,16 @@
 use crate::common::*;
 use crate::fsim::processor::*;
 use crate::fsim::switch::*;
-use crate::primitives::{Circuit, NodeMapInfo, Primitives};
+use crate::primitives::{Circuit, NodeMapInfo, Primitives, Configuration};
 use indexmap::IndexMap;
+use itertools::Itertools;
 use petgraph::graph::NodeIndex;
 use std::fmt::Debug;
 
 pub struct Module {
     switch: Switch,
     procs: Vec<Processor>,
-    host_steps: usize, // Total number of host machine cycles to emulate one target cycle
+    host_steps: u32, // Total number of host machine cycles to emulate one target cycle
     iprocs: Vec<usize>, // Processor indices that have input IO ports
     oprocs: Vec<usize>, // Processor indices that have output IO ports
     signal_map: IndexMap<String, NodeMapInfo>,
@@ -22,10 +23,10 @@ impl Debug for Module {
 }
 
 impl Module {
-    pub fn new(nprocs: usize, host_steps_: usize) -> Self {
+    pub fn new(nprocs: u32, host_steps_: u32, cfg: &Configuration) -> Self {
         Module {
-            switch: Switch::new(nprocs),
-            procs: vec![Processor::new(host_steps_); nprocs],
+            switch: Switch::new(nprocs, cfg.network_lat),
+            procs: (0..nprocs).map(|i| Processor::new(host_steps_, cfg, i as u32)).collect_vec(),
             host_steps: host_steps_,
             iprocs: vec![],
             oprocs: vec![],
@@ -37,10 +38,10 @@ impl Module {
     /// return a Module with instructions from the compiler pass mapped
     pub fn from_circuit(c: &Circuit) -> Self {
         let all_insts = &c.emulator.instructions;
-        let nprocs = all_insts.len();
+        let nprocs = all_insts.len() as u32;
         let host_steps = c.emulator.host_steps;
 
-        let mut module = Module::new(nprocs, host_steps as usize);
+        let mut module = Module::new(nprocs, host_steps, &c.emulator.cfg);
         module.set_insts(all_insts.to_vec());
         module.set_signal_map(&c.emulator.signal_map);
 
@@ -51,7 +52,7 @@ impl Module {
         assert!(self.procs.len() >= all_insts.len());
         for (i, insts) in all_insts.iter().enumerate() {
             for (pc, inst) in insts.iter().enumerate() {
-                if pc < self.host_steps {
+                if (pc as u32) < self.host_steps {
                     self.procs[i].set_inst(inst.clone(), pc);
                     if inst.opcode == Primitives::Input {
                         self.iprocs.push(i);
@@ -67,7 +68,7 @@ impl Module {
         self.signal_map = signal_map.clone()
     }
 
-    fn print_2(self: &Self) {
+    pub fn print_2(self: &Self) {
         println!("----- LDM -----");
         for (i, proc) in self.procs.iter().enumerate() {
             print!("{} ", i);
@@ -78,9 +79,11 @@ impl Module {
             print!("{} ", i);
             proc.print_sdm();
         }
+        println!("\n----- SigMap ----");
+        print!("{:?}", self.signal_map);
     }
 
-    fn print(self: &Self) {
+    pub fn print(self: &Self) {
         print!("      ");
         for (i, _) in self.procs.iter().enumerate() {
             print!("   {:02}   ", i);
@@ -94,16 +97,20 @@ impl Module {
                 print!("    {:02}", pc);
             }
             for (_, proc) in self.procs.iter().enumerate() {
-                print!(" | {}{} | ", proc.ldm[pc], proc.sdm[pc]);
+                print!(" | {}{} | ", proc.ldm[pc as usize], proc.sdm[pc as usize]);
             }
             print!("\n");
         }
     }
 
+    pub fn print_sigmap(self: &Self) {
+        println!("{:#?}", self.signal_map);
+    }
+
     fn step(self: &mut Self) {
         // compute fout
         for (_, proc) in self.procs.iter_mut().enumerate() {
-            proc.compute_fout();
+            proc.compute();
         }
 
         // swizzle outputs
@@ -121,6 +128,9 @@ impl Module {
         for (_, proc) in self.procs.iter_mut().enumerate() {
             proc.update_sdm_and_pc();
         }
+
+        // update switch network
+        self.switch.run_cycle();
     }
 
     pub fn peek(self: &Self, signal: &str) -> Option<Bit> {
@@ -160,6 +170,22 @@ impl Module {
                 None => {}
             };
             self.step();
+        }
+    }
+
+    pub fn run_cycle_verbose(self: &mut Self, input_stimuli: &IndexMap<u32, Vec<(&str, Bit)>>) {
+        println!("-------------------- run cycle ----------------------");
+        for step in 0..self.host_steps {
+            match input_stimuli.get(&(step as u32)) {
+                Some(vec) => {
+                    for (sig, bit) in vec.iter() {
+                        self.poke(sig, *bit);
+                    }
+                }
+                None => {}
+            };
+            self.step();
+            self.print();
         }
     }
 

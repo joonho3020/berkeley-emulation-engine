@@ -17,7 +17,10 @@ struct InstOrProc {
 /// # Helper struct for instruction scheduling
 #[derive(Debug, Default)]
 struct NodeArray {
+    /// Node indices of this subraph
     nodes: Vec<NodeIndex>,
+
+    /// Next node to schedule in this subgraph
     ptr: usize,
 }
 
@@ -45,25 +48,19 @@ impl NodeArray {
 }
 
 /// # Finds a valid instruction schedule given a partitioned graph
-/// - Schedule Input & Gates first
-/// - For each partition get next rank to simulate
-///    - if dependencies are resolved, schedule it
+/// 1. Add nodes to schedule as candidates
+///    - if a node is a Input or a Gate or a Latch
+///    - else if dependencies are resolved, schedule it
 ///    - else insert nop
-/// - For each partition, if there is two ore more instructions that are parents scheduled in
-///   step 2, unschedule some of them.
+/// 2. For each partition, if there are two or more nodes that are
+///    parents of this partition and is a scheduling candidate,
+///    unschedule some of them to resolve the network port connection
 pub fn schedule_instructions(circuit: &mut Circuit) {
-    let mut max_proc = 0;
-    for nidx in circuit.graph.node_indices() {
-        let node = circuit.graph.node_weight(nidx).unwrap();
-        max_proc = max(max_proc, node.clone().get_info().proc);
-    }
-
-    // subgraphs is ordered in BFS order starting from the input nodes
+    // subgraphs are ordered in BFS order starting from the input nodes
     let mut subgraphs_rank_order: Vec<NodeArray> = vec![];
-    for _ in 0..(max_proc + 1) {
+    for _ in 0..circuit.emulator.used_procs {
         subgraphs_rank_order.push(NodeArray::default());
     }
-
     for nidx in circuit.graph.node_indices() {
         let node = circuit.graph.node_weight(nidx).unwrap();
         subgraphs_rank_order
@@ -71,6 +68,8 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
             .unwrap()
             .push_node(nidx);
     }
+
+    // sort the nodes by rank within a subgraph
     for sro in subgraphs_rank_order.iter_mut() {
         sro.nodes.sort_by(|idx1, idx2| {
             let n1 = circuit.graph.node_weight(*idx1).unwrap();
@@ -81,6 +80,7 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
 
     let mut pc = 0;
     let mut scheduled_map = circuit.graph.visit_map();
+    let cfg = &circuit.emulator.cfg;
 
     while scheduled_map.count_ones(..) != scheduled_map.len() {
         let mut schedule_candidates: IndexSet<NodeIndex> = IndexSet::new();
@@ -91,18 +91,21 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
             }
             let nidx = node_array.current();
             let node = circuit.graph.node_weight_mut(nidx).unwrap();
+            let ninfo = node.get_info();
 
-            if node.is() == Primitives::Input
-                || node.is() == Primitives::Gate
-                || node.is() == Primitives::Latch
-            {
+            if node.is() == Primitives::Input ||
+               node.is() == Primitives::Gate  ||
+               node.is() == Primitives::Latch {
                 schedule_candidates.insert(nidx);
             } else {
                 let mut parents = circuit.graph.neighbors_directed(nidx, Incoming).detach();
                 let mut unresolved_dep = false;
                 while let Some(pidx) = parents.next_node(&circuit.graph) {
                     let pnode = circuit.graph.node_weight(pidx).unwrap();
-                    if !pnode.get_info().scheduled {
+                    let pinfo = pnode.get_info();
+                    if !pinfo.scheduled  ||
+                       ((pinfo.proc == ninfo.proc) && (pinfo.pc + cfg.local_dep_lat() > pc)) ||
+                       ((pinfo.proc != ninfo.proc) && (pinfo.pc + cfg.remote_dep_lat() > pc)) {
                         unresolved_dep = true;
                         break;
                     }
@@ -119,6 +122,8 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
 
         // Construct a bipartite graph where the edges look like:
         // Schedule Candidate Node Index -> Proc index of children
+        // This graph is used to check whether there are multiple network
+        // inputs to this processor at this cycle.
         for nidx in schedule_candidates.iter() {
             // add candidate instruction to dependency graph
             let inst_node = InstOrProc {
@@ -212,5 +217,5 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
             break;
         }
     }
-    circuit.emulator.host_steps = pc + 1;
+    circuit.emulator.host_steps = pc + 1 + circuit.emulator.cfg.pc_sdm_offset();
 }

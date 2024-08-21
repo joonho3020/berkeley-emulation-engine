@@ -1,62 +1,112 @@
 use crate::common::*;
-use crate::primitives::Primitives;
+use crate::primitives::{Configuration, Primitives};
+use crate::fsim::memory::*;
 use std::fmt::Debug;
 
 #[derive(Default, Clone, Debug)]
-pub struct SwitchPort {
+struct ProcessorSwitchPort {
     ip: Bit,
     op: Bit,
 }
 
 #[derive(Clone)]
 pub struct Processor {
-    pub host_steps: usize,
-    pub imem: Vec<Instruction>,
-    pub ldm: Vec<Bit>,
-    pub sdm: Vec<Bit>,
-    pub io_i: Bit,
-    pub io_o: Bit,
-    pub pc: usize,
-    pub target_cycle: usize,
-    pub s_port: SwitchPort,
+    pub processor_id: u32,
+    pub cfg: Configuration,
+    pub host_steps: Bits,
+    pub target_cycle: Cycle,
+    pub pc: Bits,
+    pub imem: AbstractMemory<Instruction>,
+    pub ldm: AbstractMemory<Bit>,
+    pub sdm: AbstractMemory<Bit>,
+    pipeline: Vec<Instruction>,
+    io_i: Bit,
+    io_o: Bit,
+    s_port: ProcessorSwitchPort,
+    sin_idx: u32,
 }
 
 impl Processor {
-    pub fn new(host_steps_: usize) -> Self {
+    pub fn new(host_steps_: Bits, cfg: &Configuration, id_: u32) -> Self {
         Processor {
+            cfg: cfg.clone(),
             host_steps: host_steps_,
-            imem: vec![Instruction::default(); host_steps_],
-            ldm: vec![Bit::default(); host_steps_],
-            sdm: vec![Bit::default(); host_steps_],
+            imem: AbstractMemory::new(host_steps_ as u32, cfg.imem_lat,    1,              cfg.imem_lat,    1),
+            ldm:  AbstractMemory::new(host_steps_ as u32, cfg.dmem_rd_lat, cfg.lut_inputs, cfg.dmem_wr_lat, 1),
+            sdm:  AbstractMemory::new(host_steps_ as u32, cfg.dmem_rd_lat, cfg.lut_inputs, cfg.dmem_wr_lat, 1),
+            pipeline: vec![Instruction::default(); cfg.dmem_rd_lat as usize],
             io_i: 0,
             io_o: 0,
             pc: 0,
             target_cycle: 0,
-            s_port: SwitchPort::default(),
+            s_port: ProcessorSwitchPort::default(),
+            sin_idx: 0,
+            processor_id: id_
         }
     }
 
     pub fn set_inst(self: &mut Self, inst: Instruction, step: usize) {
-        assert!(step < self.imem.len());
+        assert!(step < self.imem.data.len());
         self.imem[step] = inst;
     }
 
-    pub fn compute_fout(self: &mut Self) {
-        // Instruction fetch
-        let cur_inst = &self.imem[self.pc];
+    pub fn compute(self: &mut Self) {
+        assert!(self.pipeline.len() as Cycle == self.cfg.dmem_rd_lat);
+
+        // ---------------------  Fetch  ---------------------------------
+        // Send imem req
+        self.imem.get_rport(0).submit_req(ReadReq{ addr: self.pc });
+
+        // --------------------- Read DMem ---------------------------------
+        // Get instruction for imem
+        self.imem.update_rd_ports();
+        let opt_fd_inst = self.imem.get_rport(0).cur_resp();
+        let fd_inst = match opt_fd_inst {
+            Some(resp) => resp.data,
+            None => Instruction::default()
+        };
+
+        // Submit read requests to the data memory using fetched instruction
+        for i in 0..self.cfg.lut_inputs {
+            let rs = match &fd_inst.operands.get(i as usize) {
+                Some(op) => op.rs,
+                None => 0
+            };
+            self.ldm.get_rport(i).submit_req(ReadReq{ addr: rs as Bits });
+            self.sdm.get_rport(i).submit_req(ReadReq{ addr: rs as Bits });
+        }
+
+        // TODO: remove this clone for perf?
+        self.pipeline.push(fd_inst.clone());
+
+        // --------------------- Compute ---------------------------------
+        let de_inst = self.pipeline.remove(0);
 
         // Read the operands from the LDM and SDM
         let mut operands: Vec<Bit> = Vec::new();
-        for op in cur_inst.operands.iter() {
-            let rs = op.rs as usize;
-            let bit = if op.local { self.ldm[rs] } else { self.sdm[rs] };
+        self.ldm.update_rd_ports();
+        self.sdm.update_rd_ports();
+        for i in 0..self.cfg.lut_inputs {
+            let ldm_resp = match self.ldm.get_rport(i as u32).cur_resp() {
+                Some(resp) => resp.data,
+                None       => 0
+            };
+            let sdm_resp = match self.sdm.get_rport(i as u32).cur_resp() {
+                Some(resp) => resp.data,
+                None       => 0
+            };
+            let bit = match de_inst.operands.get(i as usize) {
+                Some(op) => if op.local { ldm_resp } else { sdm_resp },
+                None     => ldm_resp
+            };
             operands.push(bit);
         }
 
-        // println!("operands: {:?}", operands);
+        // Set sin_idx to receive from switch
+        self.sin_idx = de_inst.sin.idx;
 
         // LUT lookup
-        let f_out = match &cur_inst.opcode {
+        let f_out = match &de_inst.opcode {
             Primitives::NOP => 0,
             Primitives::Input => self.io_i,
             Primitives::Lut => {
@@ -64,37 +114,46 @@ impl Processor {
                 for (i, bit) in operands.iter().enumerate() {
                     entry = entry + (bit << i);
                 }
-                ((cur_inst.lut >> entry) & 1) as u8
+                ((de_inst.lut >> entry) & 1) as u8
             }
             Primitives::Output => {
-                assert!(operands.len() == 1, "Output has {} inputs", operands.len());
                 let bit = *operands.get(0).unwrap();
                 self.io_o = bit;
                 bit
             }
             Primitives::Gate | Primitives::Latch => {
-                assert!(
-                    operands.len() == 1,
-                    "Gate/Latch has {} inputs",
-                    operands.len()
-                );
                 *operands.get(0).unwrap()
             }
             _ => 0,
         };
-        // Update LDM
-        self.ldm[self.pc] = f_out;
+
+        // Write to LDM
+        if self.pc as Cycle >= self.cfg.pc_ldm_offset() {
+            self.ldm.get_wport(0).submit_req(WriteReq {
+                addr: self.pc - (self.cfg.pc_ldm_offset() as Bits),
+                data: f_out
+            });
+        }
 
         // Set switch out
         self.s_port.op = f_out;
+
+        self.ldm.run_cycle();
+        self.imem.run_cycle();
     }
 
     pub fn update_sdm_and_pc(self: &mut Self) {
         // Update SDM
-        self.sdm[self.pc] = self.s_port.ip;
+        if self.pc as u32 >= self.cfg.pc_sdm_offset() {
+            self.sdm.get_wport(0).submit_req(WriteReq {
+                addr: (self.pc as u32) - self.cfg.pc_sdm_offset(),
+                data: self.s_port.ip
+            });
+        }
+        self.sdm.run_cycle();
 
         // Increment step
-        if self.pc == (self.host_steps - 1) {
+        if self.pc == self.host_steps - 1 {
             self.target_cycle += 1;
             self.pc = 0;
         } else {
@@ -102,8 +161,8 @@ impl Processor {
         }
     }
 
-    pub fn get_switch_in_id(self: &Self) -> Bits32 {
-        self.imem[self.pc].sin.idx
+    pub fn get_switch_in_id(self: &Self) -> Bits {
+        self.sin_idx
     }
 
     pub fn set_switch_in(self: &mut Self, b: Bit) {
@@ -139,32 +198,25 @@ impl Processor {
     }
 
     pub fn print_ldm(self: &Self) {
-        self.print_bitvec(&self.ldm)
+        self.print_bitvec(&self.ldm.data)
     }
 
     pub fn print_sdm(self: &Self) {
-        self.print_bitvec(&self.sdm)
+        self.print_bitvec(&self.sdm.data)
     }
 }
 
 impl Debug for Processor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-// write!(
-// f,
-// "Proc[\n  {:?}\n  {:?}\n  io_i {} io_o {}\n",
-// self.imem[self.pc], self.s_port, self.io_i, self.io_o
-// )?;
-
         write!(f, "  ldm: ")?;
-        for chunk in self.ldm.chunks(16) {
+        for chunk in self.ldm.data.chunks(16) {
             write!(f, "\t{:x?}\n", chunk)?;
         }
 
         write!(f, "  sdm: ")?;
-        for chunk in self.sdm.chunks(16) {
+        for chunk in self.sdm.data.chunks(16) {
             write!(f, "\t{:x?}\n", chunk)?;
         }
-// write!(f, "]\n")?;
         Ok(())
     }
 }
