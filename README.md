@@ -77,3 +77,11 @@ iverilog TestHarness.sv OpalKellyEmulatorModuleTop.sv
 ./a.out
 gtkwave sim.vcd
 ```
+
+### To just run tests
+
+```bash
+RUST_TEST_THREADS=1 cargo test
+```
+
+- KaMinPar freeks out when multiple threads uses it in parallel (which is the default option for running `cargo test`)
