@@ -36,6 +36,7 @@ impl<T: Default + Clone> ReadPort<T> {
         }
     }
 
+    /// Removes finished requests from its internal queue
     pub fn run_cycle(self: &mut Self) {
         match self.reqs.first() {
             Some(token) => {
@@ -48,6 +49,7 @@ impl<T: Default + Clone> ReadPort<T> {
         self.cycle += 1;
     }
 
+    /// Returns a ReadReq if it's ready. Otherwise, returns a None
     pub fn cur_req(self: &Self) -> Option<ReadReq> {
         match self.reqs.first() {
             Some(t) => {
@@ -63,6 +65,7 @@ impl<T: Default + Clone> ReadPort<T> {
         }
     }
 
+    /// Submits a inflight request to the port
     pub fn submit_req(self: &mut Self, req: ReadReq) {
         self.reqs.push(Token {
             value: req,
@@ -70,6 +73,7 @@ impl<T: Default + Clone> ReadPort<T> {
         });
     }
 
+    /// Returns the response comming out from this port and removes it
     pub fn cur_resp(self: &mut Self) -> Option<ReadResp<T>> {
         match self.resps.first() {
             Some(_) => Some(self.resps.remove(0)),
@@ -104,6 +108,7 @@ impl<T: Default + Clone> WritePort<T> {
         }
     }
 
+    /// Removes finished requests from its internal queue
     pub fn run_cycle(self: &mut Self) {
         match self.reqs.first() {
             Some(token) => {
@@ -116,6 +121,7 @@ impl<T: Default + Clone> WritePort<T> {
         self.cycle += 1;
     }
 
+    /// Returns a WriteReq if it's ready. Otherwise, returns a None
     pub fn cur_req(self: &Self) -> Option<WriteReq<T>> {
         match self.reqs.first() {
             Some(t) => {
@@ -131,6 +137,7 @@ impl<T: Default + Clone> WritePort<T> {
         }
     }
 
+    /// Submits a inflight request to the port
     pub fn submit_req(self: &mut Self, req: WriteReq<T>) {
         self.reqs.push(Token {
             value: req,
@@ -139,8 +146,10 @@ impl<T: Default + Clone> WritePort<T> {
     }
 }
 
-
-
+/// Abstract memory with some number of read and write ports.
+/// The read and write ports can have a variable amount of latency,
+/// and the occupancy is 1 per port (i.e. the user can submit one inflight
+/// request every cycle for every port).
 #[derive(Default, Clone, Debug)]
 pub struct AbstractMemory<T: Default + Clone> {
     pub data: Vec<T>,
@@ -157,6 +166,7 @@ impl<T: Default + Clone> AbstractMemory<T> {
         }
     }
 
+    /// Set the output data for reads for this cycle
     pub fn update_rd_ports(self: &mut Self) {
         for rport in self.rports.iter_mut() {
             match rport.cur_req() {
@@ -179,6 +189,10 @@ impl<T: Default + Clone> AbstractMemory<T> {
         }
     }
 
+    /// Updates the read and write ports and removes finished requests from
+    /// their internal queues.
+    /// Also, updates the internal memory state if there are write reqs that
+    /// finishes this cycle
     pub fn run_cycle(self: &mut Self) {
         for rport in self.rports.iter_mut() {
             rport.run_cycle();

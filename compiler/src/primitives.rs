@@ -586,34 +586,38 @@ impl Configuration {
         1 << self.lut_inputs
     }
 
-    /// - Assuming that we can access the ports of these modules every cycle
-    /// - if i want to use bits computed from a local processor
-    ///   | read imem | read dmem | lut + write dmem |
-    ///                                  | read imem | read  dmem | compute 
-    ///   - should start reading instruction after dmem_rd_lat + compute_lat + dmem_wr_lat
+    /// - I can start using bits computed from a local processor at
+    /// `local.pc + local_dep_lat`
+    ///   <me> | read imem | read dmem | compute + write dmem |
+    ///   <me>                                    | read imem | read dmem | compute
     pub fn local_dep_lat(self: &Self) -> Cycle {
         self.dmem_rd_lat + self.dmem_wr_lat
     }
 
-    /// - Assuming that we can access the ports of these modules every cycle
-    /// - if bits are traveling through the network, i receive it at
+    /// - I can start using bits computed from a remote processor at
+    /// `remote.pc + remote_dep_lat`.
     ///   <other> | read imem | read dmem | lut + network | write dmem |
     ///   <me>                                             | read imem | read dmem | compute |
-    ///   - should start reading instruction after dmem_rd_lat + compute_lat + network + dmem_wr_lat
     pub fn remote_dep_lat(self: &Self) -> Cycle {
         self.dmem_rd_lat + self.network_lat + self.dmem_wr_lat
     }
 
-    /// <me>                 | read imem | read dmem | compute + write dmem | 
-    ///      | read imem | read dmem | lut + network | write dmem |
+    /// - I have to receive a incoming bit from a remote processor at
+    /// `remote.pc + remote_sin_lat`
+    /// <other> | read imem | read dmem | compute | network |
+    /// <me>                        | read imem | read dmem | compute + write sdm |
     pub fn remote_sin_lat(self: &Self) -> Cycle {
         self.network_lat
     }
 
+    /// If the current pc is `X`, store the current local compute result in
+    /// `X - pc_ldm_offset`
     pub fn pc_ldm_offset(self: &Self) -> Cycle {
         self.imem_lat + self.dmem_rd_lat
     }
 
+    /// If the current pc is `X`, store the current switch compute result in
+    /// `X - pc_sdm_offset`
     pub fn pc_sdm_offset(self: &Self) -> Cycle {
         self.imem_lat + self.dmem_rd_lat + self.network_lat
     }

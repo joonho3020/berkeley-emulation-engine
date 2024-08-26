@@ -50,6 +50,15 @@ impl Processor {
         self.imem[step] = inst;
     }
 
+    /// Processor pipeline
+    /// 1. Fetch
+    /// 2. Read LDM & SDM
+    /// 3. Various things
+    ///    - Get LDM & SDM outputs
+    ///    - Compute output
+    ///    - Ship output to switch
+    ///    - Writeback to LDM
+    ///    - Recv from switch and writeback to SDM
     pub fn compute(self: &mut Self) {
         assert!(self.pipeline.len() as Cycle == self.cfg.dmem_rd_lat);
 
@@ -76,7 +85,6 @@ impl Processor {
             self.sdm.get_rport(i).submit_req(ReadReq{ addr: rs as Bits });
         }
 
-        // TODO: remove this clone for perf?
         self.pipeline.push(fd_inst.clone());
 
         // --------------------- Compute ---------------------------------
