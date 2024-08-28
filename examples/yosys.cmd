@@ -4,6 +4,7 @@ proc; opt -nodffe -nosdff; memory; opt -nodffe -nosdff; fsm; opt -nodffe -nosdff
 async2sync;
 dffunmap; opt -nodffe -nosdff
 flatten
+opt_clean -purge
 abc -lut 3
 opt -nodffe -nosdff;
 write_blif -gates TestRegInit.lut.blif
