@@ -148,6 +148,12 @@ fn latch_parser<'a>(input: &'a str, latches: &mut Vec<Latch>) -> IResultStr<'a> 
             _ => {}
         }
     }
+    match latch.init {
+        LatchInit::ONE =>
+            assert!(false, "Chisel RegInits changes the LUTs not the latch inputs"),
+        _ =>
+            ()
+    }
     latches.push(latch);
     Ok((i, ""))
 }
