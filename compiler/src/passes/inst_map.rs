@@ -33,11 +33,6 @@ pub fn map_instructions(circuit: &mut Circuit) {
             let table_vec = &lut_node.table;
             let mut table: u64 = 0;
             let mut ops: u32 = 0;
-            assert!(
-                table_vec.len() <= 6,
-                "can support up to 6 operands with u64"
-            );
-
             for entry in table_vec.iter() {
                 let mut x = 0;
                 ops = entry.len() as u32;
@@ -45,6 +40,10 @@ pub fn map_instructions(circuit: &mut Circuit) {
                     x = x + (e << i);
                 }
                 table = table | (1 << x);
+
+                assert!(x < 64,
+                    "Can support up to 6 operands with u64, node {} {:?} {:?}",
+                    node.name(), node.is(), node.get_info());
             }
             let mut table_repeated: u64 = table;
             let nops = cfg.lut_inputs - ops;

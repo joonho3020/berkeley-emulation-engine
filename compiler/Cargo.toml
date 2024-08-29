@@ -21,3 +21,6 @@ itertools = "0.13.0"
 kaminpar = { git = "https://github.com/joonho3020/kaminpar-rs.git", branch = "joonho-main" }
 test-case = "3.3.1"
 wait-timeout = "0.2.0"
+
+[profile.release]
+debug=true
