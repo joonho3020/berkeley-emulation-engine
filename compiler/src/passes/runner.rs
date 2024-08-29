@@ -10,6 +10,9 @@ pub fn run_compiler_passes(c: &mut Circuit) {
     dead_code_elimination(c);
     find_rank_order(c);
     partition(c);
+    println!("partition done");
     schedule_instructions(c);
+    println!("schedule instructions done");
     map_instructions(c);
+    println!("map instructions done");
 }

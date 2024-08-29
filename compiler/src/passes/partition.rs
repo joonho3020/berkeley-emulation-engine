@@ -28,8 +28,7 @@ fn kaminpar_partition(circuit: &mut Circuit) {
         Ok(partition) => {
             assert!(partition.len() == circuit.graph.node_count(),
                 "partition assignment doesn't match node cnt");
-            println!("partition: {:?}", partition);
-
+// println!("partition: {:?}", partition);
             for (nidx, pid) in circuit.graph.node_indices().zip(&partition) {
                 set_proc(&mut circuit.graph, nidx, *pid);
             }

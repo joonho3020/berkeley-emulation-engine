@@ -1,7 +1,9 @@
 use std::fs;
 use std::process::{Command, Stdio};
 use std::io::Write;
+use std::time::Duration;
 use clap::Parser;
+use wait_timeout::ChildExt;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -26,31 +28,31 @@ pub struct Args {
     pub blif_file_path: String,
 
     /// maximum number of instructions per processor
-    #[arg(long, group = "cfg", default_value_t = 128)]
+    #[arg(long, default_value_t = 128)]
     pub max_steps: u32,
 
     /// number of processors in a module
-    #[arg(long, group = "cfg", default_value_t = 8)]
+    #[arg(long, default_value_t = 8)]
     pub module_sz: u32,
 
     /// lut inputs
-    #[arg(long, group = "cfg", default_value_t = 3)]
+    #[arg(long, default_value_t = 3)]
     pub lut_inputs: u32,
 
     /// network latency
-    #[arg(long, group = "cfg", default_value_t = 0)]
+    #[arg(long, default_value_t = 0)]
     pub network_lat: u32,
 
     /// imem latency
-    #[arg(long, group = "cfg", default_value_t = 0)]
+    #[arg(long, default_value_t = 0)]
     pub imem_lat: u32,
 
     /// dmem rd latency
-    #[arg(long, group = "cfg", default_value_t = 0)]
+    #[arg(long, default_value_t = 0)]
     pub dmem_rd_lat: u32, 
 
     /// dmem wr latency
-    #[arg(long, group = "cfg", default_value_t = 1)]
+    #[arg(long, default_value_t = 1)]
     pub dmem_wr_lat: u32, 
 }
 
@@ -67,7 +69,6 @@ pub fn save_graph_pdf(input: &str, dot_file: &str, pdf_file: &str) -> std::io::R
 
     let file = fs::File::create(pdf_file).unwrap();
     let stdio = Stdio::from(file);
-
     Command::new("dot")
         .arg(dot_file)
         .arg("-Tpdf")

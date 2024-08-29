@@ -56,10 +56,13 @@ fn test_emulator(
 
     circuit.save_emulator_instructions(
         &format!("{}/{}.insts", cwd.to_str().unwrap(), args.top_mod))?;
-    save_graph_pdf(
-        &format!("{:?}", circuit),
-        &format!("{}/{}.dot", cwd.to_str().unwrap(), args.top_mod),
-        &format!("{}/{}.pdf", cwd.to_str().unwrap(), args.top_mod))?;
+
+    write_string_to_file(format!("{:#?}", &circuit.emulator.signal_map),
+        &format!("{}/{}.signals", cwd.to_str().unwrap(), args.top_mod))?;
+// save_graph_pdf(
+// &format!("{:?}", circuit),
+// &format!("{}/{}.dot", cwd.to_str().unwrap(), args.top_mod),
+// &format!("{}/{}.pdf", cwd.to_str().unwrap(), args.top_mod))?;
 
     let verilog_str = match fs::read_to_string(&args.sv_file_path) {
         Ok(content) => content,
@@ -123,13 +126,18 @@ fn test_emulator(
         // Save that in the input_stimuli_by_step
         let mut input_stimuli_by_step: IndexMap<u32, Vec<(&str, Bit)>> = IndexMap::new();
         for (sig, bit) in input_stimuli_by_name.iter() {
-            let nidx = module.nodeindex(sig).unwrap();
-            let pc = circuit.graph.node_weight(nidx).unwrap().get_info().pc;
-            let step = pc + circuit.emulator.cfg.pc_ldm_offset();
-            if input_stimuli_by_step.get(&step) == None {
-                input_stimuli_by_step.insert(step, vec![]);
+            match module.nodeindex(sig) {
+                Some(nidx) => {
+                    let pc = circuit.graph.node_weight(nidx).unwrap().get_info().pc;
+                    let step = pc + circuit.emulator.cfg.pc_ldm_offset();
+                    if input_stimuli_by_step.get(&step) == None {
+                        input_stimuli_by_step.insert(step, vec![]);
+                    }
+                    input_stimuli_by_step.get_mut(&step).unwrap().push((sig, *bit));
+                }
+                None => {
+                }
             }
-            input_stimuli_by_step.get_mut(&step).unwrap().push((sig, *bit));
         }
 
         // run a cycle
@@ -252,7 +260,7 @@ pub mod emulation_tester {
     #[test_case(0, 0, 1, 1; "imem 0 dmem rd 0 wr 1 network 1")]
     #[test_case(2, 2, 2, 1; "imem 2 dmem rd 2 wr 2 network 1")]
     #[test_case(2, 2, 2, 2; "imem 2 dmem rd 2 wr 2 network 2")]
-    pub fn test(imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
+    pub fn test_fir(imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
         assert_eq!(
             perform_test(
                 "../examples/Fir.sv",
@@ -263,7 +271,24 @@ pub mod emulation_tester {
             ),
             true
         );
+    }
 
+    #[test_case(0, 0, 1, 0; "imem 0 dmem rd 0 wr 1 network 0")]
+    #[test_case(1, 0, 1, 0; "imem 1 dmem rd 0 wr 1 network 0")]
+    #[test_case(2, 0, 1, 0; "imem 2 dmem rd 0 wr 1 network 0")]
+    #[test_case(0, 1, 1, 0; "imem 0 dmem rd 1 wr 1 network 0")]
+    #[test_case(0, 2, 1, 0; "imem 0 dmem rd 2 wr 1 network 0")]
+    #[test_case(1, 1, 1, 0; "imem 1 dmem rd 1 wr 1 network 0")]
+    #[test_case(1, 2, 1, 0; "imem 1 dmem rd 2 wr 1 network 0")]
+    #[test_case(0, 0, 2, 0; "imem 0 dmem rd 0 wr 2 network 0")]
+    #[test_case(1, 0, 2, 0; "imem 1 dmem rd 0 wr 2 network 0")]
+    #[test_case(0, 1, 2, 0; "imem 0 dmem rd 1 wr 2 network 0")]
+    #[test_case(1, 1, 2, 0; "imem 1 dmem rd 1 wr 2 network 0")]
+    #[test_case(2, 2, 2, 0; "imem 2 dmem rd 2 wr 2 network 0")]
+    #[test_case(0, 0, 1, 1; "imem 0 dmem rd 0 wr 1 network 1")]
+    #[test_case(2, 2, 2, 1; "imem 2 dmem rd 2 wr 2 network 1")]
+    #[test_case(2, 2, 2, 2; "imem 2 dmem rd 2 wr 2 network 2")]
+    pub fn test_gcd(imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
         assert_eq!(
             perform_test(
                 "../examples/GCD.sv",
@@ -274,7 +299,24 @@ pub mod emulation_tester {
             ),
             true
         );
+    }
 
+    #[test_case(0, 0, 1, 0; "imem 0 dmem rd 0 wr 1 network 0")]
+    #[test_case(1, 0, 1, 0; "imem 1 dmem rd 0 wr 1 network 0")]
+    #[test_case(2, 0, 1, 0; "imem 2 dmem rd 0 wr 1 network 0")]
+    #[test_case(0, 1, 1, 0; "imem 0 dmem rd 1 wr 1 network 0")]
+    #[test_case(0, 2, 1, 0; "imem 0 dmem rd 2 wr 1 network 0")]
+    #[test_case(1, 1, 1, 0; "imem 1 dmem rd 1 wr 1 network 0")]
+    #[test_case(1, 2, 1, 0; "imem 1 dmem rd 2 wr 1 network 0")]
+    #[test_case(0, 0, 2, 0; "imem 0 dmem rd 0 wr 2 network 0")]
+    #[test_case(1, 0, 2, 0; "imem 1 dmem rd 0 wr 2 network 0")]
+    #[test_case(0, 1, 2, 0; "imem 0 dmem rd 1 wr 2 network 0")]
+    #[test_case(1, 1, 2, 0; "imem 1 dmem rd 1 wr 2 network 0")]
+    #[test_case(2, 2, 2, 0; "imem 2 dmem rd 2 wr 2 network 0")]
+    #[test_case(0, 0, 1, 1; "imem 0 dmem rd 0 wr 1 network 1")]
+    #[test_case(2, 2, 2, 1; "imem 2 dmem rd 2 wr 2 network 1")]
+    #[test_case(2, 2, 2, 2; "imem 2 dmem rd 2 wr 2 network 2")]
+    pub fn test_myqueue(imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
         assert_eq!(
             perform_test(
                 "../examples/MyQueue.sv",
@@ -285,13 +327,58 @@ pub mod emulation_tester {
             ),
             true
         );
+    }
 
+    #[test_case(0, 0, 1, 0; "imem 0 dmem rd 0 wr 1 network 0")]
+    #[test_case(1, 0, 1, 0; "imem 1 dmem rd 0 wr 1 network 0")]
+    #[test_case(2, 0, 1, 0; "imem 2 dmem rd 0 wr 1 network 0")]
+    #[test_case(0, 1, 1, 0; "imem 0 dmem rd 1 wr 1 network 0")]
+    #[test_case(0, 2, 1, 0; "imem 0 dmem rd 2 wr 1 network 0")]
+    #[test_case(1, 1, 1, 0; "imem 1 dmem rd 1 wr 1 network 0")]
+    #[test_case(1, 2, 1, 0; "imem 1 dmem rd 2 wr 1 network 0")]
+    #[test_case(0, 0, 2, 0; "imem 0 dmem rd 0 wr 2 network 0")]
+    #[test_case(1, 0, 2, 0; "imem 1 dmem rd 0 wr 2 network 0")]
+    #[test_case(0, 1, 2, 0; "imem 0 dmem rd 1 wr 2 network 0")]
+    #[test_case(1, 1, 2, 0; "imem 1 dmem rd 1 wr 2 network 0")]
+    #[test_case(2, 2, 2, 0; "imem 2 dmem rd 2 wr 2 network 0")]
+    #[test_case(0, 0, 1, 1; "imem 0 dmem rd 0 wr 1 network 1")]
+    #[test_case(2, 2, 2, 1; "imem 2 dmem rd 2 wr 2 network 1")]
+    #[test_case(2, 2, 2, 2; "imem 2 dmem rd 2 wr 2 network 2")]
+    pub fn test_adder(imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
         assert_eq!(
             perform_test(
                 "../examples/Adder.sv",
                 "Adder",
                 "../examples/Adder.input",
                 "../examples/Adder.lut.blif",
+                network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+            ),
+            true
+        );
+    }
+
+    #[test_case(0, 0, 1, 0; "imem 0 dmem rd 0 wr 1 network 0")]
+    #[test_case(1, 0, 1, 0; "imem 1 dmem rd 0 wr 1 network 0")]
+    #[test_case(2, 0, 1, 0; "imem 2 dmem rd 0 wr 1 network 0")]
+    #[test_case(0, 1, 1, 0; "imem 0 dmem rd 1 wr 1 network 0")]
+    #[test_case(0, 2, 1, 0; "imem 0 dmem rd 2 wr 1 network 0")]
+    #[test_case(1, 1, 1, 0; "imem 1 dmem rd 1 wr 1 network 0")]
+    #[test_case(1, 2, 1, 0; "imem 1 dmem rd 2 wr 1 network 0")]
+    #[test_case(0, 0, 2, 0; "imem 0 dmem rd 0 wr 2 network 0")]
+    #[test_case(1, 0, 2, 0; "imem 1 dmem rd 0 wr 2 network 0")]
+    #[test_case(0, 1, 2, 0; "imem 0 dmem rd 1 wr 2 network 0")]
+    #[test_case(1, 1, 2, 0; "imem 1 dmem rd 1 wr 2 network 0")]
+    #[test_case(2, 2, 2, 0; "imem 2 dmem rd 2 wr 2 network 0")]
+    #[test_case(0, 0, 1, 1; "imem 0 dmem rd 0 wr 1 network 1")]
+    #[test_case(2, 2, 2, 1; "imem 2 dmem rd 2 wr 2 network 1")]
+    #[test_case(2, 2, 2, 2; "imem 2 dmem rd 2 wr 2 network 2")]
+    pub fn test_testreginit(imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
+        assert_eq!(
+            perform_test(
+                "../examples/TestRegInit.sv",
+                "TestRegInit",
+                "../examples/TestRegInit.input",
+                "../examples/TestRegInit.lut.blif",
                 network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
             ),
             true

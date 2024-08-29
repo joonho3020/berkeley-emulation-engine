@@ -212,9 +212,11 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
             }
         }
         pc += 1;
-        if pc >= circuit.emulator.cfg.max_steps {
-            let _ = write_string_to_file(format!("{:?}", circuit), "schedule-failed.dot");
-            break;
+        if pc + 1 + circuit.emulator.cfg.pc_sdm_offset() >= circuit.emulator.cfg.max_steps {
+            let _ = write_string_to_file(circuit.print_scheduled(), "schedule-failed.dot");
+            assert!(false, "Schedule failed {} nodes out of {} nodes scheduled",
+                    scheduled_map.count_ones(..),
+                    scheduled_map.len());
         }
     }
     circuit.emulator.host_steps = pc + 1 + circuit.emulator.cfg.pc_sdm_offset();

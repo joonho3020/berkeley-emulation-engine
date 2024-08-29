@@ -239,12 +239,15 @@ impl HWNode for Lut {
 impl Debug for Lut {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut table: u64 = 0;
-        assert!(
-            self.table.len() <= 6,
-            "Can support up to 6 operands with u64 Lut {} Table {:?}",
-            self.name(),
-            self.table
-        );
+
+        if self.table.len() > 0 {
+            assert!(
+                self.table[0].len() <= 6,
+                "Can support up to 6 operands with u64 Lut {} Table {:?}",
+                self.name(),
+                self.table
+            );
+        }
 
         for entry in self.table.iter() {
             let mut x = 0;
@@ -253,7 +256,7 @@ impl Debug for Lut {
             }
             table = table | (1 << x);
         }
-        write!(f, "Lut 0x{:x} {:?}", table, self.info)
+        write!(f, "Lut {} 0x{:x} {:?}", &self.name(), table, self.info)
     }
 }
 
@@ -505,7 +508,7 @@ impl Default for KaMinParConfig {
         KaMinParConfig {
             seed: 123,
             epsilon: 0.03,
-            nthreads: 1
+            nthreads: 16
         }
     }
 }
@@ -746,56 +749,54 @@ impl Circuit {
         return outstring;
     }
 
-    pub fn topo_sorted_nodes(&self) -> Vec<NodeIndex> {
-        // Search for flip-flop nodes
-        let mut ff_nodes: Vec<NodeIndex> = vec![];
-        for nidx in self.graph.node_indices() {
-            let node = self.graph.node_weight(nidx).unwrap();
-            match node.is() {
-                Primitives::Latch | Primitives::Gate => {
-                    ff_nodes.push(nidx);
-                }
-                _ => {}
-            }
-        }
+    pub fn print_scheduled(&self) -> String {
+        let mut outstring = "digraph {\n".to_string();
+        let indent: &str = "    ";
 
-        // Push Input & FF nodes
+        let mut vis_map = self.graph.visit_map();
         let mut q: Vec<NodeIndex> = vec![];
         for nidx in self.io_i.keys() {
             q.push(*nidx);
         }
-        for nidx in ff_nodes.iter() {
-            q.push(*nidx);
-        }
 
-        // compute indeg
-        let mut indeg: IndexMap<NodeIndex, u32> = IndexMap::new();
-        for nidx in self.graph.node_indices() {
-            indeg.insert(nidx, 0);
-        }
-        for eidx in self.graph.edge_indices() {
-            let e = self.graph.edge_endpoints(eidx).unwrap();
-            let dst = e.1;
-            *indeg.get_mut(&dst).unwrap() += 1;
-        }
-
-        // BFS
-        let mut topo_sort_order: Vec<NodeIndex> = vec![];
-        let mut vis_map = self.graph.visit_map();
         while !q.is_empty() {
             let nidx = q.remove(0);
+            if vis_map.is_visited(&nidx) {
+                continue;
+            }
             vis_map.visit(nidx);
-            topo_sort_order.push(nidx);
+            let node = self.graph.node_weight(nidx).unwrap();
+            let color = match node.get_info().scheduled {
+                true => "blue",
+                _    => "red",
+            };
+            outstring.push_str(
+                &format!("{} {}[ color = \"{}\"]\n",
+                         indent,
+                         nidx.index(),
+                         color)
+            );
 
             let mut childs = self.graph.neighbors_directed(nidx, Outgoing).detach();
             while let Some(cidx) = childs.next_node(&self.graph) {
-                *indeg.get_mut(&cidx).unwrap() -= 1;
-                if *indeg.get(&cidx).unwrap() == 0 && !vis_map.is_visited(&cidx) {
+                if !vis_map.is_visited(&cidx) {
                     q.push(cidx);
                 }
             }
         }
-        return topo_sort_order;
+
+        for (_, edge) in self.graph.edge_references().enumerate() {
+            outstring.push_str(
+                &format!("{}{} {} {} ",
+                         indent,
+                         edge.source().index(),
+                         "->",
+                         edge.target().index())
+            );
+            outstring.push_str("[ ]");
+        }
+        outstring.push_str("}");
+        return outstring;
     }
 }
 

@@ -220,16 +220,19 @@ fn module_body_parser<'a>(input: &'a str, circuit: &mut Circuit) -> IResultStr<'
         let nidx = circuit.graph.add_node(Box::new(lut.clone()));
         net_to_nodeidx.insert(lut.output.to_string(), nidx);
     }
+    println!("LUT count: {}", luts.len());
 
     for gate in gates.iter() {
         let nidx = circuit.graph.add_node(Box::new(gate.clone()));
         net_to_nodeidx.insert(gate.q.to_string(), nidx);
     }
+    println!("Gate count: {}", gates.len());
 
     for latch in latches.iter() {
         let nidx = circuit.graph.add_node(Box::new(latch.clone()));
         net_to_nodeidx.insert(latch.output.to_string(), nidx);
     }
+    println!("Latch count: {}", latches.len());
 
     for lut in luts.iter() {
         for inet in lut.inputs.iter() {
