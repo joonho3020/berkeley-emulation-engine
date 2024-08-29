@@ -52,11 +52,26 @@ fn lut_body_parser<'a>(input: &'a str, luts: &mut Vec<Lut>) -> IResultStr<'a> {
     let mut io: Vec<&str> = ioline.split(' ').collect();
 
     let output = io.pop().unwrap_or("INVALID_OUTPUT").to_string();
-    let inputs: Vec<String> = io.iter().map(|v| v.to_string()).collect();
+    let mut inputs: Vec<String> = io.iter().map(|v| v.to_string()).collect();
     let (i, table) = take_until_or_end(".", i)?;
 
     let mut lut_table = vec![];
     let _ = lut_table_parser(table, &mut lut_table);
+
+    // Check if the LUT has constant inputs
+    let mut const_indices: Vec<usize> = vec![];
+    for (idx, input) in inputs.iter().enumerate() {
+        if input == "$false" || input == "$true" {
+            const_indices.push(idx);
+        }
+    }
+
+    // If the LUT has constant inputs, remove it
+    const_indices.sort();
+    for idx in const_indices.iter().rev() {
+        lut_table.remove(*idx);
+        inputs.remove(*idx);
+    }
 
     luts.push(Lut {
         inputs: inputs,

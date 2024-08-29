@@ -4,4 +4,6 @@ pub mod inst_schedule;
 pub mod parser;
 pub mod partition;
 pub mod set_rank;
+pub mod check_rank;
+pub mod print_stats;
 pub mod runner;

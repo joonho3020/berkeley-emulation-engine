@@ -3,7 +3,7 @@ use indexmap::IndexMap;
 use petgraph::{
     graph::NodeIndex,
     visit::{VisitMap, Visitable},
-    Direction::{Incoming, Outgoing},
+    Direction::{Incoming, Outgoing}
 };
 use std::{cmp::max, collections::VecDeque};
 
@@ -31,6 +31,7 @@ pub fn find_rank_order(circuit: &mut Circuit) {
         *indeg.get_mut(&dst).unwrap() += 1;
     }
 
+    let mut visited = 0;
     let mut vis_map = circuit.graph.visit_map();
     for curidx in circuit.graph.node_indices() {
         if vis_map.is_visited(&curidx) {
@@ -85,17 +86,18 @@ pub fn find_rank_order(circuit: &mut Circuit) {
         // BFS
         let mut topo_sort_order: Vec<NodeIndex> = vec![];
         let mut topo_vis_map = circuit.graph.visit_map();
+        assert!(topo_vis_map.count_ones(..) == 0 as usize, "New visit_map is not empty");
         while !q.is_empty() {
             let nidx = q.remove(0);
+            if topo_vis_map.is_visited(&nidx) {
+                continue;
+            }
+
             topo_vis_map.visit(nidx);
             topo_sort_order.push(nidx);
 
             let mut childs = circuit.graph.neighbors_directed(nidx, Outgoing).detach();
             while let Some(cidx) = childs.next_node(&circuit.graph) {
-// println!("nidx: {:?} node: {:#?} cidx {:?}, cnode: {:#?} indeg: {}",
-// nidx, circuit.graph.node_weight(nidx).unwrap(),
-// cidx, circuit.graph.node_weight(cidx).unwrap(),
-// *indeg.get(&cidx).unwrap());
                 let cnode = circuit.graph.node_weight(cidx).unwrap();
                 if !topo_vis_map.is_visited(&cidx) &&
                     cnode.is() != Primitives::Gate &&
@@ -112,7 +114,9 @@ pub fn find_rank_order(circuit: &mut Circuit) {
         // Set rank based on the topo sorted order
         for nidx in topo_sort_order.iter() {
             let node = circuit.graph.node_weight(*nidx).unwrap();
-            if node.is() != Primitives::Gate || node.is() != Primitives::Latch {
+            if node.is() != Primitives::Gate &&
+               node.is() != Primitives::Latch &&
+               node.is() != Primitives::Input {
                 let mut max_parent_rank = 0;
                 let mut parents = circuit.graph.neighbors_directed(*nidx, Incoming).detach();
                 while let Some(pidx) = parents.next_node(&circuit.graph) {
@@ -125,11 +129,12 @@ pub fn find_rank_order(circuit: &mut Circuit) {
                 }
             }
         }
+        visited += topo_sort_order.len();
     }
     println!("Max rank of this graph: {}", max_rank);
     assert!(
-        vis_map.count_ones(..) == vis_map.len(),
-        "Missed {} nodes out of {} nodes while topo sorting",
-        vis_map.count_ones(..),
+        visited == vis_map.len(),
+        "Visited {} nodes out of {} nodes while topo sorting",
+        visited,
         vis_map.len());
 }

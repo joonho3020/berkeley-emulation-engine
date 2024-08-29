@@ -2,7 +2,7 @@ use crate::primitives::*;
 use petgraph::{
     graph::NodeIndex,
     visit::{VisitMap, Visitable},
-    Direction::Incoming,
+    Direction::{Incoming, Outgoing},
 };
 
 pub fn dead_code_elimination(circuit: &mut Circuit) {
@@ -14,42 +14,63 @@ pub fn dead_code_elimination(circuit: &mut Circuit) {
     }
 
     // BFS starting from the Output node
-    let mut vis_map = circuit.graph.visit_map();
+    let mut o_vismap = circuit.graph.visit_map();
     while !q.is_empty() {
         let nidx = q.remove(0);
-        if vis_map.is_visited(&nidx) {
+        if o_vismap.is_visited(&nidx) {
             continue;
         }
-        vis_map.visit(nidx);
+        o_vismap.visit(nidx);
 
         let parents = circuit.graph.neighbors_directed(nidx, Incoming);
         for pidx in parents {
-            if !vis_map.is_visited(&pidx) {
+            if !o_vismap.is_visited(&pidx) {
                 q.push(pidx);
+            }
+        }
+    }
+
+    // Push Input nodes to the queue
+    for nidx in circuit.io_i.keys() {
+        q.push(*nidx);
+    }
+
+    // BFS starting from the Input node
+    let mut i_vismap = circuit.graph.visit_map();
+    while !q.is_empty() {
+        let nidx = q.remove(0);
+        if i_vismap.is_visited(&nidx) {
+            continue;
+        }
+        i_vismap.visit(nidx);
+        let childs = circuit.graph.neighbors_directed(nidx, Outgoing);
+        for cidx in childs {
+            if !i_vismap.is_visited(&cidx) {
+                q.push(cidx);
             }
         }
     }
 
     // Find nodes to delete (can't delete here due to immutable borrow)
     for nidx in circuit.graph.node_indices().rev() {
-        if !vis_map.is_visited(&nidx) {
-            let nnodes = circuit.graph.node_count();
-            let last_nidx = NodeIndex::new(nnodes - 1);
-
-            // TODO : find a case where this actually happens and test it?
-            if circuit.io_i.contains_key(&nidx) {
-                circuit.io_i.swap_remove(&nidx);
-            } else if let Some(v) = circuit.io_i.swap_remove(&last_nidx) {
-                circuit.io_i.insert(nidx, v);
-            }
-
-            if circuit.io_o.contains_key(&nidx) {
-                circuit.io_o.swap_remove(&nidx);
-            } else if let Some(v) = circuit.io_o.swap_remove(&last_nidx) {
-                circuit.io_o.insert(nidx, v);
-            }
-
+        if !o_vismap.is_visited(&nidx) || !i_vismap.is_visited(&nidx) {
             circuit.graph.remove_node(nidx);
+        }
+    }
+
+    // Reset the IO mappings
+    circuit.io_i.clear();
+    circuit.io_o.clear();
+    for nidx in circuit.graph.node_indices() {
+        let node = circuit.graph.node_weight(nidx).unwrap();
+        match node.is() {
+            Primitives::Input => {
+                circuit.io_i.insert(nidx, node.name().to_string());
+            }
+            Primitives::Output => {
+                circuit.io_o.insert(nidx, node.name().to_string());
+            }
+            _ => { }
         }
     }
 }
