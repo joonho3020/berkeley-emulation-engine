@@ -1,9 +1,7 @@
 use std::fs;
 use std::process::{Command, Stdio};
 use std::io::Write;
-use std::time::Duration;
 use clap::Parser;
-use wait_timeout::ChildExt;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
