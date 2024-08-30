@@ -1,66 +1,29 @@
 use crate::primitives::*;
-use std::time::Instant;
 use petgraph::{
-    graph::NodeIndex,
-    visit::{VisitMap, Visitable},
-    Direction::{Incoming, Outgoing},
+    prelude::Bfs,
+    visit::{VisitMap, Visitable}
 };
 
 pub fn dead_code_elimination(circuit: &mut Circuit) {
-    let mut q: Vec<NodeIndex> = vec![];
-
-    let in_bfs_start = Instant::now();
-
+    // BFS from inputs
     let mut i_vismap = circuit.graph.visit_map();
     for nidx in circuit.io_i.keys() {
-        // Push Input nodes to the queue
-        q.push(*nidx);
-
-        // BFS starting from the Input node
-        while !q.is_empty() {
-            let nidx = q.remove(0);
-            if i_vismap.is_visited(&nidx) {
-                continue;
-            }
-            i_vismap.visit(nidx);
-            let childs = circuit.graph.neighbors_directed(nidx, Outgoing);
-            for cidx in childs {
-                if !i_vismap.is_visited(&cidx) {
-                    q.push(cidx);
-                }
-            }
+        let mut bfs = Bfs::new(&circuit.graph, *nidx);
+        while let Some(nx) = bfs.next(&circuit.graph) {
+            i_vismap.visit(nx);
         }
     }
 
-    let in_bfs_time = in_bfs_start.elapsed().as_millis();
-
-    let out_bfs_start = Instant::now();
-    // Push Output nodes to the queue
-    for nidx in circuit.io_o.keys() {
-        q.push(*nidx);
-    }
-
-    // BFS starting from the Output node
+    // BFS from outputs
+    circuit.graph.reverse();
     let mut o_vismap = circuit.graph.visit_map();
-    while !q.is_empty() {
-        let nidx = q.remove(0);
-        if o_vismap.is_visited(&nidx) {
-            continue;
-        }
-        o_vismap.visit(nidx);
-
-        let parents = circuit.graph.neighbors_directed(nidx, Incoming);
-        for pidx in parents {
-            if !o_vismap.is_visited(&pidx) {
-                q.push(pidx);
-            }
+    for nidx in circuit.io_o.keys() {
+        let mut bfs = Bfs::new(&circuit.graph, *nidx);
+        while let Some(nx) = bfs.next(&circuit.graph) {
+            o_vismap.visit(nx);
         }
     }
-    let out_bfs_time = out_bfs_start.elapsed().as_millis();
-
-
-
-    let remove_start = Instant::now();
+    circuit.graph.reverse();
 
     // Find nodes to delete (can't delete here due to immutable borrow)
     for nidx in circuit.graph.node_indices().rev() {
@@ -68,10 +31,6 @@ pub fn dead_code_elimination(circuit: &mut Circuit) {
             circuit.graph.remove_node(nidx);
         }
     }
-
-    let remove_time = remove_start.elapsed().as_millis();
-
-    let remap_start = Instant::now();
 
     // Reset the IO mappings
     circuit.io_i.clear();
@@ -88,10 +47,4 @@ pub fn dead_code_elimination(circuit: &mut Circuit) {
             _ => { }
         }
     }
-    let remap_time = remap_start.elapsed().as_millis();
-    println!("DCE time");
-    println!("Out BFS: {}", out_bfs_time);
-    println!("In BFS: {}", in_bfs_time);
-    println!("remove: {}", remove_time);
-    println!("reset io: {}", remap_time);
 }

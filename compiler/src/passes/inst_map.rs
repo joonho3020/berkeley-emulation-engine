@@ -12,7 +12,7 @@ pub fn map_instructions(circuit: &mut Circuit) {
     for _ in 0..circuit.emulator.used_procs {
         let mut insts: Vec<Instruction> = vec![];
         for _ in 0..circuit.emulator.cfg.max_steps {
-            insts.push(Instruction::default());
+            insts.push(Instruction::new(circuit.emulator.cfg.lut_inputs));
         }
         all_insts.push(insts);
     }
@@ -40,7 +40,6 @@ pub fn map_instructions(circuit: &mut Circuit) {
                     x = x + (e << i);
                 }
                 table = table | (1 << x);
-
                 assert!(x < 64,
                     "Can support up to 6 operands with u64, node {} {:?} {:?}",
                     node.name(), node.is(), node.get_info());
@@ -54,14 +53,13 @@ pub fn map_instructions(circuit: &mut Circuit) {
         }
 
         // assign operands
-        let mut parents = circuit.graph.neighbors_directed(nidx, Incoming).detach();
-        while let Some(pidx) = parents.next_node(&circuit.graph) {
-            let edge_idx = circuit.graph.find_edge(pidx, nidx).unwrap();
+        let parents = circuit.graph.neighbors_directed(nidx, Incoming);
+        for pidx in parents {
             let mut op_idx = 0;
             if node.is() == Primitives::Lut {
                 let lut_inputs = node.get_lut().unwrap().inputs;
-                let edge_name = circuit.graph.edge_weight(edge_idx).unwrap();
-                op_idx = lut_inputs.iter().position(|n| n == edge_name).unwrap();
+                let parent_name = circuit.graph.node_weight(pidx).unwrap().name();
+                op_idx = lut_inputs.iter().position(|n| n == parent_name).unwrap();
             }
 
             let parent = circuit.graph.node_weight(pidx).unwrap();
@@ -83,8 +81,8 @@ pub fn map_instructions(circuit: &mut Circuit) {
         node_inst.operands.sort_by(|a, b| a.idx.cmp(&b.idx));
 
         // assign sin
-        let mut childs = circuit.graph.neighbors_directed(nidx, Outgoing).detach();
-        while let Some(cidx) = childs.next_node(&circuit.graph) {
+        let childs = circuit.graph.neighbors_directed(nidx, Outgoing);
+        for cidx in childs {
             let child = circuit.graph.node_weight(cidx).unwrap();
 
             if child.get_info().proc != node.get_info().proc {

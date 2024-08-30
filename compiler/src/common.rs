@@ -64,6 +64,16 @@ pub struct Instruction {
 }
 
 impl Instruction {
+    pub fn new(nops: u32) -> Self {
+        Instruction {
+            valid: false,
+            opcode: Primitives::NOP,
+            lut: 0,
+            operands: Vec::with_capacity(nops as usize),
+            sin: SwitchIn::default(),
+        }
+    }
+
     pub fn to_bytes(self: &Self, cfg: &Configuration) -> BitBuf {
         let mut ret = BitBuf::default();
         ret.push_bits(self.opcode as u64, cfg.opcode_bits());

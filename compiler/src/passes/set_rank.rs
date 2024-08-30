@@ -2,8 +2,10 @@ use crate::primitives::*;
 use indexmap::IndexMap;
 use petgraph::{
     graph::NodeIndex,
+    prelude::Dfs,
     visit::{VisitMap, Visitable},
-    Direction::{Incoming, Outgoing}
+    Direction::{Incoming, Outgoing},
+    Undirected
 };
 use std::{cmp::max, collections::VecDeque};
 
@@ -31,6 +33,7 @@ pub fn find_rank_order(circuit: &mut Circuit) {
         *indeg.get_mut(&dst).unwrap() += 1;
     }
 
+    let undir_graph = circuit.graph.clone().into_edge_type::<Undirected>();
     let mut visited = 0;
     let mut vis_map = circuit.graph.visit_map();
     for curidx in circuit.graph.node_indices() {
@@ -42,53 +45,40 @@ pub fn find_rank_order(circuit: &mut Circuit) {
         // DFS to search for all the relevant nodes
         let mut ff_nodes: Vec<NodeIndex> = vec![];
         let mut in_nodes: Vec<NodeIndex> = vec![];
-        let mut stack: VecDeque<NodeIndex> = VecDeque::new();
-        stack.push_back(curidx);
 
-        while !stack.is_empty() {
-            let top = stack.pop_back().unwrap();
-            if vis_map.is_visited(&top) {
-                continue;
-            }
-            vis_map.visit(top);
+        let mut dfs = Dfs::new(&undir_graph, curidx);
+        while let Some(nx) = dfs.next(&undir_graph) {
+            vis_map.visit(nx);
 
-            let node = circuit.graph.node_weight(top).unwrap();
+            let node = circuit.graph.node_weight(nx).unwrap();
             match node.is() {
                 Primitives::Latch | Primitives::Gate => {
-                    ff_nodes.push(top);
+                    ff_nodes.push(nx);
                 }
                 Primitives::Input => {
-                    in_nodes.push(top);
+                    in_nodes.push(nx);
                 }
                 _ => {
-                }
-            }
-
-            let mut adj = circuit.graph.neighbors_undirected(top).detach();
-            while let Some(adjidx) = adj.next_node(&circuit.graph) {
-                if !vis_map.is_visited(&adjidx) {
-                    stack.push_back(adjidx);
                 }
             }
         }
 
         // Start topological sort
-        let mut q: Vec<NodeIndex> = vec![];
+        let mut q: VecDeque<NodeIndex> = VecDeque::new();
         for nidx in in_nodes.iter() {
-            q.push(*nidx);
+            q.push_back(*nidx);
             set_rank(&mut circuit.graph, *nidx, 0);
         }
         for nidx in ff_nodes.iter() {
-            q.push(*nidx);
+            q.push_back(*nidx);
             set_rank(&mut circuit.graph, *nidx, 0);
         }
 
         // BFS
         let mut topo_sort_order: Vec<NodeIndex> = vec![];
         let mut topo_vis_map = circuit.graph.visit_map();
-        assert!(topo_vis_map.count_ones(..) == 0 as usize, "New visit_map is not empty");
         while !q.is_empty() {
-            let nidx = q.remove(0);
+            let nidx = q.pop_front().unwrap();
             if topo_vis_map.is_visited(&nidx) {
                 continue;
             }
@@ -96,8 +86,8 @@ pub fn find_rank_order(circuit: &mut Circuit) {
             topo_vis_map.visit(nidx);
             topo_sort_order.push(nidx);
 
-            let mut childs = circuit.graph.neighbors_directed(nidx, Outgoing).detach();
-            while let Some(cidx) = childs.next_node(&circuit.graph) {
+            let childs = circuit.graph.neighbors_directed(nidx, Outgoing);
+            for cidx in childs {
                 let cnode = circuit.graph.node_weight(cidx).unwrap();
                 if !topo_vis_map.is_visited(&cidx) &&
                     cnode.is() != Primitives::Gate &&
@@ -105,7 +95,7 @@ pub fn find_rank_order(circuit: &mut Circuit) {
                     cnode.is() != Primitives::Input {
                     *indeg.get_mut(&cidx).unwrap() -= 1;
                     if *indeg.get(&cidx).unwrap() == 0 {
-                        q.push(cidx);
+                        q.push_back(cidx);
                     }
                 }
             }
@@ -118,8 +108,8 @@ pub fn find_rank_order(circuit: &mut Circuit) {
                node.is() != Primitives::Latch &&
                node.is() != Primitives::Input {
                 let mut max_parent_rank = 0;
-                let mut parents = circuit.graph.neighbors_directed(*nidx, Incoming).detach();
-                while let Some(pidx) = parents.next_node(&circuit.graph) {
+                let parents = circuit.graph.neighbors_directed(*nidx, Incoming);
+                for pidx in parents {
                     let parent = circuit.graph.node_weight(pidx).unwrap();
                     max_parent_rank = max(max_parent_rank, parent.get_info().rank);
                 }
