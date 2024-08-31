@@ -67,7 +67,7 @@ impl Switch {
     pub fn get_port_val(self: &Self, pid: usize) -> Bit {
         match self.ports[pid].cur_req() {
             Some(x) => x,
-            None    => 0 // FIXME ????
+            None    => 0 // TODO: should return proper X instead of zero when a value is unknown
         }
     }
 

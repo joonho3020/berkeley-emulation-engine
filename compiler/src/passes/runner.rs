@@ -13,25 +13,30 @@ pub fn run_compiler_passes(c: &mut Circuit) {
     let dce_start = Instant::now();
     dead_code_elimination(c);
     let dce_time = dce_start.elapsed().as_millis();
+    println!("DCE done");
 
-    print_stats(c);
+    let partition_start = Instant::now();
+    partition(c);
+    let partition_time = partition_start.elapsed().as_millis();
+    println!("Partition done");
 
     let rank_start = Instant::now();
     find_rank_order(c);
     check_rank_order(c);
     let rank_time = rank_start.elapsed().as_millis();
-
-    let partition_start = Instant::now();
-    partition(c);
-    let partition_time = partition_start.elapsed().as_millis();
+    println!("Set rank order done");
 
     let schedule_start = Instant::now();
     schedule_instructions(c);
     let schedule_time = schedule_start.elapsed().as_millis();
+    println!("Scheduling done");
 
     let map_start = Instant::now();
     map_instructions(c);
     let map_time = map_start.elapsed().as_millis();
+    println!("Mapping done");
+
+    print_stats(c);
 
     let compiler_time = dce_time + rank_time + partition_time + schedule_time + map_time;
     println!("===============================");

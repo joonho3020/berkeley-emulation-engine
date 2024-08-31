@@ -1,7 +1,7 @@
 use crate::common::*;
 use crate::fsim::processor::*;
 use crate::fsim::switch::*;
-use crate::primitives::{Circuit, NodeMapInfo, Primitives, Configuration};
+use crate::primitives::{Circuit, NodeMapInfo, Primitives, PlatformConfig};
 use indexmap::IndexMap;
 use itertools::Itertools;
 use petgraph::graph::NodeIndex;
@@ -23,7 +23,7 @@ impl Debug for Module {
 }
 
 impl Module {
-    pub fn new(nprocs: u32, host_steps_: u32, cfg: &Configuration) -> Self {
+    pub fn new(nprocs: u32, host_steps_: u32, cfg: &PlatformConfig) -> Self {
         Module {
             switch: Switch::new(nprocs, cfg.network_lat),
             procs: (0..nprocs).map(|i| Processor::new(host_steps_, cfg, i as u32)).collect_vec(),
@@ -37,15 +37,17 @@ impl Module {
     /// Given a circuit that went through the compiler pass,
     /// return a Module with instructions from the compiler pass mapped
     pub fn from_circuit(c: &Circuit) -> Self {
-        let all_insts = &c.emulator.instructions;
-        let nprocs = all_insts.len() as u32;
-        let host_steps = c.emulator.host_steps;
+    // FIXME: ...
+// let all_insts = &c.emulator.instructions;
+// let nprocs = all_insts.len() as u32;
+// let host_steps = c.emulator.host_steps;
 
-        let mut module = Module::new(nprocs, host_steps, &c.emulator.cfg);
-        module.set_insts(all_insts.to_vec());
-        module.set_signal_map(&c.emulator.signal_map);
+// let mut module = Module::new(nprocs, host_steps, &c.cfg);
+// module.set_insts(all_insts.to_vec());
+// module.set_signal_map(&c.emulator.signal_map);
 
-        return module;
+// return module;
+        return Module::new(10, 10, &c.platform_cfg);
     }
 
     fn set_insts(self: &mut Self, all_insts: Vec<Vec<Instruction>>) {

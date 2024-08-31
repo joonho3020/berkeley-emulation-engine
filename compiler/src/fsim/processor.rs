@@ -1,5 +1,5 @@
 use crate::common::*;
-use crate::primitives::{Configuration, Primitives};
+use crate::primitives::{PlatformConfig, Primitives};
 use crate::fsim::memory::*;
 use std::fmt::Debug;
 
@@ -12,7 +12,7 @@ struct ProcessorSwitchPort {
 #[derive(Clone)]
 pub struct Processor {
     pub processor_id: u32,
-    pub cfg: Configuration,
+    pub cfg: PlatformConfig,
     pub host_steps: Bits,
     pub target_cycle: Cycle,
     pub pc: Bits,
@@ -27,7 +27,7 @@ pub struct Processor {
 }
 
 impl Processor {
-    pub fn new(host_steps_: Bits, cfg: &Configuration, id_: u32) -> Self {
+    pub fn new(host_steps_: Bits, cfg: &PlatformConfig, id_: u32) -> Self {
         Processor {
             cfg: cfg.clone(),
             host_steps: host_steps_,

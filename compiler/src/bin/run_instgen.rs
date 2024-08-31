@@ -1,6 +1,6 @@
 use blif_parser::passes::parser;
 use blif_parser::passes::runner;
-use blif_parser::primitives::Configuration;
+use blif_parser::primitives::PlatformConfig;
 use std::env;
 
 fn main() -> std::io::Result<()> {
@@ -20,7 +20,7 @@ fn main() -> std::io::Result<()> {
     };
     println!("parsing blif file done");
 
-    circuit.set_cfg(Configuration::default());
+    circuit.set_cfg(PlatformConfig::default());
 
     runner::run_compiler_passes(&mut circuit);
     circuit.save_emulator_info(output_file.to_string())?;

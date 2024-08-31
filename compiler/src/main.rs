@@ -2,7 +2,7 @@ use blif_parser::common::*;
 use blif_parser::fsim::module::*;
 use blif_parser::passes::parser;
 use blif_parser::passes::runner;
-use blif_parser::primitives::Configuration;
+use blif_parser::primitives::PlatformConfig;
 use blif_parser::rtlsim::ref_rtlsim_testharness::*;
 use blif_parser::rtlsim::rtlsim_utils::*;
 use blif_parser::rtlsim::vcdparser::*;
@@ -42,23 +42,23 @@ fn test_emulator(
         }
     };
 
-    circuit.set_cfg(Configuration {
+    circuit.set_cfg(PlatformConfig {
+        num_mods:    args.num_mods,
+        num_procs:   args.num_procs,
         max_steps:   args.max_steps,
-        module_sz:   args.module_sz,
         lut_inputs:  args.lut_inputs,
         network_lat: args.network_lat,
         imem_lat:    args.imem_lat,
         dmem_rd_lat: args.dmem_rd_lat,
         dmem_wr_lat: args.dmem_wr_lat,
     });
-    println!("Running compiler passes with config: {:#?}", &circuit.emulator.cfg);
+    println!("Running compiler passes with config: {:#?}", &circuit.platform_cfg);
     runner::run_compiler_passes(&mut circuit);
 
     circuit.save_emulator_instructions(
         &format!("{}/{}.insts", cwd.to_str().unwrap(), args.top_mod))?;
-
-    write_string_to_file(format!("{:#?}", &circuit.emulator.signal_map),
-        &format!("{}/{}.signals", cwd.to_str().unwrap(), args.top_mod))?;
+    circuit.save_emulator_sigmap(
+        &format!("{}/{}.signals",cwd.to_str().unwrap(), args.top_mod))?;
 // save_graph_pdf(
 // &format!("{:?}", circuit),
 // &format!("{}/{}.dot", cwd.to_str().unwrap(), args.top_mod),
@@ -129,7 +129,7 @@ fn test_emulator(
             match module.nodeindex(sig) {
                 Some(nidx) => {
                     let pc = circuit.graph.node_weight(nidx).unwrap().get_info().pc;
-                    let step = pc + circuit.emulator.cfg.pc_ldm_offset();
+                    let step = pc + circuit.platform_cfg.pc_ldm_offset();
                     if input_stimuli_by_step.get(&step) == None {
                         input_stimuli_by_step.insert(step, vec![]);
                     }
@@ -231,8 +231,9 @@ pub mod emulation_tester {
             top_mod:            top_mod.to_string(),
             input_stimuli_path: input_stimuli_path.to_string(),
             blif_file_path:     blif_file_path.to_string(),
+            num_mods:           1,
+            num_procs:          8,
             max_steps:          128,
-            module_sz:          8,
             lut_inputs:         3,
             network_lat:        network_lat,
             imem_lat:           imem_lat,

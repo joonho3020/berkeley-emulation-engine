@@ -18,17 +18,37 @@ use strum_macros::EnumCount as EnumCountMacro;
 
 pub type HWGraph = Graph<Box<dyn HWNode>, String>;
 
+pub fn get_nodes_type(graph: &HWGraph, nodetype: Primitives) -> Vec<NodeIndex> {
+    let mut nodes: Vec<NodeIndex> = vec![];
+    for nidx in graph.node_indices() {
+        let node = graph.node_weight(nidx).unwrap();
+        if node.is() == nodetype {
+            nodes.push(nidx);
+        }
+    }
+    return nodes;
+}
+
 /// # Metadata attached to each `HWGraph` node
-/// - proc: the processor id that this node is mapped to
-/// - rank: rank order index
-/// - scheduled: true if a imem slot has been allocated for this instruction
-/// - pc: index to the allocated imem slot
 #[derive(Debug, Clone, Default)]
 pub struct NodeInfo {
-    pub proc: u32,
-    pub rank: u32,
+    /// the module id that this node is mapped to
+    pub module:  u32,
+
+    /// the processor id that this node is mapped to
+    pub proc:    u32,
+
+    /// rank order index
+    pub rank:    u32,
+
+    /// true if a imem slot has been allocated for this instruction
     pub scheduled: bool,
+
+    /// index to the allocated imem slot
     pub pc: u32,
+
+    /// register group that this node is in
+    pub reggrp: u32,
 }
 
 impl Serialize for NodeInfo {
@@ -514,14 +534,17 @@ impl Default for KaMinParConfig {
 }
 
 /// # Context
-/// - Configuration of the underlying hardware emulation platform
+/// - Config of the underlying hardware emulation platform
 #[derive(Debug, Clone, Serialize)]
-pub struct Configuration {
-    /// Maximum host steps that can be run
-    pub max_steps: u32,
+pub struct PlatformConfig {
+    /// Num modules
+    pub num_mods: u32,
 
     /// Number of processor in a module
-    pub module_sz: u32,
+    pub num_procs: u32,
+
+    /// Maximum host steps that can be run
+    pub max_steps: u32,
 
     /// Number of lut inputs
     pub lut_inputs: Cycle,
@@ -539,11 +562,12 @@ pub struct Configuration {
     pub dmem_wr_lat: Cycle,
 }
 
-impl Default for Configuration {
+impl Default for PlatformConfig {
     fn default() -> Self {
-        Configuration {
+        PlatformConfig {
+            num_mods: 1,
+            num_procs: 64,
             max_steps: 128,
-            module_sz: 64,
             lut_inputs: 3,
             network_lat: 0,
             imem_lat: 0,
@@ -553,7 +577,7 @@ impl Default for Configuration {
     }
 }
 
-impl Configuration {
+impl PlatformConfig {
     fn power_of_2(self: &Self, v: u32) -> bool {
         return v & (v - 1) == 0;
     }
@@ -572,14 +596,14 @@ impl Configuration {
         self.log2ceil(self.max_steps)
     }
 
-    /// log2Ceil(self.module_sz)
+    /// log2Ceil(self.num_procs)
     pub fn switch_bits(self: &Self) -> u32 {
-        self.log2ceil(self.module_sz)
+        self.log2ceil(self.num_procs)
     }
 
     /// log2Ceil(number of Primitives)
     pub fn opcode_bits(self: &Self) -> u32 {
-        // FIXME: Currently subtracting 2 to exclude Subckt and Module
+        // NOTE: Currently subtracting 2 to exclude Subckt and Module
         let num_prims: u32 = Primitives::COUNT as u32 - 2;
         self.log2ceil(num_prims)
     }
@@ -626,13 +650,10 @@ impl Configuration {
     }
 }
 
-/// # EmulatorInfo
+/// # MappingInfo
 /// - Contains fields specific to the emulator hardware
 #[derive(Serialize, Debug, Default, Clone)]
-pub struct EmulatorInfo {
-    /// Configuration of the emulation HW
-    pub cfg: Configuration,
-    pub kaminpar: KaMinParConfig,
+pub struct MappingInfo {
     pub host_steps: u32,
     pub used_procs: u32,
     pub instructions: Vec<Vec<Instruction>>,
@@ -640,44 +661,73 @@ pub struct EmulatorInfo {
 }
 
 #[derive(Default, Clone)]
+pub struct SubCircuit {
+    pub subgraph: HWGraph,
+    pub mapping:  MappingInfo
+}
+
+#[derive(Default, Clone)]
 pub struct Circuit {
+    pub platform_cfg: PlatformConfig,
+    pub kaminpar_cfg: KaMinParConfig,
+
     pub graph: HWGraph,
-    pub io_i: IndexMap<NodeIndex, String>, // Nodes that represent the input IO port
-    pub io_o: IndexMap<NodeIndex, String>, // Nodes that represent the output IO port
-    pub emulator: EmulatorInfo,
+    pub graph_to_subgraph: IndexMap<NodeIndex, NodeIndex>,
+    pub subcircuits: IndexMap<u32, SubCircuit>
 }
 
 impl Circuit {
-    pub fn set_cfg(&mut self, cfg: Configuration) {
-        self.emulator.cfg = cfg;
+    pub fn set_cfg(&mut self, cfg: PlatformConfig) {
+        self.platform_cfg = cfg;
     }
 
     pub fn save_emulator_info(&self, file_path: String) -> std::io::Result<()> {
-        write_string_to_file(serde_json::to_string_pretty(&self.emulator)?, &file_path)
+        for (i, subckt) in self.subcircuits.iter() {
+            let mut out = file_path.clone();
+            out.push_str(&format!("-{}", i));
+            write_string_to_file(serde_json::to_string_pretty(&subckt.mapping)?, &out)?;
+        }
+        Ok(())
     }
 
     pub fn save_emulator_instructions(&self, file_path: &str) -> std::io::Result<()> {
-        let mut nops = 0;
-        let total = self.emulator.host_steps * self.emulator.used_procs;
+        for (i, subckt) in self.subcircuits.iter() {
+            let mut nops = 0;
+            let total = subckt.mapping.host_steps * subckt.mapping.used_procs;
 
-        let mut inst_str = "".to_string();
-        for (pi, proc_insts) in self.emulator.instructions.iter().enumerate() {
-            inst_str.push_str(&format!("------------ processor {} ------------\n", pi));
-            for (i, inst) in proc_insts.iter().enumerate() {
-                if (i as u32) < self.emulator.host_steps {
-                    inst_str.push_str(&format!("{} {:?}\n", i, inst));
-                    match inst.opcode {
-                        Primitives::NOP => nops += 1,
-                        _ => ()
-                    };
-                } else {
-                    break;
+            let mut inst_str = "".to_string();
+            for (pi, proc_insts) in subckt.mapping.instructions.iter().enumerate() {
+                inst_str.push_str(&format!("------------ processor {} ------------\n", pi));
+                for (i, inst) in proc_insts.iter().enumerate() {
+                    if (i as u32) < subckt.mapping.host_steps {
+                        inst_str.push_str(&format!("{} {:?}\n", i, inst));
+                        match inst.opcode {
+                            Primitives::NOP => nops += 1,
+                            _ => ()
+                        };
+                    } else {
+                        break;
+                    }
                 }
             }
+            inst_str.push_str(&format!("Overal stats\nNOPs: {}\nTotal insts: {}\nUtilization: {}%\n",
+                                       nops, total, ((total - nops) as f32)/(total as f32) * 100 as f32));
+            let mut out = file_path.clone().to_string();
+            out.push_str(&format!("-{}", i));
+            write_string_to_file(inst_str, &out)?;
         }
-        inst_str.push_str(&format!("Overal stats\nNOPs: {}\nTotal insts: {}\nUtilization: {}%\n",
-                                   nops, total, ((total - nops) as f32)/(total as f32) * 100 as f32));
-        write_string_to_file(inst_str, &file_path)
+        Ok(())
+    }
+
+    pub fn save_emulator_sigmap(&self, file_path: &str) -> std::io::Result<()> {
+        for (i, subckt) in self.subcircuits.iter() {
+            let mut out = file_path.clone().to_string();
+            out.push_str(&format!("-{}", i));
+            write_string_to_file(
+                format!("{:#?}", subckt.mapping.signal_map),
+                &out)?;
+        }
+        Ok(())
     }
 
     /// #debug_graph
@@ -753,9 +803,10 @@ impl Circuit {
         let mut outstring = "digraph {\n".to_string();
         let indent: &str = "    ";
 
+        let io_i = get_nodes_type(&self.graph, Primitives::Input);
         let mut vis_map = self.graph.visit_map();
         let mut q: Vec<NodeIndex> = vec![];
-        for nidx in self.io_i.keys() {
+        for nidx in io_i.iter() {
             q.push(*nidx);
         }
 
@@ -804,11 +855,11 @@ impl Debug for Circuit {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let indent: &str = "    ";
         let graph = &self.graph;
-        let io_i = &self.io_i;
+        let io_i = get_nodes_type(&self.graph, Primitives::Input);
 
         // Push Input nodes
         let mut q: Vec<NodeIndex> = vec![];
-        for nidx in io_i.keys() {
+        for nidx in io_i.iter() {
             q.push(*nidx);
         }
 

@@ -74,7 +74,7 @@ impl Instruction {
         }
     }
 
-    pub fn to_bytes(self: &Self, cfg: &Configuration) -> BitBuf {
+    pub fn to_bytes(self: &Self, cfg: &PlatformConfig) -> BitBuf {
         let mut ret = BitBuf::default();
         ret.push_bits(self.opcode as u64, cfg.opcode_bits());
         ret.push_bits(self.lut as u64, cfg.lut_bits());

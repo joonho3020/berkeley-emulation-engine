@@ -25,13 +25,17 @@ pub struct Args {
     #[arg(short, long, default_value = "")]
     pub blif_file_path: String,
 
-    /// maximum number of instructions per processor
-    #[arg(long, default_value_t = 128)]
-    pub max_steps: u32,
+    /// number of modules
+    #[arg(long, default_value_t = 1)]
+    pub num_mods: u32,
 
     /// number of processors in a module
     #[arg(long, default_value_t = 8)]
-    pub module_sz: u32,
+    pub num_procs: u32,
+
+    /// maximum number of instructions per processor
+    #[arg(long, default_value_t = 128)]
+    pub max_steps: u32,
 
     /// lut inputs
     #[arg(long, default_value_t = 3)]

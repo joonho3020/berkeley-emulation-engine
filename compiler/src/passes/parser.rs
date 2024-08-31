@@ -195,7 +195,6 @@ fn module_body_parser<'a>(input: &'a str, circuit: &mut Circuit) -> IResultStr<'
             name: i.clone(),
             info: NodeInfo::default(),
         }));
-        circuit.io_i.insert(nidx, i.to_string());
         net_to_nodeidx.insert(i.to_string(), nidx);
     }
 
@@ -207,7 +206,6 @@ fn module_body_parser<'a>(input: &'a str, circuit: &mut Circuit) -> IResultStr<'
             name: o.clone(),
             info: NodeInfo::default(),
         }));
-        circuit.io_o.insert(nidx, o.to_string());
         out_to_nodeidx.insert(o.to_string(), nidx);
     }
 

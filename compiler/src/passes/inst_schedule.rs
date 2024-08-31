@@ -58,7 +58,9 @@ impl NodeArray {
 pub fn schedule_instructions(circuit: &mut Circuit) {
     // subgraphs are ordered in BFS order starting from the input nodes
     let mut subgraphs_rank_order: Vec<NodeArray> = vec![];
-    for _ in 0..circuit.emulator.used_procs {
+    // FIXME:
+// for _ in 0..circuit.emulator.used_procs {
+    for _ in 0..3 {
         subgraphs_rank_order.push(NodeArray::default());
     }
     for nidx in circuit.graph.node_indices() {
@@ -80,7 +82,7 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
 
     let mut pc = 0;
     let mut scheduled_map = circuit.graph.visit_map();
-    let cfg = &circuit.emulator.cfg;
+    let cfg = &circuit.platform_cfg;
 
     while scheduled_map.count_ones(..) != scheduled_map.len() {
         let mut schedule_candidates: IndexSet<NodeIndex> = IndexSet::new();
@@ -212,12 +214,13 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
             }
         }
         pc += 1;
-        if pc + 1 + circuit.emulator.cfg.pc_sdm_offset() >= circuit.emulator.cfg.max_steps {
+        if pc + 1 + circuit.platform_cfg.pc_sdm_offset() >= circuit.platform_cfg.max_steps {
             let _ = write_string_to_file(circuit.print_scheduled(), "schedule-failed.dot");
             assert!(false, "Schedule failed {} nodes out of {} nodes scheduled",
                     scheduled_map.count_ones(..),
                     scheduled_map.len());
         }
     }
-    circuit.emulator.host_steps = pc + 1 + circuit.emulator.cfg.pc_sdm_offset();
+    // FIXME:
+// circuit.emulator.host_steps = pc + 1 + circuit.platform_cfg.pc_sdm_offset();
 }

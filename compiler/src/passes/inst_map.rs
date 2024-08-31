@@ -9,15 +9,18 @@ use petgraph::Direction::{Incoming, Outgoing};
 pub fn map_instructions(circuit: &mut Circuit) {
     let mut signal_map: IndexMap<String, NodeMapInfo> = IndexMap::new();
     let mut all_insts: Vec<Vec<Instruction>> = vec![];
-    for _ in 0..circuit.emulator.used_procs {
+
+    // FIXME: ...
+// for _ in 0..circuit.emulator.used_procs {
+    for _ in 0..3 {
         let mut insts: Vec<Instruction> = vec![];
-        for _ in 0..circuit.emulator.cfg.max_steps {
-            insts.push(Instruction::new(circuit.emulator.cfg.lut_inputs));
+        for _ in 0..circuit.platform_cfg.max_steps {
+            insts.push(Instruction::new(circuit.platform_cfg.lut_inputs));
         }
         all_insts.push(insts);
     }
 
-    let cfg = &circuit.emulator.cfg;
+    let cfg = &circuit.platform_cfg;
     for nidx in circuit.graph.node_indices() {
         let node = circuit.graph.node_weight(nidx).unwrap();
         let node_insts = all_insts.get_mut(node.get_info().proc as usize).unwrap();
@@ -103,6 +106,7 @@ pub fn map_instructions(circuit: &mut Circuit) {
         };
         signal_map.insert(node.name().to_string(), nodemap);
     }
-    circuit.emulator.signal_map = signal_map;
-    circuit.emulator.instructions = all_insts;
+    // FIXME: ...
+// circuit.emulator.signal_map = signal_map;
+// circuit.emulator.instructions = all_insts;
 }
