@@ -2,8 +2,12 @@ use std::collections::VecDeque;
 use indexmap::IndexMap;
 use crate::primitives::*;
 use petgraph::{
-    data::DataMap, graph::{Graph, NodeIndex}, visit::{VisitMap, Visitable}, Direction::Outgoing, Undirected
+    graph::{Graph, NodeIndex},
+    visit::{VisitMap, Visitable},
+    Direction::Outgoing,
+    Undirected
 };
+use histo::Histogram;
 
 fn set_proc(
     graph: &mut HWGraph,
@@ -89,6 +93,14 @@ fn partition_reg_boundaries(circuit: &mut Circuit) {
         reggrp_node_map.insert(*grp, nidx);
         node_reggrp_map.insert(nidx, *grp);
     }
+
+    let szs = reggrp_sizes.values();
+    let mut histogram = Histogram::with_buckets(10);
+    for sz in szs {
+        histogram.add(*sz as u64);
+    }
+    println!("{}", histogram);
+
     for nidx in circuit.graph.node_indices() {
         let node = circuit.graph.node_weight(nidx).unwrap();
         let childs = circuit.graph.neighbors_directed(nidx, Outgoing);
@@ -115,64 +127,103 @@ fn partition_reg_boundaries(circuit: &mut Circuit) {
     let pcfg = &circuit.platform_cfg;
     let gates_per_module = pcfg.num_procs * pcfg.max_steps;
     let n_partitions = total_nodes / (gates_per_module / 5);
+    println!("total nodes {} gates per module {} num modules {} partitions {}",
+             total_nodes, gates_per_module, pcfg.num_mods, n_partitions);
 
-    // Run partitioner on the reggrp_graph
-    let kaminpar = &circuit.kaminpar_cfg;
-    let result = kaminpar::PartitionerBuilder::with_epsilon(kaminpar.epsilon)
-        .seed(kaminpar.seed)
-        .threads(std::num::NonZeroUsize::new(kaminpar.nthreads as usize).unwrap())
-        .partition_weighted(&reggrp_graph.clone().into_edge_type::<Undirected>(), n_partitions);
+    if n_partitions == 1 {
+        let mut global_to_subgraph_node_map: IndexMap<NodeIndex, NodeIndex> = IndexMap::new();
+        for nidx in circuit.graph.node_indices() {
+            global_to_subgraph_node_map.insert(nidx, nidx);
+        }
+        circuit.graph_to_subgraph = global_to_subgraph_node_map;
+        circuit.subcircuits.insert(
+            0, SubCircuit {subgraph: circuit.graph.clone(), mapping: MappingInfo::default()});
+        return;
+    } else {
+        // Run partitioner on the reggrp_graph
+        let kaminpar = &circuit.kaminpar_cfg;
+        let result = kaminpar::PartitionerBuilder::with_epsilon(kaminpar.epsilon)
+            .seed(kaminpar.seed)
+            .threads(std::num::NonZeroUsize::new(kaminpar.nthreads as usize).unwrap())
+            .partition_weighted(&reggrp_graph.clone().into_edge_type::<Undirected>(), n_partitions);
 
-    // map each reggrp to partition
-    let mut reggrp_partition_map: IndexMap<u32, u32> = IndexMap::new();
-    match result {
-        Ok(partition) => {
-            for (nidx, part_id) in reggrp_graph.node_indices().zip(&partition) {
-                let reggrp_idx = node_reggrp_map.get(&nidx).unwrap();
-                reggrp_partition_map.insert(*reggrp_idx, *part_id);
+        println!("Partitioning done");
+
+        // map each reggrp to partition
+        let mut reggrp_partition_map: IndexMap<u32, u32> = IndexMap::new();
+        match result {
+            Ok(partition) => {
+                assert!(reggrp_graph.node_count() == partition.len(), "Partitioned result doesn't match");
+
+                for (nidx, part_id) in reggrp_graph.node_indices().zip(&partition) {
+                    let reggrp_idx = node_reggrp_map.get(&nidx).unwrap();
+                    reggrp_partition_map.insert(*reggrp_idx, *part_id);
+                }
+            }
+            Err(_) => {
+                println!("Kaminpar partitioning failed");
             }
         }
-        Err(_) => {
-            println!("Kaminpar partitioning failed");
-        }
-    }
 
-    // assign partition id to each node
-    // add nodes to each subgraph
-    let mut subgraphs: IndexMap<u32, HWGraph> = IndexMap::new();
-    let mut global_to_subgraph_node_map: IndexMap<NodeIndex, NodeIndex> = IndexMap::new();
-    for nidx in circuit.graph.node_indices() {
-        let node = circuit.graph.node_weight_mut(nidx).unwrap();
-        let reggrp = node.get_info().reggrp;
-        let part_idx = *reggrp_partition_map.get(&reggrp).unwrap();
-        node.get_info().module = part_idx;
-        match subgraphs.get(&part_idx) {
-            Some(_) => { }
-            None => { subgraphs.insert(part_idx, HWGraph::new()); }
-        }
-        let subgraph = subgraphs.get_mut(&part_idx).unwrap();
-        let snode_idx = subgraph.add_node(node.clone());
-        global_to_subgraph_node_map.insert(nidx, snode_idx);
-    }
 
-    // add edges for each subgraph
-    for eidx in circuit.graph.edge_indices() {
-        let ep = circuit.graph.edge_endpoints(eidx).unwrap();
-        let src = circuit.graph.node_weight(ep.0).unwrap();
-        let dst = circuit.graph.node_weight(ep.1).unwrap();
-        if src.get_info().module == dst.get_info().module {
-            let subgraph = subgraphs.get_mut(&src.get_info().module).unwrap();
-            subgraph.add_edge(
-                *global_to_subgraph_node_map.get(&ep.0).unwrap(),
-                *global_to_subgraph_node_map.get(&ep.1).unwrap(),
-                circuit.graph.edge_weight(eidx).unwrap().clone());
-        }
-    }
+        // assign partition id to each node
+        // add nodes to each subgraph
+        let mut subgraphs: IndexMap<u32, HWGraph> = IndexMap::new();
+        let mut global_to_subgraph_node_map: IndexMap<NodeIndex, NodeIndex> = IndexMap::new();
+        for nidx in circuit.graph.node_indices() {
+            let node = circuit.graph.node_weight_mut(nidx).unwrap();
+            let reggrp = node.get_info().reggrp;
+            let part_idx = *reggrp_partition_map.get(&reggrp).unwrap();
+            node.get_info().module = part_idx;
 
-    circuit.graph_to_subgraph = global_to_subgraph_node_map;
-    for (id, sg) in subgraphs.iter() {
-        circuit.subcircuits.insert(
-            *id,SubCircuit {subgraph: sg.clone(), mapping: MappingInfo::default()});
+            match subgraphs.get(&part_idx) {
+                Some(_) => { }
+                None => { subgraphs.insert(part_idx, HWGraph::new()); }
+            }
+
+            let subgraph = subgraphs.get_mut(&part_idx).unwrap();
+            let snode_idx = subgraph.add_node(node.clone());
+            global_to_subgraph_node_map.insert(nidx, snode_idx);
+        }
+        println!("{}", line!());
+
+        // add edges for each subgraph
+        for eidx in circuit.graph.edge_indices() {
+            let ep = circuit.graph.edge_endpoints(eidx).unwrap();
+            let src = circuit.graph.node_weight(ep.0).unwrap();
+            let dst = circuit.graph.node_weight(ep.1).unwrap();
+            if src.get_info().module == dst.get_info().module {
+                let subgraph = subgraphs.get_mut(&src.get_info().module).unwrap();
+// println!("module {} ep.0 {} ep.1 {} u {} v {} subgraph nodes {}",
+// src.get_info().module,
+// ep.0.index(),
+// ep.1.index(),
+// global_to_subgraph_node_map.get(&ep.0).unwrap().index(),
+// global_to_subgraph_node_map.get(&ep.1).unwrap().index(),
+// subgraph.node_count());
+
+                subgraph.add_edge(
+                    *global_to_subgraph_node_map.get(&ep.0).unwrap(),
+                    *global_to_subgraph_node_map.get(&ep.1).unwrap(),
+                    circuit.graph.edge_weight(eidx).unwrap().clone());
+            }
+        }
+        println!("{}", line!());
+
+        circuit.graph_to_subgraph = global_to_subgraph_node_map;
+        for (id, sg) in subgraphs.iter() {
+            circuit.subcircuits.insert(
+                *id,SubCircuit {subgraph: sg.clone(), mapping: MappingInfo::default()});
+        }
+        println!("{}", line!());
+
+        let subgraph_sizes = subgraphs.values().map(|x| x.node_count());
+        let mut histogram = Histogram::with_buckets(10);
+        for sz in subgraph_sizes {
+            histogram.add(sz as u64);
+        }
+        println!("{}", histogram);
+        return;
     }
 }
 
