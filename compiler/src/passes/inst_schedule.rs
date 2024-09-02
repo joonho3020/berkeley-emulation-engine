@@ -47,6 +47,14 @@ impl NodeArray {
     }
 }
 
+
+// TODO: scheduling
+// 1. find all schedulable candidates
+// 2. check for instructions w/ global communication conflict & select some of them
+// 3. for procs in a module, prune candidates that send stuff to procs that receive from the global
+// network
+// 4. for procs in each module, check for local communication conflicts and prune
+
 /// # Finds a valid instruction schedule given a partitioned graph
 /// 1. Add nodes to schedule as candidates
 ///    - if a node is a Input or a Gate or a Latch

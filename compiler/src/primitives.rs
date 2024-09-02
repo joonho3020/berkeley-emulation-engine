@@ -651,20 +651,23 @@ impl PlatformConfig {
 }
 
 /// # MappingInfo
-/// - Contains fields specific to the emulator hardware
+/// - Fields specific to how the design is mapped to a particular emulator module
 #[derive(Serialize, Debug, Default, Clone)]
-pub struct MappingInfo {
+pub struct ModuleMapping {
     pub host_steps: u32,
     pub used_procs: u32,
     pub instructions: Vec<Vec<Instruction>>,
     pub signal_map: IndexMap<String, NodeMapInfo>,
 }
 
-#[derive(Default, Clone)]
-pub struct SubCircuit {
-    pub subgraph: HWGraph,
-    pub mapping:  MappingInfo
+/// # MappingInfo
+/// - Contains fields specific to the emulator hardware
+#[derive(Serialize, Debug, Default, Clone)]
+pub struct EmulatorMapping {
+    pub used_mods: u32,
+    pub mod_mappings: IndexMap<u32, ModuleMapping>
 }
+
 
 #[derive(Default, Clone)]
 pub struct Circuit {
@@ -672,8 +675,7 @@ pub struct Circuit {
     pub kaminpar_cfg: KaMinParConfig,
 
     pub graph: HWGraph,
-    pub graph_to_subgraph: IndexMap<NodeIndex, NodeIndex>,
-    pub subcircuits: IndexMap<u32, SubCircuit>
+    pub emul:  EmulatorMapping
 }
 
 impl Circuit {
@@ -682,24 +684,24 @@ impl Circuit {
     }
 
     pub fn save_emulator_info(&self, file_path: String) -> std::io::Result<()> {
-        for (i, subckt) in self.subcircuits.iter() {
+        for (i, mapping) in self.emul.mod_mappings.iter() {
             let mut out = file_path.clone();
             out.push_str(&format!("-{}", i));
-            write_string_to_file(serde_json::to_string_pretty(&subckt.mapping)?, &out)?;
+            write_string_to_file(serde_json::to_string_pretty(&mapping)?, &out)?;
         }
         Ok(())
     }
 
     pub fn save_emulator_instructions(&self, file_path: &str) -> std::io::Result<()> {
-        for (i, subckt) in self.subcircuits.iter() {
+        for (i, mapping) in self.emul.mod_mappings.iter() {
             let mut nops = 0;
-            let total = subckt.mapping.host_steps * subckt.mapping.used_procs;
+            let total = mapping.host_steps * mapping.used_procs;
 
             let mut inst_str = "".to_string();
-            for (pi, proc_insts) in subckt.mapping.instructions.iter().enumerate() {
+            for (pi, proc_insts) in mapping.instructions.iter().enumerate() {
                 inst_str.push_str(&format!("------------ processor {} ------------\n", pi));
                 for (i, inst) in proc_insts.iter().enumerate() {
-                    if (i as u32) < subckt.mapping.host_steps {
+                    if (i as u32) < mapping.host_steps {
                         inst_str.push_str(&format!("{} {:?}\n", i, inst));
                         match inst.opcode {
                             Primitives::NOP => nops += 1,
@@ -712,7 +714,7 @@ impl Circuit {
             }
             inst_str.push_str(&format!("Overal stats\nNOPs: {}\nTotal insts: {}\nUtilization: {}%\n",
                                        nops, total, ((total - nops) as f32)/(total as f32) * 100 as f32));
-            let mut out = file_path.clone().to_string();
+            let mut out = file_path.to_string();
             out.push_str(&format!("-{}", i));
             write_string_to_file(inst_str, &out)?;
         }
@@ -720,11 +722,11 @@ impl Circuit {
     }
 
     pub fn save_emulator_sigmap(&self, file_path: &str) -> std::io::Result<()> {
-        for (i, subckt) in self.subcircuits.iter() {
-            let mut out = file_path.clone().to_string();
+        for (i, mapping) in self.emul.mod_mappings.iter() {
+            let mut out = file_path.to_string();
             out.push_str(&format!("-{}", i));
             write_string_to_file(
-                format!("{:#?}", subckt.mapping.signal_map),
+                format!("{:#?}", mapping.signal_map),
                 &out)?;
         }
         Ok(())
