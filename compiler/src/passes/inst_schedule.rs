@@ -269,90 +269,6 @@ fn prune_interlevel_conflicts(
     return pruned;
 }
 
-fn prune_local_conflicts(
-    circuit: &Circuit,
-    candidates: &IndexSet<NodeIndex>,
-    rank_order: &Vec<Vec<NodeArray>>
-) -> IndexSet<NodeIndex> {
-    let mut pruned: IndexSet<NodeIndex> = IndexSet::new();
-    let mut dep_graphs: IndexMap<u32, Graph<DepNode, usize>> = IndexMap::new();
-    let mut dep_node_maps: IndexMap<u32, IndexMap<DepNode, NodeIndex>> = IndexMap::new();
-    let mut criticalities: IndexMap<u32, IndexMap<NodeIndex, u32>> = IndexMap::new();
-
-    for nidx in candidates.iter() {
-        let node = circuit.graph.node_weight(*nidx).unwrap();
-        let module = node.get_info().module;
-        if !dep_graphs.contains_key(&module) {
-            dep_graphs.insert(module, Graph::default());
-            dep_node_maps.insert(module, IndexMap::new());
-            criticalities.insert(module, IndexMap::new());
-        }
-        let dep_graph = dep_graphs.get_mut(&module).unwrap();
-        let dep_node_map = dep_node_maps.get_mut(&module).unwrap();
-        let criticality = criticalities.get_mut(&module).unwrap();
-        let inode = DepNode {
-            nidx: Some(*nidx),
-            pidx: None
-        };
-
-        let inode_idx = dep_graph.add_node(inode);
-        let mut crit = 0;
-        let childs = circuit.graph.neighbors_directed(*nidx, Outgoing);
-        for cidx in childs {
-            let cnode = circuit.graph.node_weight(cidx).unwrap();
-            if cnode.get_info().module == module {
-                let dep_node = DepNode {
-                    nidx: None,
-                    pidx: Some(cnode.get_info().proc)
-                };
-
-                if !dep_node_map.contains_key(&dep_node) {
-                    let didx = dep_graph.add_node(dep_node.clone());
-                    dep_node_map.insert(dep_node.clone(), didx);
-                }
-
-                dep_graph.add_edge(inode_idx, *dep_node_map.get(&dep_node).unwrap(), 0);
-
-                // compute criticality
-                crit = max(crit, child_max_rank(circuit, rank_order, &cidx));
-            }
-        }
-        criticality.insert(inode_idx, crit);
-    }
-
-    for (module, dep_graph) in dep_graphs.iter() {
-        let criticality = criticalities.get_mut(module).unwrap();
-        let mut criticality_vec: Vec<(&NodeIndex, &u32)> = criticality.iter().collect();
-        criticality_vec.sort_by(|a, b| b.1.cmp(a.1));
-
-        let mut dep_vis_map = dep_graph.visit_map();
-        for (nidx, _) in criticality_vec.iter() {
-            let inode = dep_graph.node_weight(**nidx).unwrap();
-            let childs = dep_graph.neighbors_directed(**nidx, Outgoing);
-
-            let mut schedulable = true;
-            for cidx in childs {
-                if dep_vis_map.is_visited(&cidx) {
-                    schedulable = false;
-                    break;
-                }
-            }
-
-            if schedulable {
-                let childs_to_remove = dep_graph.neighbors_directed(**nidx, Outgoing);
-                for cidx in childs_to_remove {
-                    dep_vis_map.visit(cidx);
-                }
-                let original_node_idx = inode.nidx.unwrap();
-                pruned.insert(original_node_idx);
-            }
-        }
-    }
-
-    return pruned;
-}
-
-
 /// # Finds a valid instruction schedule given a partitioned graph
 /// 1. Add nodes to schedule as candidates
 ///    - if a node is a Input or a Gate or a Latch
@@ -437,9 +353,8 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
 
         let pruned_1 = prune_global_conflicts(circuit, &schedule_candidates, &rank_order);
         let pruned_2 = prune_interlevel_conflicts(circuit, &pruned_1, &rank_order);
-        let pruned_3 = prune_local_conflicts(circuit, &pruned_2, &rank_order);
 
-        for nidx in pruned_3.iter() {
+        for nidx in pruned_2.iter() {
             let node = circuit.graph.node_weight_mut(*nidx).unwrap();
             let ninfo = node.get_info();
 
