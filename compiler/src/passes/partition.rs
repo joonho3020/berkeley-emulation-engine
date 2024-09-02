@@ -72,24 +72,28 @@ fn kaminpar_partition_module(circuit: &mut Circuit) {
     let kaminpar = &circuit.kaminpar_cfg;
     let pcfg = &circuit.platform_cfg;
     let undir_graph = circuit.graph.clone().into_edge_type();
-    let result = kaminpar_partition(&undir_graph, &kaminpar, pcfg.num_mods);
 
-    match result {
-        Ok(partition) => {
-            assert!(partition.len() == circuit.graph.node_count(),
-                "partition assignment doesn't match node cnt");
-            for (nidx, pid) in circuit.graph.node_indices().zip(&partition) {
-                set_module(&mut circuit.graph, nidx, *pid);
+    if pcfg.num_mods == 1 {
+        circuit.emul.used_mods = 1;
+    } else {
+        let result = kaminpar_partition(&undir_graph, &kaminpar, pcfg.num_mods);
+        match result {
+            Ok(partition) => {
+                assert!(partition.len() == circuit.graph.node_count(),
+                    "partition assignment doesn't match node cnt");
+                for (nidx, pid) in circuit.graph.node_indices().zip(&partition) {
+                    set_module(&mut circuit.graph, nidx, *pid);
+                }
+                circuit.emul.used_mods = partition.iter().max().unwrap() + 1;
+
+                println!("========== Global Partition Statistics ============");
+                println!("{}", get_partition_histogram(partition));
+                println!("===================================================");
+
             }
-            circuit.emul.used_mods = partition.iter().max().unwrap() + 1;
-
-            println!("========== Global Partition Statistics ============");
-            println!("{}", get_partition_histogram(partition));
-            println!("===================================================");
-
-        }
-        Err(_) => {
-            println!("Global Kaminpar partitioning failed");
+            Err(_) => {
+                println!("Global Kaminpar partitioning failed");
+            }
         }
     }
 }

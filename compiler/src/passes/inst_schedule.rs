@@ -184,7 +184,7 @@ fn prune_interlevel_conflicts(
         for cidx in childs {
             let cnode = circuit.graph.node_weight(cidx).unwrap();
 
-            // check if this node has global connectsion
+            // check if this node has global connections
             if node.get_info().module != cnode.get_info().module {
                 global = true;
             }
@@ -212,7 +212,6 @@ fn prune_interlevel_conflicts(
             false => { criticality.insert(inode_idx, crit); }
         }
     }
-
 
     // First select the nodes that has global communication
     let mut dep_graph_vis = dep_graph.visit_map();
@@ -310,6 +309,10 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
     let mut scheduled_map = circuit.graph.visit_map();
     let pcfg = &circuit.platform_cfg;
 
+    let mut global_pruned = 0;
+    let mut local_pruned = 0;
+    let mut candidate_cnt = 0;
+
     while scheduled_map.count_ones(..) != scheduled_map.len() {
         println!("nodes left to schedule {}", scheduled_map.len() - scheduled_map.count_ones(..));
         let mut schedule_candidates: IndexSet<NodeIndex> = IndexSet::new();
@@ -359,13 +362,13 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
         let pruned_2 = prune_interlevel_conflicts(circuit, &pruned_1, &rank_order);
         assert!(pruned_2.len() > 0, "No more schedulable entries after local prune");
 
+        candidate_cnt += schedule_candidates.len();
+        global_pruned += schedule_candidates.len() - pruned_1.len();
+        local_pruned  += pruned_1.len() - pruned_2.len();
+
         for nidx in pruned_2.iter() {
             let node = circuit.graph.node_weight_mut(*nidx).unwrap();
             let ninfo = node.get_info();
-
-            if (pruned_2.len() < 30) {
-                println!("{}", node.name());
-            }
 
             assert!(!scheduled_map.is_visited(nidx), "{:?} already scheduled", *nidx);
 
@@ -397,9 +400,12 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
     circuit.emul.host_steps = pc + 1 + circuit.platform_cfg.pc_sdm_offset();
 
     let total_steps = circuit.emul.host_steps * circuit.emul.used_mods * circuit.platform_cfg.num_procs;
-    println!("Machine ({} / {}) = {} %, host_steps = {}",
+    println!("Machine ({} / {}) = {} %, host_steps = {} global pruned {} local pruned {} candidates {}",
              circuit.graph.node_count(),
              total_steps,
              circuit.graph.node_count() as f32 / total_steps as f32 * 100f32,
-             circuit.emul.host_steps);
+             circuit.emul.host_steps,
+             global_pruned,
+             local_pruned,
+             candidate_cnt);
 }
