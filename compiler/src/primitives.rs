@@ -693,18 +693,20 @@ impl Circuit {
     }
 
     pub fn save_emulator_instructions(&self, file_path: &str) -> std::io::Result<()> {
+        let mut inst_str = "".to_string();
+        let mut total_insns = 0;
+        let mut total_nops = 0;
         for (i, mapping) in self.emul.mod_mappings.iter() {
-            let mut nops = 0;
-            let total = mapping.host_steps * mapping.used_procs;
+            total_insns += self.emul.host_steps * mapping.used_procs;
+            inst_str.push_str(&format!("============ module {} ============\n", i));
 
-            let mut inst_str = "".to_string();
             for (pi, proc_insts) in mapping.instructions.iter().enumerate() {
                 inst_str.push_str(&format!("------------ processor {} ------------\n", pi));
                 for (i, inst) in proc_insts.iter().enumerate() {
-                    if (i as u32) < mapping.host_steps {
+                    if (i as u32) < self.emul.host_steps {
                         inst_str.push_str(&format!("{} {:?}\n", i, inst));
                         match inst.opcode {
-                            Primitives::NOP => nops += 1,
+                            Primitives::NOP => total_nops += 1,
                             _ => ()
                         };
                     } else {
@@ -712,12 +714,10 @@ impl Circuit {
                     }
                 }
             }
-            inst_str.push_str(&format!("Overal stats\nNOPs: {}\nTotal insts: {}\nUtilization: {}%\n",
-                                       nops, total, ((total - nops) as f32)/(total as f32) * 100 as f32));
-            let mut out = file_path.to_string();
-            out.push_str(&format!("-{}", i));
-            write_string_to_file(inst_str, &out)?;
         }
+        inst_str.push_str(&format!("Overal stats\nNOPs: {}\nTotal insts: {}\nUtilization: {}%\n",
+                                   total_nops, total_insns, ((total_insns - total_nops) as f32)/(total_insns as f32) * 100 as f32));
+        write_string_to_file(inst_str, file_path)?;
         Ok(())
     }
 

@@ -6,6 +6,7 @@ use petgraph::{
 };
 use histo::Histogram;
 use kaminpar::KaminParError;
+use std::cmp::max;
 
 fn set_proc(
     graph: &mut HWGraph,
@@ -148,10 +149,19 @@ fn kaminpar_partition_processor(circuit: &mut Circuit) {
         let result = kaminpar_partition(&undir_graph, &kaminpar, pcfg.num_procs);
         match result {
             Ok(partition) => {
+                let mut max_pidx = 0;
                 for (local_nidx, pidx) in sg.subgraph.node_indices().zip(&partition) {
                     let global_nidx = sg.to_global.get(&local_nidx).unwrap();
                     set_proc(&mut circuit.graph, *global_nidx, *pidx);
+                    max_pidx = max(max_pidx, *pidx);
                 }
+                circuit.emul.mod_mappings.insert(
+                    *module,
+                    ModuleMapping {
+                        used_procs: max_pidx + 1,
+                        instructions: vec![],
+                        signal_map: IndexMap::new()
+                    });
                 println!("========== Local Partition Statistics ============");
                 println!("{}", get_partition_histogram(partition));
                 println!("===================================================");

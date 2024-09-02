@@ -226,7 +226,6 @@ fn prune_interlevel_conflicts(
                 schedulable = false;
                 break;
             }
-            dep_graph_vis.visit(cidx);
         }
 
         if schedulable {
@@ -312,6 +311,7 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
     let pcfg = &circuit.platform_cfg;
 
     while scheduled_map.count_ones(..) != scheduled_map.len() {
+        println!("nodes left to schedule {}", scheduled_map.len() - scheduled_map.count_ones(..));
         let mut schedule_candidates: IndexSet<NodeIndex> = IndexSet::new();
 
         // Find all the scheduling candidates
@@ -337,8 +337,8 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
 
                         // TODO: Add global scheduling constraints here
                         if !pinfo.scheduled ||
-                           ((pinfo.proc == ninfo.proc) && (pinfo.pc + pcfg.local_dep_lat()  > pc)) ||
-                           ((pinfo.proc != ninfo.proc) && (pinfo.pc + pcfg.remote_dep_lat() > pc))
+                           ((pinfo.module == ninfo.module) && (pinfo.proc == ninfo.proc) && (pinfo.pc + pcfg.local_dep_lat()  > pc)) ||
+                           ((pinfo.module == ninfo.module) && (pinfo.proc != ninfo.proc) && (pinfo.pc + pcfg.remote_dep_lat() > pc))
                         {
                             unresolved_dep = true;
                             break;
@@ -350,13 +350,24 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
                 }
             }
         }
+        println!("schedule candidates: {}", schedule_candidates.len());
+        assert!(schedule_candidates.len() > 0, "no more schedule candidates");
 
         let pruned_1 = prune_global_conflicts(circuit, &schedule_candidates, &rank_order);
+        assert!(pruned_1.len() > 0, "No more schedulable entries after global prune");
+
         let pruned_2 = prune_interlevel_conflicts(circuit, &pruned_1, &rank_order);
+        assert!(pruned_2.len() > 0, "No more schedulable entries after local prune");
 
         for nidx in pruned_2.iter() {
             let node = circuit.graph.node_weight_mut(*nidx).unwrap();
             let ninfo = node.get_info();
+
+            if (pruned_2.len() < 30) {
+                println!("{}", node.name());
+            }
+
+            assert!(!scheduled_map.is_visited(nidx), "{:?} already scheduled", *nidx);
 
             scheduled_map.visit(*nidx);
             rank_order
@@ -375,7 +386,7 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
 
         // TODO: consider global networking lat
         if pc + 1 + circuit.platform_cfg.pc_sdm_offset() >= circuit.platform_cfg.max_steps {
-            let _ = write_string_to_file(circuit.print_scheduled(), "schedule-failed.dot");
+// let _ = write_string_to_file(circuit.print_scheduled(), "schedule-failed.dot");
             assert!(false, "Schedule failed {} nodes out of {} nodes scheduled",
                     scheduled_map.count_ones(..),
                     scheduled_map.len());
@@ -384,4 +395,11 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
 
     // TODO: consider global networking lat
     circuit.emul.host_steps = pc + 1 + circuit.platform_cfg.pc_sdm_offset();
+
+    let total_steps = circuit.emul.host_steps * circuit.emul.used_mods * circuit.platform_cfg.num_procs;
+    println!("Machine ({} / {}) = {} %, host_steps = {}",
+             circuit.graph.node_count(),
+             total_steps,
+             circuit.graph.node_count() as f32 / total_steps as f32 * 100f32,
+             circuit.emul.host_steps);
 }
