@@ -654,7 +654,6 @@ impl PlatformConfig {
 /// - Fields specific to how the design is mapped to a particular emulator module
 #[derive(Serialize, Debug, Default, Clone)]
 pub struct ModuleMapping {
-    pub host_steps: u32,
     pub used_procs: u32,
     pub instructions: Vec<Vec<Instruction>>,
     pub signal_map: IndexMap<String, NodeMapInfo>,
@@ -664,6 +663,7 @@ pub struct ModuleMapping {
 /// - Contains fields specific to the emulator hardware
 #[derive(Serialize, Debug, Default, Clone)]
 pub struct EmulatorMapping {
+    pub host_steps: u32,
     pub used_mods: u32,
     pub mod_mappings: IndexMap<u32, ModuleMapping>
 }

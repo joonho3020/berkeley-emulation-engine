@@ -14,8 +14,14 @@ struct InstOrProc {
     pidx: Option<u32>,
 }
 
+#[derive(Eq, Hash, PartialEq, Clone)]
+struct DepNode {
+    nidx: Option<NodeIndex>,
+    pidx: Option<u32>,
+}
+
 /// # Helper struct for instruction scheduling
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 struct NodeArray {
     /// Node indices of this subraph
     nodes: Vec<NodeIndex>,
@@ -47,181 +53,412 @@ impl NodeArray {
     }
 }
 
+fn child_max_rank(
+    circuit: &Circuit,
+    rank_order: &Vec<Vec<NodeArray>>,
+    nidx: &NodeIndex
+) -> u32 {
+    let cnode = circuit.graph.node_weight(*nidx).unwrap();
+    let cinfo = cnode.get_info();
+    let max_rank_node = rank_order
+        .get(cinfo.module as usize)
+        .unwrap()
+        .get(cinfo.proc as usize)
+        .unwrap()
+        .max_rank_node();
+    let rank = circuit
+        .graph
+        .node_weight(max_rank_node)
+        .unwrap()
+        .get_info()
+        .rank;
+    return rank;
+}
 
-// TODO: scheduling
-// 1. find all schedulable candidates
-// 2. check for instructions w/ global communication conflict & select some of them
-// 3. for procs in a module, prune candidates that send stuff to procs that receive from the global
-// network
-// 4. for procs in each module, check for local communication conflicts and prune
+fn prune_global_conflicts(
+    circuit: &Circuit,
+    candidates: &IndexSet<NodeIndex>,
+    rank_order: &Vec<Vec<NodeArray>>
+) -> IndexSet<NodeIndex> {
+    let mut pruned: IndexSet<NodeIndex> = IndexSet::new();
+    let mut dep_graph: Graph<DepNode, usize> = Graph::default();
+    let mut module_nodes: IndexMap<DepNode, NodeIndex> = IndexMap::new();
+    let mut criticality: IndexMap<NodeIndex, u32> = IndexMap::new();
+
+    // Construct a bipartite graph where the edges look like:
+    // Schedule Candidate Node Index -> Module index of children
+    // This graph is used to check whether there are multiple network
+    // inputs to this module at this cycle.
+    for nidx in candidates.iter() {
+        let inode = DepNode {
+            nidx: Some(*nidx),
+            pidx: None
+        };
+        let inode_idx = dep_graph.add_node(inode);
+        let mut crit = 0;
+
+        let node = circuit.graph.node_weight(*nidx).unwrap();
+        let module = node.get_info().module;
+
+        let childs = circuit.graph.neighbors_directed(*nidx, Outgoing);
+        for cidx in childs {
+            let child_node = circuit.graph.node_weight(cidx).unwrap();
+            let child_module = child_node.get_info().module;
+            if module != child_module {
+                let module_node = DepNode {
+                    nidx: None,
+                    pidx: Some(child_module)
+                };
+                if !module_nodes.contains_key(&module_node) {
+                    let module_node_idx = dep_graph.add_node(module_node.clone());
+                    module_nodes.insert(module_node.clone(), module_node_idx);
+                }
+                dep_graph.add_edge(inode_idx, *module_nodes.get(&module_node).unwrap(), 0);
+
+                // compute criticality
+                crit = max(crit, child_max_rank(circuit, rank_order, &cidx));
+            }
+        }
+        criticality.insert(inode_idx, crit);
+    }
+
+    // Select instructions to schedule greedily based on the criticality
+    let mut criticality_vec: Vec<(&NodeIndex, &u32)> = criticality.iter().collect();
+    criticality_vec.sort_by(|a, b| b.1.cmp(a.1));
+
+    let mut dep_graph_vis = dep_graph.visit_map();
+
+    for (nidx, _) in criticality_vec.iter() {
+        let inst_node = dep_graph.node_weight(**nidx).unwrap();
+        let childs = dep_graph.neighbors_directed(**nidx, Outgoing);
+
+        // check if scheduleable
+        let mut scheduleable = true;
+        for cidx in childs {
+            if dep_graph_vis.is_visited(&cidx) {
+                scheduleable = false;
+                break;
+            }
+        }
+
+        if scheduleable {
+            // mark the children procs as visisted in the dependency graph
+            let childs_to_remove  = dep_graph.neighbors_directed(**nidx, Outgoing);
+            for cidx in childs_to_remove {
+                dep_graph_vis.visit(cidx);
+            }
+
+            let original_node_idx = inst_node.nidx.unwrap();
+            pruned.insert(original_node_idx);
+        }
+    }
+    return pruned;
+}
+
+fn prune_interlevel_conflicts(
+    circuit: &Circuit,
+    candidates: &IndexSet<NodeIndex>,
+    rank_order: &Vec<Vec<NodeArray>>
+) -> IndexSet<NodeIndex> {
+    let mut pruned: IndexSet<NodeIndex> = IndexSet::new();
+    let mut dep_graph: Graph<DepNode, usize> = Graph::default();
+    let mut dep_nodes: IndexMap<DepNode, NodeIndex> = IndexMap::new();
+    let mut criticality: IndexMap<NodeIndex, u32> = IndexMap::new();
+
+    // nodes communicating over global switch
+    let mut global_nodes: IndexSet<NodeIndex> = IndexSet::new();
+
+    // construct dependency graph
+    for nidx in candidates.iter() {
+        let node = circuit.graph.node_weight(*nidx).unwrap();
+        let childs = circuit.graph.neighbors_directed(*nidx, Outgoing);
+
+        let inode = DepNode {
+            nidx: Some(*nidx),
+            pidx: None
+        };
+        let inode_idx = dep_graph.add_node(inode);
+
+        let mut crit = 0;
+        let mut global = false;
+        for cidx in childs {
+            let cnode = circuit.graph.node_weight(cidx).unwrap();
+
+            // check if this node has global connectsion
+            if node.get_info().module != cnode.get_info().module {
+                global = true;
+            }
+
+            // construct dependency graph
+            let cinfo = cnode.get_info();
+            let unique_id = cinfo.module * circuit.platform_cfg.num_procs + cinfo.proc;
+            let dep_node = DepNode {
+                nidx: None,
+                pidx: Some(unique_id)
+            };
+
+            if !dep_nodes.contains_key(&dep_node) {
+                let didx = dep_graph.add_node(dep_node.clone());
+                dep_nodes.insert(dep_node.clone(), didx);
+            }
+            dep_graph.add_edge(inode_idx, *dep_nodes.get(&dep_node).unwrap(), 0);
+
+            // compute criticality
+            crit = max(crit, child_max_rank(circuit, rank_order, &cidx));
+        }
+
+        match global {
+            true  => { global_nodes.insert(inode_idx); }
+            false => { criticality.insert(inode_idx, crit); }
+        }
+    }
+
+
+    // First select the nodes that has global communication
+    let mut dep_graph_vis = dep_graph.visit_map();
+    for gidx in global_nodes.iter() {
+        let inode = dep_graph.node_weight(*gidx).unwrap();
+        let childs = dep_graph.neighbors_directed(*gidx, Outgoing);
+
+        let mut schedulable = true;
+        for cidx in childs {
+            if dep_graph_vis.is_visited(&cidx) {
+                schedulable = false;
+                break;
+            }
+            dep_graph_vis.visit(cidx);
+        }
+
+        if schedulable {
+            // mark the children procs as visisted in the dependency graph
+            let childs_to_remove  = dep_graph.neighbors_directed(*gidx, Outgoing);
+            for cidx in childs_to_remove {
+                dep_graph_vis.visit(cidx);
+            }
+            let original_node_index = inode.nidx.unwrap();
+            pruned.insert(original_node_index);
+        }
+    }
+
+    // Next, select the remaining nodes based on criticality
+    let mut criticality_vec: Vec<(&NodeIndex, &u32)> = criticality.iter().collect();
+    criticality_vec.sort_by(|a, b| b.1.cmp(a.1));
+
+    for (nidx, _) in criticality_vec.iter() {
+        let inst_node = dep_graph.node_weight(**nidx).unwrap();
+        let childs = dep_graph.neighbors_directed(**nidx, Outgoing);
+
+        let mut schedulable = true;
+        for cidx in childs {
+            if dep_graph_vis.is_visited(&cidx) {
+                schedulable = false;
+                break;
+            }
+        }
+
+        if schedulable {
+            let childs_to_remove = dep_graph.neighbors_directed(**nidx, Outgoing);
+            for cidx in childs_to_remove {
+                dep_graph_vis.visit(cidx);
+            }
+            let original_node_idx = inst_node.nidx.unwrap();
+            pruned.insert(original_node_idx);
+        }
+    }
+
+    return pruned;
+}
+
+fn prune_local_conflicts(
+    circuit: &Circuit,
+    candidates: &IndexSet<NodeIndex>,
+    rank_order: &Vec<Vec<NodeArray>>
+) -> IndexSet<NodeIndex> {
+    let mut pruned: IndexSet<NodeIndex> = IndexSet::new();
+    let mut dep_graphs: IndexMap<u32, Graph<DepNode, usize>> = IndexMap::new();
+    let mut dep_node_maps: IndexMap<u32, IndexMap<DepNode, NodeIndex>> = IndexMap::new();
+    let mut criticalities: IndexMap<u32, IndexMap<NodeIndex, u32>> = IndexMap::new();
+
+    for nidx in candidates.iter() {
+        let node = circuit.graph.node_weight(*nidx).unwrap();
+        let module = node.get_info().module;
+        if !dep_graphs.contains_key(&module) {
+            dep_graphs.insert(module, Graph::default());
+            dep_node_maps.insert(module, IndexMap::new());
+            criticalities.insert(module, IndexMap::new());
+        }
+        let dep_graph = dep_graphs.get_mut(&module).unwrap();
+        let dep_node_map = dep_node_maps.get_mut(&module).unwrap();
+        let criticality = criticalities.get_mut(&module).unwrap();
+        let inode = DepNode {
+            nidx: Some(*nidx),
+            pidx: None
+        };
+
+        let inode_idx = dep_graph.add_node(inode);
+        let mut crit = 0;
+        let childs = circuit.graph.neighbors_directed(*nidx, Outgoing);
+        for cidx in childs {
+            let cnode = circuit.graph.node_weight(cidx).unwrap();
+            if cnode.get_info().module == module {
+                let dep_node = DepNode {
+                    nidx: None,
+                    pidx: Some(cnode.get_info().proc)
+                };
+
+                if !dep_node_map.contains_key(&dep_node) {
+                    let didx = dep_graph.add_node(dep_node.clone());
+                    dep_node_map.insert(dep_node.clone(), didx);
+                }
+
+                dep_graph.add_edge(inode_idx, *dep_node_map.get(&dep_node).unwrap(), 0);
+
+                // compute criticality
+                crit = max(crit, child_max_rank(circuit, rank_order, &cidx));
+            }
+        }
+        criticality.insert(inode_idx, crit);
+    }
+
+    for (module, dep_graph) in dep_graphs.iter() {
+        let criticality = criticalities.get_mut(module).unwrap();
+        let mut criticality_vec: Vec<(&NodeIndex, &u32)> = criticality.iter().collect();
+        criticality_vec.sort_by(|a, b| b.1.cmp(a.1));
+
+        let mut dep_vis_map = dep_graph.visit_map();
+        for (nidx, _) in criticality_vec.iter() {
+            let inode = dep_graph.node_weight(**nidx).unwrap();
+            let childs = dep_graph.neighbors_directed(**nidx, Outgoing);
+
+            let mut schedulable = true;
+            for cidx in childs {
+                if dep_vis_map.is_visited(&cidx) {
+                    schedulable = false;
+                    break;
+                }
+            }
+
+            if schedulable {
+                let childs_to_remove = dep_graph.neighbors_directed(**nidx, Outgoing);
+                for cidx in childs_to_remove {
+                    dep_vis_map.visit(cidx);
+                }
+                let original_node_idx = inode.nidx.unwrap();
+                pruned.insert(original_node_idx);
+            }
+        }
+    }
+
+    return pruned;
+}
+
 
 /// # Finds a valid instruction schedule given a partitioned graph
 /// 1. Add nodes to schedule as candidates
 ///    - if a node is a Input or a Gate or a Latch
-///    - else if dependencies are resolved, schedule it
-///    - else insert nop
-/// 2. For each partition, if there are two or more nodes that are
-///    parents of this partition and is a scheduling candidate,
-///    unschedule some of them to resolve the network port connection
+///    - else if dependencies are resolved add it as a candidate
+/// 2. Prune the candidates if they have network contention
+///     - Check for global communication conflicts
+///     - For procs in a module, prune nodes that sends stuff to procs that receive from global
+///     network
+///     - Resolve intra-module communication conflicts
 pub fn schedule_instructions(circuit: &mut Circuit) {
-    // subgraphs are ordered in BFS order starting from the input nodes
-    let mut subgraphs_rank_order: Vec<NodeArray> = vec![];
-    // FIXME:
-// for _ in 0..circuit.emulator.used_procs {
-    for _ in 0..3 {
-        subgraphs_rank_order.push(NodeArray::default());
+    let mut rank_order: Vec<Vec<NodeArray>> = vec![];
+    for module in 0..circuit.emul.used_mods {
+        let used_procs = circuit.emul.mod_mappings.get(&module).unwrap().used_procs as usize;
+        let local_rank_order: Vec<NodeArray> = vec![NodeArray::default(); used_procs];
+        rank_order.push(local_rank_order);
     }
+
     for nidx in circuit.graph.node_indices() {
         let node = circuit.graph.node_weight(nidx).unwrap();
-        subgraphs_rank_order
+        rank_order
+            .get_mut(node.get_info().module as usize)
+            .unwrap()
             .get_mut(node.get_info().proc as usize)
             .unwrap()
             .push_node(nidx);
     }
 
-    // sort the nodes by rank within a subgraph
-    for sro in subgraphs_rank_order.iter_mut() {
-        sro.nodes.sort_by(|idx1, idx2| {
-            let n1 = circuit.graph.node_weight(*idx1).unwrap();
-            let n2 = circuit.graph.node_weight(*idx2).unwrap();
-            n1.cmp(&n2)
-        });
+    // sort the nodes by rank within each processor
+    for ro in rank_order.iter_mut() {
+        for na in ro.iter_mut() {
+            na.nodes.sort_by(|idx1, idx2| {
+                let n1 = circuit.graph.node_weight(*idx1).unwrap();
+                let n2 = circuit.graph.node_weight(*idx2).unwrap();
+                n1.cmp(&n2)
+            });
+        }
     }
 
     let mut pc = 0;
     let mut scheduled_map = circuit.graph.visit_map();
-    let cfg = &circuit.platform_cfg;
+    let pcfg = &circuit.platform_cfg;
 
     while scheduled_map.count_ones(..) != scheduled_map.len() {
         let mut schedule_candidates: IndexSet<NodeIndex> = IndexSet::new();
 
-        for (_, node_array) in subgraphs_rank_order.iter_mut().enumerate() {
-            if node_array.done() {
-                continue;
+        // Find all the scheduling candidates
+        for (_module, local_rank_order) in rank_order.iter_mut().enumerate() {
+            for (_proc, node_array) in local_rank_order.iter_mut().enumerate() {
+                if node_array.done() {
+                    continue;
+                }
+                let nidx = node_array.current();
+                let node = circuit.graph.node_weight(nidx).unwrap();
+                let ninfo = node.get_info();
+
+                if node.is() == Primitives::Input ||
+                   node.is() == Primitives::Gate  ||
+                   node.is() == Primitives::Latch {
+                    schedule_candidates.insert(nidx);
+                } else {
+                    let parents = circuit.graph.neighbors_directed(nidx, Incoming);
+                    let mut unresolved_dep = false;
+                    for pidx in parents {
+                        let pnode = circuit.graph.node_weight(pidx).unwrap();
+                        let pinfo = pnode.get_info();
+
+                        // TODO: Add global scheduling constraints here
+                        if !pinfo.scheduled ||
+                           ((pinfo.proc == ninfo.proc) && (pinfo.pc + pcfg.local_dep_lat()  > pc)) ||
+                           ((pinfo.proc != ninfo.proc) && (pinfo.pc + pcfg.remote_dep_lat() > pc))
+                        {
+                            unresolved_dep = true;
+                            break;
+                        }
+                    }
+                    if !unresolved_dep {
+                        schedule_candidates.insert(nidx);
+                    }
+                }
             }
-            let nidx = node_array.current();
-            let node = circuit.graph.node_weight_mut(nidx).unwrap();
+        }
+
+        let pruned_1 = prune_global_conflicts(circuit, &schedule_candidates, &rank_order);
+        let pruned_2 = prune_interlevel_conflicts(circuit, &pruned_1, &rank_order);
+        let pruned_3 = prune_local_conflicts(circuit, &pruned_2, &rank_order);
+
+        for nidx in pruned_3.iter() {
+            let node = circuit.graph.node_weight_mut(*nidx).unwrap();
             let ninfo = node.get_info();
 
-            if node.is() == Primitives::Input ||
-               node.is() == Primitives::Gate  ||
-               node.is() == Primitives::Latch {
-                schedule_candidates.insert(nidx);
-            } else {
-                let mut parents = circuit.graph.neighbors_directed(nidx, Incoming).detach();
-                let mut unresolved_dep = false;
-                while let Some(pidx) = parents.next_node(&circuit.graph) {
-                    let pnode = circuit.graph.node_weight(pidx).unwrap();
-                    let pinfo = pnode.get_info();
-                    if !pinfo.scheduled  ||
-                       ((pinfo.proc == ninfo.proc) && (pinfo.pc + cfg.local_dep_lat() > pc)) ||
-                       ((pinfo.proc != ninfo.proc) && (pinfo.pc + cfg.remote_dep_lat() > pc)) {
-                        unresolved_dep = true;
-                        break;
-                    }
-                }
-                if !unresolved_dep {
-                    schedule_candidates.insert(nidx);
-                }
-            }
-        }
-
-        let mut dep_graph: Graph<InstOrProc, usize> = Graph::default();
-        let mut proc_nodes: IndexMap<InstOrProc, NodeIndex> = IndexMap::new();
-        let mut inst_criticality_map: IndexMap<NodeIndex, u32> = IndexMap::new();
-
-        // Construct a bipartite graph where the edges look like:
-        // Schedule Candidate Node Index -> Proc index of children
-        // This graph is used to check whether there are multiple network
-        // inputs to this processor at this cycle.
-        for nidx in schedule_candidates.iter() {
-            // add candidate instruction to dependency graph
-            let inst_node = InstOrProc {
-                nidx: Some(*nidx),
-                pidx: None,
-            };
-            let inst_node_idx = dep_graph.add_node(inst_node);
-            let mut criticality = 0;
-
-            let mut childs = circuit.graph.neighbors_directed(*nidx, Outgoing).detach();
-            while let Some(cidx) = childs.next_node(&circuit.graph) {
-                // for children nodes of this node, add the partition index
-                // into the dependency graph
-                let child_proc_idx = circuit.graph.node_weight(cidx).unwrap().get_info().proc;
-                let cur_proc_idx = circuit.graph.node_weight(*nidx).unwrap().get_info().proc;
-                if child_proc_idx != cur_proc_idx {
-                    let proc_node = InstOrProc {
-                        nidx: None,
-                        pidx: Some(child_proc_idx),
-                    };
-                    if !proc_nodes.contains_key(&proc_node) {
-                        let proc_node_idx = dep_graph.add_node(proc_node.clone());
-                        proc_nodes.insert(proc_node.clone(), proc_node_idx);
-                    }
-
-                    dep_graph.add_edge(inst_node_idx, *proc_nodes.get(&proc_node).unwrap(), 0);
-
-                    // compute criticality
-                    let max_rank_node = subgraphs_rank_order
-                        .get(child_proc_idx as usize)
-                        .unwrap()
-                        .max_rank_node();
-                    let max_rank = circuit
-                        .graph
-                        .node_weight(max_rank_node)
-                        .unwrap()
-                        .get_info()
-                        .rank;
-                    criticality = max(criticality, max_rank);
-                }
-            }
-            inst_criticality_map.insert(inst_node_idx, criticality);
-        }
-
-        // Select instructions to schedule greedily based on the criticality
-        let mut criticality_vec: Vec<(&NodeIndex, &u32)> = inst_criticality_map.iter().collect();
-        criticality_vec.sort_by(|a, b| b.1.cmp(a.1));
-
-        let mut dep_graph_vis = dep_graph.visit_map();
-
-        for (nidx, _) in criticality_vec.iter() {
-            let inst_node = dep_graph.node_weight(**nidx).unwrap();
-            let mut child_procs = dep_graph.neighbors_directed(**nidx, Outgoing).detach();
-            let mut scheduleable = true;
-
-            // check if scheduleable
-            while let Some(child_proc_idx) = child_procs.next_node(&dep_graph) {
-                if dep_graph_vis.is_visited(&child_proc_idx) {
-                    scheduleable = false;
-                    break;
-                }
-            }
-
-            if scheduleable {
-                // mark the children procs as visisted in the dependency graph
-                let mut child_procs_to_remove =
-                    dep_graph.neighbors_directed(**nidx, Outgoing).detach();
-                while let Some(child_proc_idx) = child_procs_to_remove.next_node(&dep_graph) {
-                    dep_graph_vis.visit(child_proc_idx);
-                }
-
-                let original_node_idx = inst_node.nidx.unwrap();
-                let original_node = circuit.graph.node_weight_mut(original_node_idx).unwrap();
-                let proc_idx = original_node.get_info().proc;
-
-                scheduled_map.visit(original_node_idx);
-                subgraphs_rank_order
-                    .get_mut(proc_idx as usize)
-                    .unwrap()
-                    .schedule();
-                original_node.set_info(NodeInfo {
-                    pc: pc,
-                    scheduled: true,
-                    ..original_node.get_info()
-                });
-            }
+            scheduled_map.visit(*nidx);
+            rank_order
+                .get_mut(ninfo.module as usize)
+                .unwrap()
+                .get_mut(ninfo.proc as usize)
+                .unwrap()
+                .schedule();
+            node.set_info(NodeInfo {
+                pc: pc,
+                scheduled: true,
+                ..node.get_info()
+            });
         }
         pc += 1;
+
+        // TODO: consider global networking lat
         if pc + 1 + circuit.platform_cfg.pc_sdm_offset() >= circuit.platform_cfg.max_steps {
             let _ = write_string_to_file(circuit.print_scheduled(), "schedule-failed.dot");
             assert!(false, "Schedule failed {} nodes out of {} nodes scheduled",
@@ -229,6 +466,7 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
                     scheduled_map.len());
         }
     }
-    // FIXME:
-// circuit.emulator.host_steps = pc + 1 + circuit.platform_cfg.pc_sdm_offset();
+
+    // TODO: consider global networking lat
+    circuit.emul.host_steps = pc + 1 + circuit.platform_cfg.pc_sdm_offset();
 }
