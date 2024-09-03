@@ -200,20 +200,24 @@ fn prune_interlevel_conflicts(
 
             // construct dependency graph
             let cinfo = cnode.get_info();
-            let unique_id = cinfo.module * circuit.platform_cfg.num_procs + cinfo.proc;
-            let dep_node = DepNode {
-                nidx: None,
-                pidx: Some(unique_id)
-            };
+            let ninfo = node.get_info();
 
-            if !dep_nodes.contains_key(&dep_node) {
-                let didx = dep_graph.add_node(dep_node.clone());
-                dep_nodes.insert(dep_node.clone(), didx);
+            if cinfo.module != ninfo.module || cinfo.proc != ninfo.proc {
+                let unique_id = cinfo.module * circuit.platform_cfg.num_procs + cinfo.proc;
+                let dep_node = DepNode {
+                    nidx: None,
+                    pidx: Some(unique_id)
+                };
+
+                if !dep_nodes.contains_key(&dep_node) {
+                    let didx = dep_graph.add_node(dep_node.clone());
+                    dep_nodes.insert(dep_node.clone(), didx);
+                }
+                dep_graph.add_edge(inode_idx, *dep_nodes.get(&dep_node).unwrap(), 0);
+
+                // compute criticality
+                crit = max(crit, child_max_rank(circuit, rank_order, &cidx));
             }
-            dep_graph.add_edge(inode_idx, *dep_nodes.get(&dep_node).unwrap(), 0);
-
-            // compute criticality
-            crit = max(crit, child_max_rank(circuit, rank_order, &cidx));
         }
 
         match global {
