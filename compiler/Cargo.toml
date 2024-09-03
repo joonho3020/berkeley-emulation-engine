@@ -22,6 +22,8 @@ kaminpar = { git = "https://github.com/joonho3020/kaminpar-rs.git", branch = "jo
 test-case = "3.3.1"
 wait-timeout = "0.2.0"
 histo = "1.0.0"
+fixedbitset = "0.5.7"
+bv = "0.11.1"
 
 [profile.release]
 debug=true

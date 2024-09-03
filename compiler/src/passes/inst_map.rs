@@ -23,7 +23,7 @@ pub fn map_instructions(circuit: &mut Circuit) {
     let cfg = &circuit.platform_cfg;
     for nidx in circuit.graph.node_indices() {
         let node = circuit.graph.node_weight(nidx).unwrap();
-        let node_insts = all_insts.get_mut(node.get_info().proc as usize).unwrap();
+        let node_insts = all_insts.get_mut(node.get_info().coord.proc as usize).unwrap();
         let node_inst = node_insts.get_mut(node.get_info().pc   as usize).unwrap();
 
         // assign opcode
@@ -67,7 +67,7 @@ pub fn map_instructions(circuit: &mut Circuit) {
 
             let parent = circuit.graph.node_weight(pidx).unwrap();
 
-            if parent.get_info().proc == node.get_info().proc {
+            if parent.get_info().coord.proc == node.get_info().coord.proc {
                 node_inst.operands.push(Operand {
                     rs: parent.get_info().pc,
                     local: true,
@@ -88,14 +88,14 @@ pub fn map_instructions(circuit: &mut Circuit) {
         for cidx in childs {
             let child = circuit.graph.node_weight(cidx).unwrap();
 
-            if child.get_info().proc != node.get_info().proc {
+            if child.get_info().coord.proc != node.get_info().coord.proc {
                 let child_insts = all_insts
-                    .get_mut(child.get_info().proc as usize).unwrap();
+                    .get_mut(child.get_info().coord.proc as usize).unwrap();
                 let child_inst = child_insts
                     .get_mut((node.get_info().pc + cfg.remote_sin_lat()) as usize)
                     .unwrap();
                 child_inst.valid = true;
-                child_inst.sin.idx = node.get_info().proc;
+                child_inst.sin.idx = node.get_info().coord.proc;
             }
         }
 

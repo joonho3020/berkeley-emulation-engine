@@ -29,17 +29,29 @@ pub fn get_nodes_type(graph: &HWGraph, nodetype: Primitives) -> Vec<NodeIndex> {
     return nodes;
 }
 
+#[derive(Serialize, Debug, Clone, Default, Eq, Hash, PartialEq, Copy)]
+pub struct Coordinate {
+    /// module id
+    pub module: u32,
+
+    /// processor id
+    pub proc: u32
+}
+
+impl Coordinate {
+    pub fn id(self: &Self, pcfg: &PlatformConfig) -> u32 {
+        self.module * pcfg.num_mods + self.proc
+    }
+}
+
 /// # Metadata attached to each `HWGraph` node
 #[derive(Debug, Clone, Default)]
 pub struct NodeInfo {
-    /// the module id that this node is mapped to
-    pub module:  u32,
-
-    /// the processor id that this node is mapped to
-    pub proc:    u32,
+    /// Module and processor id that this node is mapped to
+    pub coord: Coordinate,
 
     /// rank order index
-    pub rank:    u32,
+    pub rank: u32,
 
     /// true if a imem slot has been allocated for this instruction
     pub scheduled: bool,
@@ -57,7 +69,8 @@ impl Serialize for NodeInfo {
         S: Serializer,
     {
         let mut state = serializer.serialize_struct("NodeMapInfo", 4)?;
-        state.serialize_field("proc", &self.proc)?;
+        state.serialize_field("module", &self.coord.module)?;
+        state.serialize_field("proc", &self.coord.proc)?;
         state.serialize_field("rank", &self.rank)?;
         state.serialize_field("scheduled", &self.scheduled)?;
         state.serialize_field("pc", &self.pc)?;
@@ -533,6 +546,111 @@ impl Default for KaMinParConfig {
     }
 }
 
+#[derive(Clone, Default, Serialize)]
+pub struct GlobalNetworkTopology {
+    pub edges: IndexMap<Coordinate, Coordinate>,
+    pub inter_mod_paths: IndexMap<(u32, u32), Vec<(Coordinate, Coordinate)>>
+}
+
+impl GlobalNetworkTopology {
+    pub fn new(num_mods: u32, num_procs: u32) -> Self {
+        let num_mods_1 = num_mods - 1;
+        let grp_sz = num_procs / num_mods_1;
+        let mut ret = GlobalNetworkTopology::default();
+
+        assert!(num_mods_1 & (num_mods_1 - 1) == 0, "num_mods should be 2^n + 1");
+        assert!(num_procs  & (num_procs - 1)  == 0, "num_procs should be 2^n + 1");
+        assert!(num_procs >= num_mods_1, "num_procs {} < num_mods - 1 {}", num_procs, num_mods_1);
+
+        for m in 0..num_mods_1 {
+            for p in 0..num_procs {
+                let r = p % grp_sz;
+                let q = (p - r) / grp_sz;
+                let src = Coordinate { module: m, proc: p };
+                let dst = if q == m {
+                    let dm = num_mods_1;
+                    let dp = p;
+                    Coordinate { module: dm, proc: dp }
+                } else {
+                    let dm = q;
+                    let dp = m * grp_sz + r;
+                    Coordinate { module: dm, proc: dp }
+                };
+                ret.edges.insert(src, dst);
+                ret.edges.insert(dst, src);
+                ret.add_path(src, dst);
+                ret.add_path(dst, src);
+            }
+        }
+        return ret;
+    }
+
+    fn add_path(self: &mut Self, src: Coordinate, dst: Coordinate) {
+        if !self.inter_mod_paths.contains_key(&(src.module, dst.module)) {
+            self.inter_mod_paths.insert((src.module, dst.module), vec![]);
+        }
+        if !self.inter_mod_paths.contains_key(&(dst.module, src.module)) {
+            self.inter_mod_paths.insert((dst.module, src.module), vec![]);
+        }
+        let paths = self.inter_mod_paths.get_mut(&(src.module, dst.module)).unwrap();
+        paths.push((src, dst));
+    }
+
+    pub fn zerohop(self: &Self, src: Coordinate, dst: Coordinate) -> bool {
+        *self.edges.get(&src).unwrap() == dst
+    }
+
+    pub fn onehop(self: &Self, src: Coordinate, dst: Coordinate) -> Option<Coordinate> {
+        // a -> dst
+        let a = self.edges.get(&dst).unwrap();
+        if a.module == src.module {
+            return Some(*a);
+        } else {
+            return None;
+        }
+    }
+
+    pub fn twohops(self: &Self, src: Coordinate, dst: Coordinate) -> Vec<(Coordinate, Coordinate)> {
+        let paths = self.inter_mod_paths.get(&(src.module, dst.module)).unwrap();
+        return paths.to_vec();
+    }
+}
+
+impl Debug for GlobalNetworkTopology {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let indent: &str = "    ";
+
+        write!(f, "digraph {{\n")?;
+
+        let mut map: IndexMap<Coordinate, u32> = IndexMap::new();
+
+        for (i, (src, _)) in self.edges.iter().enumerate() {
+            map.insert(*src, i as u32);
+
+            write!(
+                f,
+                "{}{} [ label = \"{:?}\" ]\n",
+                indent,
+                i,
+                src
+            )?;
+        }
+        for (i, (_, dst)) in self.edges.iter().enumerate() {
+            write!(
+                f,
+                "{}{} {} {} ",
+                indent,
+                i,
+                "->",
+                map.get(dst).unwrap()
+            )?;
+            writeln!(f, "[ ]")?;
+        }
+
+        write!(f, "}}")
+    }
+}
+
 /// # Context
 /// - Config of the underlying hardware emulation platform
 #[derive(Debug, Clone, Serialize)]
@@ -560,6 +678,9 @@ pub struct PlatformConfig {
 
     /// Number of cycles to write d-mem
     pub dmem_wr_lat: Cycle,
+
+    /// Global network topology
+    pub topology: GlobalNetworkTopology
 }
 
 impl Default for PlatformConfig {
@@ -573,6 +694,7 @@ impl Default for PlatformConfig {
             imem_lat: 0,
             dmem_rd_lat: 0,
             dmem_wr_lat: 1,
+            topology: GlobalNetworkTopology::default()
         }
     }
 }
@@ -614,19 +736,32 @@ impl PlatformConfig {
     }
 
     /// - I can start using bits computed from a local processor at
-    /// `local.pc + local_dep_lat`
+    /// `local.pc + intra_proc_dep_lat`
     ///   <me> | read imem | read dmem | compute + write dmem |
     ///   <me>                                    | read imem | read dmem | compute
-    pub fn local_dep_lat(self: &Self) -> Cycle {
+    pub fn intra_proc_dep_lat(self: &Self) -> Cycle {
         self.dmem_rd_lat + self.dmem_wr_lat
     }
 
     /// - I can start using bits computed from a remote processor at
-    /// `remote.pc + remote_dep_lat`.
+    /// `remote.pc + inter_proc_dep_lat`.
     ///   <other> | read imem | read dmem | lut + network | write dmem |
     ///   <me>                                             | read imem | read dmem | compute |
-    pub fn remote_dep_lat(self: &Self) -> Cycle {
+    pub fn inter_proc_dep_lat(self: &Self) -> Cycle {
         self.dmem_rd_lat + self.network_lat + self.dmem_wr_lat
+    }
+
+    // TODO
+    pub fn inter_mod_zerohop_dep_lat(self: &Self) -> Cycle {
+        1
+    }
+
+    pub fn inter_mod_onehop_dep_lat(self: &Self) -> Cycle {
+        2
+    }
+
+    pub fn inter_mod_twohop_dep_lat(self: &Self) -> Cycle {
+        3
     }
 
     /// - I have to receive a incoming bit from a remote processor at
@@ -877,7 +1012,7 @@ impl Debug for Circuit {
             vis_map.visit(nidx);
             let node = graph.node_weight(nidx).unwrap();
             // red, blue, green, white, purple
-            let proc = node.clone().get_info().proc % 5;
+            let proc = node.clone().get_info().coord.proc % 5;
             let color = match proc {
                 0 => "red",
                 1 => "blue",

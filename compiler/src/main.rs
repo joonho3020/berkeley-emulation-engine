@@ -2,6 +2,7 @@ use blif_parser::common::*;
 use blif_parser::fsim::module::*;
 use blif_parser::passes::parser;
 use blif_parser::passes::runner;
+use blif_parser::primitives::GlobalNetworkTopology;
 use blif_parser::primitives::PlatformConfig;
 use blif_parser::rtlsim::ref_rtlsim_testharness::*;
 use blif_parser::rtlsim::rtlsim_utils::*;
@@ -51,10 +52,15 @@ fn test_emulator(
         imem_lat:    args.imem_lat,
         dmem_rd_lat: args.dmem_rd_lat,
         dmem_wr_lat: args.dmem_wr_lat,
+        topology: GlobalNetworkTopology::new(args.num_mods, args.num_procs),
     });
     println!("Running compiler passes with config: {:#?}", &circuit.platform_cfg);
     runner::run_compiler_passes(&mut circuit);
 
+    save_graph_pdf(
+        &format!("{:?}", circuit.platform_cfg.topology),
+        &format!("{}/{}.topology.dot", cwd.to_str().unwrap(), args.top_mod),
+        &format!("{}/{}.topology.pdf", cwd.to_str().unwrap(), args.top_mod))?;
     circuit.save_emulator_instructions(
         &format!("{}/{}.insts", cwd.to_str().unwrap(), args.top_mod))?;
     circuit.save_emulator_sigmap(

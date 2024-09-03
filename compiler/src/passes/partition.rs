@@ -15,7 +15,10 @@ fn set_proc(
 ) {
     let node = graph.node_weight_mut(nidx).unwrap();
     let info = node.get_info();
-    node.set_info(NodeInfo { proc: proc, ..info });
+    node.set_info(NodeInfo {
+        coord: Coordinate { proc: proc, ..info.coord },
+        ..info
+    });
 }
 
 fn set_module(
@@ -25,7 +28,10 @@ fn set_module(
 ) {
     let node = graph.node_weight_mut(nidx).unwrap();
     let info = node.get_info();
-    node.set_info(NodeInfo { module: module, ..info });
+    node.set_info(NodeInfo {
+        coord: Coordinate { module: module, ..info.coord },
+        ..info
+    });
 }
 
 fn kaminpar_partition(
@@ -115,7 +121,7 @@ fn get_subgraphs(circuit: &Circuit) -> IndexMap<u32, SubGraph> {
     // assign nodes to subgraphs
     for nidx in circuit.graph.node_indices() {
         let node = circuit.graph.node_weight(nidx).unwrap();
-        let module = node.get_info().module;
+        let module = node.get_info().coord.module;
 
         let sg = ret.get_mut(&module).unwrap();
         let sg_nidx = sg.subgraph.add_node(node.clone());
@@ -129,8 +135,8 @@ fn get_subgraphs(circuit: &Circuit) -> IndexMap<u32, SubGraph> {
         let src = circuit.graph.node_weight(ep.0).unwrap();
         let dst = circuit.graph.node_weight(ep.1).unwrap();
 
-        if src.get_info().module == dst.get_info().module {
-            let sg = ret.get_mut(&src.get_info().module).unwrap();
+        if src.get_info().coord.module == dst.get_info().coord.module {
+            let sg = ret.get_mut(&src.get_info().coord.module).unwrap();
             sg.subgraph.add_edge(
                 *sg.to_local.get(&ep.0).unwrap(),
                 *sg.to_local.get(&ep.1).unwrap(),

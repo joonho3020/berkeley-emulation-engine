@@ -137,7 +137,7 @@ impl Module {
 
     pub fn peek(self: &Self, signal: &str) -> Option<Bit> {
         match self.signal_map.get(signal) {
-            Some(map) => Some(self.procs[map.info.proc as usize].ldm[map.info.pc as usize]),
+            Some(map) => Some(self.procs[map.info.coord.proc as usize].ldm[map.info.pc as usize]),
             None => None,
         }
     }
@@ -145,9 +145,9 @@ impl Module {
     pub fn poke(self: &mut Self, signal: &str, val: Bit) -> Option<Bit> {
         match self.signal_map.get(signal) {
             Some(map) => {
-                let inst = self.procs[map.info.proc as usize].imem[map.info.pc as usize].clone();
+                let inst = self.procs[map.info.coord.proc as usize].imem[map.info.pc as usize].clone();
                 if inst.opcode == Primitives::Input {
-                    self.procs[map.info.proc as usize].set_io_i(val);
+                    self.procs[map.info.coord.proc as usize].set_io_i(val);
                     Some(val)
                 } else {
                     println!("Signal {} to poke is not a Input", signal);
