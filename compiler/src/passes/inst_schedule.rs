@@ -84,6 +84,7 @@ fn prune_global_conflicts(
     let mut dep_graph: Graph<DepNode, usize> = Graph::default();
     let mut module_nodes: IndexMap<DepNode, NodeIndex> = IndexMap::new();
     let mut criticality: IndexMap<NodeIndex, u32> = IndexMap::new();
+    let mut local_nodes: IndexSet<NodeIndex> = IndexSet::new();
 
     // Construct a bipartite graph where the edges look like:
     // Schedule Candidate Node Index -> Module index of children
@@ -96,6 +97,7 @@ fn prune_global_conflicts(
         };
         let inode_idx = dep_graph.add_node(inode);
         let mut crit = 0;
+        let mut global = false;
 
         let node = circuit.graph.node_weight(*nidx).unwrap();
         let module = node.get_info().module;
@@ -117,9 +119,15 @@ fn prune_global_conflicts(
 
                 // compute criticality
                 crit = max(crit, child_max_rank(circuit, rank_order, &cidx));
+                global = true;
             }
         }
         criticality.insert(inode_idx, crit);
+
+        match global {
+            true  => {}
+            false => { local_nodes.insert(*nidx); }
+        }
     }
 
     // Select instructions to schedule greedily based on the criticality
@@ -152,6 +160,7 @@ fn prune_global_conflicts(
             pruned.insert(original_node_idx);
         }
     }
+    pruned.append(&mut local_nodes);
     return pruned;
 }
 
@@ -358,9 +367,11 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
 
         let pruned_1 = prune_global_conflicts(circuit, &schedule_candidates, &rank_order);
         assert!(pruned_1.len() > 0, "No more schedulable entries after global prune");
+        println!("pruned_1: {}", pruned_1.len());
 
         let pruned_2 = prune_interlevel_conflicts(circuit, &pruned_1, &rank_order);
         assert!(pruned_2.len() > 0, "No more schedulable entries after local prune");
+        println!("pruned_2: {}", pruned_2.len());
 
         candidate_cnt += schedule_candidates.len();
         global_pruned += schedule_candidates.len() - pruned_1.len();
@@ -400,12 +411,12 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
     circuit.emul.host_steps = pc + 1 + circuit.platform_cfg.pc_sdm_offset();
 
     let total_steps = circuit.emul.host_steps * circuit.emul.used_mods * circuit.platform_cfg.num_procs;
-    println!("Machine ({} / {}) = {} %, host_steps = {} global pruned {} local pruned {} candidates {}",
+    println!("Machine ({} / {}) = {:.2} %, host_steps = {} global pruned {:.2} % local pruned {:.2} % candidates {}",
              circuit.graph.node_count(),
              total_steps,
              circuit.graph.node_count() as f32 / total_steps as f32 * 100f32,
              circuit.emul.host_steps,
-             global_pruned,
-             local_pruned,
+             global_pruned as f32 / candidate_cnt as f32 * 100f32,
+             local_pruned  as f32 / candidate_cnt as f32 * 100f32,
              candidate_cnt);
 }
