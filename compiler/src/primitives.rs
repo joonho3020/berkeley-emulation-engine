@@ -1,6 +1,7 @@
 use crate::common::*;
 use crate::fsim::module::Module as EmulModule;
 use crate::utils::write_string_to_file;
+use derivative::Derivative;
 use indexmap::IndexMap;
 use petgraph::{
     graph::{Graph, NodeIndex},
@@ -664,7 +665,8 @@ impl Debug for GlobalNetworkTopology {
 
 /// # Context
 /// - Config of the underlying hardware emulation platform
-#[derive(Debug, Clone, Serialize)]
+#[derive(Clone, Serialize, Derivative)]
+#[derivative(Debug)]
 pub struct PlatformConfig {
     /// Num modules
     pub num_mods: u32,
@@ -691,6 +693,7 @@ pub struct PlatformConfig {
     pub dmem_wr_lat: Cycle,
 
     /// Global network topology
+    #[derivative(Debug="ignore")]
     pub topology: GlobalNetworkTopology
 }
 

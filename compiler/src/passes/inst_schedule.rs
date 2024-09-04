@@ -1,11 +1,13 @@
 use crate::primitives::*;
 use indexmap::{IndexMap, IndexSet};
+use itertools::Itertools;
 use petgraph::{
     graph::{EdgeIndex, NodeIndex}, visit::{EdgeRef, VisitMap, Visitable}, Direction::{Incoming, Outgoing}
 };
 use fixedbitset::FixedBitSet;
 use std::cmp::max;
 use lowcharts::plot;
+use histo::Histogram;
 
 #[derive(Eq, Hash, PartialEq, Clone)]
 struct InstOrProc {
@@ -182,6 +184,8 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
         rank_order.push(local_rank_order);
     }
 
+    let mut rank_cnt: IndexMap<u32, f64> = IndexMap::new();
+
     for nidx in circuit.graph.node_indices() {
         let node = circuit.graph.node_weight(nidx).unwrap();
         rank_order
@@ -190,7 +194,19 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
             .get_mut(node.get_info().coord.proc as usize)
             .unwrap()
             .push_node(nidx);
+
+        let rank = node.get_info().rank;
+        if !rank_cnt.contains_key(&rank) {
+            rank_cnt.insert(rank, 0.0);
+        }
+        *rank_cnt.get_mut(&rank).unwrap() += 1.0;
     }
+
+    rank_cnt.sort_keys();
+    let rank_data = rank_cnt.values().cloned().collect::<Vec<f64>>();
+    let rank_dist_plot = lowcharts::plot::XyPlot::new(rank_data.as_slice(),  80, 30, None);
+    println!("rank_cnt: {:?}", rank_cnt);
+    println!("{}", rank_dist_plot);
 
     // sort the nodes by rank within each processor
     for ro in rank_order.iter_mut() {

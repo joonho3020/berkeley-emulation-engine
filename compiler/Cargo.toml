@@ -25,6 +25,7 @@ histo = "1.0.0"
 fixedbitset = "0.5.7"
 bv = "0.11.1"
 lowcharts = "0.5.8"
+derivative = "2.2.0"
 
 [profile.release]
 debug=true
