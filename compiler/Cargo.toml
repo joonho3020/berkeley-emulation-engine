@@ -26,6 +26,8 @@ fixedbitset = "0.5.7"
 bv = "0.11.1"
 lowcharts = "0.5.8"
 derivative = "2.2.0"
+yansi = "1.0.1"
+plotters = "0.3.6"
 
 [profile.release]
 debug=true

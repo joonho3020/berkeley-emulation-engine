@@ -1,13 +1,11 @@
 use crate::primitives::*;
 use indexmap::{IndexMap, IndexSet};
-use itertools::Itertools;
 use petgraph::{
     graph::{EdgeIndex, NodeIndex}, visit::{EdgeRef, VisitMap, Visitable}, Direction::{Incoming, Outgoing}
 };
 use fixedbitset::FixedBitSet;
 use std::cmp::max;
-use lowcharts::plot;
-use histo::Histogram;
+use plotters::prelude::*;
 
 #[derive(Eq, Hash, PartialEq, Clone)]
 struct InstOrProc {
@@ -185,6 +183,7 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
     }
 
     let mut rank_cnt: IndexMap<u32, f64> = IndexMap::new();
+    let mut rank_dist: IndexMap<u32, IndexMap<Coordinate, f64>> = IndexMap::new();
 
     for nidx in circuit.graph.node_indices() {
         let node = circuit.graph.node_weight(nidx).unwrap();
@@ -200,13 +199,36 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
             rank_cnt.insert(rank, 0.0);
         }
         *rank_cnt.get_mut(&rank).unwrap() += 1.0;
+
+        if !rank_dist.contains_key(&rank) {
+            rank_dist.insert(rank, IndexMap::new());
+        }
+        let x = rank_dist.get_mut(&rank).unwrap();
+        let c = node.get_info().coord;
+        if !x.contains_key(&c) {
+            x.insert(c, 0.0);
+        }
+        *x.get_mut(&c).unwrap() += 1.0;
+    }
+
+    let mut rank_dist_processed: IndexMap<u32, Vec<f64>> = IndexMap::new();
+    for (r, rm) in rank_dist.iter() {
+        let dist = rm.values().cloned().collect::<Vec<f64>>();
+        rank_dist_processed.insert(*r, dist);
     }
 
     rank_cnt.sort_keys();
-    let rank_data = rank_cnt.values().cloned().collect::<Vec<f64>>();
-    let rank_dist_plot = lowcharts::plot::XyPlot::new(rank_data.as_slice(),  80, 30, None);
+    let rank_cnt_data = rank_cnt.values().cloned().collect::<Vec<f64>>();
+    let rank_cnt_plot = lowcharts::plot::XyPlot::new(rank_cnt_data.as_slice(),  80, 30, None);
     println!("rank_cnt: {:?}", rank_cnt);
-    println!("{}", rank_dist_plot);
+    println!("{}", rank_cnt_plot);
+
+    rank_dist_processed.sort_keys();
+    for (r, rd) in rank_dist_processed.iter() {
+        println!("====================== Rank: {} {} =================", r, rank_cnt.get(r).unwrap());
+        let plot = lowcharts::plot::XyPlot::new(rd.as_slice(),  80, 30, None);
+        println!("{}", plot);
+    }
 
     // sort the nodes by rank within each processor
     for ro in rank_order.iter_mut() {
@@ -230,6 +252,13 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
     let mut busy_procs_vec: Vec<f64> = vec![];
     let mut candidate_vec: Vec<f64> = vec![];
     let mut scheduled_vec: Vec<f64> = vec![];
+    let mut per_round_candidates_by_rank: IndexMap<u32, Vec<u32>> = IndexMap::new();
+    let mut per_round_scheduled_by_rank:  IndexMap<u32, Vec<u32>> = IndexMap::new();
+    let max_rank = *rank_cnt.keys().last().unwrap();
+    for r in 0..max_rank {
+        per_round_candidates_by_rank.insert(r, vec![]);
+        per_round_scheduled_by_rank.insert(r,  vec![]);
+    }
 
     while scheduled_map.count_ones(..) != scheduled_map.len() {
         let mut schedule_candidates: IndexSet<NodeIndex> = IndexSet::new();
@@ -480,6 +509,49 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
         candidate_vec.push(cand_cnt as f64 / (pcfg.num_mods * pcfg.num_procs) as f64);
         scheduled_vec.push(sched_cnt as f64 / (pcfg.num_mods * pcfg.num_procs) as f64);
 
+        let mut cand_rank_cnt: IndexMap<u32, u32> = IndexMap::new();
+        for cand in schedule_candidates.iter() {
+            let node = circuit.graph.node_weight(*cand).unwrap();
+            let rank = node.get_info().rank;
+            if !cand_rank_cnt.contains_key(&rank) {
+                cand_rank_cnt.insert(rank, 0);
+            }
+            *cand_rank_cnt.get_mut(&rank).unwrap() += 1;
+        }
+        let mut sched_rank_cnt: IndexMap<u32, u32> = IndexMap::new();
+        for sched in global_nodes_scheduled.iter() {
+            let node = circuit.graph.node_weight(*sched).unwrap();
+            let rank = node.get_info().rank;
+            if !sched_rank_cnt.contains_key(&rank) {
+                sched_rank_cnt.insert(rank, 0);
+            }
+            *sched_rank_cnt.get_mut(&rank).unwrap() += 1;
+        }
+        for sched in local_nodes_scheduled.iter() {
+            let node = circuit.graph.node_weight(*sched).unwrap();
+            let rank = node.get_info().rank;
+            if !sched_rank_cnt.contains_key(&rank) {
+                sched_rank_cnt.insert(rank, 0);
+            }
+            *sched_rank_cnt.get_mut(&rank).unwrap() += 1;
+        }
+
+        for r in 0..max_rank {
+            let cand_cnt = if cand_rank_cnt.contains_key(&r) {
+                *cand_rank_cnt.get(&r).unwrap()
+            } else {
+                0
+            };
+            per_round_candidates_by_rank.get_mut(&r).unwrap().push(cand_cnt);
+
+            let sched_cnt = if sched_rank_cnt.contains_key(&r) {
+                *sched_rank_cnt.get(&r).unwrap()
+            } else {
+                0
+            };
+            per_round_scheduled_by_rank.get_mut(&r).unwrap().push(sched_cnt);
+        }
+
         nw.step();
         pc += 1;
 
@@ -509,4 +581,49 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
              global_pruned as f32 / candidate_cnt as f32 * 100f32,
              local_pruned  as f32 / candidate_cnt as f32 * 100f32,
              candidate_cnt);
+
+    let title = format!("{}/rank-by-scheduling-round.png", circuit.compiler_cfg.output_dir);
+    let root = BitMapBackend::new(
+        &title,
+        (2560, 1920)).into_drawing_area();
+    let _ = root.fill(&WHITE);
+    let mut chart = ChartBuilder::on(&root)
+        .caption("Scheduling Progress", ("sans-serif", 50).into_font())
+        .margin(5)
+        .x_label_area_size(30)
+        .y_label_area_size(30)
+        .build_cartesian_2d(0f32..circuit.emul.host_steps as f32,
+                            0f32..(circuit.platform_cfg.num_procs * circuit.platform_cfg.num_mods) as f32).unwrap();
+    let _ = chart.configure_mesh().draw();
+
+    for (r, data) in per_round_candidates_by_rank.iter() {
+        chart
+            .draw_series(LineSeries::new(
+                (0..).zip(data.iter()).map(|(a, b)| (a as f32, *b as f32)),
+                &Palette99::pick(*r as usize),
+            )).unwrap()
+            .label(format!("Cand-{}", r))
+             .legend(move |(x, y)| {
+                Rectangle::new([(x - 5, y - 5), (x + 5, y + 5)],
+                &Palette99::pick(*r as usize))
+            });
+    }
+    for (r, data) in per_round_scheduled_by_rank.iter() {
+        chart
+            .draw_series(LineSeries::new(
+                (0..).zip(data.iter()).map(|(a, b)| (a as f32, *b as f32)),
+                &Palette99::pick(*r as usize),
+            )).unwrap()
+            .label(format!("Sched-{}", r))
+             .legend(move |(x, y)| {
+                Rectangle::new([(x - 5, y - 5), (x + 5, y + 5)],
+                &Palette99::pick(*r as usize))
+            });
+    }
+    let _ = chart
+        .configure_series_labels()
+        .background_style(&WHITE.mix(0.8))
+        .border_style(&BLACK)
+        .draw();
+    let _ = root.present();
 }

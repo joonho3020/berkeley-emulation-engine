@@ -4,6 +4,7 @@ use blif_parser::passes::parser;
 use blif_parser::passes::runner;
 use blif_parser::primitives::GlobalNetworkTopology;
 use blif_parser::primitives::PlatformConfig;
+use blif_parser::primitives::CompilerConfig;
 use blif_parser::rtlsim::ref_rtlsim_testharness::*;
 use blif_parser::rtlsim::rtlsim_utils::*;
 use blif_parser::rtlsim::vcdparser::*;
@@ -43,17 +44,23 @@ fn test_emulator(
         }
     };
 
-    circuit.set_cfg(PlatformConfig {
-        num_mods:    args.num_mods,
-        num_procs:   args.num_procs,
-        max_steps:   args.max_steps,
-        lut_inputs:  args.lut_inputs,
-        network_lat: args.network_lat,
-        imem_lat:    args.imem_lat,
-        dmem_rd_lat: args.dmem_rd_lat,
-        dmem_wr_lat: args.dmem_wr_lat,
-        topology: GlobalNetworkTopology::new(args.num_mods, args.num_procs),
-    });
+    circuit.set_cfg(
+        PlatformConfig {
+            num_mods:    args.num_mods,
+            num_procs:   args.num_procs,
+            max_steps:   args.max_steps,
+            lut_inputs:  args.lut_inputs,
+            network_lat: args.network_lat,
+            imem_lat:    args.imem_lat,
+            dmem_rd_lat: args.dmem_rd_lat,
+            dmem_wr_lat: args.dmem_wr_lat,
+            topology: GlobalNetworkTopology::new(args.num_mods, args.num_procs)
+        },
+        CompilerConfig {
+            top_module: args.top_mod.clone(),
+            output_dir: cwd.to_str().unwrap().to_string()
+        }
+    );
     println!("Running compiler passes with config: {:#?}", &circuit.platform_cfg);
     runner::run_compiler_passes(&mut circuit);
 
@@ -61,10 +68,8 @@ fn test_emulator(
 // &format!("{:?}", circuit.platform_cfg.topology),
 // &format!("{}/{}.topology.dot", cwd.to_str().unwrap(), args.top_mod),
 // &format!("{}/{}.topology.pdf", cwd.to_str().unwrap(), args.top_mod))?;
-    circuit.save_emulator_instructions(
-        &format!("{}/{}.insts", cwd.to_str().unwrap(), args.top_mod))?;
-    circuit.save_emulator_sigmap(
-        &format!("{}/{}.signals",cwd.to_str().unwrap(), args.top_mod))?;
+    circuit.save_emulator_instructions()?;
+    circuit.save_emulator_sigmap()?;
 // save_graph_pdf(
 // &format!("{:?}", circuit),
 // &format!("{}/{}.dot", cwd.to_str().unwrap(), args.top_mod),

@@ -825,9 +825,15 @@ pub struct EmulatorMapping {
     pub mod_mappings: IndexMap<u32, ModuleMapping>
 }
 
+#[derive(Serialize, Debug, Default, Clone)]
+pub struct CompilerConfig {
+    pub top_module: String,
+    pub output_dir: String
+}
 
 #[derive(Default, Clone)]
 pub struct Circuit {
+    pub compiler_cfg: CompilerConfig,
     pub platform_cfg: PlatformConfig,
     pub kaminpar_cfg: KaMinParConfig,
 
@@ -836,11 +842,13 @@ pub struct Circuit {
 }
 
 impl Circuit {
-    pub fn set_cfg(&mut self, cfg: PlatformConfig) {
-        self.platform_cfg = cfg;
+    pub fn set_cfg(&mut self, pcfg: PlatformConfig, ccfg: CompilerConfig) {
+        self.platform_cfg = pcfg;
+        self.compiler_cfg = ccfg;
     }
 
-    pub fn save_emulator_info(&self, file_path: String) -> std::io::Result<()> {
+    pub fn save_emulator_info(&self) -> std::io::Result<()> {
+        let file_path = format!("{}/{}.info", self.compiler_cfg.output_dir, self.compiler_cfg.top_module);
         for (i, mapping) in self.emul.mod_mappings.iter() {
             let mut out = file_path.clone();
             out.push_str(&format!("-{}", i));
@@ -849,7 +857,8 @@ impl Circuit {
         Ok(())
     }
 
-    pub fn save_emulator_instructions(&self, file_path: &str) -> std::io::Result<()> {
+    pub fn save_emulator_instructions(&self) -> std::io::Result<()> {
+        let file_path = format!("{}/{}.insts", self.compiler_cfg.output_dir, self.compiler_cfg.top_module);
         let mut inst_str = "".to_string();
         let mut total_insns = 0;
         let mut total_nops = 0;
@@ -872,13 +881,16 @@ impl Circuit {
                 }
             }
         }
-        inst_str.push_str(&format!("Overal stats\nNOPs: {}\nTotal insts: {}\nUtilization: {}%\n",
-                                   total_nops, total_insns, ((total_insns - total_nops) as f32)/(total_insns as f32) * 100 as f32));
-        write_string_to_file(inst_str, file_path)?;
+        inst_str.push_str(&format!("Overall stats\nNOPs: {}\nTotal insts: {}\nUtilization: {}%\n",
+                                   total_nops,
+                                   total_insns,
+                                   ((total_insns - total_nops) as f32)/(total_insns as f32) * 100 as f32));
+        write_string_to_file(inst_str, &file_path)?;
         Ok(())
     }
 
-    pub fn save_emulator_sigmap(&self, file_path: &str) -> std::io::Result<()> {
+    pub fn save_emulator_sigmap(&self) -> std::io::Result<()> {
+        let file_path = format!("{}/{}.signals", self.compiler_cfg.output_dir, self.compiler_cfg.top_module);
         for (i, mapping) in self.emul.mod_mappings.iter() {
             let mut out = file_path.to_string();
             out.push_str(&format!("-{}", i));
