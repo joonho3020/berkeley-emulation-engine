@@ -35,7 +35,7 @@ fn set_module(
 }
 
 fn kaminpar_partition(
-    g: &Graph<Box<dyn HWNode>, String, Undirected>,
+    g: &Graph<Box<dyn HWNode>, HWEdge, Undirected>,
     kaminpar: &KaMinParConfig,
     npartitions: u32
 ) -> Result<Vec<u32>, KaminParError> {

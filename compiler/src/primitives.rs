@@ -16,7 +16,7 @@ use std::{
 use strum::EnumCount;
 use strum_macros::EnumCount as EnumCountMacro;
 
-pub type HWGraph = Graph<Box<dyn HWNode>, String>;
+pub type HWGraph = Graph<Box<dyn HWNode>, HWEdge>;
 
 pub fn get_nodes_type(graph: &HWGraph, nodetype: Primitives) -> Vec<NodeIndex> {
     let mut nodes: Vec<NodeIndex> = vec![];
@@ -40,7 +40,29 @@ pub struct Coordinate {
 
 impl Coordinate {
     pub fn id(self: &Self, pcfg: &PlatformConfig) -> u32 {
-        self.module * pcfg.num_mods + self.proc
+        self.module * pcfg.num_procs + self.proc
+    }
+}
+
+pub type InterModulePath = (Coordinate, Coordinate);
+
+/// # Metadata attached to each `HWGraph` edge
+#[derive(Debug, Clone, Default)]
+pub struct HWEdge {
+    pub name: String,
+    pub path: Option<InterModulePath>,
+}
+
+impl HWEdge {
+    pub fn new(name_: String) -> Self {
+        HWEdge {
+            name: name_,
+            path: None
+        }
+    }
+
+    pub fn set_path(self: &mut Self, path: InterModulePath) {
+        self.path = Some(path);
     }
 }
 
@@ -554,9 +576,12 @@ pub struct GlobalNetworkTopology {
 
 impl GlobalNetworkTopology {
     pub fn new(num_mods: u32, num_procs: u32) -> Self {
+        let mut ret = GlobalNetworkTopology::default();
+        if num_mods == 1 {
+            return ret;
+        }
         let num_mods_1 = num_mods - 1;
         let grp_sz = num_procs / num_mods_1;
-        let mut ret = GlobalNetworkTopology::default();
 
         assert!(num_mods_1 & (num_mods_1 - 1) == 0, "num_mods should be 2^n + 1");
         assert!(num_procs  & (num_procs - 1)  == 0, "num_procs should be 2^n + 1");
@@ -596,21 +621,7 @@ impl GlobalNetworkTopology {
         paths.push((src, dst));
     }
 
-    pub fn zerohop(self: &Self, src: Coordinate, dst: Coordinate) -> bool {
-        *self.edges.get(&src).unwrap() == dst
-    }
-
-    pub fn onehop(self: &Self, src: Coordinate, dst: Coordinate) -> Option<Coordinate> {
-        // a -> dst
-        let a = self.edges.get(&dst).unwrap();
-        if a.module == src.module {
-            return Some(*a);
-        } else {
-            return None;
-        }
-    }
-
-    pub fn twohops(self: &Self, src: Coordinate, dst: Coordinate) -> Vec<(Coordinate, Coordinate)> {
+    pub fn inter_mod_paths(self: &Self, src: Coordinate, dst: Coordinate) -> Vec<(Coordinate, Coordinate)> {
         let paths = self.inter_mod_paths.get(&(src.module, dst.module)).unwrap();
         return paths.to_vec();
     }
@@ -752,14 +763,22 @@ impl PlatformConfig {
     }
 
     // TODO
+    /// Bit travels from SRC -> DST
     pub fn inter_mod_zerohop_dep_lat(self: &Self) -> Cycle {
         1
     }
 
-    pub fn inter_mod_onehop_dep_lat(self: &Self) -> Cycle {
+    /// Bit travels from SRC -> TMP (same module with SRC) -> DST
+    pub fn inter_mod_local_onehop_dep_lat(self: &Self) -> Cycle {
         2
     }
 
+    /// Bit travels from SRC -> TMP (same module with DST) -> DST
+    pub fn inter_mod_remote_onehop_dep_lat(self: &Self) -> Cycle {
+        2
+    }
+
+    /// Bit travels from SRC -> TMP 1 (same mod w/ SRC) -> TMP2 (same mod w/ DST) -> DST
     pub fn inter_mod_twohop_dep_lat(self: &Self) -> Cycle {
         3
     }

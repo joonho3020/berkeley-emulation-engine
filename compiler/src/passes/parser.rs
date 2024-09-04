@@ -253,19 +253,19 @@ fn module_body_parser<'a>(input: &'a str, circuit: &mut Circuit) -> IResultStr<'
             let dst_nidx = net_to_nodeidx.get(&lut.output).unwrap();
             circuit
                 .graph
-                .add_edge(*src_nidx, *dst_nidx, inet.to_string());
+                .add_edge(*src_nidx, *dst_nidx, HWEdge::new(inet.to_string()));
         }
     }
 
     for gate in gates.iter() {
         let d_idx = net_to_nodeidx.get(&gate.d).unwrap();
         let q_idx = net_to_nodeidx.get(&gate.q).unwrap();
-        circuit.graph.add_edge(*d_idx, *q_idx, gate.d.to_string());
+        circuit.graph.add_edge(*d_idx, *q_idx, HWEdge::new(gate.d.to_string()));
 
         match &gate.e {
             Some(e) => {
                 let e_idx = net_to_nodeidx.get(e).unwrap();
-                circuit.graph.add_edge(*e_idx, *q_idx, e.to_string());
+                circuit.graph.add_edge(*e_idx, *q_idx, HWEdge::new(e.to_string()));
             }
             None => (),
         };
@@ -276,13 +276,13 @@ fn module_body_parser<'a>(input: &'a str, circuit: &mut Circuit) -> IResultStr<'
         let q_idx = net_to_nodeidx.get(&latch.output).unwrap();
         circuit
             .graph
-            .add_edge(*d_idx, *q_idx, latch.input.to_string());
+            .add_edge(*d_idx, *q_idx, HWEdge::new(latch.input.to_string()));
     }
 
     for o in outputs.iter() {
         let src_nidx = net_to_nodeidx.get(&o.to_string()).unwrap();
         let dst_nidx = out_to_nodeidx.get(&o.to_string()).unwrap();
-        circuit.graph.add_edge(*src_nidx, *dst_nidx, o.to_string());
+        circuit.graph.add_edge(*src_nidx, *dst_nidx, HWEdge::new(o.to_string()));
     }
 
     if i.len() > body_end_marker.to_string().len() {
