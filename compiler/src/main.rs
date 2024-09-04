@@ -57,10 +57,10 @@ fn test_emulator(
     println!("Running compiler passes with config: {:#?}", &circuit.platform_cfg);
     runner::run_compiler_passes(&mut circuit);
 
-    save_graph_pdf(
-        &format!("{:?}", circuit.platform_cfg.topology),
-        &format!("{}/{}.topology.dot", cwd.to_str().unwrap(), args.top_mod),
-        &format!("{}/{}.topology.pdf", cwd.to_str().unwrap(), args.top_mod))?;
+// save_graph_pdf(
+// &format!("{:?}", circuit.platform_cfg.topology),
+// &format!("{}/{}.topology.dot", cwd.to_str().unwrap(), args.top_mod),
+// &format!("{}/{}.topology.pdf", cwd.to_str().unwrap(), args.top_mod))?;
     circuit.save_emulator_instructions(
         &format!("{}/{}.insts", cwd.to_str().unwrap(), args.top_mod))?;
     circuit.save_emulator_sigmap(

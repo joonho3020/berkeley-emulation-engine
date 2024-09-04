@@ -1,10 +1,11 @@
 use crate::primitives::*;
 use indexmap::{IndexMap, IndexSet};
 use petgraph::{
-    data::DataMap, graph::{EdgeIndex, NodeIndex}, visit::{EdgeRef, VisitMap, Visitable}, Direction::{Incoming, Outgoing}
+    graph::{EdgeIndex, NodeIndex}, visit::{EdgeRef, VisitMap, Visitable}, Direction::{Incoming, Outgoing}
 };
 use fixedbitset::FixedBitSet;
 use std::cmp::max;
+use lowcharts::plot;
 
 #[derive(Eq, Hash, PartialEq, Clone)]
 struct InstOrProc {
@@ -210,10 +211,14 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
     let mut global_pruned = 0;
     let mut local_pruned = 0;
     let mut candidate_cnt = 0;
+    let mut busy_procs_vec: Vec<f64> = vec![];
+    let mut candidate_vec: Vec<f64> = vec![];
+    let mut scheduled_vec: Vec<f64> = vec![];
 
     while scheduled_map.count_ones(..) != scheduled_map.len() {
-        println!("nodes left to schedule {}", scheduled_map.len() - scheduled_map.count_ones(..));
         let mut schedule_candidates: IndexSet<NodeIndex> = IndexSet::new();
+
+        let mut busy_procs = 0;
 
         // Find all the scheduling candidates
         for (_module, local_rank_order) in rank_order.iter_mut().enumerate() {
@@ -221,6 +226,9 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
                 if node_array.done() {
                     continue;
                 }
+
+                busy_procs += 1;
+
                 let nidx = node_array.current();
                 let node = circuit.graph.node_weight(nidx).unwrap();
                 let ni = node.get_info();
@@ -269,8 +277,6 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
                 }
             }
         }
-        println!("schedule candidates: {}", schedule_candidates.len());
-// assert!(schedule_candidates.len() > 0, "no more schedule candidates");
 
         let mut global_candidates: IndexMap<NodeIndex, u32> = IndexMap::new();
         let mut  local_candidates: IndexMap<NodeIndex, u32> = IndexMap::new();
@@ -448,9 +454,15 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
             });
         }
 
+        let cand_cnt = local_candidates.len() + global_candidates.len();
+        let sched_cnt = local_nodes_scheduled.len() + global_nodes_scheduled.len();
+
         local_pruned += local_candidates.len() - local_nodes_scheduled.len();
-        candidate_cnt += local_candidates.len() + global_candidates.len();
-        println!("actually scheduled: {}", local_nodes_scheduled.len() + global_nodes_scheduled.len());
+        candidate_cnt += cand_cnt;
+
+        busy_procs_vec.push(busy_procs as f64 / (pcfg.num_mods * pcfg.num_procs) as f64);
+        candidate_vec.push(cand_cnt as f64 / (pcfg.num_mods * pcfg.num_procs) as f64);
+        scheduled_vec.push(sched_cnt as f64 / (pcfg.num_mods * pcfg.num_procs) as f64);
 
         nw.step();
         pc += 1;
@@ -467,6 +479,12 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
     circuit.emul.host_steps = pc + 1 + circuit.platform_cfg.pc_sdm_offset();
 
     let total_steps = circuit.emul.host_steps * circuit.emul.used_mods * circuit.platform_cfg.num_procs;
+    let busy_plot      = lowcharts::plot::XyPlot::new(busy_procs_vec.as_slice(), 80, 30, None);
+    let candidate_plot = lowcharts::plot::XyPlot::new(candidate_vec.as_slice(),  80, 30, None);
+    let sched_plot     = lowcharts::plot::XyPlot::new(scheduled_vec.as_slice(),  80, 30, None);
+    println!("{}", busy_plot);
+    println!("{}", candidate_plot);
+    println!("{}", sched_plot);
     println!("Machine ({} / {}) = {:.2} %, host_steps = {} global pruned {:.2} % local pruned {:.2} % candidates {}",
              circuit.graph.node_count(),
              total_steps,
