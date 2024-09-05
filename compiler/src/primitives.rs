@@ -749,6 +749,10 @@ impl PlatformConfig {
         1 << self.lut_inputs
     }
 
+    pub fn total_procs(self: &Self) -> u32 {
+        self.num_mods * self.num_procs
+    }
+
     /// - I can start using bits computed from a local processor at
     /// `local.pc + intra_proc_dep_lat`
     ///   <me> | read imem | read dmem | compute + write dmem |

@@ -4,7 +4,9 @@ use petgraph::{
     graph::{EdgeIndex, NodeIndex}, visit::{EdgeRef, VisitMap, Visitable}, Direction::{Incoming, Outgoing}
 };
 use fixedbitset::FixedBitSet;
-use std::cmp::max;
+use yansi::Paint;
+use std::{cmp::max, collections::vec_deque};
+use std::collections::VecDeque;
 use plotters::prelude::*;
 
 #[derive(Eq, Hash, PartialEq, Clone)]
@@ -165,36 +167,15 @@ fn set_new_path(
     }
 }
 
-/// # Finds a valid instruction schedule given a partitioned graph
-/// 1. Add nodes to schedule as candidates
-///    - if a node is a Input or a Gate or a Latch
-///    - else if dependencies are resolved add it as a candidate
-/// 2. Prune the candidates if they have network contention
-///     - Check for global communication conflicts
-///     - For procs in a module, prune nodes that sends stuff to procs that receive from global
-///     network
-///     - Resolve intra-module communication conflicts
-pub fn schedule_instructions(circuit: &mut Circuit) {
-    let mut rank_order: Vec<Vec<NodeArray>> = vec![];
-    for module in 0..circuit.emul.used_mods {
-        let used_procs = circuit.emul.mod_mappings.get(&module).unwrap().used_procs as usize;
-        let local_rank_order: Vec<NodeArray> = vec![NodeArray::default(); used_procs];
-        rank_order.push(local_rank_order);
-    }
-
-    let mut rank_cnt: IndexMap<u32, f64> = IndexMap::new();
+fn print_rank_stats(circuit: &mut Circuit) {
     let mut rank_dist: IndexMap<u32, IndexMap<Coordinate, f64>> = IndexMap::new();
+    let mut rank_cnt: IndexMap<u32, f64> = IndexMap::new();
 
     for nidx in circuit.graph.node_indices() {
         let node = circuit.graph.node_weight(nidx).unwrap();
-        rank_order
-            .get_mut(node.get_info().coord.module as usize)
-            .unwrap()
-            .get_mut(node.get_info().coord.proc as usize)
-            .unwrap()
-            .push_node(nidx);
-
         let rank = node.get_info().rank;
+        let c = node.get_info().coord;
+
         if !rank_cnt.contains_key(&rank) {
             rank_cnt.insert(rank, 0.0);
         }
@@ -204,12 +185,17 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
             rank_dist.insert(rank, IndexMap::new());
         }
         let x = rank_dist.get_mut(&rank).unwrap();
-        let c = node.get_info().coord;
         if !x.contains_key(&c) {
             x.insert(c, 0.0);
         }
         *x.get_mut(&c).unwrap() += 1.0;
     }
+
+    rank_cnt.sort_keys();
+    let rank_cnt_data = rank_cnt.values().cloned().collect::<Vec<f64>>();
+    let rank_cnt_plot = lowcharts::plot::XyPlot::new(rank_cnt_data.as_slice(),  80, 30, None);
+    println!("rank_cnt: {:#?}", rank_cnt);
+    println!("{}", rank_cnt_plot);
 
     let mut rank_dist_processed: IndexMap<u32, Vec<f64>> = IndexMap::new();
     for (r, rm) in rank_dist.iter() {
@@ -217,17 +203,170 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
         rank_dist_processed.insert(*r, dist);
     }
 
-    rank_cnt.sort_keys();
-    let rank_cnt_data = rank_cnt.values().cloned().collect::<Vec<f64>>();
-    let rank_cnt_plot = lowcharts::plot::XyPlot::new(rank_cnt_data.as_slice(),  80, 30, None);
-    println!("rank_cnt: {:?}", rank_cnt);
-    println!("{}", rank_cnt_plot);
-
     rank_dist_processed.sort_keys();
     for (r, rd) in rank_dist_processed.iter() {
         println!("====================== Rank: {} {} =================", r, rank_cnt.get(r).unwrap());
         let plot = lowcharts::plot::XyPlot::new(rd.as_slice(),  80, 30, None);
         println!("{}", plot);
+    }
+}
+
+pub fn schedule_instructions(circuit: &mut Circuit) {
+    balance_workload(circuit);
+    schedule_instructions_2(circuit);
+}
+
+
+#[derive(Debug, Default, Clone)]
+struct WorkQueues {
+    queues: IndexMap<Coordinate, Vec<NodeIndex>>
+}
+
+impl WorkQueues {
+    fn add_node(self: &mut Self, coord: Coordinate, nidx: NodeIndex) {
+        if !self.queues.contains_key(&coord) {
+            self.queues.insert(coord, vec![]);
+        }
+        self.queues.get_mut(&coord).unwrap().push(nidx);
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+struct FreeLists {
+    list: IndexMap<u32, VecDeque<Coordinate>>
+}
+
+impl FreeLists {
+    fn add_coord(self: &mut Self, c: Coordinate) {
+        let m = c.module;
+        if !self.list.contains_key(&m) {
+            self.list.insert(m, VecDeque::new());
+        }
+        self.list.get_mut(&m).unwrap().push_back(c);
+    }
+
+    fn get_free(self: &mut Self, preferred_mod: u32) -> Coordinate {
+        match self.list.get_mut(&preferred_mod) {
+            Some(preferred_list) if preferred_list.len() > 0 => {
+                return preferred_list.pop_front().unwrap();
+            }
+            _ => {
+                for (_, list) in self.list.iter_mut() {
+                    if list.len() > 0 {
+                        return list.pop_front().unwrap();
+                    }
+                }
+            }
+        }
+        assert!(false, "Not enough free list entries");
+        return Coordinate::default();
+    }
+}
+
+pub fn balance_workload(circuit: &mut Circuit) {
+    let pcfg = &circuit.platform_cfg;
+    let mut rank_cnt: IndexMap<u32, u32> = IndexMap::new();
+    let mut wqs_by_rank: IndexMap<u32, WorkQueues> = IndexMap::new();
+    let mut fls_by_rank: IndexMap<u32, FreeLists>  = IndexMap::new();
+    let mut bsy_by_rank: IndexMap<u32, IndexSet<Coordinate>>  = IndexMap::new();
+
+    for nidx in circuit.graph.node_indices() {
+        let node = circuit.graph.node_weight(nidx).unwrap();
+        let rank  = node.get_info().rank;
+        let coord = node.get_info().coord;
+
+        if !rank_cnt.contains_key(&rank) {
+            rank_cnt.insert(rank, 0);
+        }
+        *rank_cnt.get_mut(&rank).unwrap() += 1;
+
+        if !wqs_by_rank.contains_key(&rank) {
+            wqs_by_rank.insert(rank, WorkQueues::default());
+        }
+        wqs_by_rank.get_mut(&rank).unwrap().add_node(coord, nidx);
+
+        if !bsy_by_rank.contains_key(&rank) {
+            bsy_by_rank.insert(rank, IndexSet::new());
+        }
+        bsy_by_rank.get_mut(&rank).unwrap().insert(coord);
+
+        if !fls_by_rank.contains_key(&rank) {
+            fls_by_rank.insert(rank, FreeLists::default());
+        }
+    }
+
+    let max_rank = *rank_cnt.keys().last().unwrap();
+    for r in 0..(max_rank + 1) {
+        let bsy = bsy_by_rank.get(&r).unwrap();
+        let fl  = fls_by_rank.get_mut(&r).unwrap();
+
+        for m in 0..pcfg.num_mods {
+            for p in 0..pcfg.num_procs {
+                let c = Coordinate { module: m, proc: p };
+                if !bsy.contains(&c) {
+                    fl.add_coord(c);
+                }
+
+            }
+        }
+    }
+    println!("rank_cnt: {:#?}", rank_cnt);
+
+    for rank in 0..max_rank {
+        // We have more nodes than the total number of processor for this rank
+        // Assume that the partitioner did a good job and move on to the next rank
+        if *rank_cnt.get(&rank).unwrap() >= pcfg.total_procs() {
+            continue;
+        }
+
+        // redistribute work among different processors
+        let wqs = wqs_by_rank.get_mut(&rank).unwrap();
+        let fl  = fls_by_rank.get_mut(&rank).unwrap();
+        for (_coord, nidx_list) in wqs.queues.iter() {
+            for (i, nidx) in nidx_list.iter().enumerate() {
+                // retain last node
+                if i == nidx_list.len() - 1 {
+                    continue;
+                }
+                let node_to_move = circuit.graph.node_weight_mut(*nidx).unwrap();
+                let free_coord = fl.get_free(node_to_move.get_info().coord.module);
+                node_to_move.set_info(NodeInfo {
+                    coord: free_coord,
+                    ..node_to_move.get_info()
+                })
+            }
+        }
+    }
+}
+
+
+/// # Finds a valid instruction schedule given a partitioned graph
+/// 1. Add nodes to schedule as candidates
+///    - if a node is a Input or a Gate or a Latch
+///    - else if dependencies are resolved add it as a candidate
+/// 2. Prune the candidates if they have network contention
+///     - Check for global communication conflicts
+///     - For procs in a module, prune nodes that sends stuff to procs that receive from global
+///     network
+///     - Resolve intra-module communication conflicts
+pub fn schedule_instructions_2(circuit: &mut Circuit) {
+    let mut rank_order: Vec<Vec<NodeArray>> = vec![];
+    for module in 0..circuit.emul.used_mods {
+        let used_procs = circuit.emul.mod_mappings.get(&module).unwrap().used_procs as usize;
+        let local_rank_order: Vec<NodeArray> = vec![NodeArray::default(); used_procs];
+        rank_order.push(local_rank_order);
+    }
+
+    let mut max_rank = 0;
+    for nidx in circuit.graph.node_indices() {
+        let node = circuit.graph.node_weight(nidx).unwrap();
+        rank_order
+            .get_mut(node.get_info().coord.module as usize)
+            .unwrap()
+            .get_mut(node.get_info().coord.proc as usize)
+            .unwrap()
+            .push_node(nidx);
+        max_rank = max(max_rank, node.get_info().rank);
     }
 
     // sort the nodes by rank within each processor
@@ -254,7 +393,6 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
     let mut scheduled_vec: Vec<f64> = vec![];
     let mut per_round_candidates_by_rank: IndexMap<u32, Vec<u32>> = IndexMap::new();
     let mut per_round_scheduled_by_rank:  IndexMap<u32, Vec<u32>> = IndexMap::new();
-    let max_rank = *rank_cnt.keys().last().unwrap();
     for r in 0..max_rank {
         per_round_candidates_by_rank.insert(r, vec![]);
         per_round_scheduled_by_rank.insert(r,  vec![]);
@@ -262,7 +400,6 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
 
     while scheduled_map.count_ones(..) != scheduled_map.len() {
         let mut schedule_candidates: IndexSet<NodeIndex> = IndexSet::new();
-
         let mut busy_procs = 0;
 
         // Find all the scheduling candidates
@@ -566,6 +703,7 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
     // TODO: consider global networking lat
     circuit.emul.host_steps = pc + 1 + circuit.platform_cfg.pc_sdm_offset();
 
+    print_rank_stats(circuit);
     let total_steps = circuit.emul.host_steps * circuit.emul.used_mods * circuit.platform_cfg.num_procs;
     let busy_plot      = lowcharts::plot::XyPlot::new(busy_procs_vec.as_slice(), 80, 30, None);
     let candidate_plot = lowcharts::plot::XyPlot::new(candidate_vec.as_slice(),  80, 30, None);
