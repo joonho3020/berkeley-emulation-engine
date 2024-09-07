@@ -11,7 +11,7 @@ use std::{cmp::max, collections::VecDeque};
 
 fn set_rank(graph: &mut HWGraph, nidx: NodeIndex, rank: u32) {
     let node = graph.node_weight_mut(nidx).unwrap();
-    let info = node.get_info();
+    let info = node.info();
     let new_rank = max(info.rank, rank);
     node.set_info(NodeInfo {
         rank: new_rank,
@@ -111,7 +111,7 @@ pub fn find_rank_order(circuit: &mut Circuit) {
                 let parents = circuit.graph.neighbors_directed(*nidx, Incoming);
                 for pidx in parents {
                     let parent = circuit.graph.node_weight(pidx).unwrap();
-                    max_parent_rank = max(max_parent_rank, parent.get_info().rank);
+                    max_parent_rank = max(max_parent_rank, parent.info().rank);
                 }
                 set_rank(&mut circuit.graph, *nidx, max_parent_rank + 1);
                 if max_parent_rank + 1 > max_rank {

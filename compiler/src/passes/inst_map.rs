@@ -23,8 +23,8 @@ pub fn map_instructions(circuit: &mut Circuit) {
     let cfg = &circuit.platform_cfg;
     for nidx in circuit.graph.node_indices() {
         let node = circuit.graph.node_weight(nidx).unwrap();
-        let node_insts = all_insts.get_mut(node.get_info().coord.proc as usize).unwrap();
-        let node_inst = node_insts.get_mut(node.get_info().pc   as usize).unwrap();
+        let node_insts = all_insts.get_mut(node.info().coord.proc as usize).unwrap();
+        let node_inst = node_insts.get_mut(node.info().pc   as usize).unwrap();
 
         // assign opcode
         node_inst.valid = true;
@@ -45,7 +45,7 @@ pub fn map_instructions(circuit: &mut Circuit) {
                 table = table | (1 << x);
                 assert!(x < 64,
                     "Can support up to 6 operands with u64, node {} {:?} {:?}",
-                    node.name(), node.is(), node.get_info());
+                    node.name(), node.is(), node.info());
             }
             let mut table_repeated: u64 = table;
             let nops = cfg.lut_inputs - ops;
@@ -67,15 +67,15 @@ pub fn map_instructions(circuit: &mut Circuit) {
 
             let parent = circuit.graph.node_weight(pidx).unwrap();
 
-            if parent.get_info().coord.proc == node.get_info().coord.proc {
+            if parent.info().coord.proc == node.info().coord.proc {
                 node_inst.operands.push(Operand {
-                    rs: parent.get_info().pc,
+                    rs: parent.info().pc,
                     local: true,
                     idx: op_idx as u32,
                 });
             } else {
                 node_inst.operands.push(Operand {
-                    rs: parent.get_info().pc,
+                    rs: parent.info().pc,
                     local: false,
                     idx: op_idx as u32,
                 });
@@ -88,20 +88,20 @@ pub fn map_instructions(circuit: &mut Circuit) {
         for cidx in childs {
             let child = circuit.graph.node_weight(cidx).unwrap();
 
-            if child.get_info().coord.proc != node.get_info().coord.proc {
+            if child.info().coord.proc != node.info().coord.proc {
                 let child_insts = all_insts
-                    .get_mut(child.get_info().coord.proc as usize).unwrap();
+                    .get_mut(child.info().coord.proc as usize).unwrap();
                 let child_inst = child_insts
-                    .get_mut((node.get_info().pc + cfg.remote_sin_lat()) as usize)
+                    .get_mut((node.info().pc + cfg.remote_sin_lat()) as usize)
                     .unwrap();
                 child_inst.valid = true;
-                child_inst.sin.idx = node.get_info().coord.proc;
+                child_inst.sin.idx = node.info().coord.proc;
             }
         }
 
         // add to signal map
         let nodemap = NodeMapInfo {
-            info: node.get_info(),
+            info: node.info(),
             idx: nidx,
         };
         signal_map.insert(node.name().to_string(), nodemap);

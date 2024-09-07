@@ -1,11 +1,10 @@
-use crate::primitives::*;
+use crate::{primitives::*, utils::{save_graph_pdf, write_string_to_file}};
 use indexmap::{IndexMap, IndexSet};
 use petgraph::{
     graph::{EdgeIndex, NodeIndex}, visit::{EdgeRef, VisitMap, Visitable}, Direction::{Incoming, Outgoing}
 };
 use fixedbitset::FixedBitSet;
-use yansi::Paint;
-use std::{cmp::max, collections::vec_deque};
+use std::cmp::max;
 use std::collections::VecDeque;
 use plotters::prelude::*;
 
@@ -69,9 +68,11 @@ impl NetworkAvailability {
         return ret;
     }
 
-    pub fn step(self: &mut Self) {
+    pub fn step(self: &mut Self) -> u32 {
+        let utilized = self.busy.get(self.ptr).unwrap().count_ones(..);
         self.busy.get_mut(self.ptr).unwrap().clear();
         self.ptr = (self.ptr + 1) % self.size;
+        return utilized as u32;
     }
 
     pub fn is_busy(self: &Self, idx: u32, step: u32) -> bool {
@@ -91,7 +92,7 @@ fn child_max_rank(
     nidx: &NodeIndex
 ) -> u32 {
     let cnode = circuit.graph.node_weight(*nidx).unwrap();
-    let cinfo = cnode.get_info();
+    let cinfo = cnode.info();
     let max_rank_proc = rank_order
         .get(cinfo.coord.module as usize)
         .unwrap()
@@ -105,7 +106,7 @@ fn child_max_rank(
             .graph
             .node_weight(max_rank_node)
             .unwrap()
-            .get_info()
+            .info()
             .rank
     };
     return ret;
@@ -173,8 +174,8 @@ fn print_rank_stats(circuit: &mut Circuit) {
 
     for nidx in circuit.graph.node_indices() {
         let node = circuit.graph.node_weight(nidx).unwrap();
-        let rank = node.get_info().rank;
-        let c = node.get_info().coord;
+        let rank = node.info().rank;
+        let c = node.info().coord;
 
         if !rank_cnt.contains_key(&rank) {
             rank_cnt.insert(rank, 0.0);
@@ -272,8 +273,8 @@ pub fn balance_workload(circuit: &mut Circuit) {
 
     for nidx in circuit.graph.node_indices() {
         let node = circuit.graph.node_weight(nidx).unwrap();
-        let rank  = node.get_info().rank;
-        let coord = node.get_info().coord;
+        let rank  = node.info().rank;
+        let coord = node.info().coord;
 
         if !rank_cnt.contains_key(&rank) {
             rank_cnt.insert(rank, 0);
@@ -329,10 +330,10 @@ pub fn balance_workload(circuit: &mut Circuit) {
                     continue;
                 }
                 let node_to_move = circuit.graph.node_weight_mut(*nidx).unwrap();
-                let free_coord = fl.get_free(node_to_move.get_info().coord.module);
+                let free_coord = fl.get_free(node_to_move.info().coord.module);
                 node_to_move.set_info(NodeInfo {
                     coord: free_coord,
-                    ..node_to_move.get_info()
+                    ..node_to_move.info()
                 })
             }
         }
@@ -361,12 +362,12 @@ pub fn schedule_instructions_2(circuit: &mut Circuit) {
     for nidx in circuit.graph.node_indices() {
         let node = circuit.graph.node_weight(nidx).unwrap();
         rank_order
-            .get_mut(node.get_info().coord.module as usize)
+            .get_mut(node.info().coord.module as usize)
             .unwrap()
-            .get_mut(node.get_info().coord.proc as usize)
+            .get_mut(node.info().coord.proc as usize)
             .unwrap()
             .push_node(nidx);
-        max_rank = max(max_rank, node.get_info().rank);
+        max_rank = max(max_rank, node.info().rank);
     }
 
     // sort the nodes by rank within each processor
@@ -385,14 +386,15 @@ pub fn schedule_instructions_2(circuit: &mut Circuit) {
     let mut nw = NetworkAvailability::new(pcfg.num_mods * pcfg.num_procs, pcfg.inter_mod_twohop_dep_lat());
 
     let mut pc = 0;
+    let mut nw_used = 0;
     let mut global_pruned = 0;
+    let mut global_pruned_inter_proc = 0;
+    let mut global_pruned_nw_path = 0;
     let mut local_pruned = 0;
     let mut candidate_cnt = 0;
-    let mut busy_procs_vec: Vec<f64> = vec![];
-    let mut candidate_vec: Vec<f64> = vec![];
-    let mut scheduled_vec: Vec<f64> = vec![];
     let mut per_round_candidates_by_rank: IndexMap<u32, Vec<u32>> = IndexMap::new();
     let mut per_round_scheduled_by_rank:  IndexMap<u32, Vec<u32>> = IndexMap::new();
+
     for r in 0..max_rank {
         per_round_candidates_by_rank.insert(r, vec![]);
         per_round_scheduled_by_rank.insert(r,  vec![]);
@@ -413,7 +415,7 @@ pub fn schedule_instructions_2(circuit: &mut Circuit) {
 
                 let nidx = node_array.current();
                 let node = circuit.graph.node_weight(nidx).unwrap();
-                let ni = node.get_info();
+                let ni = node.info();
                 let src = ni.coord;
 
                 if node.is() == Primitives::Input ||
@@ -425,7 +427,7 @@ pub fn schedule_instructions_2(circuit: &mut Circuit) {
                     let parent_edges = circuit.graph.edges_directed(nidx, Incoming);
                     for pedge in parent_edges {
                         let pnode = circuit.graph.node_weight(pedge.source()).unwrap();
-                        let pi = pnode.get_info();
+                        let pi = pnode.info();
                         let dst = pi.coord;
 
                         // check for deps within a module
@@ -451,7 +453,6 @@ pub fn schedule_instructions_2(circuit: &mut Circuit) {
                                assert!(dst.module == src.module, "Parent scheduled, in a different module, but no path set");
                            }
                        }
-
                     }
                     if !unresolved_dep {
                         schedule_candidates.insert(nidx);
@@ -470,7 +471,7 @@ pub fn schedule_instructions_2(circuit: &mut Circuit) {
             for cidx in childs {
                 let child = circuit.graph.node_weight(cidx).unwrap();
                 crit = max(crit, child_max_rank(circuit, &rank_order, &cidx));
-                if child.get_info().coord.module != node.get_info().coord.module {
+                if child.info().coord.module != node.info().coord.module {
                     global = true;
                 }
             }
@@ -489,14 +490,14 @@ pub fn schedule_instructions_2(circuit: &mut Circuit) {
             let mut schedulable = true;
             let mut dst_mod_paths: IndexMap<u32, InterModulePath> = IndexMap::new();
             let node = circuit.graph.node_weight(**nidx).unwrap();
-            let ninfo = node.get_info();
+            let ninfo = node.info();
             let src = ninfo.coord;
 
             let childs = circuit.graph.neighbors_directed(**nidx, Outgoing);
 
             for cidx in childs {
                 let child = circuit.graph.node_weight(cidx).unwrap();
-                let dst = child.get_info().coord;
+                let dst = child.info().coord;
 
                 assert!(dst.module < pcfg.num_mods, "dst module {} >= num_mods {}", dst.module, pcfg.num_mods);
                 assert!(dst.proc < pcfg.num_procs, "dst proc {} >= num_proc {}", dst.proc, pcfg.num_procs);
@@ -507,6 +508,7 @@ pub fn schedule_instructions_2(circuit: &mut Circuit) {
                 } else if (dst.module == src.module) && (dst.proc != src.proc) {
                     // same module
                     if nw.is_busy(dst.id(pcfg), pcfg.inter_proc_dep_lat()) {
+                        global_pruned_inter_proc += 1;
                         schedulable = false;
                         break;
                     }
@@ -536,6 +538,7 @@ pub fn schedule_instructions_2(circuit: &mut Circuit) {
                     }
 
                     if !path_exists {
+                        global_pruned_nw_path += 1;
                         schedulable = false;
                         break;
                     }
@@ -546,7 +549,7 @@ pub fn schedule_instructions_2(circuit: &mut Circuit) {
                 let child_edges = circuit.graph.edges_directed(**nidx, Outgoing);
                 for cedge in child_edges {
                     let cnode = circuit.graph.node_weight(cedge.target()).unwrap();
-                    let dst = cnode.get_info().coord;
+                    let dst = cnode.info().coord;
                     if dst.module != src.module {
                         let path = dst_mod_paths.get(&dst.module).unwrap();
                         set_new_path(&mut nw, &src, &dst, path, pcfg);
@@ -572,7 +575,7 @@ pub fn schedule_instructions_2(circuit: &mut Circuit) {
             node.set_info(NodeInfo {
                 pc: pc,
                 scheduled: true,
-                ..node.get_info()
+                ..node.info()
             });
         }
 
@@ -590,12 +593,12 @@ pub fn schedule_instructions_2(circuit: &mut Circuit) {
         for (nidx, _criticality) in local_criticality_vec.iter() {
             let mut schedulable = true;
             let node = circuit.graph.node_weight(**nidx).unwrap();
-            let src = node.get_info().coord;
+            let src = node.info().coord;
             let childs = circuit.graph.neighbors_directed(**nidx, Outgoing);
 
             for cidx in childs {
                 let child = circuit.graph.node_weight(cidx).unwrap();
-                let dst = child.get_info().coord;
+                let dst = child.info().coord;
 
                 assert!(dst.module == src.module, "local node has child in different module");
 
@@ -610,7 +613,7 @@ pub fn schedule_instructions_2(circuit: &mut Circuit) {
                 let childs = circuit.graph.neighbors_directed(**nidx, Outgoing);
                 for cidx in childs {
                     let child = circuit.graph.node_weight(cidx).unwrap();
-                    let dst = child.get_info().coord;
+                    let dst = child.info().coord;
                     if dst.proc != src.proc {
                         nw.set_busy(dst.id(pcfg), pcfg.inter_proc_dep_lat());
                     }
@@ -632,7 +635,7 @@ pub fn schedule_instructions_2(circuit: &mut Circuit) {
             node.set_info(NodeInfo {
                 pc: pc,
                 scheduled: true,
-                ..node.get_info()
+                ..node.info()
             });
         }
 
@@ -642,14 +645,10 @@ pub fn schedule_instructions_2(circuit: &mut Circuit) {
         local_pruned += local_candidates.len() - local_nodes_scheduled.len();
         candidate_cnt += cand_cnt;
 
-        busy_procs_vec.push(busy_procs as f64 / (pcfg.num_mods * pcfg.num_procs) as f64);
-        candidate_vec.push(cand_cnt as f64 / (pcfg.num_mods * pcfg.num_procs) as f64);
-        scheduled_vec.push(sched_cnt as f64 / (pcfg.num_mods * pcfg.num_procs) as f64);
-
         let mut cand_rank_cnt: IndexMap<u32, u32> = IndexMap::new();
         for cand in schedule_candidates.iter() {
             let node = circuit.graph.node_weight(*cand).unwrap();
-            let rank = node.get_info().rank;
+            let rank = node.info().rank;
             if !cand_rank_cnt.contains_key(&rank) {
                 cand_rank_cnt.insert(rank, 0);
             }
@@ -658,7 +657,7 @@ pub fn schedule_instructions_2(circuit: &mut Circuit) {
         let mut sched_rank_cnt: IndexMap<u32, u32> = IndexMap::new();
         for sched in global_nodes_scheduled.iter() {
             let node = circuit.graph.node_weight(*sched).unwrap();
-            let rank = node.get_info().rank;
+            let rank = node.info().rank;
             if !sched_rank_cnt.contains_key(&rank) {
                 sched_rank_cnt.insert(rank, 0);
             }
@@ -666,7 +665,7 @@ pub fn schedule_instructions_2(circuit: &mut Circuit) {
         }
         for sched in local_nodes_scheduled.iter() {
             let node = circuit.graph.node_weight(*sched).unwrap();
-            let rank = node.get_info().rank;
+            let rank = node.info().rank;
             if !sched_rank_cnt.contains_key(&rank) {
                 sched_rank_cnt.insert(rank, 0);
             }
@@ -689,8 +688,26 @@ pub fn schedule_instructions_2(circuit: &mut Circuit) {
             per_round_scheduled_by_rank.get_mut(&r).unwrap().push(sched_cnt);
         }
 
-        nw.step();
+        if sched_cnt as f32 / pcfg.total_procs() as f32 * 100f32 < 5f32 {
+            for nidx in global_nodes_scheduled.iter() {
+                let node = circuit.graph.node_weight_mut(*nidx).unwrap();
+                node.set_info(NodeInfo {
+                    debug: true,
+                    ..node.info()
+                });
+            }
+            for nidx in local_nodes_scheduled.iter() {
+                let node = circuit.graph.node_weight_mut(*nidx).unwrap();
+                node.set_info(NodeInfo {
+                    debug: true,
+                    ..node.info()
+                });
+            }
+        }
+
+        let x = nw.step();
         pc += 1;
+        nw_used += x;
 
         // TODO: consider global networking lat
         if pc + 1 + circuit.platform_cfg.pc_sdm_offset() >= circuit.platform_cfg.max_steps {
@@ -703,22 +720,48 @@ pub fn schedule_instructions_2(circuit: &mut Circuit) {
     // TODO: consider global networking lat
     circuit.emul.host_steps = pc + 1 + circuit.platform_cfg.pc_sdm_offset();
 
-    print_rank_stats(circuit);
+    let dbg_graphs = circuit.print_debug(30);
+    for (i, g) in dbg_graphs.iter().enumerate() {
+        let _ = save_graph_pdf(g,
+                       &format!("{}/{}-{}.lowutil.dot", circuit.compiler_cfg.output_dir, circuit.compiler_cfg.top_module, i),
+                       &format!("{}/{}-{}.lowutil.pdf", circuit.compiler_cfg.output_dir, circuit.compiler_cfg.top_module, i));
+    }
+
+
+    let mut print_string = "".to_string();
+    for (m, ro) in rank_order.iter().enumerate() {
+        print_string.push_str(&format!("======================== {} ======================\n", m));
+        for (p, na) in ro.iter().enumerate() {
+            print_string.push_str(&format!("-------------------------- {} --------------------\n", p));
+
+            for nidx in na.nodes.iter() {
+                let node = circuit.graph.node_weight(*nidx).unwrap();
+                print_string.push_str(&format!("{} {:?} {:?} rank: {} pc: {}",
+                                               node.name(),
+                                               node.is(),
+                                               node.info().coord,
+                                               node.info().rank,
+                                               node.info().pc));
+            }
+        }
+    }
+    let _ = write_string_to_file(print_string,
+                         &format!("{}/{}.schedule", circuit.compiler_cfg.output_dir, circuit.compiler_cfg.top_module));
+
+// print_rank_stats(circuit);
     let total_steps = circuit.emul.host_steps * circuit.emul.used_mods * circuit.platform_cfg.num_procs;
-    let busy_plot      = lowcharts::plot::XyPlot::new(busy_procs_vec.as_slice(), 80, 30, None);
-    let candidate_plot = lowcharts::plot::XyPlot::new(candidate_vec.as_slice(),  80, 30, None);
-    let sched_plot     = lowcharts::plot::XyPlot::new(scheduled_vec.as_slice(),  80, 30, None);
-    println!("{}", busy_plot);
-    println!("{}", candidate_plot);
-    println!("{}", sched_plot);
-    println!("Machine ({} / {}) = {:.2} %, host_steps = {} global pruned {:.2} % local pruned {:.2} % candidates {}",
+    println!("Machine ({} / {}) = {:.2} %, host_steps = {} global pruned {:.2} % local {:.2} vs nw {:.2} local pruned {:.2} % avg. candidates per round {}",
              circuit.graph.node_count(),
              total_steps,
              circuit.graph.node_count() as f32 / total_steps as f32 * 100f32,
              circuit.emul.host_steps,
              global_pruned as f32 / candidate_cnt as f32 * 100f32,
+             global_pruned_inter_proc as f32 / candidate_cnt as f32 * 100f32,
+             global_pruned_nw_path as f32 / candidate_cnt as f32 * 100f32,
              local_pruned  as f32 / candidate_cnt as f32 * 100f32,
-             candidate_cnt);
+             candidate_cnt as f32 / circuit.emul.host_steps as f32);
+    println!("NW utilization: {:.2} %",
+             nw_used as f32 / (circuit.platform_cfg.total_procs() * circuit.emul.host_steps) as f32 * 100f32);
 
     let title = format!("{}/rank-by-scheduling-round.png", circuit.compiler_cfg.output_dir);
     let root = BitMapBackend::new(

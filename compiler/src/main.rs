@@ -139,7 +139,7 @@ fn test_emulator(
         for (sig, bit) in input_stimuli_by_name.iter() {
             match module.nodeindex(sig) {
                 Some(nidx) => {
-                    let pc = circuit.graph.node_weight(nidx).unwrap().get_info().pc;
+                    let pc = circuit.graph.node_weight(nidx).unwrap().info().pc;
                     let step = pc + circuit.platform_cfg.pc_ldm_offset();
                     if input_stimuli_by_step.get(&step) == None {
                         input_stimuli_by_step.insert(step, vec![]);

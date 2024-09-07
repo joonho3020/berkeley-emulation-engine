@@ -4,15 +4,14 @@ use crate::utils::write_string_to_file;
 use derivative::Derivative;
 use indexmap::IndexMap;
 use petgraph::{
-    graph::{Graph, NodeIndex},
+    graph::{Graph, NodeIndex, EdgeIndex},
     visit::{EdgeRef, VisitMap, Visitable},
     Direction::{Incoming, Outgoing},
 };
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Serialize, Serializer};
 use std::{
-    cmp::Ordering,
-    fmt::Debug,
+    cmp::Ordering, collections::VecDeque, fmt::Debug
 };
 use strum::EnumCount;
 use strum_macros::EnumCount as EnumCountMacro;
@@ -84,6 +83,9 @@ pub struct NodeInfo {
 
     /// register group that this node is in
     pub reggrp: u32,
+
+    /// debug
+    pub debug: bool,
 }
 
 impl Serialize for NodeInfo {
@@ -138,8 +140,8 @@ pub trait HWNode: Debug {
 
     /// # Returns the `Primitives` enum so that we can check for types
     fn is(&self) -> Primitives;
-    fn set_info(&mut self, info: NodeInfo);
-    fn get_info(&self) -> NodeInfo;
+    fn info(&self) -> NodeInfo;
+    fn set_info(&mut self, i: NodeInfo);
     fn get_lut(&self) -> Option<Lut>;
     fn name(&self) -> &str;
 }
@@ -153,7 +155,7 @@ impl Clone for Box<dyn HWNode> {
 impl PartialEq for Box<dyn HWNode> {
     fn eq(&self, other: &Self) -> bool {
         if self.is() == other.is() {
-            self.get_info().rank == other.get_info().rank
+            self.info().rank == other.info().rank
         } else {
             false
         }
@@ -167,7 +169,7 @@ impl Ord for Box<dyn HWNode> {
         if (self.is() == Primitives::Input) && (other.is() == Primitives::Input)
             || (self.is() != Primitives::Input) && (other.is() != Primitives::Input)
         {
-            return self.get_info().rank.cmp(&other.get_info().rank);
+            return self.info().rank.cmp(&other.info().rank);
         } else if self.is() == Primitives::Input {
             return Ordering::Less;
         } else {
@@ -201,7 +203,7 @@ impl HWNode for Input {
         self.info = info;
     }
 
-    fn get_info(&self) -> NodeInfo {
+    fn info(&self) -> NodeInfo {
         self.info.clone()
     }
 
@@ -239,7 +241,7 @@ impl HWNode for Output {
         self.info = info;
     }
 
-    fn get_info(&self) -> NodeInfo {
+    fn info(&self) -> NodeInfo {
         self.info.clone()
     }
 
@@ -279,7 +281,7 @@ impl HWNode for Lut {
         self.info = info;
     }
 
-    fn get_info(&self) -> NodeInfo {
+    fn info(&self) -> NodeInfo {
         self.info.clone()
     }
 
@@ -336,7 +338,7 @@ impl HWNode for Subckt {
         self.info = info;
     }
 
-    fn get_info(&self) -> NodeInfo {
+    fn info(&self) -> NodeInfo {
         self.info.clone()
     }
 
@@ -386,7 +388,7 @@ impl HWNode for Gate {
         self.info = info;
     }
 
-    fn get_info(&self) -> NodeInfo {
+    fn info(&self) -> NodeInfo {
         self.info.clone()
     }
 
@@ -460,7 +462,7 @@ impl HWNode for Latch {
         self.info = info;
     }
 
-    fn get_info(&self) -> NodeInfo {
+    fn info(&self) -> NodeInfo {
         self.info.clone()
     }
 
@@ -504,7 +506,7 @@ impl HWNode for Module {
         self.info = info;
     }
 
-    fn get_info(&self) -> NodeInfo {
+    fn info(&self) -> NodeInfo {
         self.info.clone()
     }
 
@@ -974,55 +976,102 @@ impl Circuit {
         return outstring;
     }
 
-    pub fn print_scheduled(&self) -> String {
-        let mut outstring = "digraph {\n".to_string();
+    pub fn print_debug(&self, max_cnt: u32) -> Vec<String> {
         let indent: &str = "    ";
 
-        let io_i = get_nodes_type(&self.graph, Primitives::Input);
-        let mut vis_map = self.graph.visit_map();
-        let mut q: Vec<NodeIndex> = vec![];
-        for nidx in io_i.iter() {
-            q.push(*nidx);
-        }
+        let mut ret: Vec<String> = vec![];
+        let mut vm = self.graph.visit_map();
 
-        while !q.is_empty() {
-            let nidx = q.remove(0);
-            if vis_map.is_visited(&nidx) {
+        for nidx in self.graph.node_indices() {
+            let node = self.graph.node_weight(nidx).unwrap();
+            if !node.info().debug || vm.is_visited(&nidx) {
                 continue;
             }
-            vis_map.visit(nidx);
-            let node = self.graph.node_weight(nidx).unwrap();
-            let color = match node.get_info().scheduled {
-                true => "blue",
-                _    => "red",
-            };
-            outstring.push_str(
-                &format!("{} {}[ color = \"{}\"]\n",
-                         indent,
-                         nidx.index(),
-                         color)
-            );
 
-            let mut childs = self.graph.neighbors_directed(nidx, Outgoing).detach();
-            while let Some(cidx) = childs.next_node(&self.graph) {
-                if !vis_map.is_visited(&cidx) {
-                    q.push(cidx);
+
+            let mut cnt = 0;
+            let mut q: VecDeque<NodeIndex> = VecDeque::new();
+            let mut es: Vec<EdgeIndex> = vec![];
+            q.push_back(nidx);
+            while !q.is_empty() && cnt < max_cnt {
+                let f = q.pop_front().unwrap();
+                vm.visit(f);
+                cnt += 1;
+
+                let parents = self.graph.edges_directed(f, Incoming);
+                for e in parents {
+                    es.push(e.id());
+                    if !vm.is_visited(&e.source()) {
+                        q.push_back(e.source());
+                    }
                 }
             }
-        }
 
-        for (_, edge) in self.graph.edge_references().enumerate() {
-            outstring.push_str(
-                &format!("{}{} {} {} ",
-                         indent,
-                         edge.source().index(),
-                         "->",
-                         edge.target().index())
-            );
-            outstring.push_str("[ ]");
+            let mut outstring = "digraph {\n".to_string();
+            let mut vm2 = self.graph.visit_map();
+            for e in es.clone() {
+                let ep = self.graph.edge_endpoints(e).unwrap();
+
+                if !vm2.is_visited(&ep.0) {
+                    vm2.visit(ep.0);
+
+                    let node = self.graph.node_weight(ep.0).unwrap();
+                    let color = match node.info().debug {
+                        true => "red",
+                        _    => "blue"
+                    };
+                    outstring.push_str(
+                        &format!("{} {} [ label = {:?} color = \"{}\"]\n",
+                                 indent,
+                                 ep.0.index(),
+                                 format!("{} {:?} {:?} {} {}",
+                                         node.name(),
+                                         node.is(),
+                                         node.info().coord,
+                                         node.info().rank,
+                                         node.info().pc),
+                                 color)
+                    );
+                }
+
+                if !vm2.is_visited(&ep.1) {
+                    vm2.visit(ep.1);
+
+                    let node = self.graph.node_weight(ep.1).unwrap();
+                    let color = match node.info().debug {
+                        true => "red",
+                        _    => "blue"
+                    };
+                    outstring.push_str(
+                        &format!("{} {} [ label = {:?} color = \"{}\"]\n",
+                                 indent,
+                                 ep.1.index(),
+                                 format!("{} {:?} {:?} {} {}",
+                                         node.name(),
+                                         node.is(),
+                                         node.info().coord,
+                                         node.info().rank,
+                                         node.info().pc),
+                                 color)
+                    );
+                }
+            }
+
+            for e in es {
+                let ep = self.graph.edge_endpoints(e).unwrap();
+                outstring.push_str(
+                    &format!("{}{} {} {} ",
+                             indent,
+                             ep.0.index(),
+                             "->",
+                             ep.1.index())
+                );
+                outstring.push_str("[ ]\n");
+            }
+            outstring.push_str("}");
+            ret.push(outstring);
         }
-        outstring.push_str("}");
-        return outstring;
+        return ret;
     }
 }
 
@@ -1050,7 +1099,7 @@ impl Debug for Circuit {
             vis_map.visit(nidx);
             let node = graph.node_weight(nidx).unwrap();
             // red, blue, green, white, purple
-            let proc = node.clone().get_info().coord.proc % 5;
+            let proc = node.clone().info().coord.proc % 5;
             let color = match proc {
                 0 => "red",
                 1 => "blue",
