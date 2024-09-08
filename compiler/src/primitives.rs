@@ -66,6 +66,13 @@ impl HWEdge {
     }
 }
 
+#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Ord, Eq, Hash)]
+pub struct RankInfo {
+    pub asap: u32,
+    pub alap: u32,
+    pub mob:  u32,
+}
+
 /// # Metadata attached to each `HWGraph` node
 #[derive(Debug, Clone, Default)]
 pub struct NodeInfo {
@@ -73,7 +80,7 @@ pub struct NodeInfo {
     pub coord: Coordinate,
 
     /// rank order index
-    pub rank: u32,
+    pub rank: RankInfo,
 
     /// true if a imem slot has been allocated for this instruction
     pub scheduled: bool,
@@ -96,7 +103,8 @@ impl Serialize for NodeInfo {
         let mut state = serializer.serialize_struct("NodeMapInfo", 4)?;
         state.serialize_field("module", &self.coord.module)?;
         state.serialize_field("proc", &self.coord.proc)?;
-        state.serialize_field("rank", &self.rank)?;
+        state.serialize_field("rank.asap", &self.rank.asap)?;
+        state.serialize_field("rank.alap", &self.rank.alap)?;
         state.serialize_field("scheduled", &self.scheduled)?;
         state.serialize_field("pc", &self.pc)?;
         state.end()
@@ -155,7 +163,7 @@ impl Clone for Box<dyn HWNode> {
 impl PartialEq for Box<dyn HWNode> {
     fn eq(&self, other: &Self) -> bool {
         if self.is() == other.is() {
-            self.info().rank == other.info().rank
+            self.info().rank.mob == other.info().rank.mob
         } else {
             false
         }
@@ -169,7 +177,7 @@ impl Ord for Box<dyn HWNode> {
         if (self.is() == Primitives::Input) && (other.is() == Primitives::Input)
             || (self.is() != Primitives::Input) && (other.is() != Primitives::Input)
         {
-            return self.info().rank.cmp(&other.info().rank);
+            return self.info().rank.mob.cmp(&other.info().rank.mob);
         } else if self.is() == Primitives::Input {
             return Ordering::Less;
         } else {
@@ -771,25 +779,51 @@ impl PlatformConfig {
         self.dmem_rd_lat + self.network_lat + self.dmem_wr_lat
     }
 
-    // TODO
+    // TODO: Add global network latency, fix these functions for proper abstraction
+    /// Bit travels within a module
+    pub fn inter_proc_nw_lat(self: &Self) -> Cycle {
+        self.network_lat
+    }
+
+    /// Bit travels from SRC -> DST
+    pub fn inter_mod_zerohop_nw_lat(self: &Self) -> Cycle {
+        self.network_lat
+    }
+
+    /// Bit travels from SRC -> TMP (same module with SRC) -> DST
+    pub fn inter_mod_local_onehop_nw_lat(self: &Self) -> Cycle {
+        self.network_lat + self.dmem_wr_lat + self.network_lat
+    }
+
+    /// Bit travels from SRC -> TMP (same module with DST) -> DST
+    pub fn inter_mod_remote_onehop_nw_lat(self: &Self) -> Cycle {
+        self.network_lat + self.dmem_wr_lat + self.network_lat
+    }
+
+    /// Bit travels from SRC -> TMP 1 (same mod w/ SRC) -> TMP2 (same mod w/ DST) -> DST
+    pub fn inter_mod_twohop_nw_lat(self: &Self) -> Cycle {
+        self.network_lat + self.dmem_wr_lat + self.network_lat + self.dmem_wr_lat + self.network_lat
+    }
+
+    // TODO: Add global network latency, fix these functions for proper abstraction
     /// Bit travels from SRC -> DST
     pub fn inter_mod_zerohop_dep_lat(self: &Self) -> Cycle {
-        1
+        self.inter_mod_zerohop_nw_lat() + self.dmem_wr_lat
     }
 
     /// Bit travels from SRC -> TMP (same module with SRC) -> DST
     pub fn inter_mod_local_onehop_dep_lat(self: &Self) -> Cycle {
-        2
+        self.inter_mod_local_onehop_nw_lat() + self.dmem_wr_lat
     }
 
     /// Bit travels from SRC -> TMP (same module with DST) -> DST
     pub fn inter_mod_remote_onehop_dep_lat(self: &Self) -> Cycle {
-        2
+        self.inter_mod_remote_onehop_nw_lat() + self.dmem_wr_lat
     }
 
     /// Bit travels from SRC -> TMP 1 (same mod w/ SRC) -> TMP2 (same mod w/ DST) -> DST
     pub fn inter_mod_twohop_dep_lat(self: &Self) -> Cycle {
-        3
+        self.inter_mod_twohop_nw_lat() + self.dmem_wr_lat
     }
 
     /// - I have to receive a incoming bit from a remote processor at
@@ -827,6 +861,7 @@ pub struct ModuleMapping {
 #[derive(Serialize, Debug, Default, Clone)]
 pub struct EmulatorMapping {
     pub host_steps: u32,
+    pub max_rank: u32,
     pub used_mods: u32,
     pub mod_mappings: IndexMap<u32, ModuleMapping>
 }
@@ -1024,7 +1059,7 @@ impl Circuit {
                         &format!("{} {} [ label = {:?} color = \"{}\"]\n",
                                  indent,
                                  ep.0.index(),
-                                 format!("{} {:?} {:?} {} {}",
+                                 format!("{} {:?} {:?} {:?} {}",
                                          node.name(),
                                          node.is(),
                                          node.info().coord,
@@ -1046,7 +1081,7 @@ impl Circuit {
                         &format!("{} {} [ label = {:?} color = \"{}\"]\n",
                                  indent,
                                  ep.1.index(),
-                                 format!("{} {:?} {:?} {} {}",
+                                 format!("{} {:?} {:?} {:?} {}",
                                          node.name(),
                                          node.is(),
                                          node.info().coord,
