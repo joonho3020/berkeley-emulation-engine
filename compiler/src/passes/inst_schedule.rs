@@ -1,4 +1,5 @@
 use crate::primitives::*;
+use crate::utils::save_graph_pdf;
 use full_palette::RED;
 use indexmap::{IndexMap, IndexSet};
 use petgraph::{
@@ -6,6 +7,8 @@ use petgraph::{
 };
 use fixedbitset::FixedBitSet;
 use plotters::prelude::*;
+use std::collections::BTreeSet;
+use std::cmp::Ordering;
 
 #[derive(Debug, Default, Clone)]
 struct NetworkAvailability {
@@ -43,8 +46,94 @@ impl NetworkAvailability {
     }
 }
 
+#[derive(Debug, Default, Clone, Eq, PartialEq, Copy)]
+struct NodeIndexMobility {
+    index: NodeIndex,
+    mob: u32
+}
+
+impl NodeIndexMobility {
+    fn new(index: NodeIndex, mob: u32) -> Self {
+        NodeIndexMobility {
+            index: index,
+            mob: mob
+        }
+    }
+}
+
+impl Ord for NodeIndexMobility {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.mob.cmp(&other.mob).then_with(|| self.index.cmp(&other.index))
+    }
+}
+
+impl PartialOrd for NodeIndexMobility {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 pub fn schedule_instructions(circuit: &mut Circuit) {
     schedule_instructions_3(circuit);
+}
+
+fn print_scheduling_stats(
+    circuit: &Circuit,
+    must_scheduled_data: Vec<u32>,
+    be_scheduled_data: Vec<u32>,
+    nw_utilization: Vec<u32>)
+{
+    let title = format!("{}/scheduling-progress.png", circuit.compiler_cfg.output_dir);
+    let root = BitMapBackend::new(&title, (2560, 1920)).into_drawing_area();
+    let _ = root.fill(&WHITE);
+    let mut chart = ChartBuilder::on(&root)
+        .caption("Scheduling Progress", ("sans-serif", 50).into_font())
+        .margin(5)
+        .x_label_area_size(30)
+        .y_label_area_size(30)
+        .build_cartesian_2d(0f32..circuit.emul.host_steps as f32,
+                            0f32..circuit.platform_cfg.total_procs() as f32).unwrap();
+    let _ = chart.configure_mesh().draw();
+    chart
+        .draw_series(LineSeries::new(
+            (0..).zip(must_scheduled_data.iter()).map(|(a, b)| (a as f32, *b as f32)),
+            &RED
+        )).unwrap()
+        .label("must-scheduled".to_string())
+        .legend(move |(x, y)| {
+            Rectangle::new([(x - 5, y - 5), (x + 5, y + 5)], &RED)
+        });
+
+    chart
+        .draw_series(LineSeries::new(
+            (0..).zip(be_scheduled_data.iter()).map(|(a, b)| (a as f32, *b as f32)),
+            &BLUE
+        )).unwrap()
+        .label("be-scheduled".to_string())
+        .legend(move |(x, y)| {
+            Rectangle::new([(x - 5, y - 5), (x + 5, y + 5)], &BLUE)
+        });
+
+    chart
+        .draw_series(LineSeries::new(
+            (0..).zip(nw_utilization.iter()).map(|(a, b)| (a as f32, *b as f32)),
+            &GREEN
+        )).unwrap()
+        .label("be-scheduled".to_string())
+        .legend(move |(x, y)| {
+            Rectangle::new([(x - 5, y - 5), (x + 5, y + 5)], &GREEN)
+        });
+    let _ = chart
+        .configure_series_labels()
+        .background_style(&WHITE.mix(0.8))
+        .border_style(&BLACK)
+        .draw();
+    let _ = root.present();
+
+    let _ = save_graph_pdf( 
+        &format!("{:?}", circuit),
+        &format!("{}/{}.dot", circuit.compiler_cfg.output_dir, circuit.compiler_cfg.top_module),
+        &format!("{}/{}.pdf", circuit.compiler_cfg.output_dir, circuit.compiler_cfg.top_module));
 }
 
 fn dependency_resolved(
@@ -200,15 +289,15 @@ fn nw_available(
 }
 
 fn schedule_candidates_at_pc(
-    candidates: &IndexSet<NodeIndex>,
+    candidates: &BTreeSet<NodeIndexMobility>,
     circuit: &mut Circuit,
     coord_scheduled_by_pc: &mut IndexMap<u32, IndexSet<Coordinate>>,
     nw: &mut NetworkAvailability,
     pc: u32
-) -> (Vec<NodeIndex>, Vec<(EdgeIndex, InterModulePath)>) {
+) -> (Vec<NodeIndexMobility>, Vec<(EdgeIndex, InterModulePath)>) {
     let pcfg = &circuit.platform_cfg;
 
-    let mut nodes_scheduled: Vec<NodeIndex> = vec![];
+    let mut nodes_scheduled: Vec<NodeIndexMobility> = vec![];
     let mut edges_scheduled: Vec<(EdgeIndex, InterModulePath)> = vec![];
 
     if !coord_scheduled_by_pc.contains_key(&pc) {
@@ -216,15 +305,16 @@ fn schedule_candidates_at_pc(
     }
     let coord_scheduled = coord_scheduled_by_pc.get_mut(&pc).unwrap();
 
-    for nidx in candidates.iter() {
-        let node = circuit.graph.node_weight(*nidx).unwrap();
+    for cand in candidates.iter() {
+        let nidx = cand.index;
+        let node = circuit.graph.node_weight(nidx).unwrap();
 
         if coord_scheduled.contains(&node.info().coord) {
             continue;
         }
 
         let mut unresolved_dep = false;
-        let parent_edges = circuit.graph.edges_directed(*nidx, Incoming);
+        let parent_edges = circuit.graph.edges_directed(nidx, Incoming);
         if node.is() != Primitives::Input &&
            node.is() != Primitives::Latch &&
            node.is() != Primitives::Gate {
@@ -244,7 +334,7 @@ fn schedule_candidates_at_pc(
         let mut schedulable = true;
         let mut dst_mod_paths: IndexMap<u32, InterModulePath> = IndexMap::new();
 
-        let childs = circuit.graph.neighbors_directed(*nidx, Outgoing);
+        let childs = circuit.graph.neighbors_directed(nidx, Outgoing);
         for cidx in childs {
             let child = circuit.graph.node_weight(cidx).unwrap();
             if !nw_available(node, child, pc, &mut dst_mod_paths, nw, pcfg) {
@@ -255,7 +345,7 @@ fn schedule_candidates_at_pc(
 
         if schedulable {
             let src = node.info().coord;
-            let child_edges = circuit.graph.edges_directed(*nidx, Outgoing);
+            let child_edges = circuit.graph.edges_directed(nidx, Outgoing);
             for cedge in child_edges {
                 let cnode = circuit.graph.node_weight(cedge.target()).unwrap();
                 let dst = cnode.info().coord;
@@ -267,65 +357,11 @@ fn schedule_candidates_at_pc(
                     nw.set_busy(dst.id(pcfg), pc + pcfg.inter_proc_nw_lat());
                 }
             }
-            nodes_scheduled.push(*nidx);
+            nodes_scheduled.push(*cand);
             coord_scheduled.insert(node.info().coord);
         }
     }
     return (nodes_scheduled, edges_scheduled);
-}
-
-fn print_scheduling_stats(
-    circuit: &Circuit,
-    must_scheduled_data: Vec<u32>,
-    be_scheduled_data: Vec<u32>,
-    nw_utilization: Vec<u32>)
-{
-    let title = format!("{}/scheduling-progress.png", circuit.compiler_cfg.output_dir);
-    let root = BitMapBackend::new(&title, (2560, 1920)).into_drawing_area();
-    let _ = root.fill(&WHITE);
-    let mut chart = ChartBuilder::on(&root)
-        .caption("Scheduling Progress", ("sans-serif", 50).into_font())
-        .margin(5)
-        .x_label_area_size(30)
-        .y_label_area_size(30)
-        .build_cartesian_2d(0f32..circuit.emul.host_steps as f32,
-                            0f32..circuit.platform_cfg.total_procs() as f32).unwrap();
-    let _ = chart.configure_mesh().draw();
-    chart
-        .draw_series(LineSeries::new(
-            (0..).zip(must_scheduled_data.iter()).map(|(a, b)| (a as f32, *b as f32)),
-            &RED
-        )).unwrap()
-        .label("must-scheduled".to_string())
-        .legend(move |(x, y)| {
-            Rectangle::new([(x - 5, y - 5), (x + 5, y + 5)], &RED)
-        });
-
-    chart
-        .draw_series(LineSeries::new(
-            (0..).zip(be_scheduled_data.iter()).map(|(a, b)| (a as f32, *b as f32)),
-            &BLUE
-        )).unwrap()
-        .label("be-scheduled".to_string())
-        .legend(move |(x, y)| {
-            Rectangle::new([(x - 5, y - 5), (x + 5, y + 5)], &BLUE)
-        });
-
-    chart
-        .draw_series(LineSeries::new(
-            (0..).zip(nw_utilization.iter()).map(|(a, b)| (a as f32, *b as f32)),
-            &GREEN
-        )).unwrap()
-        .label("be-scheduled".to_string())
-        .legend(move |(x, y)| {
-            Rectangle::new([(x - 5, y - 5), (x + 5, y + 5)], &GREEN)
-        });
-    let _ = chart
-        .configure_series_labels()
-        .background_style(&WHITE.mix(0.8))
-        .border_style(&BLACK)
-        .draw();
-    let _ = root.present();
 }
 
 fn schedule_instructions_3(circuit: &mut Circuit) {
@@ -352,24 +388,25 @@ fn schedule_instructions_3(circuit: &mut Circuit) {
         println!("Current rank to schedule: {}", cur_rank);
         println!("============================");
 
-        let mut must_schedule_candidates:        IndexSet<NodeIndex> = IndexSet::new();
-        let mut best_effort_schedule_candidates: IndexSet<NodeIndex> = IndexSet::new();
+        let mut must_schedule_candidates:        BTreeSet<NodeIndexMobility> = BTreeSet::new();
+        let mut best_effort_schedule_candidates: BTreeSet<NodeIndexMobility> = BTreeSet::new();
         for nidx in circuit.graph.node_indices() {
             let node = circuit.graph.node_weight_mut(nidx).unwrap();
             let rank = node.info().rank;
             if rank.asap <= cur_rank && cur_rank <= rank.alap && !node.info().scheduled {
+                let mob = rank.alap - cur_rank;
                 node.set_info(NodeInfo {
                     rank: RankInfo {
-                        mob: rank.alap - cur_rank,
+                        mob: mob,
                         ..rank
                     },
                     ..node.info()
                 });
                 // Don't need to check for cpn.contains?
                 if cpn.contains(&nidx) || rank.alap - cur_rank == 0 {
-                    must_schedule_candidates.insert(nidx);
+                    must_schedule_candidates.insert(NodeIndexMobility::new(nidx, mob));
                 } else {
-                    best_effort_schedule_candidates.insert(nidx);
+                    best_effort_schedule_candidates.insert(NodeIndexMobility::new(nidx, mob));
                 }
             }
         }
@@ -387,15 +424,16 @@ fn schedule_instructions_3(circuit: &mut Circuit) {
 
             println!("pc: {} successful must scheduled: {}", pc, nodes_scheduled.len());
 
-            for nidx in nodes_scheduled.iter() {
-                let node = circuit.graph.node_weight_mut(*nidx).unwrap();
+            for nm in nodes_scheduled.iter() {
+                let nidx = nm.index;
+                let node = circuit.graph.node_weight_mut(nidx).unwrap();
                 node.set_info(NodeInfo {
                     pc: pc,
                     scheduled: true,
                     ..node.info()
                 });
-                must_schedule_candidates.swap_remove(nidx);
-                scheduled_map.visit(*nidx);
+                assert_eq!(must_schedule_candidates.remove(nm), true);
+                scheduled_map.visit(nidx);
             }
 
             for (eidx, path) in edges_scheduled.iter() {
@@ -408,14 +446,7 @@ fn schedule_instructions_3(circuit: &mut Circuit) {
             pc += 1;
         }
 
-        // sort by ascending mobility
-        best_effort_schedule_candidates.sort_by(|a, b| {
-            let m1 = circuit.graph.node_weight(*a).unwrap().info().rank.mob;
-            let m2 = circuit.graph.node_weight(*b).unwrap().info().rank.mob;
-            m1.cmp(&m2)
-        });
-
-        for try_pc in pc_min..(pc+1) {
+        for try_pc in pc_min..pc {
             let (nodes_scheduled, edges_scheduled) = schedule_candidates_at_pc(
                 &best_effort_schedule_candidates,
                 circuit,
@@ -425,18 +456,16 @@ fn schedule_instructions_3(circuit: &mut Circuit) {
 
             println!("pc: {} successful best effort {}", try_pc, nodes_scheduled.len());
 
-            for nidx in nodes_scheduled.iter() {
-                let node = circuit.graph.node_weight_mut(*nidx).unwrap();
+            for nm in nodes_scheduled.iter() {
+                let nidx = nm.index;
+                let node = circuit.graph.node_weight_mut(nidx).unwrap();
                 node.set_info(NodeInfo {
                     pc: try_pc,
                     scheduled: true,
                     ..node.info()
                 });
-                // TODO: shift_remove is required here to preserve the sorted order
-                // However, it takes O(n) time which will hurt performance
-                // Come up with a better datastructure?
-                best_effort_schedule_candidates.shift_remove(nidx);
-                scheduled_map.visit(*nidx);
+                best_effort_schedule_candidates.remove(nm);
+                scheduled_map.visit(nidx);
             }
             for (eidx, path) in edges_scheduled.iter() {
                 let edge = circuit.graph.edge_weight_mut(*eidx).unwrap();
