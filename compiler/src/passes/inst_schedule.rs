@@ -3,7 +3,7 @@ use crate::utils::save_graph_pdf;
 use full_palette::RED;
 use indexmap::{IndexMap, IndexSet};
 use petgraph::{
-    graph::{EdgeIndex, NodeIndex, EdgeReference}, visit::{EdgeRef, VisitMap, Visitable}, Direction::{Incoming, Outgoing}
+    graph::{EdgeIndex, EdgeReference, NodeIndex}, visit::{EdgeRef, IntoNeighborsDirected, VisitMap, Visitable}, Direction::{Incoming, Outgoing}
 };
 use fixedbitset::FixedBitSet;
 use plotters::prelude::*;
@@ -77,6 +77,87 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
     schedule_instructions_3(circuit);
 }
 
+fn print_tail_graph(
+    circuit: &Circuit,
+    per_pc_scheduled: &Vec<u32>,
+    debug_scheduled_nodes: &Vec<NodeIndex>,
+    pc_min: u32,
+    rank: u32)
+{
+    let tail_length = 10;
+    let tail_cnt = 5;
+    let mut print_nodes: IndexMap<Coordinate, Vec<NodeIndex>> = IndexMap::new();
+    let mut print_nodes_set: IndexSet<NodeIndex> = IndexSet::new();
+    let mut tail_start_pc = pc_min;
+
+    for (i, w) in per_pc_scheduled.windows(tail_length).enumerate() {
+        let is_tail = w.iter().map(|x| *x <= tail_cnt).reduce(|a, b| a && b).unwrap();
+        if is_tail {
+            tail_start_pc = i as u32 + pc_min;
+            for nidx in debug_scheduled_nodes.iter() {
+                let node = circuit.graph.node_weight(*nidx).unwrap();
+                if node.info().pc >= tail_start_pc  && node.info().pc < tail_start_pc + tail_length as u32 {
+                    if !print_nodes.contains_key(&node.info().coord) {
+                        print_nodes.insert(node.info().coord, vec![]);
+                    }
+                    print_nodes.get_mut(&node.info().coord).unwrap().push(*nidx);
+                    print_nodes_set.insert(*nidx);
+
+                    let childs = circuit.graph.neighbors_directed(*nidx, Outgoing);
+                    for c in childs {
+                        let cnode = circuit.graph.node_weight(c).unwrap();
+                        if !print_nodes.contains_key(&cnode.info().coord) {
+                            print_nodes.insert(cnode.info().coord, vec![]);
+                        }
+                        print_nodes.get_mut(&cnode.info().coord).unwrap().push(c);
+                        print_nodes_set.insert(c);
+                    }
+                }
+            }
+            // just print the first tail
+            break;
+        }
+    }
+
+    if print_nodes_set.is_empty() {
+        return;
+    }
+
+    let indent: &str = "    ";
+    let mut outstring = "digraph {\n".to_string();
+    outstring.push_str(&format!("{}graph [fontsize=10 compound=true];\n", indent));
+    outstring.push_str(&format!("{}node  [fontsize=4];\n", indent));
+
+    for (coord, node_indices) in print_nodes.iter() {
+        outstring.push_str(&format!("{}subgraph cluster_{}_{} {{\n", indent, coord.module, coord.proc));
+        outstring.push_str(&format!("{}{}label=\"{}-{}\"\n", indent, indent, coord.module, coord.proc));
+        for nidx in node_indices {
+            let node = circuit.graph.node_weight(*nidx).unwrap();
+            outstring.push_str(&format!("{}{} {} [ label = {:?} ]\n",
+                                        indent, indent, nidx.index(),
+                                        format!("{} {:?}\nasap: {} alap: {} pc: {}",
+                                                node.name(),
+                                                node.is(),
+                                                node.info().rank.asap,
+                                                node.info().rank.alap,
+                                                node.info().pc)));
+        }
+        outstring.push_str(&format!("{}}}\n", indent));
+    }
+
+    for eidx in circuit.graph.edge_indices() {
+        let edge = circuit.graph.edge_endpoints(eidx).unwrap();
+        if print_nodes_set.contains(&edge.0) && print_nodes_set.contains(&edge.1) {
+            outstring.push_str(&format!("{}{} -> {};\n", indent, edge.0.index(), edge.1.index()));
+        }
+    }
+    outstring.push_str("}");
+
+    let dot = format!("{}/tail-graph-rank-{}-pc-{}.dot", circuit.compiler_cfg.output_dir, rank, tail_start_pc);
+    let pdf = format!("{}/tail-graph-rank-{}-pc-{}.pdf", circuit.compiler_cfg.output_dir, rank, tail_start_pc);
+    let _ = save_graph_pdf(&outstring, &dot, &pdf);
+}
+
 fn print_scheduling_stats(
     circuit: &Circuit,
     must_scheduled_data: Vec<u32>,
@@ -119,7 +200,7 @@ fn print_scheduling_stats(
             (0..).zip(nw_utilization.iter()).map(|(a, b)| (a as f32, *b as f32)),
             &GREEN
         )).unwrap()
-        .label("be-scheduled".to_string())
+        .label("nw-utilization".to_string())
         .legend(move |(x, y)| {
             Rectangle::new([(x - 5, y - 5), (x + 5, y + 5)], &GREEN)
         });
@@ -390,6 +471,10 @@ fn schedule_instructions_3(circuit: &mut Circuit) {
 
         let mut must_schedule_candidates:        BTreeSet<NodeIndexMobility> = BTreeSet::new();
         let mut best_effort_schedule_candidates: BTreeSet<NodeIndexMobility> = BTreeSet::new();
+
+        let mut debug_scheduled_nodes: Vec<NodeIndex> = vec![];
+        let mut per_pc_scheduled: Vec<u32> = vec![];
+
         for nidx in circuit.graph.node_indices() {
             let node = circuit.graph.node_weight_mut(nidx).unwrap();
             let rank = node.info().rank;
@@ -422,6 +507,8 @@ fn schedule_instructions_3(circuit: &mut Circuit) {
                 &mut nw,
                 pc);
 
+            per_pc_scheduled.push(nodes_scheduled.len() as u32);
+
             println!("pc: {} successful must scheduled: {}", pc, nodes_scheduled.len());
 
             for nm in nodes_scheduled.iter() {
@@ -434,6 +521,7 @@ fn schedule_instructions_3(circuit: &mut Circuit) {
                 });
                 assert_eq!(must_schedule_candidates.remove(nm), true);
                 scheduled_map.visit(nidx);
+                debug_scheduled_nodes.push(nidx);
             }
 
             for (eidx, path) in edges_scheduled.iter() {
@@ -454,6 +542,8 @@ fn schedule_instructions_3(circuit: &mut Circuit) {
                 &mut nw,
                 try_pc);
 
+            let idx = (try_pc - pc_min) as usize;
+            per_pc_scheduled[idx] += nodes_scheduled.len() as u32;
             println!("pc: {} successful best effort {}", try_pc, nodes_scheduled.len());
 
             for nm in nodes_scheduled.iter() {
@@ -466,6 +556,7 @@ fn schedule_instructions_3(circuit: &mut Circuit) {
                 });
                 best_effort_schedule_candidates.remove(nm);
                 scheduled_map.visit(nidx);
+                debug_scheduled_nodes.push(nidx);
             }
             for (eidx, path) in edges_scheduled.iter() {
                 let edge = circuit.graph.edge_weight_mut(*eidx).unwrap();
@@ -476,6 +567,8 @@ fn schedule_instructions_3(circuit: &mut Circuit) {
             nw_util_data.push(nw.cnt_busy(try_pc));
         }
 
+        print_tail_graph(circuit, &per_pc_scheduled, &debug_scheduled_nodes, pc_min, cur_rank);
+
         // TODO: consider global networking lat
         assert!(pc + 1 + circuit.platform_cfg.pc_sdm_offset() < circuit.platform_cfg.max_steps,
                 "Schedule failed {} nodes out of {} nodes scheduled, pc {} max_steps {}",
@@ -484,14 +577,18 @@ fn schedule_instructions_3(circuit: &mut Circuit) {
                 pc,
                 circuit.platform_cfg.max_steps);
     }
-
     // TODO: consider global networking lat
     circuit.emul.host_steps = pc + 1 + circuit.platform_cfg.pc_sdm_offset();
+
     let total_steps = circuit.emul.host_steps * circuit.emul.used_mods * circuit.platform_cfg.num_procs;
     println!("Machine ({} / {}) = {:.2} %, host_steps = {}",
           circuit.graph.node_count(),
           total_steps,
           circuit.graph.node_count() as f32 / total_steps as f32 * 100f32,
           circuit.emul.host_steps);
+
     print_scheduling_stats(circuit, must_schedule_data, be_schedule_data, nw_util_data);
+
+    assert!(scheduled_map.count_ones(..) == scheduled_map.len(), "{} out of {} scheduled",
+        scheduled_map.count_ones(..), scheduled_map.len());
 }
