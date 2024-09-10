@@ -58,7 +58,9 @@ fn test_emulator(
         },
         CompilerConfig {
             top_module: args.top_mod.clone(),
-            output_dir: cwd.to_str().unwrap().to_string()
+            output_dir: cwd.to_str().unwrap().to_string(),
+            dbg_tail_length: args.dbg_tail_length,
+            dbg_tail_threshold: args.dbg_tail_threshold,
         }
     );
     println!("Running compiler passes with config: {:#?}", &circuit.platform_cfg);
@@ -249,7 +251,9 @@ pub mod emulation_tester {
             network_lat:        network_lat,
             imem_lat:           imem_lat,
             dmem_rd_lat:        dmem_rd_lat,
-            dmem_wr_lat:        dmem_wr_lat
+            dmem_wr_lat:        dmem_wr_lat,
+            dbg_tail_length:    u32::MAX, // don't print debug graph when testing
+            dbg_tail_threshold: u32::MAX  // don't print debug graph when testing
         });
         match ret {
             Ok(rc) => return rc == ReturnCode::TestSuccess,

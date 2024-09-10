@@ -84,14 +84,14 @@ fn print_tail_graph(
     pc_min: u32,
     rank: u32)
 {
-    let tail_length = 10;
-    let tail_cnt = 5;
+    let tail_length = circuit.compiler_cfg.dbg_tail_length;
+    let tail_threshold = circuit.compiler_cfg.dbg_tail_threshold;
     let mut print_nodes: IndexMap<Coordinate, Vec<NodeIndex>> = IndexMap::new();
     let mut print_nodes_set: IndexSet<NodeIndex> = IndexSet::new();
     let mut tail_start_pc = pc_min;
 
-    for (i, w) in per_pc_scheduled.windows(tail_length).enumerate() {
-        let is_tail = w.iter().map(|x| *x <= tail_cnt).reduce(|a, b| a && b).unwrap();
+    for (i, w) in per_pc_scheduled.windows(tail_length as usize).enumerate() {
+        let is_tail = w.iter().map(|x| *x <= tail_threshold).reduce(|a, b| a && b).unwrap();
         if is_tail {
             tail_start_pc = i as u32 + pc_min;
             for nidx in debug_scheduled_nodes.iter() {

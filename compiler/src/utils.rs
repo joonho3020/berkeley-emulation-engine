@@ -55,7 +55,15 @@ pub struct Args {
 
     /// dmem wr latency
     #[arg(long, default_value_t = 1)]
-    pub dmem_wr_lat: u32, 
+    pub dmem_wr_lat: u32,
+
+    /// debug tail length
+    #[arg(long, default_value_t = 10)]
+    pub dbg_tail_length: u32,
+
+    /// debug tail threshold
+    #[arg(long, default_value_t = 5)]
+    pub dbg_tail_threshold: u32, 
 }
 
 pub fn write_string_to_file(input: String, file_path: &str) -> std::io::Result<()> {

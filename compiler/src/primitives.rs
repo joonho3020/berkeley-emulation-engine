@@ -868,8 +868,17 @@ pub struct EmulatorMapping {
 
 #[derive(Serialize, Debug, Default, Clone)]
 pub struct CompilerConfig {
+    /// Name of the top module
     pub top_module: String,
-    pub output_dir: String
+
+    /// Path to the output directory
+    pub output_dir: String,
+
+    /// Number of consecutive PCs that is identified as a scheduling tail
+    pub dbg_tail_length: u32,
+
+    /// Number of nodes scheduled per PC for that PC to be classified as a tail
+    pub dbg_tail_threshold: u32
 }
 
 #[derive(Default, Clone)]
