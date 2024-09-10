@@ -4,14 +4,14 @@ use crate::utils::write_string_to_file;
 use derivative::Derivative;
 use indexmap::IndexMap;
 use petgraph::{
-    graph::{Graph, NodeIndex, EdgeIndex},
+    graph::{Graph, NodeIndex},
     visit::{EdgeRef, VisitMap, Visitable},
     Direction::{Incoming, Outgoing},
 };
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Serialize, Serializer};
 use std::{
-    cmp::Ordering, collections::VecDeque, fmt::Debug
+    cmp::Ordering, fmt::Debug
 };
 use strum::EnumCount;
 use strum_macros::EnumCount as EnumCountMacro;

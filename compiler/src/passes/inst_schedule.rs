@@ -3,7 +3,7 @@ use crate::utils::save_graph_pdf;
 use full_palette::RED;
 use indexmap::{IndexMap, IndexSet};
 use petgraph::{
-    graph::{EdgeIndex, EdgeReference, NodeIndex}, visit::{EdgeRef, IntoNeighborsDirected, VisitMap, Visitable}, Direction::{Incoming, Outgoing}
+    graph::{EdgeIndex, EdgeReference, NodeIndex}, visit::{EdgeRef, VisitMap, Visitable}, Direction::{Incoming, Outgoing}
 };
 use fixedbitset::FixedBitSet;
 use plotters::prelude::*;
