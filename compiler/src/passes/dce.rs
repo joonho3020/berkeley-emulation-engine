@@ -6,8 +6,8 @@ use petgraph::{
 
 pub fn dead_code_elimination(circuit: &mut Circuit) {
     // Get input and output nodes
-    let io_i = get_nodes_type(&circuit.graph, Primitives::Input);
-    let io_o = get_nodes_type(&circuit.graph, Primitives::Output);
+    let io_i = circuit.get_nodes_type(Primitives::Input);
+    let io_o = circuit.get_nodes_type(Primitives::Output);
 
     // BFS from inputs
     let mut i_vismap = circuit.graph.visit_map();

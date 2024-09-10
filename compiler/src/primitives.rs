@@ -11,23 +11,12 @@ use petgraph::{
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Serialize, Serializer};
 use std::{
-    cmp::Ordering, fmt::Debug
+    cmp::Ordering, fmt::Debug, collections::LinkedList,
 };
 use strum::EnumCount;
 use strum_macros::EnumCount as EnumCountMacro;
 
 pub type HWGraph = Graph<Box<dyn HWNode>, HWEdge>;
-
-pub fn get_nodes_type(graph: &HWGraph, nodetype: Primitives) -> Vec<NodeIndex> {
-    let mut nodes: Vec<NodeIndex> = vec![];
-    for nidx in graph.node_indices() {
-        let node = graph.node_weight(nidx).unwrap();
-        if node.is() == nodetype {
-            nodes.push(nidx);
-        }
-    }
-    return nodes;
-}
 
 #[derive(Serialize, Debug, Clone, Default, Eq, Hash, PartialEq, Copy)]
 pub struct Coordinate {
@@ -39,37 +28,63 @@ pub struct Coordinate {
 }
 
 impl Coordinate {
+    /// Unique ID of this Coordinate in the emulation platform
     pub fn id(self: &Self, pcfg: &PlatformConfig) -> u32 {
         self.module * pcfg.num_procs + self.proc
     }
 }
 
-pub type InterModulePath = (Coordinate, Coordinate);
+#[derive(Debug, Clone, Copy, Default, Serialize)]
+pub struct NetworkPath {
+    pub src: Coordinate,
+    pub dst: Coordinate,
+}
+
+impl NetworkPath {
+    pub fn new(src: Coordinate, dst: Coordinate) -> Self {
+        NetworkPath {
+            src: src,
+            dst: dst,
+        }
+    }
+}
+
+pub type NetworkRoute = LinkedList<NetworkPath>;
 
 /// # Metadata attached to each `HWGraph` edge
 #[derive(Debug, Clone, Default)]
 pub struct HWEdge {
+    /// Name of the output signal
     pub name: String,
-    pub path: Option<InterModulePath>,
+
+    /// For inter-module communication, set to describe how the bit is routed
+    /// over the global network.
+    /// For communication that happens within a module, this is set to None.
+    pub route: Option<NetworkRoute>,
 }
 
 impl HWEdge {
     pub fn new(name_: String) -> Self {
         HWEdge {
             name: name_,
-            path: None
+            route: None,
         }
     }
 
-    pub fn set_path(self: &mut Self, path: InterModulePath) {
-        self.path = Some(path);
+    pub fn set_routing(self: &mut Self, route: NetworkRoute) {
+        self.route = Some(route);
     }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Ord, Eq, Hash)]
 pub struct RankInfo {
+    /// Rank of the node assigned during forward pass topo sort
     pub asap: u32,
+
+    /// Rank of the node assigned during backward pass topo sort
     pub alap: u32,
+
+    /// Mobility of this node
     pub mob:  u32,
 }
 
@@ -582,7 +597,7 @@ impl Default for KaMinParConfig {
 #[derive(Clone, Default, Serialize)]
 pub struct GlobalNetworkTopology {
     pub edges: IndexMap<Coordinate, Coordinate>,
-    pub inter_mod_paths: IndexMap<(u32, u32), Vec<(Coordinate, Coordinate)>>
+    pub inter_mod_paths: IndexMap<(u32, u32), Vec<NetworkPath>>
 }
 
 impl GlobalNetworkTopology {
@@ -629,12 +644,51 @@ impl GlobalNetworkTopology {
             self.inter_mod_paths.insert((dst.module, src.module), vec![]);
         }
         let paths = self.inter_mod_paths.get_mut(&(src.module, dst.module)).unwrap();
-        paths.push((src, dst));
+        paths.push(NetworkPath::new(src, dst));
     }
 
-    pub fn inter_mod_paths(self: &Self, src: Coordinate, dst: Coordinate) -> Vec<(Coordinate, Coordinate)> {
+    /// Returns a Vec<NetworkPath> where the path connects some processor in
+    /// src.module to some processor in dst.module
+    pub fn inter_mod_paths(self: &Self, src: Coordinate, dst: Coordinate) -> Vec<NetworkPath> {
         let paths = self.inter_mod_paths.get(&(src.module, dst.module)).unwrap();
         return paths.to_vec();
+    }
+
+    /// Returns a Vec<NetworkRoute> where the route connects src.module to dst.module
+    /// while hopping to one intermediate module
+    pub fn inter_mod_routes(self: &Self, src: Coordinate, dst: Coordinate) -> Vec<NetworkRoute> {
+        let mut ret: Vec<NetworkRoute> = vec![];
+        let mut src_to_inter: IndexMap<u32, Vec<NetworkPath>> = IndexMap::new();
+        let mut inter_to_dst: IndexMap<u32, Vec<NetworkPath>> = IndexMap::new();
+        for ((m1, m2), paths) in self.inter_mod_paths.iter() {
+            if *m1 == src.module && *m2 != dst.module {
+                if !src_to_inter.contains_key(m2) {
+                    src_to_inter.insert(*m2, vec![]);
+                }
+                src_to_inter.get_mut(m2).unwrap().append(&mut paths.clone());
+            }
+            if *m1 != src.module && *m2 == dst.module {
+                if !inter_to_dst.contains_key(m2) {
+                    inter_to_dst.insert(*m1, vec![]);
+                }
+                inter_to_dst.get_mut(m1).unwrap().append(&mut paths.clone());
+            }
+        }
+        for imod in src_to_inter.keys() {
+            for s2i_path in src_to_inter.get(imod).unwrap().iter() {
+                for i2d_path in inter_to_dst.get(imod).unwrap().iter() {
+                    let route = if s2i_path.dst == i2d_path.src {
+                        NetworkRoute::from([*s2i_path, *i2d_path])
+                    } else {
+                        NetworkRoute::from([*s2i_path,
+                                           NetworkPath::new(s2i_path.dst, i2d_path.src),
+                                           *i2d_path])
+                    };
+                    ret.push(route);
+                }
+            }
+        }
+        return ret;
     }
 }
 
@@ -690,8 +744,11 @@ pub struct PlatformConfig {
     /// Number of lut inputs
     pub lut_inputs: Cycle,
 
-    /// Latency of the switch network
-    pub network_lat: Cycle,
+    /// Latency of the switch network between processors in the same module
+    pub inter_proc_nw_lat: Cycle,
+
+    /// Latency of the switch network between modules
+    pub inter_mod_nw_lat: Cycle,
 
     /// Number of cycles to access i-mem
     pub imem_lat: Cycle,
@@ -714,7 +771,8 @@ impl Default for PlatformConfig {
             num_procs: 64,
             max_steps: 128,
             lut_inputs: 3,
-            network_lat: 0,
+            inter_proc_nw_lat: 0,
+            inter_mod_nw_lat: 0,
             imem_lat: 0,
             dmem_rd_lat: 0,
             dmem_wr_lat: 1,
@@ -776,54 +834,7 @@ impl PlatformConfig {
     ///   <other> | read imem | read dmem | lut + network | write dmem |
     ///   <me>                                             | read imem | read dmem | compute |
     pub fn inter_proc_dep_lat(self: &Self) -> Cycle {
-        self.dmem_rd_lat + self.network_lat + self.dmem_wr_lat
-    }
-
-    // TODO: Add global network latency, fix these functions for proper abstraction
-    /// Bit travels within a module
-    pub fn inter_proc_nw_lat(self: &Self) -> Cycle {
-        self.network_lat
-    }
-
-    /// Bit travels from SRC -> DST
-    pub fn inter_mod_zerohop_nw_lat(self: &Self) -> Cycle {
-        self.network_lat
-    }
-
-    /// Bit travels from SRC -> TMP (same module with SRC) -> DST
-    pub fn inter_mod_local_onehop_nw_lat(self: &Self) -> Cycle {
-        self.network_lat + self.dmem_wr_lat + self.network_lat
-    }
-
-    /// Bit travels from SRC -> TMP (same module with DST) -> DST
-    pub fn inter_mod_remote_onehop_nw_lat(self: &Self) -> Cycle {
-        self.network_lat + self.dmem_wr_lat + self.network_lat
-    }
-
-    /// Bit travels from SRC -> TMP 1 (same mod w/ SRC) -> TMP2 (same mod w/ DST) -> DST
-    pub fn inter_mod_twohop_nw_lat(self: &Self) -> Cycle {
-        self.network_lat + self.dmem_wr_lat + self.network_lat + self.dmem_wr_lat + self.network_lat
-    }
-
-    // TODO: Add global network latency, fix these functions for proper abstraction
-    /// Bit travels from SRC -> DST
-    pub fn inter_mod_zerohop_dep_lat(self: &Self) -> Cycle {
-        self.inter_mod_zerohop_nw_lat() + self.dmem_wr_lat
-    }
-
-    /// Bit travels from SRC -> TMP (same module with SRC) -> DST
-    pub fn inter_mod_local_onehop_dep_lat(self: &Self) -> Cycle {
-        self.inter_mod_local_onehop_nw_lat() + self.dmem_wr_lat
-    }
-
-    /// Bit travels from SRC -> TMP (same module with DST) -> DST
-    pub fn inter_mod_remote_onehop_dep_lat(self: &Self) -> Cycle {
-        self.inter_mod_remote_onehop_nw_lat() + self.dmem_wr_lat
-    }
-
-    /// Bit travels from SRC -> TMP 1 (same mod w/ SRC) -> TMP2 (same mod w/ DST) -> DST
-    pub fn inter_mod_twohop_dep_lat(self: &Self) -> Cycle {
-        self.inter_mod_twohop_nw_lat() + self.dmem_wr_lat
+        self.dmem_rd_lat + self.inter_proc_nw_lat + self.dmem_wr_lat
     }
 
     /// - I have to receive a incoming bit from a remote processor at
@@ -831,7 +842,7 @@ impl PlatformConfig {
     /// <other> | read imem | read dmem | compute | network |
     /// <me>                        | read imem | read dmem | compute + write sdm |
     pub fn remote_sin_lat(self: &Self) -> Cycle {
-        self.network_lat
+        self.inter_proc_nw_lat
     }
 
     /// If the current pc is `X`, store the current local compute result in
@@ -843,7 +854,33 @@ impl PlatformConfig {
     /// If the current pc is `X`, store the current switch compute result in
     /// `X - pc_sdm_offset`
     pub fn pc_sdm_offset(self: &Self) -> Cycle {
-        self.imem_lat + self.dmem_rd_lat + self.network_lat
+        self.imem_lat + self.dmem_rd_lat + self.inter_proc_nw_lat
+    }
+
+    // TODO: Add global network latency, fix these functions for proper abstraction
+    pub fn nw_path_lat(self: &Self, path: &NetworkPath) -> u32 {
+        if path.src.module == path.dst.module {
+            self.inter_proc_nw_lat
+        } else {
+            self.inter_mod_nw_lat
+        }
+    }
+
+    // TODO: Add global network latency, fix these functions for proper abstraction
+    pub fn nw_route_lat(self: &Self, route: &NetworkRoute) -> u32 {
+        let mut latency = 0;
+        for (hop, path) in route.iter().enumerate() {
+            latency += self.nw_path_lat(path);
+            if hop != route.len() - 1 {
+                latency += self.dmem_wr_lat
+            }
+        }
+        return latency;
+    }
+
+    // TODO: Add global network latency, fix these functions for proper abstraction
+    pub fn routing_dep_lat(self: &Self, route: &NetworkRoute) -> u32 {
+        return self.nw_route_lat(route) + self.dmem_wr_lat;
     }
 }
 
@@ -851,8 +888,13 @@ impl PlatformConfig {
 /// - Fields specific to how the design is mapped to a particular emulator module
 #[derive(Serialize, Debug, Default, Clone)]
 pub struct ModuleMapping {
+    /// Number of used processors in the module
     pub used_procs: u32,
+
+    /// Generated instructions for this module
     pub instructions: Vec<Vec<Instruction>>,
+
+    /// Signal mapping info
     pub signal_map: IndexMap<String, NodeMapInfo>,
 }
 
@@ -860,9 +902,16 @@ pub struct ModuleMapping {
 /// - Contains fields specific to the emulator hardware
 #[derive(Serialize, Debug, Default, Clone)]
 pub struct EmulatorMapping {
+    /// Number of host steps to emulate a single cycle
     pub host_steps: u32,
+
+    /// Maximum rank of this design
     pub max_rank: u32,
+
+    /// Number of used modules
     pub used_mods: u32,
+
+    /// Per moduling emulation mapping information
     pub mod_mappings: IndexMap<u32, ModuleMapping>
 }
 
@@ -898,7 +947,9 @@ impl Circuit {
     }
 
     pub fn save_emulator_info(&self) -> std::io::Result<()> {
-        let file_path = format!("{}/{}.info", self.compiler_cfg.output_dir, self.compiler_cfg.top_module);
+        let file_path = format!("{}/{}.info",
+                                self.compiler_cfg.output_dir,
+                                self.compiler_cfg.top_module);
         for (i, mapping) in self.emul.mod_mappings.iter() {
             let mut out = file_path.clone();
             out.push_str(&format!("-{}", i));
@@ -908,7 +959,9 @@ impl Circuit {
     }
 
     pub fn save_emulator_instructions(&self) -> std::io::Result<()> {
-        let file_path = format!("{}/{}.insts", self.compiler_cfg.output_dir, self.compiler_cfg.top_module);
+        let file_path = format!("{}/{}.insts",
+                                self.compiler_cfg.output_dir,
+                                self.compiler_cfg.top_module);
         let mut inst_str = "".to_string();
         let mut total_insns = 0;
         let mut total_nops = 0;
@@ -940,7 +993,9 @@ impl Circuit {
     }
 
     pub fn save_emulator_sigmap(&self) -> std::io::Result<()> {
-        let file_path = format!("{}/{}.signals", self.compiler_cfg.output_dir, self.compiler_cfg.top_module);
+        let file_path = format!("{}/{}.signals",
+                                self.compiler_cfg.output_dir,
+                                self.compiler_cfg.top_module);
         for (i, mapping) in self.emul.mod_mappings.iter() {
             let mut out = file_path.to_string();
             out.push_str(&format!("-{}", i));
@@ -1019,13 +1074,24 @@ impl Circuit {
         outstring.push_str("}");
         return outstring;
     }
+
+    pub fn get_nodes_type(self: &Self, nodetype: Primitives) -> Vec<NodeIndex> {
+        let mut nodes: Vec<NodeIndex> = vec![];
+        for nidx in self.graph.node_indices() {
+            let node = self.graph.node_weight(nidx).unwrap();
+            if node.is() == nodetype {
+                nodes.push(nidx);
+            }
+        }
+        return nodes;
+    }
 }
 
 impl Debug for Circuit {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let indent: &str = "    ";
         let graph = &self.graph;
-        let io_i = get_nodes_type(&self.graph, Primitives::Input);
+        let io_i = self.get_nodes_type(Primitives::Input);
 
         // Push Input nodes
         let mut q: Vec<NodeIndex> = vec![];

@@ -3,7 +3,9 @@ use crate::utils::save_graph_pdf;
 use full_palette::RED;
 use indexmap::{IndexMap, IndexSet};
 use petgraph::{
-    graph::{EdgeIndex, EdgeReference, NodeIndex}, visit::{EdgeRef, VisitMap, Visitable}, Direction::{Incoming, Outgoing}
+    graph::{EdgeIndex, EdgeReference, NodeIndex},
+    visit::{EdgeRef, VisitMap, Visitable},
+    Direction::{Incoming, Outgoing}
 };
 use fixedbitset::FixedBitSet;
 use plotters::prelude::*;
@@ -91,12 +93,17 @@ fn print_tail_graph(
     let mut tail_start_pc = pc_min;
 
     for (i, w) in per_pc_scheduled.windows(tail_length as usize).enumerate() {
-        let is_tail = w.iter().map(|x| *x <= tail_threshold).reduce(|a, b| a && b).unwrap();
+        let is_tail = w.iter()
+            .map(|x| *x <= tail_threshold)
+            .reduce(|a, b| a && b)
+            .unwrap();
+
         if is_tail {
             tail_start_pc = i as u32 + pc_min;
             for nidx in debug_scheduled_nodes.iter() {
                 let node = circuit.graph.node_weight(*nidx).unwrap();
-                if node.info().pc >= tail_start_pc  && node.info().pc < tail_start_pc + tail_length as u32 {
+                if node.info().pc >= tail_start_pc  &&
+                   node.info().pc <  tail_start_pc + tail_length as u32 {
                     if !print_nodes.contains_key(&node.info().coord) {
                         print_nodes.insert(node.info().coord, vec![]);
                     }
@@ -129,8 +136,12 @@ fn print_tail_graph(
     outstring.push_str(&format!("{}node  [fontsize=4];\n", indent));
 
     for (coord, node_indices) in print_nodes.iter() {
-        outstring.push_str(&format!("{}subgraph cluster_{}_{} {{\n", indent, coord.module, coord.proc));
-        outstring.push_str(&format!("{}{}label=\"{}-{}\"\n", indent, indent, coord.module, coord.proc));
+        outstring.push_str(&format!("{}subgraph cluster_{}_{} {{\n",
+                                    indent, coord.module, coord.proc));
+
+        outstring.push_str(&format!("{}{}label=\"{}-{}\"\n",
+                                    indent, indent, coord.module, coord.proc));
+
         for nidx in node_indices {
             let node = circuit.graph.node_weight(*nidx).unwrap();
             outstring.push_str(&format!("{}{} {} [ label = {:?} ]\n",
@@ -153,8 +164,10 @@ fn print_tail_graph(
     }
     outstring.push_str("}");
 
-    let dot = format!("{}/tail-graph-rank-{}-pc-{}.dot", circuit.compiler_cfg.output_dir, rank, tail_start_pc);
-    let pdf = format!("{}/tail-graph-rank-{}-pc-{}.pdf", circuit.compiler_cfg.output_dir, rank, tail_start_pc);
+    let dot = format!("{}/tail-graph-rank-{}-pc-{}.dot",
+                      circuit.compiler_cfg.output_dir, rank, tail_start_pc);
+    let pdf = format!("{}/tail-graph-rank-{}-pc-{}.pdf",
+                      circuit.compiler_cfg.output_dir, rank, tail_start_pc);
     let _ = save_graph_pdf(&outstring, &dot, &pdf);
 }
 
@@ -167,6 +180,7 @@ fn print_scheduling_stats(
     let title = format!("{}/scheduling-progress.png", circuit.compiler_cfg.output_dir);
     let root = BitMapBackend::new(&title, (2560, 1920)).into_drawing_area();
     let _ = root.fill(&WHITE);
+
     let mut chart = ChartBuilder::on(&root)
         .caption("Scheduling Progress", ("sans-serif", 50).into_font())
         .margin(5)
@@ -174,7 +188,9 @@ fn print_scheduling_stats(
         .y_label_area_size(30)
         .build_cartesian_2d(0f32..circuit.emul.host_steps as f32,
                             0f32..circuit.platform_cfg.total_procs() as f32).unwrap();
+
     let _ = chart.configure_mesh().draw();
+
     chart
         .draw_series(LineSeries::new(
             (0..).zip(must_scheduled_data.iter()).map(|(a, b)| (a as f32, *b as f32)),
@@ -204,13 +220,13 @@ fn print_scheduling_stats(
         .legend(move |(x, y)| {
             Rectangle::new([(x - 5, y - 5), (x + 5, y + 5)], &GREEN)
         });
+
     let _ = chart
         .configure_series_labels()
         .background_style(&WHITE.mix(0.8))
         .border_style(&BLACK)
         .draw();
     let _ = root.present();
-
     let _ = save_graph_pdf( 
         &format!("{:?}", circuit),
         &format!("{}/{}.dot", circuit.compiler_cfg.output_dir, circuit.compiler_cfg.top_module),
@@ -239,18 +255,16 @@ fn dependency_resolved(
    }
 
     // check for deps between modules
-   match pedge.weight().path {
-       Some(path) => {
-           if (src == path.0 && dst == path.1) && (pi.pc + pcfg.inter_mod_zerohop_dep_lat() > pc) ||
-              (src == path.0 && dst != path.1) && (pi.pc + pcfg.inter_mod_remote_onehop_dep_lat() > pc) ||
-              (src != path.0 && dst == path.1) && (pi.pc + pcfg.inter_mod_local_onehop_dep_lat() > pc) ||
-              (src != path.0 && dst != path.1) && (pi.pc + pcfg.inter_mod_twohop_dep_lat() > pc) {
+   match &pedge.weight().route {
+       Some(route) => {
+           if pi.pc + pcfg.routing_dep_lat(&route) > pc {
               unresolved_dep = true;
            }
        }
        None => {
            if pi.scheduled {
-               assert!(dst.module == src.module, "Parent scheduled, in a different module, but no path set");
+               assert!(dst.module == src.module,
+                       "Parent scheduled, in a different module, but no path set");
            } else {
                assert!(unresolved_dep == true);
            }
@@ -259,137 +273,150 @@ fn dependency_resolved(
    return !unresolved_dep;
 }
 
-fn nw_path_usable(
+fn set_new_route(
     nw: &mut NetworkAvailability,
     src: &Coordinate,
     dst: &Coordinate,
-    path: &(Coordinate, Coordinate),
+    subroute: &NetworkRoute,
+    pc: u32,
+    pcfg: &PlatformConfig) -> NetworkRoute
+{
+    let start = subroute.front().unwrap().src;
+    let end   = subroute.back().unwrap().dst;
+    let src2start = NetworkPath::new(*src, start);
+    let end2dst   = NetworkPath::new(end, *dst);
+
+    let mut new_route = subroute.clone();
+    if *src != start {
+        new_route.push_front(src2start);
+    }
+    if *dst != end {
+        new_route.push_back(end2dst);
+    }
+
+    let mut cur_route = NetworkRoute::new();
+    for path in new_route.iter() {
+        cur_route.push_back(*path);
+        nw.set_busy(path.dst.id(pcfg), pc + pcfg.nw_route_lat(&cur_route));
+    }
+    return new_route;
+}
+
+fn nw_route_usable(
+    nw: &mut NetworkAvailability,
+    src: &Coordinate,
+    dst: &Coordinate,
+    subroute: &NetworkRoute,
     pc: u32,
     pcfg: &PlatformConfig
 ) -> bool {
-    let mut usable = false;
-    let (c1, c2) = path;
-    if c1 == src && c2 == dst {
-        if !nw.is_busy(dst.id(pcfg), pc + pcfg.inter_mod_zerohop_nw_lat()) {
-            usable = true;
-        }
-    } else if c1 == src && c2 != dst {
-        if !nw.is_busy(dst.id(pcfg), pc + pcfg.inter_mod_remote_onehop_nw_lat()) &&
-           !nw.is_busy( c2.id(pcfg), pc + pcfg.inter_mod_zerohop_nw_lat()) {
-            usable = true;
-        }
-    } else if c1 != src && c2 == dst {
-        if !nw.is_busy(dst.id(pcfg), pc + pcfg.inter_mod_local_onehop_nw_lat()) &&
-           !nw.is_busy( c1.id(pcfg), pc + pcfg.inter_proc_nw_lat()) {
-            usable = true;
-        }
-    } else {
-        if !nw.is_busy(dst.id(pcfg), pc + pcfg.inter_mod_twohop_nw_lat()) &&
-           !nw.is_busy( c2.id(pcfg), pc + pcfg.inter_mod_local_onehop_nw_lat()) &&
-           !nw.is_busy( c1.id(pcfg), pc + pcfg.inter_proc_nw_lat()) {
-            usable = true;
+    let mut usable = true;
+
+    let start = subroute.front().unwrap().src;
+    let end   = subroute.back().unwrap().dst;
+    let src2start = NetworkPath::new(*src, start);
+    let end2dst   = NetworkPath::new(end, *dst);
+
+    let mut new_route = subroute.clone();
+    if *src != start {
+        new_route.push_front(src2start);
+    }
+    if *dst != end {
+        new_route.push_back(end2dst);
+    }
+
+    let mut cur_route = NetworkRoute::new();
+    for path in new_route.iter() {
+        cur_route.push_back(*path);
+        if nw.is_busy(path.dst.id(pcfg), pc + pcfg.nw_route_lat(&cur_route)) {
+            usable = false;
+            break;
         }
     }
+
     return usable;
 }
 
-fn set_new_path(
-    nw: &mut NetworkAvailability,
-    src: &Coordinate,
-    dst: &Coordinate,
-    path: &(Coordinate, Coordinate),
-    pc: u32,
-    pcfg: &PlatformConfig)
-{
-    let (c1, c2) = path;
-    if c1 == src && c2 == dst {
-        nw.set_busy(dst.id(pcfg), pc + pcfg.inter_mod_zerohop_nw_lat());
-    } else if c1 == src && c2 != dst {
-        nw.set_busy(dst.id(pcfg), pc + pcfg.inter_mod_remote_onehop_nw_lat());
-        nw.set_busy( c2.id(pcfg), pc + pcfg.inter_mod_zerohop_nw_lat());
-    } else if c1 != src && c2 == dst {
-        nw.set_busy(dst.id(pcfg), pc + pcfg.inter_mod_local_onehop_nw_lat());
-        nw.set_busy( c1.id(pcfg), pc + pcfg.inter_proc_nw_lat());
-    } else {
-        nw.set_busy(dst.id(pcfg), pc + pcfg.inter_mod_twohop_nw_lat());
-        nw.set_busy( c2.id(pcfg), pc + pcfg.inter_mod_local_onehop_nw_lat());
-        nw.set_busy( c1.id(pcfg), pc + pcfg.inter_proc_nw_lat());
-    }
-}
-
 fn nw_available(
-    node:  &Box<dyn HWNode>,
-    child: &Box<dyn HWNode>,
-    pc: u32,
-    dst_mod_paths: &mut IndexMap<u32, InterModulePath>,
     nw: &mut NetworkAvailability,
+    node:  &Box<dyn HWNode>,
+    cnode: &Box<dyn HWNode>,
+    inter_mod_routes: &mut IndexMap<u32, NetworkRoute>,
+    pc: u32,
     pcfg: &PlatformConfig
 ) -> bool {
     let src = node.info().coord;
-    let dst = child.info().coord;
+    let dst = cnode.info().coord;
     if dst == src {
-        // same proc don't have to check anything
+        // same proc, don't have to check anything
         return true;
     } else if (dst.module == src.module) && (dst.proc != src.proc) {
         // same module
-        if nw.is_busy(dst.id(pcfg), pc + pcfg.inter_proc_nw_lat()) {
+        if nw.is_busy(dst.id(pcfg), pc + pcfg.nw_path_lat(&NetworkPath::new(src, dst))) {
             return false;
         } else {
             return true;
         }
     } else if dst.module != src.module {
         // found already existing path to dst module
-        if dst_mod_paths.contains_key(&dst.module) {
-            let path = dst_mod_paths.get(&dst.module).unwrap();
-            if nw_path_usable(nw, &src, &dst, &path, pc, pcfg) {
+        if inter_mod_routes.contains_key(&dst.module) {
+            let sub_route = inter_mod_routes.get(&dst.module).unwrap();
+            if nw_route_usable(nw, &src, &dst, &sub_route, pc, pcfg) {
                 return true;
             }
         }
         let paths = pcfg.topology.inter_mod_paths(src, dst);
         assert!(paths.len() > 0, "No inter module path from {:?} to {:?}", src, dst);
 
-        // TODO: search for short paths first
         // no path exists yet, search for a new path
-        let mut path_exists = false;
         for p in paths.iter() {
-            let path_usable = nw_path_usable(nw, &src, &dst, p, pc, pcfg);
-            if path_usable {
-                dst_mod_paths.insert(dst.module, *p);
-                path_exists = true;
-                break;
+            let route = NetworkRoute::from([*p]);
+            if nw_route_usable(nw, &src, &dst, &route, pc, pcfg) {
+                inter_mod_routes.insert(dst.module, route);
+                return true;
             }
         }
-        if !path_exists {
-            return false;
-        } else {
-            return true;
+
+        // no direct path exists between src & dst modules, go multi-hop
+        let routes = pcfg.topology.inter_mod_routes(src, dst);
+        for r in routes.iter() {
+            if nw_route_usable(nw, &src, &dst, r, pc, pcfg) {
+                inter_mod_routes.insert(dst.module, r.clone());
+                return true;
+            }
         }
+
+        // no paths
+        return false;
     } else {
         return true;
     }
 }
 
 fn schedule_candidates_at_pc(
-    candidates: &BTreeSet<NodeIndexMobility>,
     circuit: &mut Circuit,
+    candidates: &BTreeSet<NodeIndexMobility>,
     coord_scheduled_by_pc: &mut IndexMap<u32, IndexSet<Coordinate>>,
     nw: &mut NetworkAvailability,
     pc: u32
-) -> (Vec<NodeIndexMobility>, Vec<(EdgeIndex, InterModulePath)>) {
+) -> (Vec<NodeIndexMobility>, Vec<(EdgeIndex, NetworkRoute)>) {
     let pcfg = &circuit.platform_cfg;
 
     let mut nodes_scheduled: Vec<NodeIndexMobility> = vec![];
-    let mut edges_scheduled: Vec<(EdgeIndex, InterModulePath)> = vec![];
+    let mut edges_scheduled: Vec<(EdgeIndex, NetworkRoute)> = vec![];
 
     if !coord_scheduled_by_pc.contains_key(&pc) {
         coord_scheduled_by_pc.insert(pc, IndexSet::new());
     }
+
+    // Set of coordinates that are scheduled at pc
     let coord_scheduled = coord_scheduled_by_pc.get_mut(&pc).unwrap();
 
     for cand in candidates.iter() {
         let nidx = cand.index;
         let node = circuit.graph.node_weight(nidx).unwrap();
 
+        // Node already scheduled as pc for this Coordinate
         if coord_scheduled.contains(&node.info().coord) {
             continue;
         }
@@ -413,12 +440,12 @@ fn schedule_candidates_at_pc(
         }
 
         let mut schedulable = true;
-        let mut dst_mod_paths: IndexMap<u32, InterModulePath> = IndexMap::new();
+        let mut inter_mod_routes: IndexMap<u32, NetworkRoute> = IndexMap::new();
 
         let childs = circuit.graph.neighbors_directed(nidx, Outgoing);
         for cidx in childs {
             let child = circuit.graph.node_weight(cidx).unwrap();
-            if !nw_available(node, child, pc, &mut dst_mod_paths, nw, pcfg) {
+            if !nw_available(nw, node, child, &mut inter_mod_routes, pc, pcfg) {
                 schedulable = false;
                 break;
             }
@@ -431,11 +458,11 @@ fn schedule_candidates_at_pc(
                 let cnode = circuit.graph.node_weight(cedge.target()).unwrap();
                 let dst = cnode.info().coord;
                 if dst.module != src.module {
-                    let path = dst_mod_paths.get(&dst.module).unwrap();
-                    set_new_path(nw, &src, &dst, path, pc, pcfg);
-                    edges_scheduled.push((cedge.id(), *path));
+                    let subroute = inter_mod_routes.get(&dst.module).unwrap();
+                    let new_route = set_new_route(nw, &src, &dst, subroute, pc, pcfg);
+                    edges_scheduled.push((cedge.id(), new_route));
                 } else if dst.proc != src.proc {
-                    nw.set_busy(dst.id(pcfg), pc + pcfg.inter_proc_nw_lat());
+                    nw.set_busy(dst.id(pcfg), pc + pcfg.nw_path_lat(&NetworkPath::new(src, dst)));
                 }
             }
             nodes_scheduled.push(*cand);
@@ -511,8 +538,8 @@ fn schedule_instructions_3(circuit: &mut Circuit) {
         let mut coord_scheduled_by_pc: IndexMap<u32, IndexSet<Coordinate>> = IndexMap::new();
         while !must_schedule_candidates.is_empty() {
             let (nodes_scheduled, edges_scheduled) = schedule_candidates_at_pc(
-                &must_schedule_candidates,
                 circuit,
+                &must_schedule_candidates,
                 &mut coord_scheduled_by_pc,
                 &mut nw,
                 pc);
@@ -536,7 +563,7 @@ fn schedule_instructions_3(circuit: &mut Circuit) {
 
             for (eidx, path) in edges_scheduled.iter() {
                 let edge = circuit.graph.edge_weight_mut(*eidx).unwrap();
-                edge.set_path(*path);
+                edge.set_routing(path.clone());
             }
 
             must_schedule_data.push(nodes_scheduled.len() as u32);
@@ -549,8 +576,8 @@ fn schedule_instructions_3(circuit: &mut Circuit) {
         // punt to the next round of scheduling.
         for try_pc in pc_min..pc {
             let (nodes_scheduled, edges_scheduled) = schedule_candidates_at_pc(
-                &best_effort_schedule_candidates,
                 circuit,
+                &best_effort_schedule_candidates,
                 &mut coord_scheduled_by_pc,
                 &mut nw,
                 try_pc);
@@ -573,7 +600,7 @@ fn schedule_instructions_3(circuit: &mut Circuit) {
             }
             for (eidx, path) in edges_scheduled.iter() {
                 let edge = circuit.graph.edge_weight_mut(*eidx).unwrap();
-                edge.set_path(*path);
+                edge.set_routing(path.clone());
             }
 
             be_schedule_data.push(nodes_scheduled.len() as u32);

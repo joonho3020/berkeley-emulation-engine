@@ -25,7 +25,7 @@ impl Debug for Module {
 impl Module {
     pub fn new(nprocs: u32, host_steps_: u32, cfg: &PlatformConfig) -> Self {
         Module {
-            switch: Switch::new(nprocs, cfg.network_lat),
+            switch: Switch::new(nprocs, cfg.inter_proc_nw_lat),
             procs: (0..nprocs).map(|i| Processor::new(host_steps_, cfg, i as u32)).collect_vec(),
             host_steps: host_steps_,
             iprocs: vec![],

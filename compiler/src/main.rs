@@ -46,14 +46,15 @@ fn test_emulator(
 
     circuit.set_cfg(
         PlatformConfig {
-            num_mods:    args.num_mods,
-            num_procs:   args.num_procs,
-            max_steps:   args.max_steps,
-            lut_inputs:  args.lut_inputs,
-            network_lat: args.network_lat,
-            imem_lat:    args.imem_lat,
-            dmem_rd_lat: args.dmem_rd_lat,
-            dmem_wr_lat: args.dmem_wr_lat,
+            num_mods:          args.num_mods,
+            num_procs:         args.num_procs,
+            max_steps:         args.max_steps,
+            lut_inputs:        args.lut_inputs,
+            inter_proc_nw_lat: args.inter_proc_nw_lat,
+            inter_mod_nw_lat:  args.inter_mod_nw_lat,
+            imem_lat:          args.imem_lat,
+            dmem_rd_lat:       args.dmem_rd_lat,
+            dmem_wr_lat:       args.dmem_wr_lat,
             topology: GlobalNetworkTopology::new(args.num_mods, args.num_procs)
         },
         CompilerConfig {
@@ -233,7 +234,8 @@ pub mod emulation_tester {
         top_mod: &str,
         input_stimuli_path: &str,
         blif_file_path: &str,
-        network_lat: u32,
+        inter_proc_nw_lat: u32,
+        inter_mod_nw_lat: u32,
         imem_lat: u32,
         dmem_rd_lat: u32,
         dmem_wr_lat: u32
@@ -248,7 +250,8 @@ pub mod emulation_tester {
             num_procs:          8,
             max_steps:          128,
             lut_inputs:         3,
-            network_lat:        network_lat,
+            inter_proc_nw_lat:  inter_proc_nw_lat,
+            inter_mod_nw_lat:   inter_mod_nw_lat,
             imem_lat:           imem_lat,
             dmem_rd_lat:        dmem_rd_lat,
             dmem_wr_lat:        dmem_wr_lat,
@@ -283,7 +286,7 @@ pub mod emulation_tester {
                 "Fir",
                 "../examples/Fir.input",
                 "../examples/Fir.lut.blif",
-                network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
             ),
             true
         );
@@ -311,7 +314,7 @@ pub mod emulation_tester {
                 "GCD",
                 "../examples/GCD.input",
                 "../examples/GCD-2bit.lut.blif",
-                network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
             ),
             true
         );
@@ -339,7 +342,7 @@ pub mod emulation_tester {
                 "MyQueue",
                 "../examples/MyQueue.input",
                 "../examples/MyQueue.lut.blif",
-                network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat 
+                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
             ),
             true
         );
@@ -367,7 +370,7 @@ pub mod emulation_tester {
                 "Adder",
                 "../examples/Adder.input",
                 "../examples/Adder.lut.blif",
-                network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
             ),
             true
         );
@@ -395,7 +398,7 @@ pub mod emulation_tester {
                 "TestRegInit",
                 "../examples/TestRegInit.input",
                 "../examples/TestRegInit.lut.blif",
-                network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
             ),
             true
         );

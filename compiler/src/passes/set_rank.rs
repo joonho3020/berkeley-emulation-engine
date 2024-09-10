@@ -38,6 +38,7 @@ pub fn find_rank_order(circuit: &mut Circuit) {
     print_rank_stats(circuit);
 }
 
+/// Forward direction (input -> output) topological sort to find the ASAP ranks
 fn find_asap_rank_order(circuit: &mut Circuit) {
     let mut max_rank: u32 = 0;
 
@@ -150,10 +151,12 @@ fn find_asap_rank_order(circuit: &mut Circuit) {
         vis_map.len());
 }
 
+/// Backward direction (ouput -> input) topological sort to find the ALAP ranks
 fn find_alap_rank_order(circuit: &mut Circuit) {
     let mut odeg: IndexMap<NodeIndex, u32> = IndexMap::new();
     let max_rank = circuit.emul.max_rank;
 
+    // compute odeg for the entire graph
     for nidx in circuit.graph.node_indices() {
         odeg.insert(nidx, 0);
     }

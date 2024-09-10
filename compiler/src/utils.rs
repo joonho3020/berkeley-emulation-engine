@@ -41,9 +41,13 @@ pub struct Args {
     #[arg(long, default_value_t = 3)]
     pub lut_inputs: u32,
 
-    /// network latency
+    /// network latency between procs in a module
     #[arg(long, default_value_t = 0)]
-    pub network_lat: u32,
+    pub inter_proc_nw_lat: u32,
+
+    /// network latency between modules
+    #[arg(long, default_value_t = 0)]
+    pub inter_mod_nw_lat: u32,
 
     /// imem latency
     #[arg(long, default_value_t = 0)]
