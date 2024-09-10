@@ -253,12 +253,65 @@ fn print_dist(name: &str, dist_map: &IndexMap<u32, u32>) {
     println!("{}", dist_plot);
 }
 
+fn print_stacked_bar_chart(data: &IndexMap<u32, IndexMap<u32, u32>>, circuit: &Circuit) {
+    let max_height: u32 = data.values().map(|imap| imap.values().sum()).max().unwrap();
+
+    let title = format!("{}/rank-indeg-distribution.png", circuit.compiler_cfg.output_dir);
+    let root = BitMapBackend::new(&title, (2560, 1920)).into_drawing_area();
+    let _ = root.fill(&WHITE);
+    let mut chart = ChartBuilder::on(&root)
+        .caption("Rank indegree distribution", ("sans-serif", 50).into_font())
+        .margin(5)
+        .x_label_area_size(30)
+        .y_label_area_size(30)
+        .build_cartesian_2d(0f32..circuit.platform_cfg.num_mods as f32,
+                            0f32..max_height as f32).unwrap();
+    let _ = chart.configure_mesh().draw();
+    for (m, y_stack) in data.iter() {
+        let mut cumul_y = 0;
+        for (i, y) in y_stack.values().enumerate() {
+            let _ = chart.draw_series(std::iter::once(
+                Rectangle::new(
+                    [
+                        (*m       as f32, cumul_y        as f32),
+                        ((*m + 1) as f32, (cumul_y + *y) as f32),
+                    ],
+                    Palette99::pick(i as usize).filled(),
+                ),
+            )).unwrap()
+            .label(format!("rank-{}", i))
+            .legend(move |(x, y)| {
+                Rectangle::new([(x, y - 5), (x + 10, y + 5)], Palette99::pick(i as usize).filled())
+            });
+            cumul_y += *y;
+        }
+    }
+
+    // Configure and position the series labels (legend)
+    let _ = chart
+        .configure_series_labels()
+        .border_style(&BLACK)
+        .background_style(&WHITE.mix(0.8))
+        .position(SeriesLabelPosition::UpperRight)
+        .draw();
+
+    let _ = root.present();
+}
+
 fn print_rank_stats(circuit: &Circuit) {
     let mut asap_map: IndexMap<u32, u32> = IndexMap::new();
     let mut alap_map: IndexMap<u32, u32> = IndexMap::new();
-    let mut mob_map: IndexMap<u32, u32> = IndexMap::new();
+    let mut mob_map:  IndexMap<u32, u32> = IndexMap::new();
     let mut cns = 0;
     let mut ff_cnt = 0;
+
+    let mut per_rank_indeg: IndexMap<u32, IndexMap<u32, u32>> = IndexMap::new();
+    for m in 0..circuit.platform_cfg.num_mods {
+        per_rank_indeg.insert(m, IndexMap::new());
+        for r in 0..(circuit.emul.max_rank + 1) {
+            per_rank_indeg.get_mut(&m).unwrap().insert(r, 0);
+        }
+    }
 
     for nidx in circuit.graph.node_indices() {
         let node = circuit.graph.node_weight(nidx).unwrap();
@@ -288,6 +341,18 @@ fn print_rank_stats(circuit: &Circuit) {
             mob_map.insert(mob, 0);
         }
         *mob_map.get_mut(&mob).unwrap() += 1;
+
+        let parents = circuit.graph.neighbors_directed(nidx, Incoming);
+        for pidx in parents {
+            let par = circuit.graph.node_weight(pidx).unwrap();
+            if node.info().coord.module != par.info().coord.module {
+                *per_rank_indeg
+                    .get_mut(&node.info().coord.module)
+                    .unwrap()
+                    .get_mut(&node.info().rank.asap)
+                    .unwrap() += 1;
+            }
+        }
     }
 
     println!("Number of ff nodes: {} critical nodes: {} ({:.2} %), non-ff critical nodes: {} ({:.2} %) total nodes: {}",
@@ -303,4 +368,5 @@ fn print_rank_stats(circuit: &Circuit) {
     print_dist("ASAP distribution", &asap_map);
     print_dist("ALAP distribution", &alap_map);
     print_dist("MOB distribution",  &mob_map);
+    print_stacked_bar_chart(&per_rank_indeg, circuit);
 }
