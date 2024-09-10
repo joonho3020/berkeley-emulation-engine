@@ -266,6 +266,7 @@ fn print_stacked_bar_chart(data: &IndexMap<u32, IndexMap<u32, u32>>, circuit: &C
         .y_label_area_size(30)
         .build_cartesian_2d(0f32..circuit.platform_cfg.num_mods as f32,
                             0f32..max_height as f32).unwrap();
+
     let _ = chart.configure_mesh().draw();
     for (m, y_stack) in data.iter() {
         let mut cumul_y = 0;
@@ -281,7 +282,9 @@ fn print_stacked_bar_chart(data: &IndexMap<u32, IndexMap<u32, u32>>, circuit: &C
             )).unwrap()
             .label(format!("rank-{}", i))
             .legend(move |(x, y)| {
-                Rectangle::new([(x, y - 5), (x + 10, y + 5)], Palette99::pick(i as usize).filled())
+                Rectangle::new(
+                    [(x, y - 5), (x + 10, y + 5)],
+                    Palette99::pick(i as usize).filled())
             });
             cumul_y += *y;
         }
@@ -362,9 +365,11 @@ fn print_rank_stats(circuit: &Circuit) {
              cns - ff_cnt,
              (cns - ff_cnt) as f32 / circuit.graph.node_count() as f32 * 100f32,
              circuit.graph.node_count());
+
     asap_map.sort_keys();
     alap_map.sort_keys();
     mob_map.sort_keys();
+
     print_dist("ASAP distribution", &asap_map);
     print_dist("ALAP distribution", &alap_map);
     print_dist("MOB distribution",  &mob_map);
