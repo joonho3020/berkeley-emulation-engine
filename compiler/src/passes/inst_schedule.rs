@@ -445,6 +445,13 @@ fn schedule_candidates_at_pc(
     return (nodes_scheduled, edges_scheduled);
 }
 
+/// Implements the modified list scheduling algorithm.
+/// For each node, identify the ASAP & ALAP ranks.
+/// Nodes with ASAP == ALAP are critical nodes.
+/// For each round of scheduling, schedule the critical nodes & nodes with
+/// mobility (rank - ASAP) == 0 first. We can increment the PC while doing so.
+/// Then, for the PC range, slot in the nodes with mobility != 0 as much as
+/// possible.
 fn schedule_instructions_3(circuit: &mut Circuit) {
     let mut cpn: IndexSet<NodeIndex> = IndexSet::new();
     for nidx in circuit.graph.node_indices() {
@@ -475,6 +482,7 @@ fn schedule_instructions_3(circuit: &mut Circuit) {
         let mut debug_scheduled_nodes: Vec<NodeIndex> = vec![];
         let mut per_pc_scheduled: Vec<u32> = vec![];
 
+        // Search for all the nodes to schedule in this round
         for nidx in circuit.graph.node_indices() {
             let node = circuit.graph.node_weight_mut(nidx).unwrap();
             let rank = node.info().rank;
@@ -487,7 +495,6 @@ fn schedule_instructions_3(circuit: &mut Circuit) {
                     },
                     ..node.info()
                 });
-                // Don't need to check for cpn.contains?
                 if cpn.contains(&nidx) || rank.alap - cur_rank == 0 {
                     must_schedule_candidates.insert(NodeIndexMobility::new(nidx, mob));
                 } else {
@@ -498,6 +505,9 @@ fn schedule_instructions_3(circuit: &mut Circuit) {
 
         pc_min = pc;
 
+        // Schedule the nodes that must be scheduled in the current rank
+        // (i.e. nodes with mobility 0). Increment the PC until all the nodes
+        // are scheduled.
         let mut coord_scheduled_by_pc: IndexMap<u32, IndexSet<Coordinate>> = IndexMap::new();
         while !must_schedule_candidates.is_empty() {
             let (nodes_scheduled, edges_scheduled) = schedule_candidates_at_pc(
@@ -534,6 +544,9 @@ fn schedule_instructions_3(circuit: &mut Circuit) {
             pc += 1;
         }
 
+        // For the PC ranging set by scheduling the "must schedule" nodes,
+        // try to slot in as much nodes as possible. If scheduling is unsucessful,
+        // punt to the next round of scheduling.
         for try_pc in pc_min..pc {
             let (nodes_scheduled, edges_scheduled) = schedule_candidates_at_pc(
                 &best_effort_schedule_candidates,
