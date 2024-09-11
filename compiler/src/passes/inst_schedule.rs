@@ -13,14 +13,14 @@ use std::collections::BTreeSet;
 use std::cmp::Ordering;
 
 #[derive(Debug, Default, Clone)]
-struct NetworkAvailability {
+struct NetworkPorts {
     nbits: u32,
     busy: IndexMap<u32, FixedBitSet>
 }
 
-impl NetworkAvailability {
+impl NetworkPorts {
     fn new(nbits: u32) -> Self {
-        let mut ret = NetworkAvailability::default();
+        let mut ret = NetworkPorts::default();
         ret.nbits = nbits;
         ret.busy = IndexMap::new();
         return ret;
@@ -45,6 +45,21 @@ impl NetworkAvailability {
     fn cnt_busy(self: &mut Self, pc: u32) -> u32 {
         self.add_pc_if_empty(pc);
         return self.busy.get(&pc).unwrap().count_ones(..) as u32;
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+struct NetworkAvailability {
+    iports: NetworkPorts,
+    oports: NetworkPorts
+}
+
+impl NetworkAvailability {
+    fn new(nbits: u32) -> Self {
+        NetworkAvailability {
+            iports: NetworkPorts::new(nbits),
+            oports: NetworkPorts::new(nbits)
+        }
     }
 }
 
@@ -257,7 +272,7 @@ fn dependency_resolved(
     // check for deps between modules
    match &pedge.weight().route {
        Some(route) => {
-           if pi.pc + pcfg.routing_dep_lat(&route) > pc {
+           if pi.pc + pcfg.nw_route_dep_lat(&route) > pc {
               unresolved_dep = true;
            }
        }
@@ -296,8 +311,9 @@ fn set_new_route(
 
     let mut cur_route = NetworkRoute::new();
     for path in new_route.iter() {
+        nw.oports.set_busy(path.src.id(pcfg), pc + pcfg.nw_route_dep_lat(&cur_route));
         cur_route.push_back(*path);
-        nw.set_busy(path.dst.id(pcfg), pc + pcfg.nw_route_lat(&cur_route));
+        nw.iports.set_busy(path.dst.id(pcfg), pc + pcfg.nw_route_lat(&cur_route));
     }
     return new_route;
 }
@@ -327,13 +343,17 @@ fn nw_route_usable(
 
     let mut cur_route = NetworkRoute::new();
     for path in new_route.iter() {
+        if nw.oports.is_busy(path.src.id(pcfg), pc + pcfg.nw_route_dep_lat(&cur_route)) {
+            usable = false;
+            break;
+        }
+
         cur_route.push_back(*path);
-        if nw.is_busy(path.dst.id(pcfg), pc + pcfg.nw_route_lat(&cur_route)) {
+        if nw.iports.is_busy(path.dst.id(pcfg), pc + pcfg.nw_route_lat(&cur_route)) {
             usable = false;
             break;
         }
     }
-
     return usable;
 }
 
@@ -352,7 +372,8 @@ fn nw_available(
         return true;
     } else if (dst.module == src.module) && (dst.proc != src.proc) {
         // same module
-        if nw.is_busy(dst.id(pcfg), pc + pcfg.nw_path_lat(&NetworkPath::new(src, dst))) {
+        if nw.iports.is_busy(dst.id(pcfg), pc + pcfg.nw_path_lat(&NetworkPath::new(src, dst))) ||
+           nw.oports.is_busy(src.id(pcfg), pc) {
             return false;
         } else {
             return true;
@@ -462,7 +483,8 @@ fn schedule_candidates_at_pc(
                     let new_route = set_new_route(nw, &src, &dst, subroute, pc, pcfg);
                     edges_scheduled.push((cedge.id(), new_route));
                 } else if dst.proc != src.proc {
-                    nw.set_busy(dst.id(pcfg), pc + pcfg.nw_path_lat(&NetworkPath::new(src, dst)));
+                    nw.iports.set_busy(dst.id(pcfg), pc + pcfg.nw_path_lat(&NetworkPath::new(src, dst)));
+                    nw.oports.set_busy(src.id(pcfg), pc);
                 }
             }
             nodes_scheduled.push(*cand);
@@ -604,7 +626,7 @@ fn schedule_instructions_3(circuit: &mut Circuit) {
             }
 
             be_schedule_data.push(nodes_scheduled.len() as u32);
-            nw_util_data.push(nw.cnt_busy(try_pc));
+            nw_util_data.push(nw.iports.cnt_busy(try_pc));
         }
 
         print_tail_graph(circuit, &per_pc_scheduled, &debug_scheduled_nodes, pc_min, cur_rank);

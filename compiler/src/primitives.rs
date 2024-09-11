@@ -879,7 +879,7 @@ impl PlatformConfig {
     }
 
     // TODO: Add global network latency, fix these functions for proper abstraction
-    pub fn routing_dep_lat(self: &Self, route: &NetworkRoute) -> u32 {
+    pub fn nw_route_dep_lat(self: &Self, route: &NetworkRoute) -> u32 {
         return self.nw_route_lat(route) + self.dmem_wr_lat;
     }
 }
