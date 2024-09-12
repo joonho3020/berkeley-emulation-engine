@@ -885,17 +885,25 @@ impl PlatformConfig {
 }
 
 /// # MappingInfo
+/// - Fields specific to how the design is mapped to a particular emulator processor
+#[derive(Serialize, Debug, Default, Clone)]
+pub struct ProcessorMapping {
+    /// Generated instructions for this module
+    pub instructions: Vec<Instruction>,
+
+    /// Signal mapping info
+    pub signal_map: IndexMap<String, NodeMapInfo>,
+}
+
+/// # MappingInfo
 /// - Fields specific to how the design is mapped to a particular emulator module
 #[derive(Serialize, Debug, Default, Clone)]
 pub struct ModuleMapping {
     /// Number of used processors in the module
     pub used_procs: u32,
 
-    /// Generated instructions for this module
-    pub instructions: Vec<Vec<Instruction>>,
-
-    /// Signal mapping info
-    pub signal_map: IndexMap<String, NodeMapInfo>,
+    /// Per processor emulation mapping information
+    pub proc_mappings: IndexMap<u32, ProcessorMapping>,
 }
 
 /// # MappingInfo
@@ -911,8 +919,8 @@ pub struct EmulatorMapping {
     /// Number of used modules
     pub used_mods: u32,
 
-    /// Per moduling emulation mapping information
-    pub mod_mappings: IndexMap<u32, ModuleMapping>
+    /// Per module emulation mapping information
+    pub module_mappings: IndexMap<u32, ModuleMapping>
 }
 
 #[derive(Serialize, Debug, Default, Clone)]
@@ -950,7 +958,7 @@ impl Circuit {
         let file_path = format!("{}/{}.info",
                                 self.compiler_cfg.output_dir,
                                 self.compiler_cfg.top_module);
-        for (i, mapping) in self.emul.mod_mappings.iter() {
+        for (i, mapping) in self.emul.module_mappings.iter() {
             let mut out = file_path.clone();
             out.push_str(&format!("-{}", i));
             write_string_to_file(serde_json::to_string_pretty(&mapping)?, &out)?;
@@ -965,13 +973,13 @@ impl Circuit {
         let mut inst_str = "".to_string();
         let mut total_insns = 0;
         let mut total_nops = 0;
-        for (i, mapping) in self.emul.mod_mappings.iter() {
+        for (i, mapping) in self.emul.module_mappings.iter() {
             total_insns += self.emul.host_steps * mapping.used_procs;
             inst_str.push_str(&format!("============ module {} ============\n", i));
 
-            for (pi, proc_insts) in mapping.instructions.iter().enumerate() {
+            for (pi, pmap) in mapping.proc_mappings {
                 inst_str.push_str(&format!("------------ processor {} ------------\n", pi));
-                for (i, inst) in proc_insts.iter().enumerate() {
+                for (i, inst) in pmap.instructions.iter().enumerate() {
                     if (i as u32) < self.emul.host_steps {
                         inst_str.push_str(&format!("{} {:?}\n", i, inst));
                         match inst.opcode {
@@ -996,13 +1004,14 @@ impl Circuit {
         let file_path = format!("{}/{}.signals",
                                 self.compiler_cfg.output_dir,
                                 self.compiler_cfg.top_module);
-        for (i, mapping) in self.emul.mod_mappings.iter() {
-            let mut out = file_path.to_string();
-            out.push_str(&format!("-{}", i));
-            write_string_to_file(
-                format!("{:#?}", mapping.signal_map),
-                &out)?;
+
+        let mut ret_str = "".to_string();
+        for (_mi, mmap) in self.emul.module_mappings.iter() {
+            for (_pi, pmap) in mmap.proc_mappings.iter() {
+                ret_str.push_str(&format!("{:#?}", pmap.signal_map));
+            }
         }
+        write_string_to_file(ret_str, &file_path)?;
         Ok(())
     }
 

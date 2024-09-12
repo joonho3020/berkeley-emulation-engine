@@ -164,12 +164,11 @@ fn kaminpar_partition_processor(circuit: &mut Circuit) {
                     set_proc(&mut circuit.graph, *global_nidx, *pidx);
                     max_pidx = max(max_pidx, *pidx);
                 }
-                circuit.emul.mod_mappings.insert(
+                circuit.emul.module_mappings.insert(
                     *module,
                     ModuleMapping {
                         used_procs: max_pidx + 1,
-                        instructions: vec![],
-                        signal_map: IndexMap::new()
+                        proc_mappings: IndexMap::new()
                     });
                 println!("========== Local Partition Statistics ============");
                 println!("{}", get_partition_histogram(partition));

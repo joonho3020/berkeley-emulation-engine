@@ -1,30 +1,30 @@
 use crate::common::*;
 use crate::primitives::*;
 use indexmap::IndexMap;
+use petgraph::visit::EdgeRef;
 use petgraph::Direction::{Incoming, Outgoing};
 
 /// # `map_instructions`
 /// - After the instructions are scheduled, set the appropriate registers and
 /// network input values
 pub fn map_instructions(circuit: &mut Circuit) {
-    let mut signal_map: IndexMap<String, NodeMapInfo> = IndexMap::new();
-    let mut all_insts: Vec<Vec<Instruction>> = vec![];
-
-    // FIXME: ...
-// for _ in 0..circuit.emulator.used_procs {
-    for _ in 0..3 {
-        let mut insts: Vec<Instruction> = vec![];
-        for _ in 0..circuit.platform_cfg.max_steps {
-            insts.push(Instruction::new(circuit.platform_cfg.lut_inputs));
+    for (_, mmap) in circuit.emul.module_mappings.iter_mut() {
+        for pi in 0..mmap.used_procs {
+            mmap.proc_mappings.insert(pi, ProcessorMapping {
+                instructions: vec![Instruction::default(); circuit.emul.host_steps as usize],
+                signal_map: IndexMap::new()
+            });
         }
-        all_insts.push(insts);
     }
 
-    let cfg = &circuit.platform_cfg;
+    let pcfg = &circuit.platform_cfg;
     for nidx in circuit.graph.node_indices() {
         let node = circuit.graph.node_weight(nidx).unwrap();
-        let node_insts = all_insts.get_mut(node.info().coord.proc as usize).unwrap();
-        let node_inst = node_insts.get_mut(node.info().pc   as usize).unwrap();
+        let coord = node.info().coord;
+        let node_inst = circuit.emul
+            .module_mappings.get_mut(&coord.module).unwrap()
+            .proc_mappings.get_mut(&coord.proc).unwrap()
+            .instructions.get_mut(node.info().pc as usize).unwrap();
 
         // assign opcode
         node_inst.valid = true;
@@ -48,7 +48,7 @@ pub fn map_instructions(circuit: &mut Circuit) {
                     node.name(), node.is(), node.info());
             }
             let mut table_repeated: u64 = table;
-            let nops = cfg.lut_inputs - ops;
+            let nops = pcfg.lut_inputs - ops;
             for i in 0..(1 << nops) {
                 table_repeated |= table << ((1 << ops) * i);
             }
@@ -56,57 +56,88 @@ pub fn map_instructions(circuit: &mut Circuit) {
         }
 
         // assign operands
-        let parents = circuit.graph.neighbors_directed(nidx, Incoming);
-        for pidx in parents {
+        let pedges = circuit.graph.edges_directed(nidx, Incoming);
+        for pedge in pedges {
+            let pnode = circuit.graph.node_weight(pedge.source()).unwrap();
+
             let mut op_idx = 0;
             if node.is() == Primitives::Lut {
                 let lut_inputs = node.get_lut().unwrap().inputs;
-                let parent_name = circuit.graph.node_weight(pidx).unwrap().name();
-                op_idx = lut_inputs.iter().position(|n| n == parent_name).unwrap();
+                op_idx = lut_inputs.iter().position(|n| n == pnode.name()).unwrap();
             }
 
-            let parent = circuit.graph.node_weight(pidx).unwrap();
+            let pcoord = pnode.info().coord;
+            let coord =  node.info().coord;
+            let use_ldm = pcoord == coord;
 
-            if parent.info().coord.proc == node.info().coord.proc {
-                node_inst.operands.push(Operand {
-                    rs: parent.info().pc,
-                    local: true,
-                    idx: op_idx as u32,
-                });
+            let pc_offset = if use_ldm {
+                0
             } else {
-                node_inst.operands.push(Operand {
-                    rs: parent.info().pc,
-                    local: false,
-                    idx: op_idx as u32,
-                });
-            }
+                match pedge.weight().route {
+                    Some(r) => {
+                        pcfg.nw_route_lat(&r)
+                    }
+                    None => {
+                        pcfg.inter_proc_dep_lat()
+                    }
+                }
+            };
+            node_inst.operands.push(Operand {
+                rs: pnode.info().pc + pc_offset,
+                local: use_ldm,
+                idx: op_idx as u32
+            })
         }
         node_inst.operands.sort_by(|a, b| a.idx.cmp(&b.idx));
 
         // assign sin
-        let childs = circuit.graph.neighbors_directed(nidx, Outgoing);
-        for cidx in childs {
-            let child = circuit.graph.node_weight(cidx).unwrap();
+        let cedges = circuit.graph.edges_directed(nidx, Outgoing);
+        for cedge in cedges {
+            match cedge.weight().route {
+                Some(route) => {
+                    let mut cur_route = NetworkRoute::new();
+                    for (i, path) in route.iter().enumerate() {
+                        cur_route.push_back(*path);
+                        let dst_recv_pc = node.info().pc + pcfg.nw_route_lat(&cur_route);
+                        let inst = circuit.emul
+                            .module_mappings.get_mut(&path.dst.module).unwrap()
+                            .proc_mappings.get_mut(&path.dst.proc).unwrap()
+                            .instructions.get_mut(dst_recv_pc as usize).unwrap();
+                        let local = path.src.module == path.dst.module;
+                        inst.valid = true;
+                        inst.sinfo.idx = path.src.proc;
+                        inst.sinfo.recv_local = path.src.module == path.dst.module;
+                        inst.sinfo.fwd = i != (route.len() - 1);
+                    }
+                }
+                None => {
+                    let cnode = circuit.graph.node_weight(cedge.target()).unwrap();
+                    let ccoord = cnode.info().coord;
+                    assert!(cnode.info().coord.module == node.info().coord.module,
+                        "No path between parent and child in different modules");
 
-            if child.info().coord.proc != node.info().coord.proc {
-                let child_insts = all_insts
-                    .get_mut(child.info().coord.proc as usize).unwrap();
-                let child_inst = child_insts
-                    .get_mut((node.info().pc + cfg.remote_sin_lat()) as usize)
-                    .unwrap();
-                child_inst.valid = true;
-                child_inst.sin.idx = node.info().coord.proc;
+                    let cnode_recv_pc = node.info().pc + pcfg.remote_sin_lat();
+                    if cnode.info().coord.proc != node.info().coord.proc {
+                        let child_inst = circuit.emul
+                            .module_mappings.get_mut(&ccoord.module).unwrap()
+                            .proc_mappings.get_mut(&coord.proc).unwrap()
+                            .instructions.get_mut(cnode_recv_pc as usize).unwrap();
+                        child_inst.valid = true;
+                        child_inst.sinfo.idx = node.info().coord.proc;
+                        child_inst.sinfo.recv_local = true;
+                        child_inst.sinfo.fwd = false;
+                    }
+                }
             }
         }
 
-        // add to signal map
         let nodemap = NodeMapInfo {
             info: node.info(),
             idx: nidx,
         };
-        signal_map.insert(node.name().to_string(), nodemap);
+        circuit.emul
+            .module_mappings.get_mut(&coord.module).unwrap()
+            .proc_mappings.get_mut(&coord.proc).unwrap()
+            .signal_map.insert(node.name().to_string(), nodemap);
     }
-    // FIXME: ...
-// circuit.emulator.signal_map = signal_map;
-// circuit.emulator.instructions = all_insts;
 }

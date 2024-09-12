@@ -49,9 +49,15 @@ pub struct Operand {
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub struct SwitchIn {
+pub struct SwitchInfo {
      /// proc to receive bit from
     pub idx: u32,
+
+     /// Receive from local switch
+    pub recv_local: bool,
+
+    /// forward the incomming bit
+    pub fwd: bool
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
@@ -60,7 +66,7 @@ pub struct Instruction {
     pub opcode: Primitives,
     pub lut: u64,
     pub operands: Vec<Operand>,
-    pub sin: SwitchIn,
+    pub sinfo: SwitchInfo,
 }
 
 impl Instruction {
@@ -70,7 +76,7 @@ impl Instruction {
             opcode: Primitives::NOP,
             lut: 0,
             operands: Vec::with_capacity(nops as usize),
-            sin: SwitchIn::default(),
+            sinfo: SwitchInfo::default(),
         }
     }
 
@@ -90,7 +96,7 @@ impl Instruction {
                 }
             }
         }
-        ret.push_bits(self.sin.idx as u64, cfg.switch_bits());
+        ret.push_bits(self.sinfo.idx as u64, cfg.switch_bits());
         return ret;
     }
 }
