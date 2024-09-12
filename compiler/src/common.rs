@@ -54,7 +54,7 @@ pub struct SwitchInfo {
     pub idx: u32,
 
      /// Receive from local switch
-    pub recv_local: bool,
+    pub local: bool,
 
     /// forward the incomming bit
     pub fwd: bool
