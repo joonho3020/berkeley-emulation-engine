@@ -111,7 +111,7 @@ impl Processor {
         }
 
         // Set sin_idx to receive from switch
-        self.sin_idx = de_inst.sin.idx;
+        self.sin_idx = de_inst.sinfo.idx;
 
         // LUT lookup
         let f_out = match &de_inst.opcode {

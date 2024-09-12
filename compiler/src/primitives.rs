@@ -34,17 +34,34 @@ impl Coordinate {
     }
 }
 
+#[derive(PartialEq, Debug, Copy, Clone, Default, Deserialize, Serialize, EnumCountMacro)]
+pub enum PathTypes {
+    #[default]
+    ProcessorInternal = 0,
+    InterProcessor,
+    InterModule,
+}
+
 #[derive(Debug, Clone, Copy, Default, Serialize)]
 pub struct NetworkPath {
     pub src: Coordinate,
     pub dst: Coordinate,
+    pub tpe: PathTypes
 }
 
 impl NetworkPath {
     pub fn new(src: Coordinate, dst: Coordinate) -> Self {
+        let tpe = if src == dst {
+            PathTypes::ProcessorInternal
+        } else if src.module == dst.module {
+            PathTypes::InterProcessor
+        } else {
+            PathTypes::InterModule
+        };
         NetworkPath {
             src: src,
             dst: dst,
+            tpe: tpe
         }
     }
 }
@@ -681,7 +698,9 @@ impl GlobalNetworkTopology {
                         NetworkRoute::from([*s2i_path, *i2d_path])
                     } else {
                         NetworkRoute::from([*s2i_path,
-                                           NetworkPath::new(s2i_path.dst, i2d_path.src),
+                                           NetworkPath::new(
+                                               s2i_path.dst,
+                                               i2d_path.src),
                                            *i2d_path])
                     };
                     ret.push(route);
@@ -825,17 +844,17 @@ impl PlatformConfig {
     /// `local.pc + intra_proc_dep_lat`
     ///   <me> | read imem | read dmem | compute + write dmem |
     ///   <me>                                    | read imem | read dmem | compute
-    pub fn intra_proc_dep_lat(self: &Self) -> Cycle {
-        self.dmem_rd_lat + self.dmem_wr_lat
-    }
+// pub fn intra_proc_dep_lat(self: &Self) -> Cycle {
+// self.dmem_rd_lat + self.dmem_wr_lat
+// }
 
     /// - I can start using bits computed from a remote processor at
     /// `remote.pc + inter_proc_dep_lat`.
     ///   <other> | read imem | read dmem | lut + network | write dmem |
     ///   <me>                                             | read imem | read dmem | compute |
-    pub fn inter_proc_dep_lat(self: &Self) -> Cycle {
-        self.dmem_rd_lat + self.inter_proc_nw_lat + self.dmem_wr_lat
-    }
+// pub fn inter_proc_dep_lat(self: &Self) -> Cycle {
+// self.dmem_rd_lat + self.inter_proc_nw_lat + self.dmem_wr_lat
+// }
 
     /// - I have to receive a incoming bit from a remote processor at
     /// `remote.pc + remote_sin_lat`
@@ -859,10 +878,10 @@ impl PlatformConfig {
 
     // TODO: Add global network latency, fix these functions for proper abstraction
     pub fn nw_path_lat(self: &Self, path: &NetworkPath) -> u32 {
-        if path.src.module == path.dst.module {
-            self.inter_proc_nw_lat
-        } else {
-            self.inter_mod_nw_lat
+        match path.tpe {
+            PathTypes::ProcessorInternal => 0,
+            PathTypes::InterProcessor    => self.inter_proc_nw_lat,
+            PathTypes::InterModule       => self.inter_mod_nw_lat
         }
     }
 
@@ -977,7 +996,7 @@ impl Circuit {
             total_insns += self.emul.host_steps * mapping.used_procs;
             inst_str.push_str(&format!("============ module {} ============\n", i));
 
-            for (pi, pmap) in mapping.proc_mappings {
+            for (pi, pmap) in mapping.proc_mappings.iter() {
                 inst_str.push_str(&format!("------------ processor {} ------------\n", pi));
                 for (i, inst) in pmap.instructions.iter().enumerate() {
                     if (i as u32) < self.emul.host_steps {
