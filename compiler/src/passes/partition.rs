@@ -6,7 +6,6 @@ use petgraph::{
 };
 use histo::Histogram;
 use kaminpar::KaminParError;
-use std::cmp::max;
 
 fn set_proc(
     graph: &mut HWGraph,
@@ -78,9 +77,7 @@ fn kaminpar_partition_module(circuit: &mut Circuit) {
     let pcfg = &circuit.platform_cfg;
     let undir_graph = circuit.graph.clone().into_edge_type();
 
-    if pcfg.num_mods == 1 {
-        circuit.emul.used_mods = 1;
-    } else {
+    if pcfg.num_mods != 1 {
         let result = kaminpar_partition(&undir_graph, &kaminpar, pcfg.num_mods);
         match result {
             Ok(partition) => {
@@ -89,7 +86,6 @@ fn kaminpar_partition_module(circuit: &mut Circuit) {
                 for (nidx, pid) in circuit.graph.node_indices().zip(&partition) {
                     set_module(&mut circuit.graph, nidx, *pid);
                 }
-                circuit.emul.used_mods = partition.iter().max().unwrap() + 1;
 
                 println!("========== Global Partition Statistics ============");
                 println!("{}", get_partition_histogram(partition));
@@ -111,7 +107,7 @@ struct SubGraph {
 }
 
 fn get_subgraphs(circuit: &Circuit) -> IndexMap<u32, SubGraph> {
-    let used_modules = circuit.emul.used_mods;
+    let used_modules = circuit.platform_cfg.num_mods;
     let mut ret: IndexMap<u32, SubGraph> = IndexMap::new();
     for i in 0..used_modules {
         ret.insert(i, SubGraph::default());
@@ -158,18 +154,10 @@ fn kaminpar_partition_processor(circuit: &mut Circuit) {
         let result = kaminpar_partition(&undir_graph, &kaminpar, pcfg.num_procs);
         match result {
             Ok(partition) => {
-                let mut max_pidx = 0;
                 for (local_nidx, pidx) in sg.subgraph.node_indices().zip(&partition) {
                     let global_nidx = sg.to_global.get(&local_nidx).unwrap();
                     set_proc(&mut circuit.graph, *global_nidx, *pidx);
-                    max_pidx = max(max_pidx, *pidx);
                 }
-                circuit.emul.module_mappings.insert(
-                    *module,
-                    ModuleMapping {
-                        used_procs: max_pidx + 1,
-                        proc_mappings: IndexMap::new()
-                    });
                 println!("========== Local Partition Statistics ============");
                 println!("{}", get_partition_histogram(partition));
                 println!("===================================================");
@@ -178,5 +166,11 @@ fn kaminpar_partition_processor(circuit: &mut Circuit) {
                 println!("Local Kaminpar partitioning failed {}", module);
             }
         }
+    }
+
+    for i in 0..circuit.platform_cfg.num_mods {
+        circuit.emul.module_mappings.insert(
+            i,
+            ModuleMapping { proc_mappings: IndexMap::new() });
     }
 }

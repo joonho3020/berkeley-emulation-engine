@@ -1,5 +1,5 @@
 use blif_parser::common::*;
-use blif_parser::fsim::module::*;
+use blif_parser::fsim::board::*;
 use blif_parser::passes::parser;
 use blif_parser::passes::runner;
 use blif_parser::primitives::GlobalNetworkTopology;
@@ -65,14 +65,17 @@ fn test_emulator(
         }
     );
     println!("Running compiler passes with config: {:#?}", &circuit.platform_cfg);
+
     runner::run_compiler_passes(&mut circuit);
 
-// save_graph_pdf(
-// &format!("{:?}", circuit.platform_cfg.topology),
-// &format!("{}/{}.topology.dot", cwd.to_str().unwrap(), args.top_mod),
-// &format!("{}/{}.topology.pdf", cwd.to_str().unwrap(), args.top_mod))?;
+    save_graph_pdf(
+        &format!("{:?}", circuit.platform_cfg.topology),
+        &format!("{}/{}.topology.dot", cwd.to_str().unwrap(), args.top_mod),
+        &format!("{}/{}.topology.pdf", cwd.to_str().unwrap(), args.top_mod))?;
+
     circuit.save_emulator_instructions()?;
     circuit.save_emulator_sigmap()?;
+
     save_graph_pdf(
         &format!("{:?}", circuit),
         &format!("{}/{}.dot", cwd.to_str().unwrap(), args.top_mod),
@@ -120,8 +123,8 @@ fn test_emulator(
     waveform_path.push_str("/build/sim.vcd");
     let mut waveform_db = WaveformDB::new(waveform_path);
 
-    let mut module     = Module::from_circuit(&circuit);
-    let mut module_lag = Module::from_circuit(&circuit);
+    let mut board     = Board::from(&circuit);
+    let mut board_lag = Board::from(&circuit);
 
     let cycles = input_stimuli_blasted.values().fold(0, |x, y| max(x, y.len()));
     for cycle in 0..cycles {
@@ -140,7 +143,7 @@ fn test_emulator(
         // Save that in the input_stimuli_by_step
         let mut input_stimuli_by_step: IndexMap<u32, Vec<(&str, Bit)>> = IndexMap::new();
         for (sig, bit) in input_stimuli_by_name.iter() {
-            match module.nodeindex(sig) {
+            match board.nodeindex(sig) {
                 Some(nidx) => {
                     let pc = circuit.graph.node_weight(nidx).unwrap().info().pc;
                     let step = pc + circuit.platform_cfg.pc_ldm_offset();
@@ -156,16 +159,16 @@ fn test_emulator(
 
         // run a cycle
         if args.verbose {
-            module.run_cycle_verbose(&input_stimuli_by_step);
+            board.run_cycle_verbose(&input_stimuli_by_step);
         } else {
-            module.run_cycle(&input_stimuli_by_step);
+            board.run_cycle(&input_stimuli_by_step);
         }
 
         // Compare the emulated signals with the reference RTL simulation
         let mut found_mismatch = false;
         let ref_signals = waveform_db.signal_values_at_cycle((cycle * 2 + 8) as u32);
         for (signal_name, four_state_bit) in ref_signals.iter() {
-            let peek = module.peek(signal_name);
+            let peek = board.peek(signal_name);
             match (peek, four_state_bit.to_bit()) {
                 (Some(bit), Some(ref_bit)) => {
                     if bit != ref_bit {
@@ -175,26 +178,31 @@ fn test_emulator(
                             cycle, signal_name, ref_bit, bit
                         );
 
-                        match module.nodeindex(signal_name) {
+                        match board.nodeindex(signal_name) {
                             Some(nodeidx) => {
                                 save_graph_pdf(
-                                    &circuit.debug_graph(nodeidx, &module),
-                                    &format!("{}/after-cycle-{}-signal-{}.dot", cwd.to_str().unwrap(), cycle, signal_name),
-                                    &format!("{}/after-cycle-{}-signal-{}.pdf", cwd.to_str().unwrap(), cycle, signal_name))?;
+                                    &circuit.debug_graph(nodeidx, &board),
+                                    &format!("{}/after-cycle-{}-signal-{}.dot",
+                                             cwd.to_str().unwrap(), cycle, signal_name),
+                                    &format!("{}/after-cycle-{}-signal-{}.pdf",
+                                             cwd.to_str().unwrap(), cycle, signal_name))?;
                                 save_graph_pdf(
-                                    &circuit.debug_graph(nodeidx, &module_lag),
-                                    &format!("{}/before-cycle-{}-signal-{}.dot", cwd.to_str().unwrap(), cycle, signal_name),
-                                    &format!("{}/before-cycle-{}-signal-{}.pdf", cwd.to_str().unwrap(), cycle, signal_name))?;
+                                    &circuit.debug_graph(nodeidx, &board_lag),
+                                    &format!("{}/before-cycle-{}-signal-{}.dot",
+                                             cwd.to_str().unwrap(), cycle, signal_name),
+                                    &format!("{}/before-cycle-{}-signal-{}.pdf",
+                                             cwd.to_str().unwrap(), cycle, signal_name))?;
                             }
                             None => {}
                         }
+
                         if args.verbose {
                             println!("============= Module ================");
-                            module.print();
+                            board.print();
                             println!("============= Module Lag ================");
-                            module_lag.print();
+                            board_lag.print();
                             println!("============= Sig Map ================");
-                            module.print_sigmap();
+                            board.print_sigmap();
                         }
                     }
                 }
@@ -207,10 +215,10 @@ fn test_emulator(
             return Ok(ReturnCode::TestFailed);
         }
 
-        module_lag.run_cycle(&input_stimuli_by_step);
+        board_lag.run_cycle(&input_stimuli_by_step);
 
         for opb in output_ports_blasted.iter() {
-            let output = module.peek(opb).unwrap();
+            let output = board.peek(opb).unwrap();
             output_blasted.get_mut(opb).unwrap().push(output as u64);
         }
     }

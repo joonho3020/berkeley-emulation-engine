@@ -8,8 +8,10 @@ use petgraph::Direction::{Incoming, Outgoing};
 /// - After the instructions are scheduled, set the appropriate registers and
 /// network input values
 pub fn map_instructions(circuit: &mut Circuit) {
+    let pcfg = &circuit.platform_cfg;
+
     for (_, mmap) in circuit.emul.module_mappings.iter_mut() {
-        for pi in 0..mmap.used_procs {
+        for pi in 0..pcfg.num_procs {
             mmap.proc_mappings.insert(pi, ProcessorMapping {
                 instructions: vec![Instruction::default(); circuit.emul.host_steps as usize],
                 signal_map: IndexMap::new()
@@ -17,7 +19,6 @@ pub fn map_instructions(circuit: &mut Circuit) {
         }
     }
 
-    let pcfg = &circuit.platform_cfg;
     for nidx in circuit.graph.node_indices() {
         let node = circuit.graph.node_weight(nidx).unwrap();
         let coord = node.info().coord;

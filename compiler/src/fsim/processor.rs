@@ -22,12 +22,16 @@ pub struct Processor {
     pipeline: Vec<Instruction>,
     io_i: Bit,
     io_o: Bit,
-    s_port: ProcessorSwitchPort,
+    s_local_port: ProcessorSwitchPort,
     sin_idx: u32,
+    s_global_port: ProcessorSwitchPort,
+    sin_local: bool,
+    sin_fwd: bool,
+    sin_fwd_bit: Bit
 }
 
 impl Processor {
-    pub fn new(host_steps_: Bits, cfg: &PlatformConfig, id_: u32) -> Self {
+    pub fn new(id_: u32, host_steps_: Bits, cfg: &PlatformConfig) -> Self {
         Processor {
             cfg: cfg.clone(),
             host_steps: host_steps_,
@@ -39,7 +43,11 @@ impl Processor {
             io_o: 0,
             pc: 0,
             target_cycle: 0,
-            s_port: ProcessorSwitchPort::default(),
+            s_local_port: ProcessorSwitchPort::default(),
+            s_global_port: ProcessorSwitchPort::default(),
+            sin_local: false,
+            sin_fwd: false,
+            sin_fwd_bit: 0,
             sin_idx: 0,
             processor_id: id_
         }
@@ -112,6 +120,7 @@ impl Processor {
 
         // Set sin_idx to receive from switch
         self.sin_idx = de_inst.sinfo.idx;
+        self.sin_local = de_inst.sinfo.local;
 
         // LUT lookup
         let f_out = match &de_inst.opcode {
@@ -144,20 +153,38 @@ impl Processor {
         }
 
         // Set switch out
-        self.s_port.op = f_out;
+        if self.sin_fwd {
+            self.s_local_port.op  = self.sin_fwd_bit;
+            self.s_global_port.op = self.sin_fwd_bit;
+        } else {
+            self.s_local_port.op  = f_out;
+            self.s_global_port.op = f_out;
+        }
+
+        // store the sin_fwd in a register and forward sin_fwd_bit in the next cycle
+        self.sin_fwd = de_inst.sinfo.fwd;
 
         self.ldm.run_cycle();
         self.imem.run_cycle();
     }
 
     pub fn update_sdm_and_pc(self: &mut Self) {
+        let sdm_store_bit = if self.sin_local {
+            self.s_local_port.ip
+        } else {
+            self.s_global_port.ip
+        };
+
         // Update SDM
         if self.pc as u32 >= self.cfg.pc_sdm_offset() {
             self.sdm.get_wport(0).submit_req(WriteReq {
                 addr: (self.pc as u32) - self.cfg.pc_sdm_offset(),
-                data: self.s_port.ip
+                data: sdm_store_bit
             });
         }
+
+        self.sin_fwd_bit = sdm_store_bit;
+
         self.sdm.run_cycle();
 
         // Increment step
@@ -173,12 +200,20 @@ impl Processor {
         self.sin_idx
     }
 
-    pub fn set_switch_in(self: &mut Self, b: Bit) {
-        self.s_port.ip = b;
+    pub fn set_local_switch_in(self: &mut Self, b: Bit) {
+        self.s_local_port.ip = b;
     }
 
-    pub fn get_switch_out(self: &mut Self) -> Bit {
-        self.s_port.op
+    pub fn get_local_switch_out(self: &mut Self) -> Bit {
+        self.s_local_port.op
+    }
+
+    pub fn set_global_switch_in(self: &mut Self, b: Bit) {
+        self.s_global_port.ip = b;
+    }
+
+    pub fn get_global_switch_out(self: &mut Self) -> Bit {
+        self.s_global_port.op
     }
 
     pub fn set_io_i(self: &mut Self, x: Bit) {

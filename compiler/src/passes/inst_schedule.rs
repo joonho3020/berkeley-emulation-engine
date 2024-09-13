@@ -611,7 +611,7 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
     // TODO: consider global networking lat
     circuit.emul.host_steps = pc + 1 + circuit.platform_cfg.pc_sdm_offset();
 
-    let total_steps = circuit.emul.host_steps * circuit.emul.used_mods * circuit.platform_cfg.num_procs;
+    let total_steps = circuit.emul.host_steps * circuit.platform_cfg.total_procs();
     println!("Machine ({} / {}) = {:.2} %, host_steps = {}",
           circuit.graph.node_count(),
           total_steps,

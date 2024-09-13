@@ -1,5 +1,5 @@
 use crate::common::*;
-use crate::fsim::module::Module as EmulModule;
+use crate::fsim::board::Board;
 use crate::utils::write_string_to_file;
 use derivative::Derivative;
 use indexmap::IndexMap;
@@ -918,9 +918,6 @@ pub struct ProcessorMapping {
 /// - Fields specific to how the design is mapped to a particular emulator module
 #[derive(Serialize, Debug, Default, Clone)]
 pub struct ModuleMapping {
-    /// Number of used processors in the module
-    pub used_procs: u32,
-
     /// Per processor emulation mapping information
     pub proc_mappings: IndexMap<u32, ProcessorMapping>,
 }
@@ -934,9 +931,6 @@ pub struct EmulatorMapping {
 
     /// Maximum rank of this design
     pub max_rank: u32,
-
-    /// Number of used modules
-    pub used_mods: u32,
 
     /// Per module emulation mapping information
     pub module_mappings: IndexMap<u32, ModuleMapping>
@@ -990,10 +984,9 @@ impl Circuit {
                                 self.compiler_cfg.output_dir,
                                 self.compiler_cfg.top_module);
         let mut inst_str = "".to_string();
-        let mut total_insns = 0;
+        let total_insns = self.emul.host_steps * self.platform_cfg.total_procs();
         let mut total_nops = 0;
         for (i, mapping) in self.emul.module_mappings.iter() {
-            total_insns += self.emul.host_steps * mapping.used_procs;
             inst_str.push_str(&format!("============ module {} ============\n", i));
 
             for (pi, pmap) in mapping.proc_mappings.iter() {
@@ -1039,7 +1032,7 @@ impl Circuit {
     /// it reaches Gate, Latch or Input.
     /// It will also print the bit-value associated with the node
     /// computed by the emulation processor.
-    pub fn debug_graph(&self, dbg_node: NodeIndex, module: &EmulModule) -> String {
+    pub fn debug_graph(&self, dbg_node: NodeIndex, board: &Board) -> String {
         let indent: &str = "    ";
         let mut vis_map = self.graph.visit_map();
         let mut q = vec![];
@@ -1071,7 +1064,7 @@ impl Circuit {
         for nidx in self.graph.node_indices() {
             if vis_map.is_visited(&nidx) {
                 let node = self.graph.node_weight(nidx).unwrap();
-                let val = module.peek(node.name()).unwrap();
+                let val = board.peek(node.name()).unwrap();
                 outstring.push_str(&format!(
                     "{}{} [ label = \"{:?} {}\"]\n",
                     indent,

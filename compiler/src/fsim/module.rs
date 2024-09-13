@@ -1,19 +1,18 @@
 use crate::common::*;
 use crate::fsim::processor::*;
 use crate::fsim::switch::*;
-use crate::primitives::{Circuit, NodeMapInfo, Primitives, PlatformConfig};
+use crate::primitives::{Primitives, PlatformConfig, NodeMapInfo};
 use indexmap::IndexMap;
 use itertools::Itertools;
 use petgraph::graph::NodeIndex;
 use std::fmt::Debug;
 
 pub struct Module {
-    switch: Switch,
-    procs: Vec<Processor>,
-    host_steps: u32, // Total number of host machine cycles to emulate one target cycle
-    iprocs: Vec<usize>, // Processor indices that have input IO ports
-    oprocs: Vec<usize>, // Processor indices that have output IO ports
-    signal_map: IndexMap<String, NodeMapInfo>,
+    pub id: u32,
+    pub switch: Switch,
+    pub procs: Vec<Processor>,
+    pub host_steps: u32, // Total number of host machine cycles to emulate one target cycle
+    pub signal_map: IndexMap<String, NodeMapInfo>
 }
 
 impl Debug for Module {
@@ -23,51 +22,14 @@ impl Debug for Module {
 }
 
 impl Module {
-    pub fn new(nprocs: u32, host_steps_: u32, cfg: &PlatformConfig) -> Self {
+    pub fn new(id: u32, cfg: &PlatformConfig, host_steps_: u32) -> Self {
         Module {
-            switch: Switch::new(nprocs, cfg.inter_proc_nw_lat),
-            procs: (0..nprocs).map(|i| Processor::new(host_steps_, cfg, i as u32)).collect_vec(),
+            id: id,
+            switch: Switch::new(cfg.num_procs, cfg.inter_proc_nw_lat),
+            procs: (0..cfg.num_procs).map(|i| Processor::new(i as u32, host_steps_, cfg)).collect_vec(),
             host_steps: host_steps_,
-            iprocs: vec![],
-            oprocs: vec![],
-            signal_map: IndexMap::new(),
+            signal_map: IndexMap::new()
         }
-    }
-
-    /// Given a circuit that went through the compiler pass,
-    /// return a Module with instructions from the compiler pass mapped
-    pub fn from_circuit(c: &Circuit) -> Self {
-    // FIXME: ...
-// let all_insts = &c.emulator.instructions;
-// let nprocs = all_insts.len() as u32;
-// let host_steps = c.emulator.host_steps;
-
-// let mut module = Module::new(nprocs, host_steps, &c.cfg);
-// module.set_insts(all_insts.to_vec());
-// module.set_signal_map(&c.emulator.signal_map);
-
-// return module;
-        return Module::new(10, 10, &c.platform_cfg);
-    }
-
-    fn set_insts(self: &mut Self, all_insts: Vec<Vec<Instruction>>) {
-        assert!(self.procs.len() >= all_insts.len());
-        for (i, insts) in all_insts.iter().enumerate() {
-            for (pc, inst) in insts.iter().enumerate() {
-                if (pc as u32) < self.host_steps {
-                    self.procs[i].set_inst(inst.clone(), pc);
-                    if inst.opcode == Primitives::Input {
-                        self.iprocs.push(i);
-                    } else if inst.opcode == Primitives::Output {
-                        self.oprocs.push(i);
-                    }
-                }
-            }
-        }
-    }
-
-    fn set_signal_map(self: &mut Self, signal_map: &IndexMap<String, NodeMapInfo>) {
-        self.signal_map = signal_map.clone()
     }
 
     pub fn print_2(self: &Self) {
@@ -86,6 +48,8 @@ impl Module {
     }
 
     pub fn print(self: &Self) {
+        println!("-------   Module: {} ------", self.id);
+
         print!("      ");
         for (i, _) in self.procs.iter().enumerate() {
             print!("   {:02}   ", i);
@@ -109,6 +73,35 @@ impl Module {
         println!("{:#?}", self.signal_map);
     }
 
+    pub fn compute(self: &mut Self) {
+        // compute fout
+        for (_, proc) in self.procs.iter_mut().enumerate() {
+            proc.compute();
+        }
+    }
+
+    pub fn set_local_switch_out(self: &mut Self) {
+        // swizzle outputs
+        for (i, proc) in self.procs.iter_mut().enumerate() {
+            self.switch.set_port_val(i, proc.get_local_switch_out());
+        }
+    }
+
+    pub fn set_local_switch_in(self: &mut Self) {
+        // set inputs
+        for (_, proc) in self.procs.iter_mut().enumerate() {
+            let switch_in_idx = proc.get_switch_in_id() as usize;
+            proc.set_local_switch_in(self.switch.get_port_val(switch_in_idx));
+        }
+    }
+
+    pub fn update_dmem_and_pc(self: &mut Self) {
+        // consume network inputs and update processor state
+        for (_, proc) in self.procs.iter_mut().enumerate() {
+            proc.update_sdm_and_pc();
+        }
+    }
+
     fn step(self: &mut Self) {
         // compute fout
         for (_, proc) in self.procs.iter_mut().enumerate() {
@@ -117,13 +110,13 @@ impl Module {
 
         // swizzle outputs
         for (i, proc) in self.procs.iter_mut().enumerate() {
-            self.switch.set_port_val(i, proc.get_switch_out());
+            self.switch.set_port_val(i, proc.get_local_switch_out());
         }
 
         // set inputs
         for (_, proc) in self.procs.iter_mut().enumerate() {
             let switch_in_idx = proc.get_switch_in_id() as usize;
-            proc.set_switch_in(self.switch.get_port_val(switch_in_idx));
+            proc.set_local_switch_in(self.switch.get_port_val(switch_in_idx));
         }
 
         // consume network inputs and update processor state
