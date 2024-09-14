@@ -88,7 +88,7 @@ pub fn map_instructions(circuit: &mut Circuit) {
         for cedge in cedges {
             match &cedge.weight().route {
                 Some(route) => {
-                    println!("node: {:?} cnode: {:?} route: {:?}", node, cedge.target(), route);
+                    println!("node: {} route: {:?}", node.name(), route);
 
                     let mut cur_route = NetworkRoute::new();
                     for (i, path) in route.iter().enumerate() {
@@ -97,12 +97,30 @@ pub fn map_instructions(circuit: &mut Circuit) {
                         } else {
                             node.info().pc + pcfg.nw_route_dep_lat(&cur_route)
                         };
+
+                        assert!(src_send_pc < circuit.emul.host_steps,
+                                "src_send_pc {} >= host_steps {}",
+                                src_send_pc, circuit.emul.host_steps);
+
                         let src_inst = circuit.emul
                             .module_mappings.get_mut(&path.src.module).unwrap()
                             .proc_mappings.get_mut(&path.src.proc).unwrap()
                             .instructions.get_mut(src_send_pc as usize).unwrap();
-                        src_inst.valid = true;
-                        src_inst.sinfo.fwd = i != 0;
+                        match path.tpe {
+                            PathTypes::ProcessorInternal => {
+                                // Do nothing
+                            }
+                            PathTypes::InterProcessor | PathTypes::InterModule => {
+                                src_inst.valid = true;
+                                if src_inst.sinfo.fwd_set {
+                                    assert!(src_inst.sinfo.fwd == (i != 0),
+                                        "node: {} coord {:?} pc: {} already set, but overwritten",
+                                        node.name(), path.src, src_send_pc);
+                                }
+                                src_inst.sinfo.fwd = i != 0;
+                                src_inst.sinfo.fwd_set = true;
+                            }
+                        }
 
                         cur_route.push_back(*path);
                         let dst_recv_pc = node.info().pc + pcfg.nw_route_lat(&cur_route);
@@ -110,9 +128,22 @@ pub fn map_instructions(circuit: &mut Circuit) {
                             .module_mappings.get_mut(&path.dst.module).unwrap()
                             .proc_mappings.get_mut(&path.dst.proc).unwrap()
                             .instructions.get_mut(dst_recv_pc as usize).unwrap();
-                        dst_inst.valid = true;
-                        dst_inst.sinfo.idx = path.src.proc;
-                        dst_inst.sinfo.local = path.src.module == path.dst.module;
+                        match path.tpe {
+                            PathTypes::ProcessorInternal => {
+                                // Do nothing
+                            }
+                            PathTypes::InterProcessor | PathTypes::InterModule => {
+                                if dst_inst.sinfo.local_set {
+                                    assert!(dst_inst.sinfo.local == (path.src.module == path.dst.module),
+                                        "node: {} coord {:?} pc: {} already set, but overwritten",
+                                        node.name(), path.dst, dst_recv_pc);
+                                }
+                                dst_inst.valid = true;
+                                dst_inst.sinfo.idx = path.src.proc;
+                                dst_inst.sinfo.local = path.src.module == path.dst.module;
+                                dst_inst.sinfo.local_set = true;
+                            }
+                        }
                     }
                 }
                 None => {

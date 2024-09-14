@@ -4,12 +4,13 @@ use full_palette::RED;
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
 use petgraph::{
-    data::DataMap, graph::{EdgeReference, NodeIndex}, visit::{EdgeRef, VisitMap, Visitable}, Direction::{Incoming, Outgoing}
+    graph::{EdgeReference, NodeIndex}, visit::{EdgeRef, VisitMap, Visitable}, Direction::{Incoming, Outgoing}
 };
 use fixedbitset::FixedBitSet;
 use plotters::prelude::*;
 use std::collections::BTreeSet;
 use std::cmp::Ordering;
+use std::cmp::max;
 
 #[derive(Debug, Default, Clone)]
 struct NetworkPorts {
@@ -251,7 +252,7 @@ fn input_arrived(
     // check for deps with parents
    match &edge.weight().route {
        Some(route) => {
-           if parent.info().pc + pcfg.nw_route_dep_lat(&route) > *pc {
+           if parent.info().pc + pcfg.nw_route_dep_lat(&route) >= *pc {
               unresolved_dep = true;
            }
        }
@@ -281,7 +282,12 @@ fn all_inputs_arrived(circuit: &Circuit, nidx: &NodeIndex, pc: &u32) -> bool {
     return arrived;
 }
 
-fn route_usable(nw: &mut NetworkAvailability, route: &NetworkRoute, pc: &u32, pcfg: &PlatformConfig)-> bool {
+fn route_usable(
+    nw: &mut NetworkAvailability,
+    route: &NetworkRoute,
+    pc: &u32,
+    pcfg: &PlatformConfig
+)-> bool {
     let mut usable = true;
     let mut cur_route = NetworkRoute::new();
     for (i, path) in route.iter().enumerate() {
@@ -619,16 +625,36 @@ pub fn schedule_instructions_internal(circuit: &mut Circuit) {
 
         print_tail_graph(circuit, &per_pc_scheduled, &debug_scheduled_nodes, pc_min, cur_rank);
 
-        // TODO: consider global networking lat
-        assert!(pc + 1 + circuit.platform_cfg.pc_sdm_offset() < circuit.platform_cfg.max_steps,
+        assert!(pc < circuit.platform_cfg.max_steps,
                 "Schedule failed {} nodes out of {} nodes scheduled, pc {} max_steps {}",
                 scheduled_map.count_ones(..),
                 scheduled_map.len(),
                 pc,
                 circuit.platform_cfg.max_steps);
     }
+
+    let mut max_nw_route_dep_lat = 0;
+    for eidx in circuit.graph.edge_indices() {
+        match &circuit.graph.edge_weight(eidx) {
+            Some(e) => {
+                match &e.route {
+                    Some(r) => {
+                        max_nw_route_dep_lat = max(max_nw_route_dep_lat,
+                                                   circuit.platform_cfg.nw_route_dep_lat(&r));
+                    }
+                    None => {
+                assert!(false, "Edge with unassigned NetworkRoute");
+                    }
+                }
+            }
+            None => {
+                assert!(false, "Edge with unassigned NetworkRoute");
+            }
+        }
+    }
+
     // TODO: consider global networking lat
-    circuit.emul.host_steps = pc + 1 + circuit.platform_cfg.pc_sdm_offset();
+    circuit.emul.host_steps = pc + 1 + max_nw_route_dep_lat;
 
     let total_steps = circuit.emul.host_steps * circuit.platform_cfg.total_procs();
     println!("Machine ({} / {}) = {:.2} %, host_steps = {}",

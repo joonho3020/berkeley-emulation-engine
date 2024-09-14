@@ -197,10 +197,6 @@ fn test_emulator(
                         }
 
                         if args.verbose {
-                            println!("============= Module ================");
-                            board.print();
-                            println!("============= Module Lag ================");
-                            board_lag.print();
                             println!("============= Sig Map ================");
                             board.print_sigmap();
                         }

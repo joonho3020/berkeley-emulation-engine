@@ -1166,10 +1166,17 @@ impl Debug for Circuit {
             };
             write!(
                 f,
-                "{}{} [ label = \"{:?}\" color = \"{}\"]\n",
+                "{}{} [ label = {:?} color = \"{}\"]\n",
                 indent,
                 nidx.index(),
-                node,
+                format!("{} {:?}\nmod: {} proc: {} pc: {}\nasap: {} alap: {}\n",
+                        node.name(),
+                        node.is(),
+                        node.info().coord.module,
+                        node.info().coord.proc,
+                        node.info().pc,
+                        node.info().rank.asap,
+                        node.info().rank.alap),
                 color
             )?;
 

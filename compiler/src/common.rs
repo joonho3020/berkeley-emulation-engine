@@ -50,6 +50,9 @@ pub struct Operand {
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct SwitchInfo {
+    pub local_set: bool,
+    pub fwd_set: bool,
+
      /// proc to receive bit from
     pub idx: u32,
 
