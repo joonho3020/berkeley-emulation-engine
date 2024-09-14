@@ -1065,13 +1065,36 @@ impl Circuit {
             if vis_map.is_visited(&nidx) {
                 let node = self.graph.node_weight(nidx).unwrap();
                 let val = board.peek(node.name()).unwrap();
-                outstring.push_str(&format!(
-                    "{}{} [ label = \"{:?} {}\"]\n",
-                    indent,
-                    nidx.index(),
-                    node,
-                    val
-                ));
+                if node.is() == Primitives::Lut {
+                    outstring.push_str(&format!(
+                        "{}{} [ label = {:?} ]\n",
+                        indent,
+                        nidx.index(),
+                        format!("{} {:?}\nmod: {} proc: {}\nasap: {} alap: {} pc: {}\nlut: {:?} val: {}",
+                                node.name(),
+                                node.is(),
+                                node.info().coord.module,
+                                node.info().coord.proc,
+                                node.info().rank.asap,
+                                node.info().rank.alap,
+                                node.info().pc,
+                                node.get_lut().unwrap().table,
+                                val)));
+                } else {
+                    outstring.push_str(&format!(
+                        "{}{} [ label = {:?} ]\n",
+                        indent,
+                        nidx.index(),
+                        format!("{} {:?}\nmod: {} proc: {}\nasap: {} alap: {} pc: {}\nval: {}",
+                                node.name(),
+                                node.is(),
+                                node.info().coord.module,
+                                node.info().coord.proc,
+                                node.info().rank.asap,
+                                node.info().rank.alap,
+                                node.info().pc,
+                                val)));
+                }
             }
         }
 

@@ -153,7 +153,7 @@ impl Processor {
         }
 
         // Set switch out
-        if self.sin_fwd {
+        if de_inst.sinfo.fwd {
             self.s_local_port.op  = self.sin_fwd_bit;
             self.s_global_port.op = self.sin_fwd_bit;
         } else {
@@ -161,8 +161,7 @@ impl Processor {
             self.s_global_port.op = f_out;
         }
 
-        // store the sin_fwd in a register and forward sin_fwd_bit in the next cycle
-        self.sin_fwd = de_inst.sinfo.fwd;
+// self.sin_fwd = de_inst.sinfo.fwd;
 
         self.ldm.run_cycle();
         self.imem.run_cycle();

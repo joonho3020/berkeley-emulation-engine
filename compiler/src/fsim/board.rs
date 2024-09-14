@@ -120,13 +120,8 @@ impl Board {
         for (m, module) in self.modules.iter_mut().enumerate() {
             for (p, proc) in module.procs.iter_mut().enumerate() {
                 let u = Coordinate { module: m as u32, proc: p  as u32 };
-                match self.global_switch_edges.get_mut(&u) {
-                    Some(v) => {
-                        let recv_port = v.id(&self.pcfg) as usize;
-                        self.global_switch.set_port_val(recv_port, proc.get_global_switch_out());
-                    }
-                    None => {}
-                }
+                let send_port = u.id(&self.pcfg) as usize;
+                self.global_switch.set_port_val(send_port, proc.get_global_switch_out());
             }
         }
     }
@@ -192,8 +187,8 @@ impl Board {
         }
     }
 
-    pub fn run_cycle_verbose(self: &mut Self, input_stimuli: &IndexMap<u32, Vec<(&str, Bit)>>) {
-        println!("-------------------- run cycle ----------------------");
+    pub fn run_cycle_verbose(self: &mut Self, input_stimuli: &IndexMap<u32, Vec<(&str, Bit)>>, cycle: &u32) {
+        println!("==================== Running Cycle {} ======================", cycle);
         for step in 0..self.host_steps {
             match input_stimuli.get(&(step as u32)) {
                 Some(vec) => {
@@ -204,6 +199,7 @@ impl Board {
                 None => {}
             };
             self.step();
+            println!("------------ Step Finished {} --------------", step);
             self.print();
         }
     }

@@ -159,7 +159,7 @@ fn test_emulator(
 
         // run a cycle
         if args.verbose {
-            board.run_cycle_verbose(&input_stimuli_by_step);
+            board.run_cycle_verbose(&input_stimuli_by_step, &(cycle as u32));
         } else {
             board.run_cycle(&input_stimuli_by_step);
         }

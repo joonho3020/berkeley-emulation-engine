@@ -2,10 +2,9 @@ use crate::primitives::*;
 use crate::utils::save_graph_pdf;
 use full_palette::RED;
 use indexmap::{IndexMap, IndexSet};
+use itertools::Itertools;
 use petgraph::{
-    graph::{EdgeReference, NodeIndex},
-    visit::{EdgeRef, VisitMap, Visitable},
-    Direction::{Incoming, Outgoing}
+    data::DataMap, graph::{EdgeReference, NodeIndex}, visit::{EdgeRef, VisitMap, Visitable}, Direction::{Incoming, Outgoing}
 };
 use fixedbitset::FixedBitSet;
 use plotters::prelude::*;
@@ -285,10 +284,17 @@ fn all_inputs_arrived(circuit: &Circuit, nidx: &NodeIndex, pc: &u32) -> bool {
 fn route_usable(nw: &mut NetworkAvailability, route: &NetworkRoute, pc: &u32, pcfg: &PlatformConfig)-> bool {
     let mut usable = true;
     let mut cur_route = NetworkRoute::new();
-    for path in route.iter() {
-        if nw.oports.is_busy(path.src.id(pcfg), pc + pcfg.nw_route_lat(&cur_route)) {
-            usable = false;
-            break;
+    for (i, path) in route.iter().enumerate() {
+        if i == 0 {
+            if nw.oports.is_busy(path.src.id(pcfg), *pc) {
+                usable = false;
+                break;
+            }
+        } else {
+            if nw.oports.is_busy(path.src.id(pcfg), *pc + pcfg.nw_route_dep_lat(&cur_route)) {
+                usable = false;
+                break;
+            }
         }
 
         cur_route.push_back(*path);
@@ -303,21 +309,25 @@ fn route_usable(nw: &mut NetworkAvailability, route: &NetworkRoute, pc: &u32, pc
 
 fn route_add_front(src: &Coordinate, route: &NetworkRoute) -> NetworkRoute {
     assert!(route.len() > 0);
+    check_route(route, "route_add_front route");
     let mut new_route = route.clone();
     let start = new_route.front().unwrap().src;
     if *src != start {
         new_route.push_front(NetworkPath::new(*src, start));
     }
+    check_route(&new_route, "route_add_front new_route");
     return new_route;
 }
 
-fn route_add_back(dst: &Coordinate, route: NetworkRoute) -> NetworkRoute {
+fn route_add_back(dst: &Coordinate, route: &NetworkRoute) -> NetworkRoute {
     assert!(route.len() > 0);
+    check_route(route, "route_add_back route");
     let mut new_route = route.clone();
-    let end = route.front().unwrap().dst;
+    let end = route.back().unwrap().dst;
     if *dst != end {
         new_route.push_back(NetworkPath::new(end, *dst));
     }
+    check_route(&new_route, "route_add_back new_route");
     return new_route;
 }
 
@@ -353,7 +363,7 @@ fn child_reachable(
         // found already existing path to dst module
         if inter_mod_routes.contains_key(&dst.module) {
             let route = inter_mod_routes.get(&dst.module).unwrap();
-            let new_route = route_add_back(&dst, route_add_front(&src, route));
+            let new_route = route_add_back(&dst, &route_add_front(&src, route));
             if route_usable(nw, &new_route, pc, &pcfg) {
                 return Some(new_route);
             }
@@ -364,7 +374,7 @@ fn child_reachable(
         assert!(paths.len() > 0, "No inter module path from {:?} to {:?}", src, dst);
         for p in paths.iter() {
             let route = NetworkRoute::from([*p]);
-            let new_route = route_add_back(&dst, route_add_front(&src, &route));
+            let new_route = route_add_back(&dst, &route_add_front(&src, &route));
             if route_usable(nw, &new_route, pc, &pcfg) {
                 inter_mod_routes.insert(dst.module, route);
                 return Some(new_route);
@@ -374,7 +384,7 @@ fn child_reachable(
         // no direct path exists between src & dst modules, go multi-hop
         let routes = pcfg.topology.inter_mod_routes(src, dst);
         for route in routes.iter() {
-            let new_route = route_add_back(&dst, route_add_front(&src, route));
+            let new_route = route_add_back(&dst, &route_add_front(&src, route));
             if route_usable(nw, &new_route, pc, &pcfg) {
                 inter_mod_routes.insert(dst.module, route.clone());
                 return Some(new_route);
@@ -419,8 +429,12 @@ fn mark_nw_busy(
     pcfg: &PlatformConfig
 ) {
     let mut cur_route = NetworkRoute::new();
-    for path in route.iter() {
-        nw.oports.set_busy(path.src.id(pcfg), pc + pcfg.nw_route_lat(&cur_route));
+    for (i, path) in route.iter().enumerate() {
+        if i == 0 {
+            nw.oports.set_busy(path.src.id(pcfg), *pc);
+        } else {
+            nw.oports.set_busy(path.src.id(pcfg), pc + pcfg.nw_route_dep_lat(&cur_route));
+        }
         cur_route.push_back(*path);
         nw.iports.set_busy(path.dst.id(pcfg), pc + pcfg.nw_route_lat(&cur_route));
     }
@@ -487,6 +501,11 @@ fn schedule_candidates_at_pc(
     return remove_nodes;
 }
 
+pub fn schedule_instructions(circuit: &mut Circuit) {
+    schedule_instructions_internal(circuit);
+    check_schedule(circuit);
+}
+
 /// Implements the modified list scheduling algorithm.
 /// For each node, identify the ASAP & ALAP ranks.
 /// Nodes with ASAP == ALAP are critical nodes.
@@ -494,7 +513,7 @@ fn schedule_candidates_at_pc(
 /// mobility (rank - ASAP) == 0 first. We can increment the PC while doing so.
 /// Then, for the PC range, slot in the nodes with mobility != 0 as much as
 /// possible.
-pub fn schedule_instructions(circuit: &mut Circuit) {
+pub fn schedule_instructions_internal(circuit: &mut Circuit) {
     let mut cpn: IndexSet<NodeIndex> = IndexSet::new();
     for nidx in circuit.graph.node_indices() {
         let rank = circuit.graph.node_weight(nidx).unwrap().info().rank;
@@ -623,4 +642,23 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
         scheduled_map.count_ones(..), scheduled_map.len());
 
     print_scheduling_stats(circuit, must_schedule_data, be_schedule_data, nw_util_data);
+}
+
+fn check_route(route: &NetworkRoute, msg: &str) {
+    for (a, b) in route.iter().tuple_windows() {
+        assert_eq!(a.dst, b.src, "{} Route is not connected {:?}", msg, route);
+    }
+}
+
+fn check_schedule(circuit: &Circuit) {
+    for eidx in circuit.graph.edge_indices() {
+        let edge = circuit.graph.edge_weight(eidx).unwrap();
+        match &edge.route {
+            Some(route) => {
+                check_route(route, "Final check");
+            }
+            None => {
+            }
+        }
+    }
 }

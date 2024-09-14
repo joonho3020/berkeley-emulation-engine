@@ -88,18 +88,31 @@ pub fn map_instructions(circuit: &mut Circuit) {
         for cedge in cedges {
             match &cedge.weight().route {
                 Some(route) => {
+                    println!("node: {:?} cnode: {:?} route: {:?}", node, cedge.target(), route);
+
                     let mut cur_route = NetworkRoute::new();
                     for (i, path) in route.iter().enumerate() {
+                        let src_send_pc = if i == 0 {
+                            node.info().pc
+                        } else {
+                            node.info().pc + pcfg.nw_route_dep_lat(&cur_route)
+                        };
+                        let src_inst = circuit.emul
+                            .module_mappings.get_mut(&path.src.module).unwrap()
+                            .proc_mappings.get_mut(&path.src.proc).unwrap()
+                            .instructions.get_mut(src_send_pc as usize).unwrap();
+                        src_inst.valid = true;
+                        src_inst.sinfo.fwd = i != 0;
+
                         cur_route.push_back(*path);
                         let dst_recv_pc = node.info().pc + pcfg.nw_route_lat(&cur_route);
-                        let inst = circuit.emul
+                        let dst_inst = circuit.emul
                             .module_mappings.get_mut(&path.dst.module).unwrap()
                             .proc_mappings.get_mut(&path.dst.proc).unwrap()
                             .instructions.get_mut(dst_recv_pc as usize).unwrap();
-                        inst.valid = true;
-                        inst.sinfo.idx = path.src.proc;
-                        inst.sinfo.local = path.src.module == path.dst.module;
-                        inst.sinfo.fwd = i != (route.len() - 1);
+                        dst_inst.valid = true;
+                        dst_inst.sinfo.idx = path.src.proc;
+                        dst_inst.sinfo.local = path.src.module == path.dst.module;
                     }
                 }
                 None => {
