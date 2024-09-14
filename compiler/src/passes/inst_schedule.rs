@@ -252,7 +252,7 @@ fn input_arrived(
     // check for deps with parents
    match &edge.weight().route {
        Some(route) => {
-           if parent.info().pc + pcfg.nw_route_dep_lat(&route) >= *pc {
+           if parent.info().pc + pcfg.nw_route_dep_lat(&route) > *pc {
               unresolved_dep = true;
            }
        }
