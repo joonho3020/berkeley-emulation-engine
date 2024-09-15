@@ -12,6 +12,7 @@ use std::collections::BTreeSet;
 use std::cmp::Ordering;
 use std::cmp::max;
 
+/// Bitmap containing information about network port activity
 #[derive(Debug, Default, Clone)]
 struct NetworkPorts {
     nbits: u32,
@@ -32,16 +33,19 @@ impl NetworkPorts {
         }
     }
 
+    /// Port `idx` is busy at step `pc`
     fn is_busy(self: &mut Self, idx: u32, pc: u32) -> bool {
         self.add_pc_if_empty(pc);
         return self.busy.get(&pc).unwrap().contains(idx as usize);
     }
 
+    /// Set port `idx` to busy at step `pc`
     fn set_busy(self: &mut Self, idx: u32, pc: u32) {
         self.add_pc_if_empty(pc);
         self.busy.get_mut(&pc).unwrap().set(idx as usize, true);
     }
 
+    /// Number of busy ports at step `pc`
     fn cnt_busy(self: &mut Self, pc: u32) -> u32 {
         self.add_pc_if_empty(pc);
         return self.busy.get(&pc).unwrap().count_ones(..) as u32;
@@ -50,7 +54,10 @@ impl NetworkPorts {
 
 #[derive(Debug, Default, Clone)]
 struct NetworkAvailability {
+    /// Network availability of ports going into each processor
     iports: NetworkPorts,
+
+    /// Network availability of ports comming out from each processor
     oports: NetworkPorts
 }
 
@@ -63,6 +70,8 @@ impl NetworkAvailability {
     }
 }
 
+/// `NodeIndex` tagged with mobility `mob`. Used to sort the `NodeIndex`
+/// w.r.t to mobility during scheduling
 #[derive(Debug, Default, Clone, Eq, PartialEq, Copy)]
 struct NodeIndexMobility {
     index: NodeIndex,
@@ -90,6 +99,9 @@ impl PartialOrd for NodeIndexMobility {
     }
 }
 
+/// Given a `Vec` containing the number of scheduled nodes per pc,
+/// if the number is small for a long time which represents a pathological
+/// scheduling scenario, print the nodes that are scheduled during that period
 fn print_tail_graph(
     circuit: &Circuit,
     per_pc_scheduled: &Vec<u32>,
@@ -182,6 +194,8 @@ fn print_tail_graph(
     let _ = save_graph_pdf(&outstring, &dot, &pdf);
 }
 
+/// Print the number of nodes as well as network utilization until all
+/// nodes are scheduled
 fn print_scheduling_stats(
     circuit: &Circuit,
     must_scheduled_data: Vec<u32>,
@@ -240,6 +254,7 @@ fn print_scheduling_stats(
     let _ = root.present();
 }
 
+/// Input bit arrived & usable from a particular parent node
 fn input_arrived(
     circuit: &Circuit,
     edge: EdgeReference<HWEdge, u32>,
@@ -265,6 +280,7 @@ fn input_arrived(
    return !unresolved_dep;
 }
 
+/// All input bits arrived & usable from parent nodes
 fn all_inputs_arrived(circuit: &Circuit, nidx: &NodeIndex, pc: &u32) -> bool {
     let mut arrived = true;
     let node = circuit.graph.node_weight(*nidx).unwrap();
@@ -282,6 +298,8 @@ fn all_inputs_arrived(circuit: &Circuit, nidx: &NodeIndex, pc: &u32) -> bool {
     return arrived;
 }
 
+/// When shipping a bit starting at `pc`, the `route` doesn't have any
+/// contention
 fn route_usable(
     nw: &mut NetworkAvailability,
     route: &NetworkRoute,
@@ -337,6 +355,14 @@ fn route_add_back(dst: &Coordinate, route: &NetworkRoute) -> NetworkRoute {
     return new_route;
 }
 
+/// There is some path from node `nidx` to `cidx` that is not busy
+/// - `nidx` and `cidx` are placed in the same processor
+/// - `nidx` and `cidx` are placed in the same module
+/// - `nidx` and `cidx` are placed in different modules
+///     - Check for routes that are resuable from shipping bits to other child nodes
+///       (`inter_mod_routes`)
+///     - Search for direct inter-module path
+///     - Search for one-hop inter-module path
 fn child_reachable(
     circuit: &Circuit,
     nidx: &NodeIndex,
@@ -402,6 +428,7 @@ fn child_reachable(
     }
 }
 
+/// All child nodes are reachable from `nidx` without network contention
 fn all_childs_reachable(
     circuit: &Circuit,
     nw: &mut NetworkAvailability,

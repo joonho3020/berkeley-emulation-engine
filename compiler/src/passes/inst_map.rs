@@ -88,8 +88,6 @@ pub fn map_instructions(circuit: &mut Circuit) {
         for cedge in cedges {
             match &cedge.weight().route {
                 Some(route) => {
-                    println!("node: {} route: {:?}", node.name(), route);
-
                     let mut cur_route = NetworkRoute::new();
                     for (i, path) in route.iter().enumerate() {
                         let src_send_pc = if i == 0 {

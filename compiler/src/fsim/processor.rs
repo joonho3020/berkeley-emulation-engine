@@ -11,22 +11,47 @@ struct ProcessorSwitchPort {
 
 #[derive(Clone)]
 pub struct Processor {
+    /// Processor id
     pub processor_id: u32,
     pub cfg: PlatformConfig,
     pub host_steps: Bits,
     pub target_cycle: Cycle,
+
+    /// Program counter
     pub pc: Bits,
+
+    /// Instruction memory
     pub imem: AbstractMemory<Instruction>,
+
+    /// Local data memory
     pub ldm: AbstractMemory<Bit>,
+
+    /// Switch data memory
     pub sdm: AbstractMemory<Bit>,
+
+    /// For pipelining instructions
     pipeline: Vec<Instruction>,
+
+    /// IO input port
     io_i: Bit,
+
+    /// IO output port
     io_o: Bit,
+
+    /// Local switch port (within a `Module`)
     s_local_port: ProcessorSwitchPort,
+
+    /// Receive bit from `sin_idx` from Local switch
     sin_idx: u32,
+
+    /// Global switch port (within a `Board`)
     s_global_port: ProcessorSwitchPort,
+
+    /// true when receiving from `s_local_port` instead of `s_global_port` & vice versa
     sin_local: bool,
-    sin_fwd: bool,
+
+    /// Bit to send when we need to forward the bit to the network instead of
+    /// the computed bit. Used when inst.sinfo.fwd is true
     sin_fwd_bit: Bit
 }
 
@@ -46,7 +71,6 @@ impl Processor {
             s_local_port: ProcessorSwitchPort::default(),
             s_global_port: ProcessorSwitchPort::default(),
             sin_local: false,
-            sin_fwd: false,
             sin_fwd_bit: 0,
             sin_idx: 0,
             processor_id: id_
@@ -160,8 +184,6 @@ impl Processor {
             self.s_local_port.op  = f_out;
             self.s_global_port.op = f_out;
         }
-
-// self.sin_fwd = de_inst.sinfo.fwd;
 
         self.ldm.run_cycle();
         self.imem.run_cycle();

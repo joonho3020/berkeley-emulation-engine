@@ -34,6 +34,7 @@ impl Coordinate {
     }
 }
 
+/// Types of communication possible in the emulation platform
 #[derive(PartialEq, Debug, Copy, Clone, Default, Deserialize, Serialize, EnumCountMacro)]
 pub enum PathTypes {
     #[default]
@@ -42,6 +43,7 @@ pub enum PathTypes {
     InterModule,
 }
 
+/// Communication path between a parent and child node in the emulation platform
 #[derive(Debug, Clone, Copy, Default, Serialize)]
 pub struct NetworkPath {
     pub src: Coordinate,
@@ -66,6 +68,7 @@ impl NetworkPath {
     }
 }
 
+/// List of `NetworkPath` from one processor to another
 pub type NetworkRoute = LinkedList<NetworkPath>;
 
 /// # Metadata attached to each `HWGraph` edge

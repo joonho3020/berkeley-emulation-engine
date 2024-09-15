@@ -256,6 +256,8 @@ fn print_dist(name: &str, dist_map: &IndexMap<u32, u32>) {
     println!("{}", dist_plot);
 }
 
+/// Print a graph where the x-axis is the processor id, and the y-axis is
+/// the number of nodes with a particular rank mapped to that processor.
 fn print_stacked_bar_chart(data: &IndexMap<u32, IndexMap<u32, u32>>, circuit: &Circuit) {
     let max_height: u32 = data.values().map(|imap| imap.values().sum()).max().unwrap();
 
@@ -304,6 +306,7 @@ fn print_stacked_bar_chart(data: &IndexMap<u32, IndexMap<u32, u32>>, circuit: &C
     let _ = root.present();
 }
 
+/// Print various statistics
 fn print_rank_stats(circuit: &Circuit) {
     let mut asap_map: IndexMap<u32, u32> = IndexMap::new();
     let mut alap_map: IndexMap<u32, u32> = IndexMap::new();

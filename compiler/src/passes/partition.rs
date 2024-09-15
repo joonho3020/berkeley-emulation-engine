@@ -32,6 +32,8 @@ fn set_module(
         ..info
     });
 }
+
+/// Call the KaMinPar partitioner
 fn kaminpar_partition(
     g: &Graph<Box<dyn HWNode>, HWEdge, Undirected>,
     kaminpar: &KaMinParConfig,
@@ -65,6 +67,7 @@ fn get_partition_histogram(partition: Vec<u32>) -> Histogram {
     return histogram;
 }
 
+/// Partition the design onto multiple modules and processors within a module
 pub fn partition(circuit: &mut Circuit) {
     kaminpar_partition_module(circuit);
     kaminpar_partition_processor(circuit);
@@ -101,8 +104,13 @@ fn kaminpar_partition_module(circuit: &mut Circuit) {
 
 #[derive(Default, Debug)]
 struct SubGraph {
+    /// Subgraph
     subgraph: HWGraph,
+
+    /// Subgraph NodeIndex to graph NodeIndex
     to_global: IndexMap<NodeIndex, NodeIndex>,
+
+    /// Graph NodeIndex to subgraph NodeIndex
     to_local:  IndexMap<NodeIndex, NodeIndex>
 }
 

@@ -10,12 +10,24 @@ use petgraph::graph::NodeIndex;
 use indexmap::IndexMap;
 use std::fmt::Debug;
 
+/// Represents a group of emulation `Module`s connected together
 pub struct Board {
+    /// Global network
     global_switch: Switch,
+
+    /// Describes the connectivity of the processors in the `global_switch`
     global_switch_edges: IndexMap<Coordinate, Coordinate>,
+
+    /// Modules
     modules: Vec<Module>,
+
+    /// Number of host cycles used to emulate one target cycle
     host_steps: u32,
+
+    /// Signal mapping
     signal_map: IndexMap<String, NodeMapInfo>,
+
+    /// Platform configuration
     pcfg: PlatformConfig
 }
 

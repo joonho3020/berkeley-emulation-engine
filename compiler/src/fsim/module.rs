@@ -7,11 +7,22 @@ use itertools::Itertools;
 use petgraph::graph::NodeIndex;
 use std::fmt::Debug;
 
+/// Represents a group of emulation `Processor`s connected together using a
+/// all to all communication switch
 pub struct Module {
+    /// Unique module id
     pub id: u32,
+
+    /// All to all communication switch
     pub switch: Switch,
+
+    /// `Processor`s in this `Module`
     pub procs: Vec<Processor>,
-    pub host_steps: u32, // Total number of host machine cycles to emulate one target cycle
+
+    /// Total number of host machine cycles to emulate one target cycle
+    pub host_steps: u32,
+
+    /// Signal mapping
     pub signal_map: IndexMap<String, NodeMapInfo>
 }
 
