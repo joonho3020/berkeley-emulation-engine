@@ -650,7 +650,7 @@ pub fn schedule_instructions_internal(circuit: &mut Circuit) {
             }
         }
 
-        print_tail_graph(circuit, &per_pc_scheduled, &debug_scheduled_nodes, pc_min, cur_rank);
+// print_tail_graph(circuit, &per_pc_scheduled, &debug_scheduled_nodes, pc_min, cur_rank);
 
         assert!(pc < circuit.platform_cfg.max_steps,
                 "Schedule failed {} nodes out of {} nodes scheduled, pc {} max_steps {}",

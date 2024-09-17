@@ -9,59 +9,71 @@
 .names $undef
 .names y[1] y[0] io_outputValid
 00 1
-.names $abc$194$new_n23_ $abc$194$new_n18_ $abc$194$new_n20_ $0\y[1:0][0]
-000 1
-010 1
-011 1
-.names y[0] $abc$194$new_n19_ $abc$194$new_n18_
-10 1
-.names x[0] y[1] x[1] $abc$194$new_n19_
-100 1
-110 1
-111 1
-.names io_loadingValues $abc$194$new_n26_ $abc$194$new_n22_ $abc$194$new_n20_
+.names io_loadingValues $abc$194$new_n18_ io_value2[0] $0\y[1:0][0]
 000 1
 001 1
-010 1
-.names y[1] x[1] $abc$194$new_n22_
-10 1
-.names io_loadingValues io_value2[0] $abc$194$new_n23_
-10 1
-.names x[0] y[1] y[0] $abc$194$new_n26_
-110 1
-.names y[0] x[0] y[1] $abc$194$new_n35_
-100 1
-.names $abc$194$new_n26_ $abc$194$new_n22_ $abc$194$new_n37_
-01 1
-10 1
-.names io_loadingValues io_value2[1] $abc$194$new_n37_ $0\y[1:0][1]
-001 1
-011 1
-110 1
-111 1
-.names x[1] y[0] y[1] $abc$194$new_n39_
-110 1
-.names x[0] $abc$194$new_n39_ $abc$194$new_n40_
-01 1
-10 1
-.names io_loadingValues $abc$194$new_n40_ io_value1[0] $0\x[1:0][0]
-010 1
-011 1
 101 1
 111 1
-.names x[1] $abc$194$new_n35_ $abc$194$new_n26_ $abc$194$new_n42_
-100 1
-.names io_loadingValues io_value1[1] $abc$194$new_n42_ $0\x[1:0][1]
+.names y[0] io_outputGCD[0] $abc$194$new_n19_ $abc$194$new_n18_
+000 1
 001 1
 011 1
 110 1
+.names $abc$194$new_n22_ $abc$194$new_n20_ $abc$194$new_n19_
+00 1
+.names y[1] io_outputGCD[1] $abc$194$new_n21_ $abc$194$new_n20_
+001 1
+100 1
+101 1
 111 1
-.latch $0\x[1:0][0] x[0] re clock 2
-.latch $0\x[1:0][1] x[1] re clock 2
+.names y[0] io_outputGCD[0] $abc$194$new_n21_
+10 1
+.names io_outputGCD[0] y[0] $abc$194$new_n23_ $abc$194$new_n22_
+000 1
+110 1
+.names io_outputGCD[1] y[1] $abc$194$new_n23_
+01 1
+10 1
+.names io_loadingValues $abc$194$new_n25_ io_value2[1] $0\y[1:0][1]
+000 1
+001 1
+101 1
+111 1
+.names $abc$194$new_n19_ y[1] $abc$194$new_n26_ $abc$194$new_n25_
+001 1
+011 1
+100 1
+101 1
+.names $abc$194$new_n23_ io_outputGCD[0] y[0] $abc$194$new_n26_
+000 1
+001 1
+011 1
+110 1
+.names io_loadingValues $abc$194$new_n28_ io_value1[0] $0\x[1:0][0]
+000 1
+001 1
+101 1
+111 1
+.names io_outputGCD[0] y[0] $abc$194$new_n19_ $abc$194$new_n28_
+000 1
+001 1
+010 1
+111 1
+.names io_loadingValues $abc$194$new_n30_ io_value1[1] $0\x[1:0][1]
+000 1
+001 1
+101 1
+111 1
+.names $abc$194$new_n19_ $abc$194$new_n31_ io_outputGCD[1] $abc$194$new_n30_
+000 1
+010 1
+110 1
+111 1
+.names $abc$194$new_n21_ $abc$194$new_n23_ $abc$194$new_n31_
+00 1
+11 1
+.latch $0\x[1:0][0] io_outputGCD[0] re clock 2
+.latch $0\x[1:0][1] io_outputGCD[1] re clock 2
 .latch $0\y[1:0][0] y[0] re clock 2
 .latch $0\y[1:0][1] y[1] re clock 2
-.names x[0] io_outputGCD[0]
-1 1
-.names x[1] io_outputGCD[1]
-1 1
 .end

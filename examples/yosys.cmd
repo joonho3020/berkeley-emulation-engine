@@ -8,4 +8,4 @@ opt_clean -purge
 abc -fast -lut 3
 opt_clean -purge
 opt -nodffe -nosdff;
-write_blif -gates Tile.lut.blif
+write_blif Tile.lut.blif
