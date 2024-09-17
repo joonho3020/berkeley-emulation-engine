@@ -358,6 +358,6 @@ pub mod parser_tests {
 
     #[test]
     pub fn test_gcd() {
-        assert_eq!(test_blif_parser("../examples/GCD-2bit.lut.blif"), true);
+        assert_eq!(test_blif_parser("../examples/GCD.lut.blif"), true);
     }
 }

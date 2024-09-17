@@ -317,7 +317,7 @@ pub mod emulation_tester {
                 "../examples/GCD.sv",
                 "GCD",
                 "../examples/GCD.input",
-                "../examples/GCD-2bit.lut.blif",
+                "../examples/GCD.lut.blif",
                 network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
             ),
             true
