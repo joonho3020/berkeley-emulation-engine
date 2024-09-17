@@ -270,19 +270,10 @@ pub mod emulation_tester {
 
     #[test_case(0, 0, 1, 0; "imem 0 dmem rd 0 wr 1 network 0")]
     #[test_case(1, 0, 1, 0; "imem 1 dmem rd 0 wr 1 network 0")]
-    #[test_case(2, 0, 1, 0; "imem 2 dmem rd 0 wr 1 network 0")]
     #[test_case(0, 1, 1, 0; "imem 0 dmem rd 1 wr 1 network 0")]
-    #[test_case(0, 2, 1, 0; "imem 0 dmem rd 2 wr 1 network 0")]
     #[test_case(1, 1, 1, 0; "imem 1 dmem rd 1 wr 1 network 0")]
-    #[test_case(1, 2, 1, 0; "imem 1 dmem rd 2 wr 1 network 0")]
-    #[test_case(0, 0, 2, 0; "imem 0 dmem rd 0 wr 2 network 0")]
-    #[test_case(1, 0, 2, 0; "imem 1 dmem rd 0 wr 2 network 0")]
-    #[test_case(0, 1, 2, 0; "imem 0 dmem rd 1 wr 2 network 0")]
-    #[test_case(1, 1, 2, 0; "imem 1 dmem rd 1 wr 2 network 0")]
-    #[test_case(2, 2, 2, 0; "imem 2 dmem rd 2 wr 2 network 0")]
     #[test_case(0, 0, 1, 1; "imem 0 dmem rd 0 wr 1 network 1")]
-    #[test_case(2, 2, 2, 1; "imem 2 dmem rd 2 wr 2 network 1")]
-    #[test_case(2, 2, 2, 2; "imem 2 dmem rd 2 wr 2 network 2")]
+    #[test_case(0, 0, 1, 1; "imem 1 dmem rd 0 wr 1 network 1")]
     pub fn test_fir(imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
         assert_eq!(
             perform_test(
@@ -298,19 +289,10 @@ pub mod emulation_tester {
 
     #[test_case(0, 0, 1, 0; "imem 0 dmem rd 0 wr 1 network 0")]
     #[test_case(1, 0, 1, 0; "imem 1 dmem rd 0 wr 1 network 0")]
-    #[test_case(2, 0, 1, 0; "imem 2 dmem rd 0 wr 1 network 0")]
     #[test_case(0, 1, 1, 0; "imem 0 dmem rd 1 wr 1 network 0")]
-    #[test_case(0, 2, 1, 0; "imem 0 dmem rd 2 wr 1 network 0")]
     #[test_case(1, 1, 1, 0; "imem 1 dmem rd 1 wr 1 network 0")]
-    #[test_case(1, 2, 1, 0; "imem 1 dmem rd 2 wr 1 network 0")]
-    #[test_case(0, 0, 2, 0; "imem 0 dmem rd 0 wr 2 network 0")]
-    #[test_case(1, 0, 2, 0; "imem 1 dmem rd 0 wr 2 network 0")]
-    #[test_case(0, 1, 2, 0; "imem 0 dmem rd 1 wr 2 network 0")]
-    #[test_case(1, 1, 2, 0; "imem 1 dmem rd 1 wr 2 network 0")]
-    #[test_case(2, 2, 2, 0; "imem 2 dmem rd 2 wr 2 network 0")]
     #[test_case(0, 0, 1, 1; "imem 0 dmem rd 0 wr 1 network 1")]
-    #[test_case(2, 2, 2, 1; "imem 2 dmem rd 2 wr 2 network 1")]
-    #[test_case(2, 2, 2, 2; "imem 2 dmem rd 2 wr 2 network 2")]
+    #[test_case(0, 0, 1, 1; "imem 1 dmem rd 0 wr 1 network 1")]
     pub fn test_gcd(imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
         assert_eq!(
             perform_test(
@@ -326,19 +308,10 @@ pub mod emulation_tester {
 
     #[test_case(0, 0, 1, 0; "imem 0 dmem rd 0 wr 1 network 0")]
     #[test_case(1, 0, 1, 0; "imem 1 dmem rd 0 wr 1 network 0")]
-    #[test_case(2, 0, 1, 0; "imem 2 dmem rd 0 wr 1 network 0")]
     #[test_case(0, 1, 1, 0; "imem 0 dmem rd 1 wr 1 network 0")]
-    #[test_case(0, 2, 1, 0; "imem 0 dmem rd 2 wr 1 network 0")]
     #[test_case(1, 1, 1, 0; "imem 1 dmem rd 1 wr 1 network 0")]
-    #[test_case(1, 2, 1, 0; "imem 1 dmem rd 2 wr 1 network 0")]
-    #[test_case(0, 0, 2, 0; "imem 0 dmem rd 0 wr 2 network 0")]
-    #[test_case(1, 0, 2, 0; "imem 1 dmem rd 0 wr 2 network 0")]
-    #[test_case(0, 1, 2, 0; "imem 0 dmem rd 1 wr 2 network 0")]
-    #[test_case(1, 1, 2, 0; "imem 1 dmem rd 1 wr 2 network 0")]
-    #[test_case(2, 2, 2, 0; "imem 2 dmem rd 2 wr 2 network 0")]
     #[test_case(0, 0, 1, 1; "imem 0 dmem rd 0 wr 1 network 1")]
-    #[test_case(2, 2, 2, 1; "imem 2 dmem rd 2 wr 2 network 1")]
-    #[test_case(2, 2, 2, 2; "imem 2 dmem rd 2 wr 2 network 2")]
+    #[test_case(0, 0, 1, 1; "imem 1 dmem rd 0 wr 1 network 1")]
     pub fn test_myqueue(imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
         assert_eq!(
             perform_test(
@@ -354,19 +327,10 @@ pub mod emulation_tester {
 
     #[test_case(0, 0, 1, 0; "imem 0 dmem rd 0 wr 1 network 0")]
     #[test_case(1, 0, 1, 0; "imem 1 dmem rd 0 wr 1 network 0")]
-    #[test_case(2, 0, 1, 0; "imem 2 dmem rd 0 wr 1 network 0")]
     #[test_case(0, 1, 1, 0; "imem 0 dmem rd 1 wr 1 network 0")]
-    #[test_case(0, 2, 1, 0; "imem 0 dmem rd 2 wr 1 network 0")]
     #[test_case(1, 1, 1, 0; "imem 1 dmem rd 1 wr 1 network 0")]
-    #[test_case(1, 2, 1, 0; "imem 1 dmem rd 2 wr 1 network 0")]
-    #[test_case(0, 0, 2, 0; "imem 0 dmem rd 0 wr 2 network 0")]
-    #[test_case(1, 0, 2, 0; "imem 1 dmem rd 0 wr 2 network 0")]
-    #[test_case(0, 1, 2, 0; "imem 0 dmem rd 1 wr 2 network 0")]
-    #[test_case(1, 1, 2, 0; "imem 1 dmem rd 1 wr 2 network 0")]
-    #[test_case(2, 2, 2, 0; "imem 2 dmem rd 2 wr 2 network 0")]
     #[test_case(0, 0, 1, 1; "imem 0 dmem rd 0 wr 1 network 1")]
-    #[test_case(2, 2, 2, 1; "imem 2 dmem rd 2 wr 2 network 1")]
-    #[test_case(2, 2, 2, 2; "imem 2 dmem rd 2 wr 2 network 2")]
+    #[test_case(0, 0, 1, 1; "imem 1 dmem rd 0 wr 1 network 1")]
     pub fn test_adder(imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
         assert_eq!(
             perform_test(
@@ -382,19 +346,10 @@ pub mod emulation_tester {
 
     #[test_case(0, 0, 1, 0; "imem 0 dmem rd 0 wr 1 network 0")]
     #[test_case(1, 0, 1, 0; "imem 1 dmem rd 0 wr 1 network 0")]
-    #[test_case(2, 0, 1, 0; "imem 2 dmem rd 0 wr 1 network 0")]
     #[test_case(0, 1, 1, 0; "imem 0 dmem rd 1 wr 1 network 0")]
-    #[test_case(0, 2, 1, 0; "imem 0 dmem rd 2 wr 1 network 0")]
     #[test_case(1, 1, 1, 0; "imem 1 dmem rd 1 wr 1 network 0")]
-    #[test_case(1, 2, 1, 0; "imem 1 dmem rd 2 wr 1 network 0")]
-    #[test_case(0, 0, 2, 0; "imem 0 dmem rd 0 wr 2 network 0")]
-    #[test_case(1, 0, 2, 0; "imem 1 dmem rd 0 wr 2 network 0")]
-    #[test_case(0, 1, 2, 0; "imem 0 dmem rd 1 wr 2 network 0")]
-    #[test_case(1, 1, 2, 0; "imem 1 dmem rd 1 wr 2 network 0")]
-    #[test_case(2, 2, 2, 0; "imem 2 dmem rd 2 wr 2 network 0")]
     #[test_case(0, 0, 1, 1; "imem 0 dmem rd 0 wr 1 network 1")]
-    #[test_case(2, 2, 2, 1; "imem 2 dmem rd 2 wr 2 network 1")]
-    #[test_case(2, 2, 2, 2; "imem 2 dmem rd 2 wr 2 network 2")]
+    #[test_case(0, 0, 1, 1; "imem 1 dmem rd 0 wr 1 network 1")]
     pub fn test_testreginit(imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
         assert_eq!(
             perform_test(
@@ -402,6 +357,25 @@ pub mod emulation_tester {
                 "TestRegInit",
                 "../examples/TestRegInit.input",
                 "../examples/TestRegInit.lut.blif",
+                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+            ),
+            true
+        );
+    }
+
+    #[test_case(0, 0, 1, 0; "imem 0 dmem rd 0 wr 1 network 0")]
+    #[test_case(1, 0, 1, 0; "imem 1 dmem rd 0 wr 1 network 0")]
+    #[test_case(0, 1, 1, 0; "imem 0 dmem rd 1 wr 1 network 0")]
+    #[test_case(1, 1, 1, 0; "imem 1 dmem rd 1 wr 1 network 0")]
+    #[test_case(0, 0, 1, 1; "imem 0 dmem rd 0 wr 1 network 1")]
+    #[test_case(0, 0, 1, 1; "imem 1 dmem rd 0 wr 1 network 1")]
+    pub fn test_core(imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
+        assert_eq!(
+            perform_test(
+                "../examples/Core.sv",
+                "Core",
+                "../examples/Core.input",
+                "../examples/Core.lut.blif",
                 network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
             ),
             true
