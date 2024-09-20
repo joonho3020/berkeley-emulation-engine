@@ -1,4 +1,4 @@
-# Berkeley Logic Interchange Format (BLIF) parser
+# Berkeley Emulation Engine
 
 ---
 
