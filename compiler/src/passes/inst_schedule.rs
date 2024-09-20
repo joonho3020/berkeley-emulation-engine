@@ -369,7 +369,7 @@ fn child_reachable(
     cidx: &NodeIndex,
     nw: &mut NetworkAvailability,
     pc: &u32,
-    inter_mod_routes: &mut IndexMap<u32, NetworkRoute>
+    inter_mod_routes: &mut IndexMap<u32, Vec<NetworkRoute>>
 ) -> Option<NetworkRoute> {
     let node = circuit.graph.node_weight(*nidx).unwrap();
     let cnode = circuit.graph.node_weight(*cidx).unwrap();
@@ -392,12 +392,14 @@ fn child_reachable(
     } else {
         assert!(dst.module != src.module);
 
-        // found already existing path to dst module
+        // found already existing inter-module path to dst module
         if inter_mod_routes.contains_key(&dst.module) {
-            let route = inter_mod_routes.get(&dst.module).unwrap();
-            let new_route = route_add_back(&dst, &route_add_front(&src, route));
-            if route_usable(nw, &new_route, pc, &pcfg) {
-                return Some(new_route);
+            let routes = inter_mod_routes.get(&dst.module).unwrap();
+            for route in routes {
+                let new_route = route_add_back(&dst, &route_add_front(&src, route));
+                if route_usable(nw, &new_route, pc, &pcfg) {
+                    return Some(new_route);
+                }
             }
         }
 
@@ -408,7 +410,10 @@ fn child_reachable(
             let route = NetworkRoute::from([*p]);
             let new_route = route_add_back(&dst, &route_add_front(&src, &route));
             if route_usable(nw, &new_route, pc, &pcfg) {
-                inter_mod_routes.insert(dst.module, route);
+                if !inter_mod_routes.contains_key(&dst.module) {
+                    inter_mod_routes.insert(dst.module, vec![]);
+                }
+                inter_mod_routes.get_mut(&dst.module).unwrap().push(route);
                 return Some(new_route);
             }
         }
@@ -418,7 +423,10 @@ fn child_reachable(
         for route in routes.iter() {
             let new_route = route_add_back(&dst, &route_add_front(&src, route));
             if route_usable(nw, &new_route, pc, &pcfg) {
-                inter_mod_routes.insert(dst.module, route.clone());
+                if !inter_mod_routes.contains_key(&dst.module) {
+                    inter_mod_routes.insert(dst.module, vec![]);
+                }
+                inter_mod_routes.get_mut(&dst.module).unwrap().push(route.clone());
                 return Some(new_route);
             }
         }
@@ -426,6 +434,52 @@ fn child_reachable(
         // no paths
         return None;
     }
+}
+
+fn coalesce_paths(routes: &IndexMap<NodeIndex, NetworkRoute>, pcfg: &PlatformConfig) -> IndexMap<NodeIndex, NetworkRoute> {
+    let mut ret: IndexMap<NodeIndex, NetworkRoute> = IndexMap::new();
+    let mut visited: IndexMap<(Coordinate, u32), NetworkRoute> = IndexMap::new();
+
+    for (nidx, route) in routes.iter() {
+        let mut cur_route = NetworkRoute::new();
+        let mut merge_idx = 0;
+        let mut merge_lat = 0;
+        let mut merge_coord = None;
+        for (i, path) in route.iter().enumerate() {
+            cur_route.push_back(*path);
+            let lat = pcfg.nw_route_lat(&cur_route);
+            if visited.contains_key(&(path.dst, lat)) {
+                merge_coord = Some(path.dst);
+                merge_idx = i;
+                merge_lat = lat;
+            }
+        }
+
+        match merge_coord {
+            Some(c) => {
+                let mut existing_route = visited.get(&(c, merge_lat)).unwrap().clone();
+                for (i, path) in route.iter().enumerate() {
+                    if i > merge_idx {
+                        existing_route.push_back(*path);
+                        let lat = pcfg.nw_route_lat(&existing_route);
+                        visited.insert((path.dst, lat), existing_route.clone());
+                    }
+                }
+                ret.insert(*nidx, existing_route);
+            }
+            None => {
+                ret.insert(*nidx, route.clone());
+
+                let mut cur_route = NetworkRoute::new();
+                for path in route.iter() {
+                    cur_route.push_back(*path);
+                    let lat = pcfg.nw_route_lat(&cur_route);
+                    visited.insert((path.dst, lat), cur_route.clone());
+                }
+            }
+        }
+    }
+    return ret;
 }
 
 /// All child nodes are reachable from `nidx` without network contention
@@ -438,7 +492,7 @@ fn all_childs_reachable(
     let mut reachable = true;
     let childs = circuit.graph.neighbors_directed(*nidx, Outgoing);
 
-    let mut inter_mod_routes: IndexMap<u32, NetworkRoute> = IndexMap::new();
+    let mut inter_mod_routes: IndexMap<u32, Vec<NetworkRoute>> = IndexMap::new();
     let mut child_routes: IndexMap<NodeIndex, NetworkRoute> = IndexMap::new();
 
     for cidx in childs {
@@ -452,7 +506,9 @@ fn all_childs_reachable(
             }
         }
     }
-    return (reachable, child_routes);
+
+    let coalesced_paths = coalesce_paths(&child_routes, &circuit.platform_cfg);
+    return (reachable, coalesced_paths);
 }
 
 fn mark_nw_busy(

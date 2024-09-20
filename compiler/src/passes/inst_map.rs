@@ -133,8 +133,8 @@ pub fn map_instructions(circuit: &mut Circuit) {
                             PathTypes::InterProcessor | PathTypes::InterModule => {
                                 if dst_inst.sinfo.local_set {
                                     assert!(dst_inst.sinfo.local == (path.src.module == path.dst.module),
-                                        "node: {} coord {:?} pc: {} already set, but overwritten",
-                                        node.name(), path.dst, dst_recv_pc);
+                                        "node: {} coord {:?} pc: {} already set, but overwritten paths: {}",
+                                        node.name(), path.dst, dst_recv_pc, node.name().to_string());
                                 }
                                 dst_inst.valid = true;
                                 dst_inst.sinfo.idx = path.src.proc;

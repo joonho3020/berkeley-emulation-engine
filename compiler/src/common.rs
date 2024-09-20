@@ -1,4 +1,5 @@
 use crate::primitives::*;
+use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 use std::cmp::min;
 use std::fmt::Debug;
@@ -48,22 +49,22 @@ pub struct Operand {
     pub idx: u32,
 }
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Serialize)]
 pub struct SwitchInfo {
     pub local_set: bool,
     pub fwd_set: bool,
 
-     /// proc to receive bit from
+    /// proc to receive bit from
     pub idx: u32,
 
-     /// Receive from local switch
+    /// Receive from local switch
     pub local: bool,
 
     /// forward the incomming bit
     pub fwd: bool
 }
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Serialize)]
 pub struct Instruction {
     pub valid: bool,
     pub opcode: Primitives,
