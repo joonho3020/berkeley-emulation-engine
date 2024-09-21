@@ -620,8 +620,6 @@ pub fn schedule_instructions_internal(circuit: &mut Circuit) {
     let mut be_schedule_data:   Vec<u32> = vec![];
     let mut nw_util_data:       Vec<u32> = vec![];
 
-    println!("max_rank: {}", max_rank);
-
     for cur_rank in 0..(max_rank + 1) {
         println!("============================");
         println!("Current rank to schedule: {}", cur_rank);
@@ -637,7 +635,6 @@ pub fn schedule_instructions_internal(circuit: &mut Circuit) {
         for nidx in circuit.graph.node_indices() {
             let node = circuit.graph.node_weight_mut(nidx).unwrap();
             let info = node.info_mut();
-            println!("info: {:?}", info);
             if info.rank.asap <= cur_rank && cur_rank <= info.rank.alap && !info.scheduled {
                 let mob = info.rank.alap - cur_rank;
                 info.rank = RankInfo { mob: mob, ..info.rank };
@@ -648,7 +645,6 @@ pub fn schedule_instructions_internal(circuit: &mut Circuit) {
                 }
             }
         }
-        println!("must scheduled candiates: {}, be scheduled candidates: {}", must_schedule_candidates.len(), best_effort_schedule_candidates.len());
 
         pc_min = pc;
 
