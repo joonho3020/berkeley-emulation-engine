@@ -935,7 +935,7 @@ dependencies = [
 [[package]]
 name = "kaminpar"
 version = "0.2.0"
-source = "git+https://github.com/joonho3020/kaminpar-rs.git?branch=joonho-main#2014beebab7fb7968ae8c9702b229b0f31e796ac"
+source = "git+https://github.com/joonho3020/kaminpar-rs.git?branch=joonho-main#a245cca14e6a4c90714d77f6e25f609ccea2af91"
 dependencies = [
  "cmake",
  "cxx",
