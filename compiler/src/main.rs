@@ -1,14 +1,11 @@
-use blif_parser::common::*;
-use blif_parser::fsim::board::*;
-use blif_parser::passes::parser;
-use blif_parser::passes::runner;
-use blif_parser::primitives::GlobalNetworkTopology;
-use blif_parser::primitives::PlatformConfig;
-use blif_parser::primitives::CompilerConfig;
-use blif_parser::rtlsim::ref_rtlsim_testharness::*;
-use blif_parser::rtlsim::rtlsim_utils::*;
-use blif_parser::rtlsim::vcdparser::*;
-use blif_parser::utils::*;
+use bee::common::*;
+use bee::fsim::board::*;
+use bee::passes::runner;
+use bee::passes::blif_to_circuit::blif_to_circuit;
+use bee::rtlsim::ref_rtlsim_testharness::*;
+use bee::rtlsim::rtlsim_utils::*;
+use bee::rtlsim::vcdparser::*;
+use bee::utils::*;
 use indexmap::IndexMap;
 use std::cmp::max;
 use std::{env, fs};
@@ -36,7 +33,7 @@ fn test_emulator(
     Command::new("mkdir").arg(&cwd).status()?;
 
     println!("Parsing blif file");
-    let res = parser::parse_blif_file(&args.blif_file_path);
+    let res = blif_to_circuit(&args.blif_file_path);
     let mut circuit = match res {
         Ok(c) => c,
         Err(e) => {

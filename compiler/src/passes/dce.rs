@@ -1,4 +1,5 @@
-use crate::primitives::*;
+use crate::common::*;
+use blif_parser::primitives::Primitive;
 use petgraph::{
     prelude::Bfs,
     visit::{VisitMap, Visitable}
@@ -6,8 +7,8 @@ use petgraph::{
 
 pub fn dead_code_elimination(circuit: &mut Circuit) {
     // Get input and output nodes
-    let io_i = circuit.get_nodes_type(Primitives::Input);
-    let io_o = circuit.get_nodes_type(Primitives::Output);
+    let io_i = circuit.get_nodes_type(Primitive::Input);
+    let io_o = circuit.get_nodes_type(Primitive::Output);
 
     // BFS from inputs
     let mut i_vismap = circuit.graph.visit_map();

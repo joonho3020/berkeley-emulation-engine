@@ -1,6 +1,6 @@
 use crate::common::*;
-use crate::primitives::*;
 use indexmap::IndexMap;
+use blif_parser::primitives::Primitive;
 use petgraph::visit::EdgeRef;
 use petgraph::Direction::{Incoming, Outgoing};
 
@@ -32,9 +32,8 @@ pub fn map_instructions(circuit: &mut Circuit) {
         node_inst.opcode = node.is();
 
         // build LUT table
-        if node.is() == Primitives::Lut {
-            let lut_node = node.get_lut().unwrap();
-            let table_vec = &lut_node.table;
+        if node.is() == Primitive::Lut {
+            let table_vec = node.get_lut_table().unwrap();
             let mut table: u64 = 0;
             let mut ops: u32 = 0;
             for entry in table_vec.iter() {
@@ -62,8 +61,8 @@ pub fn map_instructions(circuit: &mut Circuit) {
             let pnode = circuit.graph.node_weight(pedge.source()).unwrap();
 
             let mut op_idx = 0;
-            if node.is() == Primitives::Lut {
-                let lut_inputs = node.get_lut().unwrap().inputs;
+            if node.is() == Primitive::Lut {
+                let lut_inputs = node.get_lut_inputs().unwrap();
                 op_idx = lut_inputs.iter().position(|n| n == pnode.name()).unwrap();
             }
 
@@ -151,7 +150,7 @@ pub fn map_instructions(circuit: &mut Circuit) {
         }
 
         let nodemap = NodeMapInfo {
-            info: node.info(),
+            info: node.info().clone(),
             idx: nidx,
         };
         circuit.emul

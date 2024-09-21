@@ -1,4 +1,4 @@
-use crate::primitives::*;
+use crate::common::*;
 use petgraph::algo::connected_components;
 
 pub fn print_stats(circuit: &Circuit) {

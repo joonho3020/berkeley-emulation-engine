@@ -1,5 +1,5 @@
 use indexmap::IndexMap;
-use crate::primitives::*;
+use crate::common::*;
 use petgraph::{
     graph::{Graph, NodeIndex},
     Undirected
@@ -13,11 +13,8 @@ fn set_proc(
     proc: u32
 ) {
     let node = graph.node_weight_mut(nidx).unwrap();
-    let info = node.info();
-    node.set_info(NodeInfo {
-        coord: Coordinate { proc: proc, ..info.coord },
-        ..info
-    });
+    let info = node.info_mut();
+    info.coord = Coordinate { proc: proc, ..info.coord };
 }
 
 fn set_module(
@@ -26,16 +23,13 @@ fn set_module(
     module: u32
 ) {
     let node = graph.node_weight_mut(nidx).unwrap();
-    let info = node.info();
-    node.set_info(NodeInfo {
-        coord: Coordinate { module: module, ..info.coord },
-        ..info
-    });
+    let info = node.info_mut();
+    info.coord = Coordinate { module: module, ..info.coord };
 }
 
 /// Call the KaMinPar partitioner
 fn kaminpar_partition(
-    g: &Graph<Box<dyn HWNode>, HWEdge, Undirected>,
+    g: &Graph<HWNode, HWEdge, Undirected>,
     kaminpar: &KaMinParConfig,
     npartitions: u32
 ) -> Result<Vec<u32>, KaminParError> {

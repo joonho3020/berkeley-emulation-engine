@@ -1,5 +1,5 @@
-use blif_parser::rtlsim::ref_rtlsim_testharness;
-use blif_parser::utils::*;
+use bee::rtlsim::ref_rtlsim_testharness;
+use bee::utils::*;
 use clap::Parser;
 
 fn main() -> std::io::Result<()> {

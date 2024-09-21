@@ -1,5 +1,5 @@
 use crate::common::*;
-use crate::primitives::{PlatformConfig, Primitives};
+use blif_parser::primitives::Primitive;
 use crate::fsim::memory::*;
 use std::fmt::Debug;
 
@@ -148,21 +148,21 @@ impl Processor {
 
         // LUT lookup
         let f_out = match &de_inst.opcode {
-            Primitives::NOP => 0,
-            Primitives::Input => self.io_i,
-            Primitives::Lut => {
+            Primitive::NOP => 0,
+            Primitive::Input => self.io_i,
+            Primitive::Lut => {
                 let mut entry = 0;
                 for (i, bit) in operands.iter().enumerate() {
                     entry = entry + (bit << i);
                 }
                 ((de_inst.lut >> entry) & 1) as u8
             }
-            Primitives::Output => {
+            Primitive::Output => {
                 let bit = *operands.get(0).unwrap();
                 self.io_o = bit;
                 bit
             }
-            Primitives::Gate | Primitives::Latch => {
+            Primitive::Gate | Primitive::Latch => {
                 *operands.get(0).unwrap()
             }
             _ => 0,

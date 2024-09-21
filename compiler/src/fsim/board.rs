@@ -1,11 +1,11 @@
 use crate::fsim::module::*;
 use crate::fsim::switch::*;
-use crate::primitives::Coordinate;
-use crate::primitives::NodeMapInfo;
-use crate::primitives::PlatformConfig;
-use crate::primitives::Primitives;
-use crate::primitives::Circuit;
-use crate::common::*;
+use crate::common::NodeMapInfo;
+use crate::common::PlatformConfig;
+use crate::common::Circuit;
+use crate::common::Coordinate;
+use crate::common::Bit;
+use blif_parser::primitives::Primitive;
 use petgraph::graph::NodeIndex;
 use indexmap::IndexMap;
 use std::fmt::Debug;
@@ -111,7 +111,7 @@ impl Board {
                 let inst = self.modules[map.info.coord.module as usize]
                                .procs[map.info.coord.proc as usize]
                                .imem[map.info.pc as usize].clone();
-                if inst.opcode == Primitives::Input {
+                if inst.opcode == Primitive::Input {
                     self.modules[map.info.coord.module as usize]
                         .procs[map.info.coord.proc as usize]
                         .set_io_i(val);

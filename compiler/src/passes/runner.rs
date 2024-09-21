@@ -1,5 +1,6 @@
 use crate::passes::*;
-use crate::primitives::*;
+use crate::common::Circuit;
+use crate::utils::save_graph_pdf;
 use dce::dead_code_elimination;
 use inst_map::map_instructions;
 use inst_schedule::schedule_instructions;

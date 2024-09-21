@@ -1,5 +1,6 @@
-use crate::primitives::*;
+use crate::common::*;
 use crate::utils::save_graph_pdf;
+use blif_parser::primitives::Primitive;
 use full_palette::RED;
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
@@ -285,9 +286,9 @@ fn all_inputs_arrived(circuit: &Circuit, nidx: &NodeIndex, pc: &u32) -> bool {
     let mut arrived = true;
     let node = circuit.graph.node_weight(*nidx).unwrap();
     let parent_edges = circuit.graph.edges_directed(*nidx, Incoming);
-    if node.is() != Primitives::Input &&
-       node.is() != Primitives::Latch &&
-       node.is() != Primitives::Gate {
+    if node.is() != Primitive::Input &&
+       node.is() != Primitive::Latch &&
+       node.is() != Primitive::Gate {
         for pedge in parent_edges {
             if !input_arrived(circuit, pedge, pc) {
                 arrived = false;
@@ -561,11 +562,9 @@ fn schedule_candidates_at_pc(
         remove_nodes.push(*cand);
 
         let node = circuit.graph.node_weight_mut(cand.index).unwrap();
-        node.set_info(NodeInfo {
-            pc: *pc,
-            scheduled: true,
-            ..node.info()
-        });
+        let info = node.info_mut();
+        info.pc = *pc;
+        info.scheduled = true;
 
         let edge_indices: Vec<_> = circuit.graph
             .edges_directed(cand.index, Outgoing)
@@ -605,7 +604,7 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
 pub fn schedule_instructions_internal(circuit: &mut Circuit) {
     let mut cpn: IndexSet<NodeIndex> = IndexSet::new();
     for nidx in circuit.graph.node_indices() {
-        let rank = circuit.graph.node_weight(nidx).unwrap().info().rank;
+        let rank = &circuit.graph.node_weight(nidx).unwrap().info().rank;
         if rank.asap == rank.alap {
             cpn.insert(nidx);
         }
@@ -621,6 +620,8 @@ pub fn schedule_instructions_internal(circuit: &mut Circuit) {
     let mut be_schedule_data:   Vec<u32> = vec![];
     let mut nw_util_data:       Vec<u32> = vec![];
 
+    println!("max_rank: {}", max_rank);
+
     for cur_rank in 0..(max_rank + 1) {
         println!("============================");
         println!("Current rank to schedule: {}", cur_rank);
@@ -635,23 +636,19 @@ pub fn schedule_instructions_internal(circuit: &mut Circuit) {
         // Search for all the nodes to schedule in this round
         for nidx in circuit.graph.node_indices() {
             let node = circuit.graph.node_weight_mut(nidx).unwrap();
-            let rank = node.info().rank;
-            if rank.asap <= cur_rank && cur_rank <= rank.alap && !node.info().scheduled {
-                let mob = rank.alap - cur_rank;
-                node.set_info(NodeInfo {
-                    rank: RankInfo {
-                        mob: mob,
-                        ..rank
-                    },
-                    ..node.info()
-                });
-                if cpn.contains(&nidx) || rank.alap - cur_rank == 0 {
+            let info = node.info_mut();
+            println!("info: {:?}", info);
+            if info.rank.asap <= cur_rank && cur_rank <= info.rank.alap && !info.scheduled {
+                let mob = info.rank.alap - cur_rank;
+                info.rank = RankInfo { mob: mob, ..info.rank };
+                if cpn.contains(&nidx) || info.rank.alap - cur_rank == 0 {
                     must_schedule_candidates.insert(NodeIndexMobility::new(nidx, mob));
                 } else {
                     best_effort_schedule_candidates.insert(NodeIndexMobility::new(nidx, mob));
                 }
             }
         }
+        println!("must scheduled candiates: {}, be scheduled candidates: {}", must_schedule_candidates.len(), best_effort_schedule_candidates.len());
 
         pc_min = pc;
 
@@ -726,7 +723,7 @@ pub fn schedule_instructions_internal(circuit: &mut Circuit) {
                                                    circuit.platform_cfg.nw_route_dep_lat(&r));
                     }
                     None => {
-                assert!(false, "Edge with unassigned NetworkRoute");
+                        assert!(false, "Edge with unassigned NetworkRoute");
                     }
                 }
             }

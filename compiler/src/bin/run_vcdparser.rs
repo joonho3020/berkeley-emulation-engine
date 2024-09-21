@@ -1,4 +1,4 @@
-use blif_parser::rtlsim::vcdparser::*;
+use bee::rtlsim::vcdparser::*;
 use std::env;
 
 fn main() {

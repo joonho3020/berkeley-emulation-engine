@@ -1,4 +1,5 @@
-use crate::primitives::*;
+use crate::common::*;
+use blif_parser::primitives::Primitive;
 use indexmap::IndexMap;
 use itertools::Itertools;
 use petgraph::{
@@ -9,27 +10,15 @@ use std::{cmp::{max, min}, collections::VecDeque};
 
 fn set_rank_asap(graph: &mut HWGraph, nidx: NodeIndex, rank: u32) {
     let node = graph.node_weight_mut(nidx).unwrap();
-    let info = node.info();
+    let info = node.info_mut();
     let new_rank = max(info.rank.asap, rank);
-    node.set_info(NodeInfo {
-        rank: RankInfo {
-            asap: new_rank,
-            ..node.info().rank
-        },
-        ..info
-    })
+    info.rank = RankInfo { asap: new_rank, ..info.rank };
 }
 
 fn set_rank_alap(graph: &mut HWGraph, nidx: NodeIndex, rank: u32) {
     let node = graph.node_weight_mut(nidx).unwrap();
-    let info = node.info();
-    node.set_info(NodeInfo {
-        rank: RankInfo {
-            alap: rank,
-            ..node.info().rank
-        },
-        ..info
-    })
+    let info = node.info_mut();
+    info.rank = RankInfo { alap: rank, ..info.rank };
 }
 
 pub fn find_rank_order(circuit: &mut Circuit) {
@@ -72,10 +61,13 @@ fn find_asap_rank_order(circuit: &mut Circuit) {
 
             let node = circuit.graph.node_weight(nx).unwrap();
             match node.is() {
-                Primitives::Latch | Primitives::Gate => {
+                Primitive::Latch => {
                     ff_nodes.push(nx);
                 }
-                Primitives::Input => {
+                Primitive::Gate => {
+                    ff_nodes.push(nx);
+                }
+                Primitive::Input => {
                     in_nodes.push(nx);
                 }
                 _ => {
@@ -110,9 +102,9 @@ fn find_asap_rank_order(circuit: &mut Circuit) {
             for cidx in childs {
                 let cnode = circuit.graph.node_weight(cidx).unwrap();
                 if !topo_vis_map.is_visited(&cidx) &&
-                    cnode.is() != Primitives::Gate &&
-                    cnode.is() != Primitives::Latch &&
-                    cnode.is() != Primitives::Input {
+                    cnode.is() != Primitive::Gate &&
+                    cnode.is() != Primitive::Latch &&
+                    cnode.is() != Primitive::Input {
                     *indeg.get_mut(&cidx).unwrap() -= 1;
                     if *indeg.get(&cidx).unwrap() == 0 {
                         q.push_back(cidx);
@@ -124,9 +116,9 @@ fn find_asap_rank_order(circuit: &mut Circuit) {
         // Set rank based on the topo sorted order
         for nidx in topo_sort_order.iter() {
             let node = circuit.graph.node_weight(*nidx).unwrap();
-            if node.is() != Primitives::Gate &&
-               node.is() != Primitives::Latch &&
-               node.is() != Primitives::Input {
+            if node.is() != Primitive::Gate &&
+               node.is() != Primitive::Latch &&
+               node.is() != Primitive::Input {
                 let mut max_parent_rank = 0;
                 let parents = circuit.graph.neighbors_directed(*nidx, Incoming);
                 for pidx in parents {
@@ -181,11 +173,11 @@ fn find_alap_rank_order(circuit: &mut Circuit) {
 
             let node = circuit.graph.node_weight(nx).unwrap();
             match node.is() {
-                Primitives::Latch | Primitives::Gate => {
+                Primitive::Latch | Primitive::Gate => {
                     q.push_back(nx);
                     set_rank_alap(&mut circuit.graph, nx, 0);
                 }
-                Primitives::Output => {
+                Primitive::Output => {
                     q.push_back(nx);
                     set_rank_alap(&mut circuit.graph, nx, max_rank);
                 }
@@ -209,9 +201,9 @@ fn find_alap_rank_order(circuit: &mut Circuit) {
             for pidx in parents {
                 let pnode = circuit.graph.node_weight(pidx).unwrap();
                 if !topo_vis_map.is_visited(&pidx) &&
-                   pnode.is() != Primitives::Gate  ||
-                   pnode.is() != Primitives::Latch ||
-                   pnode.is() != Primitives::Input {
+                   pnode.is() != Primitive::Gate  ||
+                   pnode.is() != Primitive::Latch ||
+                   pnode.is() != Primitive::Input {
                    *odeg.get_mut(&pidx).unwrap() -= 1;
                     if *odeg.get(&pidx).unwrap() == 0 {
                         q.push_back(pidx);
@@ -223,15 +215,15 @@ fn find_alap_rank_order(circuit: &mut Circuit) {
         // Set rank based on the topo sorted order
         for nidx in topo_sort_order.iter() {
             let node = circuit.graph.node_weight(*nidx).unwrap();
-            if node.is() != Primitives::Gate &&
-               node.is() != Primitives::Latch &&
-               node.is() != Primitives::Input {
+            if node.is() != Primitive::Gate &&
+               node.is() != Primitive::Latch &&
+               node.is() != Primitive::Input {
                 let mut min_child_rank = circuit.emul.max_rank + 1;
                 let childs = circuit.graph.neighbors_directed(*nidx, Outgoing);
                 for cidx in childs {
                     let child = circuit.graph.node_weight(cidx).unwrap();
-                    if child.is() == Primitives::Gate ||
-                       child.is() == Primitives::Latch {
+                    if child.is() == Primitive::Gate ||
+                       child.is() == Primitive::Latch {
                         min_child_rank = min(min_child_rank, circuit.emul.max_rank + 1);
                     } else {
                         min_child_rank = min(min_child_rank, child.info().rank.alap);
@@ -324,7 +316,7 @@ fn print_rank_stats(circuit: &Circuit) {
 
     for nidx in circuit.graph.node_indices() {
         let node = circuit.graph.node_weight(nidx).unwrap();
-        if node.is() == Primitives::Gate || node.is() == Primitives::Latch {
+        if node.is() == Primitive::Gate || node.is() == Primitive::Latch {
             ff_cnt += 1;
         }
 

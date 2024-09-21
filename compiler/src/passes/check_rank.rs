@@ -1,4 +1,5 @@
-use crate::primitives::*;
+use crate::common::*;
+use blif_parser::primitives::*;
 use petgraph::Direction::Incoming;
 
 pub fn check_rank_order(circuit: &Circuit) {
@@ -6,7 +7,7 @@ pub fn check_rank_order(circuit: &Circuit) {
         let node = circuit.graph.node_weight(nidx).unwrap();
 
         match node.is() {
-            Primitives::Latch | Primitives::Gate | Primitives::Input => {
+            Primitive::Latch | Primitive::Gate | Primitive::Input => {
                 assert!(node.info().rank.asap == 0,
                     "Latch, Gate, Input should have rank.asap 0, got {:?}",
                     node.info().rank);
@@ -23,8 +24,8 @@ pub fn check_rank_order(circuit: &Circuit) {
                         pnode.is(),
                         pnode.info().rank);
 
-                    if node.is() != Primitives::Latch ||
-                       node.is() != Primitives::Gate {
+                    if node.is() != Primitive::Latch ||
+                       node.is() != Primitive::Gate {
                         assert!(node.info().rank.alap > pnode.info().rank.alap,
                             "node {:?} rank.alap {:?} should be > than pnode {:?} rank.alap {:?}",
                             node.is(),

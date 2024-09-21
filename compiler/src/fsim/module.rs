@@ -1,7 +1,8 @@
 use crate::common::*;
 use crate::fsim::processor::*;
 use crate::fsim::switch::*;
-use crate::primitives::{Primitives, PlatformConfig, NodeMapInfo};
+use crate::common::{PlatformConfig, NodeMapInfo};
+use blif_parser::primitives::Primitive;
 use indexmap::IndexMap;
 use itertools::Itertools;
 use petgraph::graph::NodeIndex;
@@ -150,7 +151,7 @@ impl Module {
         match self.signal_map.get(signal) {
             Some(map) => {
                 let inst = self.procs[map.info.coord.proc as usize].imem[map.info.pc as usize].clone();
-                if inst.opcode == Primitives::Input {
+                if inst.opcode == Primitive::Input {
                     self.procs[map.info.coord.proc as usize].set_io_i(val);
                     Some(val)
                 } else {
