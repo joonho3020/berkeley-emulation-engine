@@ -4,10 +4,23 @@
 
 ## Example usage
 
-### Base conda env
+### Generating a conda lock file from the current environment
 
 ```bash
-conda-lock install -p <conda env installation path> scripts/conda-lock.yml
+cd scripts
+conda-lock lock -p linux-64 -f env.yaml
+```
+
+### Install conda env
+
+```bash
+cd scripts
+
+// Install conda env
+conda-lock install -p linux-64 -n <name of the environment>
+
+// Change the PKG_CONFIG_PATH to point to the conda env
+conda env config vars PKG_CONFIG_PATH=$CONDA_PREFIX/lib/pkgconfig:$PKG_CONFIG_PATH
 ```
 
 ### Setup yosys (can be skipped if yosys is already installed)
