@@ -13,7 +13,7 @@
 version: 1
 metadata:
   content_hash:
-    linux-64: 94e83070bb9208eda6b84b7f21892624112c7970b2a9ff8f71d88adffe05b561
+    linux-64: 301eb97fb6b8db400f245ddc8da72e14240a37322a6f4aeb453b98dc8baea3a3
   channels:
   - url: conda-forge
     used_env_vars: []
@@ -577,10 +577,10 @@ package:
     tk: '>=8.6.13,<8.7.0a0'
     tzdata: ''
     xz: '>=5.2.6,<6.0a0'
-  url: https://conda.anaconda.org/conda-forge/linux-64/python-3.11.10-hc5c86c4_0_cpython.conda
+  url: https://conda.anaconda.org/conda-forge/linux-64/python-3.11.10-hc5c86c4_1_cpython.conda
   hash:
-    md5: 43a02ff0a2dafe8a8a1b6a9eacdbd2cc
-    sha256: 844bb9cefdfe93969fd9a9b593f6eb1ecbe6c53ab8d1a5d441bd7c93b31d0fef
+    md5: a0ee8d504b231985a6fb78ae8d65484f
+    sha256: b424fc3f2f4c8342179616b27565e54ca990bdd1e7aa769c4834fdc292b25a13
   category: main
   optional: false
 - name: readline
@@ -594,6 +594,19 @@ package:
   hash:
     md5: 47d31b792659ce70f470b5c82fdfb7a4
     sha256: 5435cf39d039387fbdc977b0a762357ea909a7694d9528ab40f005e9208744d7
+  category: main
+  optional: false
+- name: sparsehash
+  version: 2.0.4
+  manager: conda
+  platform: linux-64
+  dependencies:
+    libgcc-ng: '>=12'
+    libstdcxx-ng: '>=12'
+  url: https://conda.anaconda.org/conda-forge/linux-64/sparsehash-2.0.4-hcb278e6_1.conda
+  hash:
+    md5: 9b831c006d0a2b16c77a34ab26b5d4b0
+    sha256: 8e537be22edab24a2d134f6ff0f25a38c65467e1e161f46f79e212d77328e7ba
   category: main
   optional: false
 - name: sysroot_linux-64
