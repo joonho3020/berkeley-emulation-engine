@@ -17,10 +17,10 @@ conda-lock lock -p linux-64 -f env.yaml
 cd scripts
 
 // Install conda env
-conda-lock install -p linux-64 -n <name of the environment>
+conda-lock install -n <name of the environment>
 
 // Change the PKG_CONFIG_PATH to point to the conda env
-conda env config vars PKG_CONFIG_PATH=$CONDA_PREFIX/lib/pkgconfig:$PKG_CONFIG_PATH
+conda env config vars set PKG_CONFIG_PATH=$CONDA_PREFIX/lib/pkgconfig:$PKG_CONFIG_PATH
 ```
 
 ### Setup yosys (can be skipped if yosys is already installed)
