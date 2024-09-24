@@ -6,6 +6,7 @@ use blif_parser::{parser::parse_blif_file, primitives::ParsedPrimitive};
 fn module_to_circuit(module: &ParsedPrimitive, circuit: &mut Circuit) {
     let mut net_to_nodeidx: IndexMap<String, NodeIndex> = IndexMap::new();
     let mut out_to_nodeidx: IndexMap<String, NodeIndex> = IndexMap::new();
+    let mut sram_to_nodeidx: IndexMap<String, NodeIndex> = IndexMap::new();
 
     if let ParsedPrimitive::Module { name:_, inputs, outputs, elems } = module {
         // Parse inputs
@@ -24,7 +25,7 @@ fn module_to_circuit(module: &ParsedPrimitive, circuit: &mut Circuit) {
         for e in elems.iter() {
             let nidx = circuit.graph.add_node(HWNode::new(e.clone()));
             match e {
-                ParsedPrimitive::Lut { inputs:_, output, .. } => {
+                ParsedPrimitive::Lut { inputs, output, .. } => {
                     net_to_nodeidx.insert(output.to_string(), nidx);
                 }
                 ParsedPrimitive::Gate { c:_, d:_, q, .. } => {
@@ -32,6 +33,15 @@ fn module_to_circuit(module: &ParsedPrimitive, circuit: &mut Circuit) {
                 }
                 ParsedPrimitive::Latch { input:_, output, .. } => {
                     net_to_nodeidx.insert(output.to_string(), nidx);
+                }
+                ParsedPrimitive::Subckt { name, conns } => {
+                    sram_to_nodeidx.insert(name.to_string(), nidx);
+                    for (port, wire) in conns.iter() {
+                        // TODO : Better handle SRAM ports...
+                        if port.contains("R0_data") {
+                            net_to_nodeidx.insert(wire.to_string(), nidx);
+                        }
+                    }
                 }
                 _ => {
                     assert!(false, "Unrecoginzed primitive: {:?}", e);
@@ -70,6 +80,16 @@ fn module_to_circuit(module: &ParsedPrimitive, circuit: &mut Circuit) {
                     circuit
                         .graph
                         .add_edge(*d_idx, *q_idx, HWEdge::new(input.to_string()));
+                }
+                ParsedPrimitive::Subckt { name, conns } => {
+                    let sram_idx = sram_to_nodeidx.get(name).unwrap();
+                    for (port, wire) in conns.iter() {
+                        // TODO : Better handle SRAM ports...
+                        if !port.contains("R0_data") {
+                            let p_idx = net_to_nodeidx.get(wire).unwrap();
+                            circuit.graph.add_edge(*p_idx, *sram_idx, HWEdge::new(port.to_string()));
+                        }
+                    }
                 }
                 _ => {
                     assert!(false, "Unrecoginzed primitive: {:?}", elem);

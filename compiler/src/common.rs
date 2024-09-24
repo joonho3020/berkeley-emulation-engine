@@ -936,7 +936,7 @@ impl Debug for Circuit {
 
         write!(f, "digraph {{\n")?;
 
-        // BFS
+        // Print nodes in BFS order
         let mut vis_map = graph.visit_map();
         while !q.is_empty() {
             let nidx = q.remove(0);
@@ -977,6 +977,40 @@ impl Debug for Circuit {
                     q.push(cidx);
                 }
             }
+        }
+
+        // Print the unvisited nodes
+        for nidx in graph.node_indices() {
+            if vis_map.is_visited(&nidx) {
+                continue;
+            }
+            let node = graph.node_weight(nidx).unwrap();
+
+            // red, blue, green, white, purple
+            let proc = node.clone().info().coord.proc % 5;
+            let color = match proc {
+                0 => "red",
+                1 => "blue",
+                2 => "green",
+                3 => "orange",
+                4 => "purple",
+                _ => "white",
+            };
+            write!(
+                f,
+                "{}{} [ label = {:?} color = \"{}\"]\n",
+                indent,
+                nidx.index(),
+                format!("{} {:?}\nmod: {} proc: {} pc: {}\nasap: {} alap: {}\n",
+                        node.name(),
+                        node.is(),
+                        node.info().coord.module,
+                        node.info().coord.proc,
+                        node.info().pc,
+                        node.info().rank.asap,
+                        node.info().rank.alap),
+                color
+            )?;
         }
 
         for (_, edge) in graph.edge_references().enumerate() {

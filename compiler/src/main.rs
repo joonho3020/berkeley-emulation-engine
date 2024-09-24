@@ -41,6 +41,11 @@ fn test_emulator(
         }
     };
 
+    save_graph_pdf(
+        &format!("{:?}", circuit),
+        &format!("{}/{}.parsed.dot", cwd.to_str().unwrap(), args.top_mod),
+        &format!("{}/{}.parsed.pdf", cwd.to_str().unwrap(), args.top_mod))?;
+
     circuit.set_cfg(
         PlatformConfig {
             num_mods:          args.num_mods,
