@@ -1,11 +1,11 @@
 use indexmap::IndexMap;
 use crate::common::*;
 use petgraph::{
-    graph::{Graph, NodeIndex},
-    Undirected
+    data::DataMapMut, graph::{Graph, NodeIndex}, Direction::{Incoming, Outgoing}, Undirected
 };
 use histo::Histogram;
 use kaminpar::KaminParError;
+use blif_parser::primitives::Primitive;
 
 fn set_proc(
     graph: &mut HWGraph,

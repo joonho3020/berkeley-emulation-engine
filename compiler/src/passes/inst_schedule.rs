@@ -5,7 +5,9 @@ use full_palette::RED;
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
 use petgraph::{
-    graph::{EdgeReference, NodeIndex}, visit::{EdgeRef, VisitMap, Visitable}, Direction::{Incoming, Outgoing}
+    graph::{EdgeReference, NodeIndex},
+    visit::{EdgeRef, VisitMap, Visitable},
+    Direction::{Incoming, Outgoing}
 };
 use fixedbitset::FixedBitSet;
 use plotters::prelude::*;

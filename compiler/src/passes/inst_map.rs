@@ -114,6 +114,8 @@ pub fn map_instructions(circuit: &mut Circuit) {
                                         "node: {} coord {:?} pc: {} already set, but overwritten",
                                         node.name(), path.src, src_send_pc);
                                 }
+                                // fwd is set when we after `nw_route_dep_lat`.
+                                // i.e., when we can read the `sin_fwd_bit` register
                                 src_inst.sinfo.fwd = i != 0;
                                 src_inst.sinfo.fwd_set = true;
                             }
