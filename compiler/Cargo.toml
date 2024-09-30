@@ -28,7 +28,7 @@ lowcharts = "0.5.8"
 derivative = "2.2.0"
 yansi = "1.0.1"
 plotters = "0.3.6"
-blif-parser = "0.1.0"
+blif-parser = "0.1.6"
 
 [profile.release]
 debug=true

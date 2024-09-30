@@ -50,6 +50,35 @@ impl FourStateBit {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, EnumCountMacro)]
+#[repr(u32)]
+pub enum Primitive {
+    #[default]
+    NOP = 0,
+    Input,
+    Output,
+    Lut,
+    Gate,
+    Latch,
+    Subckt,
+    Module,
+}
+
+impl From<&ParsedPrimitive> for Primitive {
+    fn from(value: &ParsedPrimitive) -> Self {
+        match value {
+            ParsedPrimitive::NOP           => Primitive::NOP,
+            ParsedPrimitive::Input  { .. } => Primitive::Input,
+            ParsedPrimitive::Output { .. } => Primitive::Output,
+            ParsedPrimitive::Lut    { .. } => Primitive::Lut,
+            ParsedPrimitive::Gate   { .. } => Primitive::Gate,
+            ParsedPrimitive::Latch  { .. } => Primitive::Latch,
+            ParsedPrimitive::Subckt { .. } => Primitive::Subckt,
+            ParsedPrimitive::Module { .. } => Primitive::Module,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct Operand {
     /// index into data memory
@@ -201,11 +230,43 @@ impl NetworkPath {
 /// List of `NetworkPath` from one processor to another
 pub type NetworkRoute = LinkedList<NetworkPath>;
 
+#[derive(Clone, Default, PartialEq, Serialize, EnumCountMacro)]
+#[repr(u32)]
+pub enum SignalType {
+    #[default]
+    NOP = 0,
+    Wire       { name: String },
+    SRAMRdEn   { name: String },
+    SRAMWrEn   { name: String },
+    SRAMRdAddr { name: String, idx: u32 },
+    SRAMRdData { name: String, idx: u32 },
+    SRAMWrAddr { name: String, idx: u32 },
+    SRAMWrMask { name: String, idx: u32 },
+    SRAMWrData { name: String, idx: u32 },
+}
+
+impl Debug for SignalType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let name = match self {
+            SignalType::NOP                        => "",
+            SignalType::Wire       { name        } => name,
+            SignalType::SRAMRdEn   { name        } => name,
+            SignalType::SRAMWrEn   { name        } => name,
+            SignalType::SRAMRdAddr { name, idx:_ } => name,
+            SignalType::SRAMRdData { name, idx:_ } => name,
+            SignalType::SRAMWrAddr { name, idx:_ } => name,
+            SignalType::SRAMWrMask { name, idx:_ } => name,
+            SignalType::SRAMWrData { name, idx:_ } => name,
+        };
+        write!(f, "{}", name)
+    }
+}
+
 /// # Metadata attached to each `HWGraph` edge
 #[derive(Debug, Clone, Default)]
 pub struct HWEdge {
-    /// Name of the output signal
-    pub name: String,
+    /// Type of signal
+    pub signal: SignalType,
 
     /// For inter-module communication, set to describe how the bit is routed
     /// over the global network.
@@ -214,9 +275,9 @@ pub struct HWEdge {
 }
 
 impl HWEdge {
-    pub fn new(name_: String) -> Self {
+    pub fn new(s: SignalType) -> Self {
         HWEdge {
-            name: name_,
+            signal: s,
             route: None,
         }
     }
@@ -296,7 +357,10 @@ impl Serialize for NodeMapInfo {
 
 #[derive(Debug, Clone)]
 pub struct HWNode {
+    /// ParsedPrimitive from the blif_parser
     pub prim: ParsedPrimitive,
+
+    /// Information that we will fill in or use during the compiler passes
     pub info: NodeInfo
 }
 
@@ -1016,7 +1080,7 @@ impl Debug for Circuit {
         for (_, edge) in graph.edge_references().enumerate() {
             write!(f, "{}{} {} {} ",
                 indent, edge.source().index(), "->", edge.target().index())?;
-            writeln!(f, "[ label=\"{}-{:?}\" ]", edge.weight().name, edge.weight().route)?;
+            writeln!(f, "[ label=\"{:?}-{:?}\" ]", edge.weight().signal, edge.weight().route)?;
         }
 
         write!(f, "}}")

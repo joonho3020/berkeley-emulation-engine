@@ -1,6 +1,5 @@
 use crate::common::*;
 use crate::utils::save_graph_pdf;
-use blif_parser::primitives::Primitive;
 use full_palette::RED;
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;

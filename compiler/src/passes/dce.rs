@@ -1,5 +1,4 @@
 use crate::common::*;
-use blif_parser::primitives::Primitive;
 use petgraph::{
     prelude::Bfs,
     visit::{VisitMap, Visitable}

@@ -1,11 +1,10 @@
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use crate::common::*;
 use petgraph::{
     data::DataMapMut, graph::{Graph, NodeIndex}, Direction::{Incoming, Outgoing}, Undirected
 };
 use histo::Histogram;
 use kaminpar::KaminParError;
-use blif_parser::primitives::Primitive;
 
 fn set_proc(
     graph: &mut HWGraph,
@@ -65,6 +64,8 @@ fn get_partition_histogram(partition: Vec<u32>) -> Histogram {
 pub fn partition(circuit: &mut Circuit) {
     kaminpar_partition_module(circuit);
     kaminpar_partition_processor(circuit);
+    adjust_sram_nodes(circuit);
+    split_sram_io_ports(circuit);
 }
 
 /// Partition the circuit using the KaMinPar partitioning algorithm
@@ -175,4 +176,50 @@ fn kaminpar_partition_processor(circuit: &mut Circuit) {
             i,
             ModuleMapping { proc_mappings: IndexMap::new() });
     }
+}
+
+/// Currently, we assume that each SRAM is mapped to one module.
+/// Try reassigning SRAM nodes if this is not the case.
+fn adjust_sram_nodes(circuit: &mut Circuit) {
+    let mut free_modules: IndexSet<u32> = IndexSet::new();
+    let mut sram_mapping: IndexMap<u32, Vec<NodeIndex>> = IndexMap::new();
+
+    let pcfg = &circuit.platform_cfg;
+    for p in 0..pcfg.num_mods {
+        free_modules.insert(p);
+    }
+
+    // Obtain current mappings from SRAM nodes to modules
+    for nidx in circuit.graph.node_indices() {
+        let node = circuit.graph.node_weight(nidx).unwrap();
+        let module = node.info().coord.module;
+        if !sram_mapping.contains_key(&module) {
+            sram_mapping.insert(module, vec![]);
+        }
+        sram_mapping.get_mut(&module).unwrap().push(nidx);
+        free_modules.swap_remove(&module);
+    }
+
+    // Try reassigning
+    for (module, nodes) in sram_mapping.iter() {
+        // Only one SRAM node in the current module, don't need to do anything
+        if nodes.len() == 1 {
+            continue;
+        }
+        assert!(nodes.len() - 1 <= free_modules.len(), "Not enough free modules for SRAM");
+
+        for (i, nidx) in nodes.iter().enumerate() {
+            // Skip the first node
+            if i == 0 {
+                continue;
+            }
+            let free = free_modules.pop().unwrap();
+            let info = circuit.graph.node_weight_mut(*nidx).unwrap().info_mut();
+            info.coord = Coordinate { module: free, proc: info.coord.proc };
+        }
+    }
+}
+
+/// Split the SRAM node into nodes that represent each bit of the SRAM port
+fn split_sram_io_ports(circuit: &mut Circuit) {
 }

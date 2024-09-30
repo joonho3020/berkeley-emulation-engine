@@ -1,5 +1,4 @@
 use crate::common::*;
-use blif_parser::primitives::Primitive;
 use crate::fsim::memory::*;
 use std::fmt::Debug;
 

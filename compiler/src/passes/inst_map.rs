@@ -1,6 +1,5 @@
 use crate::common::*;
 use indexmap::IndexMap;
-use blif_parser::primitives::Primitive;
 use petgraph::visit::EdgeRef;
 use petgraph::Direction::{Incoming, Outgoing};
 

@@ -5,7 +5,7 @@ use crate::common::PlatformConfig;
 use crate::common::Circuit;
 use crate::common::Coordinate;
 use crate::common::Bit;
-use blif_parser::primitives::Primitive;
+use crate::common::Primitive;
 use petgraph::graph::NodeIndex;
 use indexmap::IndexMap;
 use std::fmt::Debug;

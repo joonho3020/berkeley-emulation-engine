@@ -2,7 +2,6 @@ use crate::common::*;
 use crate::fsim::processor::*;
 use crate::fsim::switch::*;
 use crate::common::{PlatformConfig, NodeMapInfo};
-use blif_parser::primitives::Primitive;
 use indexmap::IndexMap;
 use itertools::Itertools;
 use petgraph::graph::NodeIndex;

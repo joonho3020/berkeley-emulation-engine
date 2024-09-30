@@ -3,6 +3,36 @@ use petgraph::graph::NodeIndex;
 use crate::common::*;
 use blif_parser::{parser::parse_blif_file, primitives::ParsedPrimitive};
 
+fn extract_index(input: &str) -> Option<u32> {
+    // Find the positions of the opening and closing brackets
+    if let (Some(start), Some(end)) = (input.find('['), input.find(']')) {
+        // Extract the substring inside the brackets
+        let index_str = &input[start + 1..end];
+        // Parse the substring to u32
+        index_str.parse::<u32>().ok()
+    } else {
+        None
+    }
+}
+
+/// Checks if the parent node is a SRAM and sets the SignalType accordingly
+fn signal_type(src: &NodeIndex, circuit: &Circuit, wire: &str) -> SignalType {
+    let node = circuit.graph.node_weight(*src).unwrap();
+    if let ParsedPrimitive::Subckt { name:_, conns } = &node.prim {
+        // Parent node is a SRAM
+        // Signal type should be a SRAMRdData as it is the only output port from SRAM nodes
+        let wire_to_port: IndexMap<String, String> = conns.iter().map(|(k, v)| (v.clone(), k.clone())).collect();
+        let port = wire_to_port.get(wire).unwrap();
+        let bidx = extract_index(port);
+        assert!(bidx.is_some(), "SRAM Read Data Port ({}) does not contain a index", port);
+        return SignalType::SRAMRdData { name: wire.to_string(), idx: bidx.unwrap() };
+    } else {
+        return SignalType::Wire { name: wire.to_string() };
+    }
+}
+
+// nidx  wire
+//   o  ------> o ----> o ---->
 fn module_to_circuit(module: &ParsedPrimitive, circuit: &mut Circuit) {
     let mut net_to_nodeidx: IndexMap<String, NodeIndex> = IndexMap::new();
     let mut out_to_nodeidx: IndexMap<String, NodeIndex> = IndexMap::new();
@@ -25,7 +55,7 @@ fn module_to_circuit(module: &ParsedPrimitive, circuit: &mut Circuit) {
         for e in elems.iter() {
             let nidx = circuit.graph.add_node(HWNode::new(e.clone()));
             match e {
-                ParsedPrimitive::Lut { inputs, output, .. } => {
+                ParsedPrimitive::Lut { inputs:_, output, .. } => {
                     net_to_nodeidx.insert(output.to_string(), nidx);
                 }
                 ParsedPrimitive::Gate { c:_, d:_, q, .. } => {
@@ -56,20 +86,23 @@ fn module_to_circuit(module: &ParsedPrimitive, circuit: &mut Circuit) {
                     for inet in inputs.iter() {
                         let src_nidx = net_to_nodeidx.get(inet).unwrap();
                         let dst_nidx = net_to_nodeidx.get(output).unwrap();
+                        let sig = signal_type(src_nidx, circuit, inet);
                         circuit
                             .graph
-                            .add_edge(*src_nidx, *dst_nidx, HWEdge::new(inet.to_string()));
+                            .add_edge(*src_nidx, *dst_nidx, HWEdge::new(sig));
                     }
                 }
                 ParsedPrimitive::Gate { c:_, d, q, r:_, e } => {
                     let d_idx = net_to_nodeidx.get(d).unwrap();
                     let q_idx = net_to_nodeidx.get(q).unwrap();
-                    circuit.graph.add_edge(*d_idx, *q_idx, HWEdge::new(d.to_string()));
+                    let sig = signal_type(d_idx, circuit, d);
+                    circuit.graph.add_edge(*d_idx, *q_idx, HWEdge::new(sig));
 
                     match &e {
                         Some(e) => {
                             let e_idx = net_to_nodeidx.get(e).unwrap();
-                            circuit.graph.add_edge(*e_idx, *q_idx, HWEdge::new(e.to_string()));
+                            let e_sig = signal_type(e_idx, circuit, e);
+                            circuit.graph.add_edge(*e_idx, *q_idx, HWEdge::new(e_sig));
                         }
                         None => (),
                     };
@@ -77,17 +110,35 @@ fn module_to_circuit(module: &ParsedPrimitive, circuit: &mut Circuit) {
                 ParsedPrimitive::Latch { input, output, .. } => {
                     let d_idx = net_to_nodeidx.get(input).unwrap();
                     let q_idx = net_to_nodeidx.get(output).unwrap();
+                    let sig = signal_type(d_idx, circuit, input);
                     circuit
                         .graph
-                        .add_edge(*d_idx, *q_idx, HWEdge::new(input.to_string()));
+                        .add_edge(*d_idx, *q_idx, HWEdge::new(sig));
                 }
                 ParsedPrimitive::Subckt { name, conns } => {
                     let sram_idx = sram_to_nodeidx.get(name).unwrap();
                     for (port, wire) in conns.iter() {
                         // TODO : Better handle SRAM ports...
-                        if !port.contains("R0_data") {
-                            let p_idx = net_to_nodeidx.get(wire).unwrap();
-                            circuit.graph.add_edge(*p_idx, *sram_idx, HWEdge::new(port.to_string()));
+                        let bidx = extract_index(port);
+                        let p_idx = net_to_nodeidx.get(wire).unwrap();
+                        let sig = if port.contains("R0_addr") {
+                            Some(SignalType::SRAMRdAddr { name: wire.to_string(), idx: bidx.unwrap() })
+                        } else if port.contains("R0_en") {
+                            Some(SignalType::SRAMRdEn { name: wire.to_string() })
+                        } else if port.contains("W0_en") {
+                            Some(SignalType::SRAMWrEn { name: wire.to_string() })
+                        } else if port.contains("W0_mask") {
+                            Some(SignalType::SRAMWrMask { name: wire.to_string(), idx: bidx.unwrap() })
+                        } else if port.contains("W0_addr") {
+                            Some(SignalType::SRAMWrAddr { name: wire.to_string(), idx: bidx.unwrap() })
+                        } else if port.contains("W0_data") {
+                            Some(SignalType::SRAMWrData { name: wire.to_string(), idx: bidx.unwrap() })
+                        } else {
+                            None
+                        };
+                        match sig {
+                            Some(s) => { circuit.graph.add_edge(*p_idx, *sram_idx, HWEdge::new(s)); }
+                            None => {}
                         }
                     }
                 }
@@ -101,7 +152,8 @@ fn module_to_circuit(module: &ParsedPrimitive, circuit: &mut Circuit) {
         for o in outputs.iter() {
             let src_nidx = net_to_nodeidx.get(&o.to_string()).unwrap();
             let dst_nidx = out_to_nodeidx.get(&o.to_string()).unwrap();
-            circuit.graph.add_edge(*src_nidx, *dst_nidx, HWEdge::new(o.to_string()));
+            let sig = signal_type(src_nidx, circuit, o);
+            circuit.graph.add_edge(*src_nidx, *dst_nidx, HWEdge::new(sig));
         }
     }
 }
