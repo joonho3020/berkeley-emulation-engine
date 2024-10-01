@@ -21,6 +21,12 @@ pub fn run_compiler_passes(c: &mut Circuit) {
     let partition_time = partition_start.elapsed().as_millis();
     println!("Partition done");
 
+    let ccfg = &c.compiler_cfg;
+    let _ = save_graph_pdf(
+        &format!("{:?}", c),
+        &format!("{}/{}.splitsram.dot", ccfg.output_dir, ccfg.top_module),
+        &format!("{}/{}.splitsram.pdf", ccfg.output_dir, ccfg.top_module));
+
     let rank_start = Instant::now();
     find_rank_order(c);
     check_rank_order(c);

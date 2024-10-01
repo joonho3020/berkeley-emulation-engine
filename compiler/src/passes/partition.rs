@@ -1,7 +1,8 @@
+use blif_parser::primitives::ParsedPrimitive;
 use indexmap::{IndexMap, IndexSet};
 use crate::common::*;
 use petgraph::{
-    data::DataMapMut, graph::{Graph, NodeIndex}, Direction::{Incoming, Outgoing}, Undirected
+    data::{DataMap, DataMapMut}, graph::{Graph, NodeIndex}, visit::{EdgeRef, IntoEdgesDirected}, Direction::{Incoming, Outgoing}, Undirected
 };
 use histo::Histogram;
 use kaminpar::KaminParError;
@@ -65,7 +66,7 @@ pub fn partition(circuit: &mut Circuit) {
     kaminpar_partition_module(circuit);
     kaminpar_partition_processor(circuit);
     adjust_sram_nodes(circuit);
-    split_sram_io_ports(circuit);
+    split_sram_node_by_io(circuit);
 }
 
 /// Partition the circuit using the KaMinPar partitioning algorithm
@@ -192,6 +193,10 @@ fn adjust_sram_nodes(circuit: &mut Circuit) {
     // Obtain current mappings from SRAM nodes to modules
     for nidx in circuit.graph.node_indices() {
         let node = circuit.graph.node_weight(nidx).unwrap();
+        if node.is() != Primitive::Subckt {
+            continue;
+        }
+
         let module = node.info().coord.module;
         if !sram_mapping.contains_key(&module) {
             sram_mapping.insert(module, vec![]);
@@ -201,7 +206,7 @@ fn adjust_sram_nodes(circuit: &mut Circuit) {
     }
 
     // Try reassigning
-    for (module, nodes) in sram_mapping.iter() {
+    for (_, nodes) in sram_mapping.iter() {
         // Only one SRAM node in the current module, don't need to do anything
         if nodes.len() == 1 {
             continue;
@@ -220,6 +225,91 @@ fn adjust_sram_nodes(circuit: &mut Circuit) {
     }
 }
 
+#[derive(Debug)]
+struct ReplaceSRAMInfo {
+    pub parents: IndexMap<NodeIndex, HWEdge>,
+    pub childs:  IndexMap<NodeIndex, HWEdge>,
+    pub node: HWNode
+}
+
+impl ReplaceSRAMInfo {
+    fn new(n: HWNode) -> Self {
+        ReplaceSRAMInfo {
+            parents: IndexMap::default(),
+            childs : IndexMap::default(),
+            node: n
+        }
+    }
+}
+
+fn assign_proc_to_sram_node(node: &HWNode, i: u32, pcfg: &PlatformConfig) -> HWNode {
+    let coord = node.info().coord;
+    let new_coord = Coordinate { proc: (i as u32) % pcfg.num_procs, ..coord };
+
+    let mut ret = node.clone();
+    ret.info_mut().coord = new_coord;
+    return ret;
+}
+
 /// Split the SRAM node into nodes that represent each bit of the SRAM port
-fn split_sram_io_ports(circuit: &mut Circuit) {
+fn split_sram_node_by_io(circuit: &mut Circuit) {
+    let pcfg = &circuit.platform_cfg;
+    let mut sram_info: IndexMap<NodeIndex, ReplaceSRAMInfo> = IndexMap::new();
+    let mut check_nodes: IndexSet<NodeIndex> = IndexSet::new();
+
+    // Search for nodes to replace
+    for nidx in circuit.graph.node_indices() {
+        let node = circuit.graph.node_weight(nidx).unwrap();
+        if node.is() != Primitive::Subckt {
+            continue;
+        }
+
+        if !sram_info.contains_key(&nidx) {
+            sram_info.insert(nidx, ReplaceSRAMInfo::new(node.clone()));
+        }
+
+        // collect parent nodes & the edges
+        let pedges = circuit.graph.edges_directed(nidx, Incoming);
+        for pedge in pedges {
+            let pidx = pedge.source();
+            let edge = circuit.graph.edge_weight(pedge.id()).unwrap().clone();
+            sram_info.get_mut(&nidx).unwrap().parents.insert(pidx, edge);
+            check_nodes.insert(pidx);
+        }
+
+        // collect child nodes & associated edges
+        let cedges = circuit.graph.edges_directed(nidx, Outgoing);
+        for cedge in cedges {
+            let cidx = cedge.target();
+            let edge = circuit.graph.edge_weight(cedge.id()).unwrap().clone();
+            sram_info.get_mut(&nidx).unwrap().childs.insert(cidx, edge);
+            check_nodes.insert(cidx);
+        }
+    }
+
+    // Add bitwise SRAM port nodes
+    for (_, rinfo) in sram_info.iter() {
+        // Fill from processor 0
+        for (i, (pidx, edge)) in rinfo.parents.iter().enumerate() {
+            let node = assign_proc_to_sram_node(&rinfo.node, i as u32, pcfg);
+            let sram_idx = circuit.graph.add_node(node);
+            assert!(!check_nodes.contains(&sram_idx), "sram_info contains newly added NodeIndex {:?}", sram_idx);
+            circuit.graph.add_edge(*pidx, sram_idx, edge.clone());
+        }
+
+        // Fill from processor (nprocs - 1)
+        for (i, (cidx, edge)) in rinfo.childs.iter().enumerate().rev() {
+            let node = assign_proc_to_sram_node(&rinfo.node, i as u32, pcfg);
+            let sram_idx = circuit.graph.add_node(node);
+            assert!(!check_nodes.contains(&sram_idx), "sram_info contains newly added NodeIndex {:?}", sram_idx);
+            circuit.graph.add_edge(sram_idx, *cidx, edge.clone());
+        }
+    }
+
+    // Remove SRAM nodes
+    for nidx in circuit.graph.node_indices().rev() {
+        if sram_info.contains_key(&nidx) {
+            circuit.graph.remove_node(nidx);
+        }
+    }
 }
