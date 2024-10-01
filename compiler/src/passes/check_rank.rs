@@ -1,5 +1,4 @@
 use crate::common::*;
-use blif_parser::primitives::*;
 use petgraph::Direction::Incoming;
 
 pub fn check_rank_order(circuit: &Circuit) {

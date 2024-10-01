@@ -294,8 +294,10 @@ fn split_sram_node_by_io(circuit: &mut Circuit) {
             node.prim = CircuitPrimitive::from(&edge.signal);
 
             let sram_idx = circuit.graph.add_node(node);
-            assert!(!check_nodes.contains(&sram_idx), "sram_info contains newly added NodeIndex {:?}", sram_idx);
             circuit.graph.add_edge(*pidx, sram_idx, edge.clone());
+
+            assert!(!check_nodes.contains(&sram_idx),
+                "sram_info contains newly added NodeIndex {:?}", sram_idx);
         }
 
         // Fill from processor (nprocs - 1)
@@ -304,8 +306,10 @@ fn split_sram_node_by_io(circuit: &mut Circuit) {
             node.prim = CircuitPrimitive::from(&edge.signal);
 
             let sram_idx = circuit.graph.add_node(node);
-            assert!(!check_nodes.contains(&sram_idx), "sram_info contains newly added NodeIndex {:?}", sram_idx);
             circuit.graph.add_edge(sram_idx, *cidx, edge.clone());
+
+            assert!(!check_nodes.contains(&sram_idx),
+                "sram_info contains newly added NodeIndex {:?}", sram_idx);
         }
     }
 

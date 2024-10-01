@@ -53,6 +53,7 @@ fn find_asap_rank_order(circuit: &mut Circuit) {
         // DFS to search for all the relevant nodes
         let mut ff_nodes: Vec<NodeIndex> = vec![];
         let mut in_nodes: Vec<NodeIndex> = vec![];
+        let mut sr_nodes: Vec<NodeIndex> = vec![];
 
         let mut dfs = Dfs::new(&undir_graph, curidx);
         while let Some(nx) = dfs.next(&undir_graph) {
@@ -69,6 +70,9 @@ fn find_asap_rank_order(circuit: &mut Circuit) {
                 Primitive::Input => {
                     in_nodes.push(nx);
                 }
+                Primitive::SRAMRdData => {
+                    sr_nodes.push(nx);
+                }
                 _ => {
                 }
             }
@@ -81,6 +85,10 @@ fn find_asap_rank_order(circuit: &mut Circuit) {
             set_rank_asap(&mut circuit.graph, *nidx, 0);
         }
         for nidx in ff_nodes.iter() {
+            q.push_back(*nidx);
+            set_rank_asap(&mut circuit.graph, *nidx, 0);
+        }
+        for nidx in sr_nodes.iter() {
             q.push_back(*nidx);
             set_rank_asap(&mut circuit.graph, *nidx, 0);
         }
@@ -101,9 +109,10 @@ fn find_asap_rank_order(circuit: &mut Circuit) {
             for cidx in childs {
                 let cnode = circuit.graph.node_weight(cidx).unwrap();
                 if !topo_vis_map.is_visited(&cidx) &&
-                    cnode.is() != Primitive::Gate &&
+                    cnode.is() != Primitive::Gate  &&
                     cnode.is() != Primitive::Latch &&
-                    cnode.is() != Primitive::Input {
+                    cnode.is() != Primitive::Input &&
+                    cnode.is() != Primitive::SRAMRdData {
                     *indeg.get_mut(&cidx).unwrap() -= 1;
                     if *indeg.get(&cidx).unwrap() == 0 {
                         q.push_back(cidx);
@@ -115,9 +124,10 @@ fn find_asap_rank_order(circuit: &mut Circuit) {
         // Set rank based on the topo sorted order
         for nidx in topo_sort_order.iter() {
             let node = circuit.graph.node_weight(*nidx).unwrap();
-            if node.is() != Primitive::Gate &&
+            if node.is() != Primitive::Gate  &&
                node.is() != Primitive::Latch &&
-               node.is() != Primitive::Input {
+               node.is() != Primitive::Input &&
+               node.is() != Primitive::SRAMRdData {
                 let mut max_parent_rank = 0;
                 let parents = circuit.graph.neighbors_directed(*nidx, Incoming);
                 for pidx in parents {
@@ -172,11 +182,17 @@ fn find_alap_rank_order(circuit: &mut Circuit) {
 
             let node = circuit.graph.node_weight(nx).unwrap();
             match node.is() {
-                Primitive::Latch | Primitive::Gate => {
+                Primitive::Latch | Primitive::Gate | Primitive::SRAMRdData => {
                     q.push_back(nx);
                     set_rank_alap(&mut circuit.graph, nx, 0);
                 }
-                Primitive::Output => {
+                Primitive::Output     |
+                Primitive::SRAMRdEn   |
+                Primitive::SRAMWrEn   |
+                Primitive::SRAMRdAddr |
+                Primitive::SRAMWrAddr |
+                Primitive::SRAMWrMask |
+                Primitive::SRAMWrData => {
                     q.push_back(nx);
                     set_rank_alap(&mut circuit.graph, nx, max_rank);
                 }
@@ -202,7 +218,8 @@ fn find_alap_rank_order(circuit: &mut Circuit) {
                 if !topo_vis_map.is_visited(&pidx) &&
                    pnode.is() != Primitive::Gate  ||
                    pnode.is() != Primitive::Latch ||
-                   pnode.is() != Primitive::Input {
+                   pnode.is() != Primitive::Input ||
+                   pnode.is() != Primitive::SRAMRdData {
                    *odeg.get_mut(&pidx).unwrap() -= 1;
                     if *odeg.get(&pidx).unwrap() == 0 {
                         q.push_back(pidx);
@@ -214,15 +231,22 @@ fn find_alap_rank_order(circuit: &mut Circuit) {
         // Set rank based on the topo sorted order
         for nidx in topo_sort_order.iter() {
             let node = circuit.graph.node_weight(*nidx).unwrap();
-            if node.is() != Primitive::Gate &&
+            if node.is() != Primitive::Gate  &&
                node.is() != Primitive::Latch &&
-               node.is() != Primitive::Input {
+               node.is() != Primitive::Input &&
+               node.is() != Primitive::SRAMRdData {
                 let mut min_child_rank = circuit.emul.max_rank + 1;
                 let childs = circuit.graph.neighbors_directed(*nidx, Outgoing);
                 for cidx in childs {
                     let child = circuit.graph.node_weight(cidx).unwrap();
-                    if child.is() == Primitive::Gate ||
-                       child.is() == Primitive::Latch {
+                    if child.is() == Primitive::Gate       ||
+                       child.is() == Primitive::Latch      ||
+                       child.is() == Primitive::SRAMRdEn   ||
+                       child.is() == Primitive::SRAMWrEn   ||
+                       child.is() == Primitive::SRAMRdAddr ||
+                       child.is() == Primitive::SRAMWrAddr ||
+                       child.is() == Primitive::SRAMWrMask ||
+                       child.is() == Primitive::SRAMWrData  {
                         min_child_rank = min(min_child_rank, circuit.emul.max_rank + 1);
                     } else {
                         min_child_rank = min(min_child_rank, child.info().rank.alap);
