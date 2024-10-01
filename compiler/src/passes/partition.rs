@@ -1,8 +1,7 @@
-use blif_parser::primitives::ParsedPrimitive;
 use indexmap::{IndexMap, IndexSet};
 use crate::common::*;
 use petgraph::{
-    data::{DataMap, DataMapMut}, graph::{Graph, NodeIndex}, visit::{EdgeRef, IntoEdgesDirected}, Direction::{Incoming, Outgoing}, Undirected
+    graph::{Graph, NodeIndex}, visit::EdgeRef, Direction::{Incoming, Outgoing}, Undirected
 };
 use histo::Histogram;
 use kaminpar::KaminParError;
@@ -193,7 +192,7 @@ fn adjust_sram_nodes(circuit: &mut Circuit) {
     // Obtain current mappings from SRAM nodes to modules
     for nidx in circuit.graph.node_indices() {
         let node = circuit.graph.node_weight(nidx).unwrap();
-        if node.is() != Primitive::Subckt {
+        if node.is() != Primitive::SRAMNode {
             continue;
         }
 
@@ -260,7 +259,7 @@ fn split_sram_node_by_io(circuit: &mut Circuit) {
     // Search for nodes to replace
     for nidx in circuit.graph.node_indices() {
         let node = circuit.graph.node_weight(nidx).unwrap();
-        if node.is() != Primitive::Subckt {
+        if node.is() != Primitive::SRAMNode {
             continue;
         }
 
@@ -291,7 +290,9 @@ fn split_sram_node_by_io(circuit: &mut Circuit) {
     for (_, rinfo) in sram_info.iter() {
         // Fill from processor 0
         for (i, (pidx, edge)) in rinfo.parents.iter().enumerate() {
-            let node = assign_proc_to_sram_node(&rinfo.node, i as u32, pcfg);
+            let mut node = assign_proc_to_sram_node(&rinfo.node, i as u32, pcfg);
+            node.prim = CircuitPrimitive::from(&edge.signal);
+
             let sram_idx = circuit.graph.add_node(node);
             assert!(!check_nodes.contains(&sram_idx), "sram_info contains newly added NodeIndex {:?}", sram_idx);
             circuit.graph.add_edge(*pidx, sram_idx, edge.clone());
@@ -299,7 +300,9 @@ fn split_sram_node_by_io(circuit: &mut Circuit) {
 
         // Fill from processor (nprocs - 1)
         for (i, (cidx, edge)) in rinfo.childs.iter().enumerate().rev() {
-            let node = assign_proc_to_sram_node(&rinfo.node, i as u32, pcfg);
+            let mut node = assign_proc_to_sram_node(&rinfo.node, i as u32, pcfg);
+            node.prim = CircuitPrimitive::from(&edge.signal);
+
             let sram_idx = circuit.graph.add_node(node);
             assert!(!check_nodes.contains(&sram_idx), "sram_info contains newly added NodeIndex {:?}", sram_idx);
             circuit.graph.add_edge(sram_idx, *cidx, edge.clone());

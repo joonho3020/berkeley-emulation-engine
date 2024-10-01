@@ -18,7 +18,7 @@ fn extract_index(input: &str) -> Option<u32> {
 /// Checks if the parent node is a SRAM and sets the SignalType accordingly
 fn signal_type(src: &NodeIndex, circuit: &Circuit, wire: &str) -> SignalType {
     let node = circuit.graph.node_weight(*src).unwrap();
-    if let ParsedPrimitive::Subckt { name:_, conns } = &node.prim {
+    if let CircuitPrimitive::SRAMNode { name:_, conns } = &node.prim {
         // Parent node is a SRAM
         // Signal type should be a SRAMRdData as it is the only output port from SRAM nodes
         let wire_to_port: IndexMap<String, String> = conns.iter().map(|(k, v)| (v.clone(), k.clone())).collect();
@@ -41,19 +41,19 @@ fn module_to_circuit(module: &ParsedPrimitive, circuit: &mut Circuit) {
     if let ParsedPrimitive::Module { name:_, inputs, outputs, elems } = module {
         // Parse inputs
         for i in inputs.iter() {
-            let nidx = circuit.graph.add_node(HWNode::new(ParsedPrimitive::Input { name: i.to_string() }));
+            let nidx = circuit.graph.add_node(HWNode::new(CircuitPrimitive::Input { name: i.to_string() }));
             net_to_nodeidx.insert(i.to_string(), nidx);
         }
 
         // Parse outputs
         for o in outputs.iter() {
-            let nidx = circuit.graph.add_node(HWNode::new(ParsedPrimitive::Output { name: o.to_string() }));
+            let nidx = circuit.graph.add_node(HWNode::new(CircuitPrimitive::Output { name: o.to_string() }));
             out_to_nodeidx.insert(o.to_string(), nidx);
         }
 
         // Add nodes to graph
         for e in elems.iter() {
-            let nidx = circuit.graph.add_node(HWNode::new(e.clone()));
+            let nidx = circuit.graph.add_node(HWNode::new(CircuitPrimitive::from(e)));
             match e {
                 ParsedPrimitive::Lut { inputs:_, output, .. } => {
                     net_to_nodeidx.insert(output.to_string(), nidx);

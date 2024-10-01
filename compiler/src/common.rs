@@ -60,21 +60,92 @@ pub enum Primitive {
     Lut,
     Gate,
     Latch,
-    Subckt,
-    Module,
+    SRAMNode,
+    SRAMRdEn,
+    SRAMWrEn,
+    SRAMRdAddr,
+    SRAMRdData,
+    SRAMWrAddr,
+    SRAMWrMask,
+    SRAMWrData,
 }
 
-impl From<&ParsedPrimitive> for Primitive {
+#[derive(Debug, Clone, Default, PartialEq, Serialize, EnumCountMacro)]
+#[repr(u32)]
+pub enum CircuitPrimitive {
+    #[default]
+    NOP = 0,
+    Input      { name: String },
+    Output     { name: String },
+    Lut        { inputs: Vec<String>, output: String, table: Vec<Vec<u8>> },
+    Gate       { c: String, d: String, q: String, r: Option<String>, e: Option<String> },
+    Latch      { input: String, output: String, control: String, init: LatchInit },
+    SRAMNode   { name: String, conns: IndexMap<String, String> },
+    SRAMRdEn   { name: String },
+    SRAMWrEn   { name: String },
+    SRAMRdAddr { name: String, idx: u32 },
+    SRAMRdData { name: String, idx: u32 },
+    SRAMWrAddr { name: String, idx: u32 },
+    SRAMWrMask { name: String, idx: u32 },
+    SRAMWrData { name: String, idx: u32 },
+}
+
+impl From<&CircuitPrimitive> for Primitive {
+    fn from(value: &CircuitPrimitive) -> Self {
+        match value {
+            CircuitPrimitive::NOP               => Primitive::NOP,
+            CircuitPrimitive::Input      { .. } => Primitive::Input,
+            CircuitPrimitive::Output     { .. } => Primitive::Output,
+            CircuitPrimitive::Lut        { .. } => Primitive::Lut,
+            CircuitPrimitive::Gate       { .. } => Primitive::Gate,
+            CircuitPrimitive::Latch      { .. } => Primitive::Latch,
+            CircuitPrimitive::SRAMNode   { .. } => Primitive::SRAMNode,
+            CircuitPrimitive::SRAMRdEn   { .. } => Primitive::SRAMRdEn,
+            CircuitPrimitive::SRAMWrEn   { .. } => Primitive::SRAMWrEn,
+            CircuitPrimitive::SRAMRdAddr { .. } => Primitive::SRAMRdAddr,
+            CircuitPrimitive::SRAMRdData { .. } => Primitive::SRAMRdData,
+            CircuitPrimitive::SRAMWrAddr { .. } => Primitive::SRAMWrAddr,
+            CircuitPrimitive::SRAMWrMask { .. } => Primitive::SRAMWrMask,
+            CircuitPrimitive::SRAMWrData { .. } => Primitive::SRAMWrData,
+        }
+    }
+}
+
+impl From<&ParsedPrimitive> for CircuitPrimitive {
     fn from(value: &ParsedPrimitive) -> Self {
         match value {
-            ParsedPrimitive::NOP           => Primitive::NOP,
-            ParsedPrimitive::Input  { .. } => Primitive::Input,
-            ParsedPrimitive::Output { .. } => Primitive::Output,
-            ParsedPrimitive::Lut    { .. } => Primitive::Lut,
-            ParsedPrimitive::Gate   { .. } => Primitive::Gate,
-            ParsedPrimitive::Latch  { .. } => Primitive::Latch,
-            ParsedPrimitive::Subckt { .. } => Primitive::Subckt,
-            ParsedPrimitive::Module { .. } => Primitive::Module,
+            ParsedPrimitive::NOP => Self::NOP,
+            ParsedPrimitive::Module { .. } => Self::NOP,
+            ParsedPrimitive::Input { name }  => Self::Input { name: name.to_string() },
+            ParsedPrimitive::Output { name } => Self::Output { name: name.to_string() },
+            ParsedPrimitive::Lut { inputs, output, table } =>
+                Self::Lut { inputs: inputs.to_vec(), output: output.to_string(), table: table.to_vec() },
+            ParsedPrimitive::Gate { c, d, q, r, e } =>
+                Self::Gate { c: c.clone(), d: d.clone(), q: q.clone(), r: r.clone(), e: e.clone() },
+            ParsedPrimitive::Latch { input, output, control, init } =>
+                Self::Latch { input: input.clone(), output: output.clone(), control: control.clone(), init: init.clone() },
+            ParsedPrimitive::Subckt { name, conns } => Self::SRAMNode { name: name.clone(), conns: conns.clone() }
+        }
+    }
+}
+
+impl From<&SignalType> for CircuitPrimitive {
+    fn from(value: &SignalType) -> Self {
+        match value {
+            SignalType::NOP => Self::NOP,
+            SignalType::Wire { .. } => Self::NOP,
+            SignalType::SRAMWrEn { name } => Self::SRAMWrEn { name: name.to_string() },
+            SignalType::SRAMRdEn { name } => Self::SRAMWrEn { name: name.to_string() },
+            SignalType::SRAMRdAddr { name, idx } =>
+                Self::SRAMRdAddr { name: name.to_string(), idx: idx.clone() },
+            SignalType::SRAMRdData { name, idx } =>
+                Self::SRAMRdData { name: name.to_string(), idx: idx.clone() },
+            SignalType::SRAMWrData { name, idx } =>
+                Self::SRAMWrData { name: name.to_string(), idx: idx.clone() },
+            SignalType::SRAMWrMask { name, idx } =>
+                Self::SRAMWrMask { name: name.to_string(), idx: idx.clone() },
+            SignalType::SRAMWrAddr { name, idx } =>
+                Self::SRAMWrAddr { name: name.to_string(), idx: idx.clone() },
         }
     }
 }
@@ -357,8 +428,8 @@ impl Serialize for NodeMapInfo {
 
 #[derive(Debug, Clone)]
 pub struct HWNode {
-    /// ParsedPrimitive from the blif_parser
-    pub prim: ParsedPrimitive,
+    /// CircuitPrimitive from the blif_parser
+    pub prim: CircuitPrimitive,
 
     /// Information that we will fill in or use during the compiler passes
     pub info: NodeInfo
@@ -366,7 +437,7 @@ pub struct HWNode {
 
 /// # Interface for accessing/manipulating the underlying node in `HWGraph`
 impl HWNode {
-    pub fn new(prim: ParsedPrimitive) -> Self {
+    pub fn new(prim: CircuitPrimitive) -> Self {
         HWNode {
             prim: prim,
             info: NodeInfo::default()
@@ -392,25 +463,32 @@ impl HWNode {
 
     pub fn get_lut_table(&self) -> Option<Vec<Vec<u8>>> {
         match &self.prim {
-            ParsedPrimitive::Lut { inputs: _, output: _, table } => Some(table.to_vec()),
+            CircuitPrimitive::Lut { inputs: _, output: _, table } => Some(table.to_vec()),
             _ => None
         }
     }
 
     pub fn get_lut_inputs(&self) -> Option<Vec<String>> {
         match &self.prim {
-            ParsedPrimitive::Lut { inputs, .. } => Some(inputs.to_vec()),
+            CircuitPrimitive::Lut { inputs, .. } => Some(inputs.to_vec()),
             _ => None
         }
     }
 
     pub fn name(&self) -> &str {
         match &self.prim {
-            ParsedPrimitive::Lut { inputs: _, output, .. } => &output,
-            ParsedPrimitive::Gate { c: _, d: _, q, .. } => &q,
-            ParsedPrimitive::Input { name } => &name,
-            ParsedPrimitive::Output { name } => &name,
-            ParsedPrimitive::Latch { input: _, output, .. } => &output,
+            CircuitPrimitive::Lut { inputs: _, output, .. }  => &output,
+            CircuitPrimitive::Gate { c: _, d: _, q, .. }     => &q,
+            CircuitPrimitive::Input { name }                 => &name,
+            CircuitPrimitive::Output { name }                => &name,
+            CircuitPrimitive::Latch { input: _, output, .. } => &output,
+            CircuitPrimitive::SRAMRdEn { name }              => &name,
+            CircuitPrimitive::SRAMWrEn { name }              => &name,
+            CircuitPrimitive::SRAMRdAddr { name, .. }        => &name,
+            CircuitPrimitive::SRAMRdData { name, .. }        => &name,
+            CircuitPrimitive::SRAMWrAddr { name, .. }        => &name,
+            CircuitPrimitive::SRAMWrMask { name, .. }        => &name,
+            CircuitPrimitive::SRAMWrData { name, .. }        => &name,
             _ => ""
         }
     }
