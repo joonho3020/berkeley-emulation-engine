@@ -1,5 +1,6 @@
 use crate::common::*;
 use crate::fsim::memory::*;
+use crate::fsim::sram::ProcessorSRAMPort;
 use std::fmt::Debug;
 
 #[derive(Default, Clone, Debug)]
@@ -51,7 +52,9 @@ pub struct Processor {
 
     /// Bit to send when we need to forward the bit to the network instead of
     /// the computed bit. Used when inst.sinfo.fwd is true
-    sin_fwd_bit: Bit
+    sin_fwd_bit: Bit,
+
+    sram_port: ProcessorSRAMPort
 }
 
 impl Processor {
@@ -59,9 +62,9 @@ impl Processor {
         Processor {
             cfg: cfg.clone(),
             host_steps: host_steps_,
-            imem: AbstractMemory::new(host_steps_ as u32, cfg.imem_lat,    1,              cfg.imem_lat,    1),
-            ldm:  AbstractMemory::new(host_steps_ as u32, cfg.dmem_rd_lat, cfg.lut_inputs, cfg.dmem_wr_lat, 1),
-            sdm:  AbstractMemory::new(host_steps_ as u32, cfg.dmem_rd_lat, cfg.lut_inputs, cfg.dmem_wr_lat, 1),
+            imem: AbstractMemory::new(cfg.max_steps as u32, cfg.imem_lat,    1,              cfg.imem_lat,    1),
+            ldm:  AbstractMemory::new(cfg.max_steps as u32, cfg.dmem_rd_lat, cfg.lut_inputs, cfg.dmem_wr_lat, 1),
+            sdm:  AbstractMemory::new(cfg.max_steps as u32, cfg.dmem_rd_lat, cfg.lut_inputs, cfg.dmem_wr_lat, 1),
             pipeline: vec![Instruction::default(); cfg.dmem_rd_lat as usize],
             io_i: 0,
             io_o: 0,
@@ -72,6 +75,7 @@ impl Processor {
             sin_local: false,
             sin_fwd_bit: 0,
             sin_idx: 0,
+            sram_port: ProcessorSRAMPort::default(),
             processor_id: id_
         }
     }
@@ -90,7 +94,7 @@ impl Processor {
     ///    - Ship output to switch
     ///    - Writeback to LDM
     ///    - Recv from switch and writeback to SDM
-    pub fn compute(self: &mut Self) {
+    pub fn fetch(self: &mut Self) {
         assert!(self.pipeline.len() as Cycle == self.cfg.dmem_rd_lat);
 
         // ---------------------  Fetch  ---------------------------------
@@ -117,6 +121,9 @@ impl Processor {
         }
 
         self.pipeline.push(fd_inst.clone());
+    }
+
+    pub fn compute(self: &mut Self) {
 
         // --------------------- Compute ---------------------------------
         let de_inst = self.pipeline.remove(0);
@@ -164,8 +171,21 @@ impl Processor {
             Primitive::Gate | Primitive::Latch => {
                 *operands.get(0).unwrap()
             }
+            Primitive::SRAMRdData => {
+                self.sram_port.op
+            }
+            Primitive::SRAMRdEn   |
+            Primitive::SRAMWrEn   |
+            Primitive::SRAMRdAddr |
+            Primitive::SRAMWrAddr |
+            Primitive::SRAMWrData |
+            Primitive::SRAMWrMask => {
+                *operands.get(0).unwrap()
+            }
             _ => 0,
         };
+
+        self.sram_port.ip = f_out;
 
         // Write to LDM
         if self.pc as Cycle >= self.cfg.pc_ldm_offset() {
@@ -186,6 +206,30 @@ impl Processor {
 
         self.ldm.run_cycle();
         self.imem.run_cycle();
+    }
+
+    pub fn update_sram_in(self: &mut Self) {
+        let de_inst = self.pipeline.get(0).unwrap();
+
+        // Collect rs values that is sent to the SRAM processor
+        let mut sram_idx = 0;
+        for i in 1..self.cfg.lut_inputs {
+            let rs = match de_inst.operands.get(i as usize) {
+                Some(op) => op.rs,
+                None => 0
+            };
+            let sr = self.cfg.index_bits() * (i - 1);
+            sram_idx |= rs << sr;
+
+            assert!(sr < 32 || rs == 0,
+                "Cannot represent sram_idx using u32, sr: {} rs: {}", sr, rs);
+        }
+
+        // Set SRAM port values
+// self.sram_port.ip = f_out;
+        self.sram_port.val = de_inst.mem as Bit;
+        self.sram_port.idx = sram_idx;
+
     }
 
     pub fn update_sdm_and_pc(self: &mut Self) {
@@ -242,6 +286,22 @@ impl Processor {
 
     pub fn get_io_o(self: &mut Self) -> Bit {
         self.io_o
+    }
+
+    pub fn set_sram_out(self: &mut Self, b: Bit) {
+        self.sram_port.op = b;
+    }
+
+    pub fn get_sram_in_val(self: &Self) -> Bit {
+        self.sram_port.val
+    }
+
+    pub fn get_sram_in_idx(self: &Self) -> Bits {
+        self.sram_port.idx
+    }
+
+    pub fn get_sram_in_ip(self: &Self) -> Bit {
+        self.sram_port.ip
     }
 
     fn print_bitvec(self: &Self, bitvec: &Vec<Bit>) {

@@ -61,6 +61,30 @@ pub struct Args {
     #[arg(long, default_value_t = 1)]
     pub dmem_wr_lat: u32,
 
+    /// SRAM width in bits (per module)
+    #[arg(long, default_value_t = 128)]
+    pub sram_width: u32,
+
+    /// Number of SRAM entries (per module)
+    #[arg(long, default_value_t = 1024)]
+    pub sram_entries: u32,
+
+    /// Number of SRAM read ports
+    #[arg(long, default_value_t = 1)]
+    pub sram_rd_ports: u32,
+
+    /// Number of SRAM write ports
+    #[arg(long, default_value_t = 1)]
+    pub sram_wr_ports: u32,
+
+    /// Latency of the SRAM read latency
+    #[arg(long, default_value_t = 1)]
+    pub sram_rd_lat: u32,
+
+    /// Latency of the SRAM write latency
+    #[arg(long, default_value_t = 1)]
+    pub sram_wr_lat: u32,
+
     /// debug tail length
     #[arg(long, default_value_t = 10)]
     pub dbg_tail_length: u32,

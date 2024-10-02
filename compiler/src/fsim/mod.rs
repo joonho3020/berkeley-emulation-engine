@@ -3,3 +3,4 @@ pub mod processor;
 pub mod switch;
 pub mod memory;
 pub mod board;
+pub mod sram;

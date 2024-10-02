@@ -1,6 +1,5 @@
 use crate::passes::*;
 use crate::common::Circuit;
-use crate::utils::save_graph_pdf;
 use dce::dead_code_elimination;
 use inst_map::map_instructions;
 use inst_schedule::schedule_instructions;
@@ -26,12 +25,6 @@ pub fn run_compiler_passes(c: &mut Circuit) {
     check_rank_order(c);
     let rank_time = rank_start.elapsed().as_millis();
     println!("Set rank order done");
-
-    let ccfg = &c.compiler_cfg;
-    let _ = save_graph_pdf(
-        &format!("{:?}", c),
-        &format!("{}/{}.setrank.dot", ccfg.output_dir, ccfg.top_module),
-        &format!("{}/{}.setrank.pdf", ccfg.output_dir, ccfg.top_module));
 
     let schedule_start = Instant::now();
     schedule_instructions(c);

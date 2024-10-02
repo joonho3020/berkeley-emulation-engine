@@ -134,8 +134,8 @@ impl From<&SignalType> for CircuitPrimitive {
         match value {
             SignalType::NOP => Self::NOP,
             SignalType::Wire { .. } => Self::NOP,
+            SignalType::SRAMRdEn { name } => Self::SRAMRdEn { name: name.to_string() },
             SignalType::SRAMWrEn { name } => Self::SRAMWrEn { name: name.to_string() },
-            SignalType::SRAMRdEn { name } => Self::SRAMWrEn { name: name.to_string() },
             SignalType::SRAMRdAddr { name, idx } =>
                 Self::SRAMRdAddr { name: name.to_string(), idx: idx.clone() },
             SignalType::SRAMRdData { name, idx } =>
@@ -150,25 +150,63 @@ impl From<&SignalType> for CircuitPrimitive {
     }
 }
 
+impl CircuitPrimitive {
+    pub fn unique_sram_input_offset(self: &Self, pcfg: &PlatformConfig) -> u32 {
+        match self {
+            Self::SRAMRdEn   { .. } => pcfg.sram_rd_en_offset(),
+            Self::SRAMWrEn   { .. } => pcfg.sram_wr_en_offset(),
+            Self::SRAMRdAddr { .. } => pcfg.sram_rd_addr_offset(),
+            Self::SRAMWrAddr { .. } => pcfg.sram_wr_addr_offset(),
+            Self::SRAMWrData { .. } => pcfg.sram_wr_data_offset(),
+            Self::SRAMWrMask { .. } => pcfg.sram_wr_mask_offset(),
+            _ => pcfg.sram_other_offset()
+        }
+    }
+
+    pub fn unique_sram_input_idx(self: &Self, pcfg: &PlatformConfig) -> u32 {
+        let offset = self.unique_sram_input_offset(pcfg);
+        match self {
+            Self::SRAMRdEn   { name:_ }      => offset,
+            Self::SRAMWrEn   { name:_ }      => offset,
+            Self::SRAMRdAddr { name:_, idx } => offset + idx,
+            Self::SRAMWrAddr { name:_, idx } => offset + idx,
+            Self::SRAMWrMask { name:_, idx } => offset + idx,
+            Self::SRAMWrData { name:_, idx } => offset + idx,
+            _ => offset
+        }
+    }
+
+    pub fn unique_sram_output_idx(self: &Self, pcfg: &PlatformConfig) -> u32 {
+        let w = pcfg.sram_width;
+        match self {
+            Self::SRAMRdData { name:_, idx } => *idx,
+            _ => w
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct Operand {
     /// index into data memory
-    pub rs: u32,
+    pub rs: Bits,
 
     /// ldm or sdm?
     pub local: bool,
 
     /// for luts, which input does this operand correspond to
-    pub idx: u32,
+    pub idx: Bits,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct SwitchInfo {
+    /// Set when the `local` field has been already set (for correctness checks)
     pub local_set: bool,
+
+    /// Set when the `fwd` field has been already set (for correctness checks)
     pub fwd_set: bool,
 
     /// proc to receive bit from
-    pub idx: u32,
+    pub idx: Bits,
 
     /// Receive from local switch
     pub local: bool,
@@ -179,11 +217,24 @@ pub struct SwitchInfo {
 
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct Instruction {
+    /// This instruction is performing something
     pub valid: bool,
+
+    /// Opcode
     pub opcode: Primitive,
+
+    /// LUT table
     pub lut: u64,
+
+    /// Index into LDM or SDM
     pub operands: Vec<Operand>,
+
+    /// Information related to switching
     pub sinfo: SwitchInfo,
+
+    /// This is a memory op (SRAM input bit)
+    /// When set, use operands[1:] to indicate which IO bit this is
+    pub mem: bool
 }
 
 impl Instruction {
@@ -194,6 +245,7 @@ impl Instruction {
             lut: 0,
             operands: Vec::with_capacity(nops as usize),
             sinfo: SwitchInfo::default(),
+            mem: false,
         }
     }
 
@@ -711,6 +763,24 @@ pub struct PlatformConfig {
     /// Number of cycles to write d-mem
     pub dmem_wr_lat: Cycle,
 
+    /// SRAM width in bits (per module)
+    pub sram_width: u32,
+
+    /// Number of SRAM entries (per module)
+    pub sram_entries: u32,
+
+    /// Number of SRAM read ports
+    pub sram_rd_ports: u32,
+
+    /// Number of SRAM write ports
+    pub sram_wr_ports: u32,
+
+    /// Latency of the SRAM read latency
+    pub sram_rd_lat: u32,
+
+    /// Latency of the SRAM write latency
+    pub sram_wr_lat: u32,
+
     /// Global network topology
     #[derivative(Debug="ignore")]
     pub topology: GlobalNetworkTopology
@@ -728,6 +798,12 @@ impl Default for PlatformConfig {
             imem_lat: 0,
             dmem_rd_lat: 0,
             dmem_wr_lat: 1,
+            sram_width: 64,
+            sram_entries: 1024,
+            sram_rd_ports: 1,
+            sram_wr_ports: 1,
+            sram_rd_lat: 1,
+            sram_wr_lat: 1,
             topology: GlobalNetworkTopology::default()
         }
     }
@@ -833,6 +909,53 @@ impl PlatformConfig {
     // TODO: Add global network latency, fix these functions for proper abstraction
     pub fn nw_route_dep_lat(self: &Self, route: &NetworkRoute) -> u32 {
         return self.nw_route_lat(route) + self.dmem_wr_lat;
+    }
+
+    pub fn sram_rd_en_offset(self: &Self) -> u32 {
+        0
+    }
+
+    pub fn sram_wr_en_offset(self: &Self) -> u32 {
+       self.sram_rd_en_offset() + 1 
+    }
+
+    pub fn sram_rd_addr_offset(self: &Self) -> u32 {
+        self.sram_wr_en_offset() + 1
+    }
+
+    pub fn sram_wr_addr_offset(self: &Self) -> u32 {
+        self.sram_rd_addr_offset() + self.sram_entries
+    }
+
+    pub fn sram_wr_data_offset(self: &Self) -> u32 {
+        self.sram_wr_addr_offset() + self.sram_entries
+    }
+
+    pub fn sram_wr_mask_offset(self: &Self) -> u32 {
+        self.sram_wr_data_offset() + self.sram_width
+    }
+
+    pub fn sram_other_offset(self: &Self) -> u32 {
+        self.sram_wr_mask_offset() + self.sram_width
+    }
+
+    pub fn index_to_sram_input_type(self: &Self, idx: u32) -> (Primitive, u32) {
+        if idx >= self.sram_other_offset() {
+            assert!(false, "Unknown index to sram input type: {}", idx);
+            (Primitive::NOP, 0)
+        } else if idx >= self.sram_wr_mask_offset() {
+            (Primitive::SRAMWrMask, idx - self.sram_wr_mask_offset())
+        } else if idx >= self.sram_wr_data_offset() {
+            (Primitive::SRAMWrData, idx - self.sram_wr_data_offset())
+        } else if idx >= self.sram_wr_addr_offset() {
+            (Primitive::SRAMWrAddr, idx - self.sram_wr_addr_offset())
+        } else if idx >= self.sram_rd_addr_offset() {
+            (Primitive::SRAMRdAddr, idx - self.sram_rd_addr_offset())
+        } else if idx >= self.sram_wr_en_offset() {
+            (Primitive::SRAMWrEn, idx - self.sram_wr_en_offset())
+        } else {
+            (Primitive::SRAMRdEn, idx - self.sram_rd_en_offset())
+        }
     }
 }
 
@@ -997,7 +1120,10 @@ impl Circuit {
         for nidx in self.graph.node_indices() {
             if vis_map.is_visited(&nidx) {
                 let node = self.graph.node_weight(nidx).unwrap();
-                let val = board.peek(node.name()).unwrap();
+                let val = match board.peek(node.name()) {
+                    Some(v) => v,
+                    None    => Bit::MAX
+                };
                 if node.is() == Primitive::Lut {
                     outstring.push_str(&format!(
                         "{}{} [ label = {:?} ]\n",
@@ -1158,7 +1284,7 @@ impl Debug for Circuit {
         for (_, edge) in graph.edge_references().enumerate() {
             write!(f, "{}{} {} {} ",
                 indent, edge.source().index(), "->", edge.target().index())?;
-            writeln!(f, "[ label=\"{:?}-{:?}\" ]", edge.weight().signal, edge.weight().route)?;
+            writeln!(f, "[ label=\"{:?}\" ]", edge.weight().signal)?;
         }
 
         write!(f, "}}")

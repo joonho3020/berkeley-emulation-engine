@@ -538,9 +538,15 @@ fn schedule_candidates_at_pc(
     nw: &mut NetworkAvailability,
     pc: &u32) -> Vec<NodeIndexMobility>
 {
+    let pcfg = &circuit.platform_cfg;
     let mut remove_nodes: Vec<NodeIndexMobility> = vec![];
     for cand in candidates.iter() {
         let node = circuit.graph.node_weight(cand.index).unwrap();
+
+        // Cannot schedule a SRAM read until pc >= pcfg.sram_rd_lat
+        if node.is() == Primitive::SRAMRdData && *pc < pcfg.sram_rd_lat {
+            continue;
+        }
 
         // Node already scheduled at pc for this Coordinate
         if scheduled_coordinates.contains(&node.info().coord) {
@@ -602,7 +608,7 @@ pub fn schedule_instructions(circuit: &mut Circuit) {
 /// mobility (rank - ASAP) == 0 first. We can increment the PC while doing so.
 /// Then, for the PC range, slot in the nodes with mobility != 0 as much as
 /// possible.
-pub fn schedule_instructions_internal(circuit: &mut Circuit) {
+fn schedule_instructions_internal(circuit: &mut Circuit) {
     let mut cpn: IndexSet<NodeIndex> = IndexSet::new();
     for nidx in circuit.graph.node_indices() {
         let rank = &circuit.graph.node_weight(nidx).unwrap().info().rank;
@@ -731,6 +737,7 @@ pub fn schedule_instructions_internal(circuit: &mut Circuit) {
     }
 
     // TODO: consider global networking lat
+    //                        <base> + <NW>
     circuit.emul.host_steps = pc + 1 + max_nw_route_dep_lat;
 
     let total_steps = circuit.emul.host_steps * circuit.platform_cfg.total_procs();

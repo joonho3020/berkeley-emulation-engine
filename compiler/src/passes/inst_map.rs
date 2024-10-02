@@ -79,6 +79,72 @@ pub fn map_instructions(circuit: &mut Circuit) {
                 idx: op_idx as u32
             })
         }
+
+        // Node is input to the SRAM processor
+        if node.is() == Primitive::SRAMRdEn ||
+           node.is() == Primitive::SRAMWrEn ||
+           node.is() == Primitive::SRAMRdAddr ||
+           node.is() == Primitive::SRAMWrAddr ||
+           node.is() == Primitive::SRAMWrMask ||
+           node.is() == Primitive::SRAMWrData {
+            assert!(node_inst.operands.len() == 1,
+                "Number of operands for operator {:?} should be 1 but got {}",
+                node.is(), node_inst.operands.len());
+
+            // Mark this instruction as a memory operation
+            node_inst.mem = true;
+
+            // Set the operands
+            let op_bits = pcfg.index_bits();
+            let max_op_bits = (op_bits * (pcfg.lut_inputs - 1)) as u64;
+            let max_op_num = (1u64 << max_op_bits) - 1u64;
+            let uidx = node.prim.unique_sram_input_idx(pcfg);
+            assert!(uidx as u64 <= max_op_num,
+                "SRAM unique input idx {} > max_op_num {}", uidx, max_op_num);
+
+            for i in 1..pcfg.lut_inputs {
+                let sl = (i - 1) * op_bits;
+                let rs = uidx >> sl;
+                node_inst.operands.push(Operand {
+                    rs: rs,
+                    local: false,
+                    idx: i
+                });
+            }
+        }
+
+        // Node is the output from the SRAM processor
+        if node.is() == Primitive::SRAMRdData {
+            assert!(node_inst.operands.len() == 0,
+                "Number of operands for operator {:?} should be 0 but got {}",
+                node.is(), node_inst.operands.len());
+
+            // We only set mem when it is a SRAM input operation
+            node_inst.mem = false;
+
+            // Push a dummy node (SRAM indexing starts from operands[1:])
+            node_inst.operands.push(Operand::default());
+
+            // Set the operands
+            let op_bits = pcfg.index_bits();
+            let max_op_bits = (op_bits * (pcfg.lut_inputs - 1)) as u64;
+            let max_op_num = (1u64 << max_op_bits) - 1u64;
+            let uidx = node.prim.unique_sram_output_idx(pcfg);
+            assert!(uidx as u64 <= max_op_num,
+                "SRAM unique input idx {} > max_op_num {}", uidx, max_op_num);
+
+            for i in 1..pcfg.lut_inputs {
+                let sl = (i - 1) * op_bits;
+                let rs = uidx >> sl;
+                node_inst.operands.push(Operand {
+                    rs: rs,
+                    local: false,
+                    idx: i
+                });
+            }
+        }
+
+        // Sort the operands in order
         node_inst.operands.sort_by(|a, b| a.idx.cmp(&b.idx));
 
         // assign switch info
@@ -102,12 +168,12 @@ pub fn map_instructions(circuit: &mut Circuit) {
                             .module_mappings.get_mut(&path.src.module).unwrap()
                             .proc_mappings.get_mut(&path.src.proc).unwrap()
                             .instructions.get_mut(src_send_pc as usize).unwrap();
+
                         match path.tpe {
                             PathTypes::ProcessorInternal => {
                                 // Do nothing
                             }
                             PathTypes::InterProcessor | PathTypes::InterModule => {
-                                src_inst.valid = true;
                                 if src_inst.sinfo.fwd_set {
                                     assert!(src_inst.sinfo.fwd == (i != 0),
                                         "node: {} coord {:?} pc: {} already set, but overwritten",
@@ -115,17 +181,20 @@ pub fn map_instructions(circuit: &mut Circuit) {
                                 }
                                 // fwd is set when we after `nw_route_dep_lat`.
                                 // i.e., when we can read the `sin_fwd_bit` register
+                                src_inst.valid = true;
                                 src_inst.sinfo.fwd = i != 0;
                                 src_inst.sinfo.fwd_set = true;
                             }
                         }
 
                         cur_route.push_back(*path);
+
                         let dst_recv_pc = node.info().pc + pcfg.nw_route_lat(&cur_route);
                         let dst_inst = circuit.emul
                             .module_mappings.get_mut(&path.dst.module).unwrap()
                             .proc_mappings.get_mut(&path.dst.proc).unwrap()
                             .instructions.get_mut(dst_recv_pc as usize).unwrap();
+
                         match path.tpe {
                             PathTypes::ProcessorInternal => {
                                 // Do nothing
@@ -150,13 +219,21 @@ pub fn map_instructions(circuit: &mut Circuit) {
             }
         }
 
-        let nodemap = NodeMapInfo {
-            info: node.info().clone(),
-            idx: nidx,
-        };
-        circuit.emul
-            .module_mappings.get_mut(&coord.module).unwrap()
-            .proc_mappings.get_mut(&coord.proc).unwrap()
-            .signal_map.insert(node.name().to_string(), nodemap);
+        if node.is() != Primitive::SRAMRdEn &&
+           node.is() != Primitive::SRAMWrEn &&
+           node.is() != Primitive::SRAMRdAddr &&
+           node.is() != Primitive::SRAMWrAddr &&
+           node.is() != Primitive::SRAMWrMask &&
+           node.is() != Primitive::SRAMWrData &&
+           node.is() != Primitive::SRAMRdData {
+            let nodemap = NodeMapInfo {
+                info: node.info().clone(),
+                idx: nidx,
+            };
+            circuit.emul
+                .module_mappings.get_mut(&coord.module).unwrap()
+                .proc_mappings.get_mut(&coord.proc).unwrap()
+                .signal_map.insert(node.name().to_string(), nodemap);
+        }
     }
 }

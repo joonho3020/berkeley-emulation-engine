@@ -7,6 +7,8 @@ use itertools::Itertools;
 use petgraph::graph::NodeIndex;
 use std::fmt::Debug;
 
+use super::sram::SRAMProcessor;
+
 /// Represents a group of emulation `Processor`s connected together using a
 /// all to all communication switch
 pub struct Module {
@@ -18,6 +20,8 @@ pub struct Module {
 
     /// `Processor`s in this `Module`
     pub procs: Vec<Processor>,
+
+    pub sram_proc: SRAMProcessor,
 
     /// Total number of host machine cycles to emulate one target cycle
     pub host_steps: u32,
@@ -38,6 +42,7 @@ impl Module {
             id: id,
             switch: Switch::new(cfg.num_procs, cfg.inter_proc_nw_lat),
             procs: (0..cfg.num_procs).map(|i| Processor::new(i as u32, host_steps_, cfg)).collect_vec(),
+            sram_proc: SRAMProcessor::new(id, host_steps_, cfg),
             host_steps: host_steps_,
             signal_map: IndexMap::new()
         }
@@ -85,10 +90,39 @@ impl Module {
     }
 
     pub fn compute(self: &mut Self) {
+        for (_, proc) in self.procs.iter_mut().enumerate() {
+            proc.fetch();
+        }
+
+        // update sram inputs
+        for (_, proc) in self.procs.iter_mut().enumerate() {
+            proc.update_sram_in();
+        }
+        for (i, proc) in self.procs.iter().enumerate() {
+            let sp = self.sram_proc.ports.get_mut(i).unwrap();
+            sp.val = proc.get_sram_in_val();
+            sp.idx = proc.get_sram_in_idx();
+        }
+
+        // set sram output
+        self.sram_proc.set_sram_out();
+        for (i, proc) in self.procs.iter_mut().enumerate() {
+            proc.set_sram_out(self.sram_proc.ports.get(i).unwrap().op);
+        }
+
         // compute fout
         for (_, proc) in self.procs.iter_mut().enumerate() {
             proc.compute();
         }
+
+        // set sram ip
+        for (i, proc) in self.procs.iter().enumerate() {
+            let sp = self.sram_proc.ports.get_mut(i).unwrap();
+            sp.ip  = proc.get_sram_in_ip();
+        }
+
+        // update sram processor
+        self.sram_proc.run_cycle();
     }
 
     pub fn set_local_switch_out(self: &mut Self) {
@@ -111,32 +145,6 @@ impl Module {
         for (_, proc) in self.procs.iter_mut().enumerate() {
             proc.update_sdm_and_pc();
         }
-    }
-
-    fn step(self: &mut Self) {
-        // compute fout
-        for (_, proc) in self.procs.iter_mut().enumerate() {
-            proc.compute();
-        }
-
-        // swizzle outputs
-        for (i, proc) in self.procs.iter_mut().enumerate() {
-            self.switch.set_port_val(i, proc.get_local_switch_out());
-        }
-
-        // set inputs
-        for (_, proc) in self.procs.iter_mut().enumerate() {
-            let switch_in_idx = proc.get_switch_in_id() as usize;
-            proc.set_local_switch_in(self.switch.get_port_val(switch_in_idx));
-        }
-
-        // consume network inputs and update processor state
-        for (_, proc) in self.procs.iter_mut().enumerate() {
-            proc.update_sdm_and_pc();
-        }
-
-        // update switch network
-        self.switch.run_cycle();
     }
 
     pub fn peek(self: &Self, signal: &str) -> Option<Bit> {
@@ -162,36 +170,6 @@ impl Module {
                 println!("Cannot find signal {} to poke", signal);
                 None
             }
-        }
-    }
-
-    pub fn run_cycle(self: &mut Self, input_stimuli: &IndexMap<u32, Vec<(&str, Bit)>>) {
-        for step in 0..self.host_steps {
-            match input_stimuli.get(&(step as u32)) {
-                Some(vec) => {
-                    for (sig, bit) in vec.iter() {
-                        self.poke(sig, *bit);
-                    }
-                }
-                None => {}
-            };
-            self.step();
-        }
-    }
-
-    pub fn run_cycle_verbose(self: &mut Self, input_stimuli: &IndexMap<u32, Vec<(&str, Bit)>>) {
-        println!("-------------------- run cycle ----------------------");
-        for step in 0..self.host_steps {
-            match input_stimuli.get(&(step as u32)) {
-                Some(vec) => {
-                    for (sig, bit) in vec.iter() {
-                        self.poke(sig, *bit);
-                    }
-                }
-                None => {}
-            };
-            self.step();
-            self.print();
         }
     }
 

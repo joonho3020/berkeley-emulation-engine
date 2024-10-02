@@ -211,8 +211,8 @@ impl Board {
                 None => {}
             };
             self.step();
-            println!("------------ Step Finished {} --------------", step);
             self.print();
+            println!("------------ Step Finished {} --------------", step);
         }
     }
 }

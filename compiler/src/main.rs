@@ -41,11 +41,6 @@ fn test_emulator(
         }
     };
 
-    save_graph_pdf(
-        &format!("{:?}", circuit),
-        &format!("{}/{}.parsed.dot", cwd.to_str().unwrap(), args.top_mod),
-        &format!("{}/{}.parsed.pdf", cwd.to_str().unwrap(), args.top_mod))?;
-
     circuit.set_cfg(
         PlatformConfig {
             num_mods:          args.num_mods,
@@ -57,6 +52,12 @@ fn test_emulator(
             imem_lat:          args.imem_lat,
             dmem_rd_lat:       args.dmem_rd_lat,
             dmem_wr_lat:       args.dmem_wr_lat,
+            sram_width:        args.sram_width,
+            sram_entries:      args.sram_entries,
+            sram_rd_ports:     args.sram_rd_ports,
+            sram_wr_ports:     args.sram_wr_ports,
+            sram_rd_lat:       args.sram_rd_lat,
+            sram_wr_lat:       args.sram_wr_lat,
             topology: GlobalNetworkTopology::new(args.num_mods, args.num_procs)
         },
         CompilerConfig {
@@ -80,10 +81,10 @@ fn test_emulator(
     circuit.save_emulator_instructions()?;
     circuit.save_emulator_sigmap()?;
 
-// save_graph_pdf(
-// &format!("{:?}", circuit),
-// &format!("{}/{}.dot", cwd.to_str().unwrap(), args.top_mod),
-// &format!("{}/{}.pdf", cwd.to_str().unwrap(), args.top_mod))?;
+    save_graph_pdf(
+        &format!("{:?}", circuit),
+        &format!("{}/{}.dot", cwd.to_str().unwrap(), args.top_mod),
+        &format!("{}/{}.pdf", cwd.to_str().unwrap(), args.top_mod))?;
 
     let verilog_str = match fs::read_to_string(&args.sv_file_path) {
         Ok(content) => content,
@@ -211,6 +212,7 @@ fn test_emulator(
         }
 
         if found_mismatch {
+            board_lag.run_cycle_verbose(&input_stimuli_by_step, &(cycle as u32));
             println!("Test failed");
             return Ok(ReturnCode::TestFailed);
         }
@@ -248,7 +250,7 @@ pub mod emulation_tester {
         inter_mod_nw_lat: u32,
         imem_lat: u32,
         dmem_rd_lat: u32,
-        dmem_wr_lat: u32
+        dmem_wr_lat: u32,
     ) -> bool {
         let ret = test_emulator(Args {
             verbose:            false,
@@ -265,6 +267,12 @@ pub mod emulation_tester {
             imem_lat:           imem_lat,
             dmem_rd_lat:        dmem_rd_lat,
             dmem_wr_lat:        dmem_wr_lat,
+            sram_width:         128,
+            sram_entries:       1024,
+            sram_rd_ports:      1,
+            sram_wr_ports:      1,
+            sram_rd_lat:        1,
+            sram_wr_lat:        1,
             dbg_tail_length:    u32::MAX, // don't print debug graph when testing
             dbg_tail_threshold: u32::MAX  // don't print debug graph when testing
         });
