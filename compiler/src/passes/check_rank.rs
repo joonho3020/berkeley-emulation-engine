@@ -1,4 +1,7 @@
-use crate::common::*;
+use crate::common::{
+    circuit::Circuit,
+    primitive::*
+};
 use petgraph::Direction::Incoming;
 
 pub fn check_rank_order(circuit: &Circuit) {

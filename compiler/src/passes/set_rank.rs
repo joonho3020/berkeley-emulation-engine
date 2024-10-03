@@ -1,4 +1,8 @@
-use crate::common::*;
+use crate::common::{
+    circuit::Circuit,
+    primitive::*,
+    hwgraph::*
+};
 use indexmap::IndexMap;
 use itertools::Itertools;
 use petgraph::{

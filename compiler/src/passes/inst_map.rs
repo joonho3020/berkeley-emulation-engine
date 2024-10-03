@@ -1,7 +1,16 @@
-use crate::common::*;
+use crate::common::{
+    circuit::Circuit,
+    primitive::*,
+    hwgraph::NodeMapInfo,
+    mapping::*,
+    instruction::*,
+    network::*
+};
 use indexmap::IndexMap;
-use petgraph::visit::EdgeRef;
-use petgraph::Direction::{Incoming, Outgoing};
+use petgraph::{
+    visit::EdgeRef,
+    Direction::{Incoming, Outgoing}
+};
 
 /// # `map_instructions`
 /// - After the instructions are scheduled, set the appropriate registers and

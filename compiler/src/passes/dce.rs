@@ -1,4 +1,7 @@
-use crate::common::*;
+use crate::common::{
+    circuit::Circuit,
+    primitive::*
+};
 use petgraph::{
     prelude::Bfs,
     visit::{VisitMap, Visitable}

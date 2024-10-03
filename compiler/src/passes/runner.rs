@@ -1,5 +1,5 @@
 use crate::passes::*;
-use crate::common::Circuit;
+use crate::common::circuit::Circuit;
 use dce::dead_code_elimination;
 use inst_map::map_instructions;
 use inst_schedule::schedule_instructions;

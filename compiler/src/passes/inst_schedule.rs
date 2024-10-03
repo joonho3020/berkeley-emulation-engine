@@ -1,5 +1,11 @@
-use crate::common::*;
-use crate::utils::save_graph_pdf;
+use crate::common::{
+    circuit::Circuit,
+    primitive::*,
+    network::*,
+    hwgraph::*,
+    config::*,
+    utils::save_graph_pdf
+};
 use full_palette::RED;
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;

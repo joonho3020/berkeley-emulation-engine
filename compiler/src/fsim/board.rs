@@ -1,14 +1,10 @@
 use crate::fsim::module::*;
 use crate::fsim::switch::*;
-use crate::common::NodeMapInfo;
-use crate::common::PlatformConfig;
-use crate::common::Circuit;
-use crate::common::Coordinate;
-use crate::common::Bit;
-use crate::common::Primitive;
+use crate::common::{hwgraph::*, config::*, network::*, circuit::Circuit, primitive::*};
 use petgraph::graph::NodeIndex;
 use indexmap::IndexMap;
 use std::fmt::Debug;
+use std::iter::Iterator;
 
 /// Represents a group of emulation `Module`s connected together
 pub struct Board {

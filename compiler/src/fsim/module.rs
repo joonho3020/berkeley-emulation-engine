@@ -1,11 +1,11 @@
-use crate::common::*;
 use crate::fsim::processor::*;
 use crate::fsim::switch::*;
-use crate::common::{PlatformConfig, NodeMapInfo};
+use crate::common::{config::PlatformConfig, hwgraph::NodeMapInfo, primitive::*};
 use indexmap::IndexMap;
-use itertools::Itertools;
 use petgraph::graph::NodeIndex;
 use std::fmt::Debug;
+use std::iter::Iterator;
+use itertools::Itertools;
 
 use super::sram::SRAMProcessor;
 

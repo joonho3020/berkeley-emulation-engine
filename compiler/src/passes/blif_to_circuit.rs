@@ -1,6 +1,10 @@
+use crate::common::{
+    circuit::Circuit,
+    primitive::*,
+    hwgraph::*
+};
 use indexmap::IndexMap;
 use petgraph::graph::NodeIndex;
-use crate::common::*;
 use blif_parser::{parser::parse_blif_file, primitives::ParsedPrimitive};
 
 fn extract_index(input: &str) -> Option<u32> {

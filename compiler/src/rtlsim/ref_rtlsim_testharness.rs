@@ -1,5 +1,5 @@
 use crate::rtlsim::rtlsim_utils::*;
-use crate::utils;
+use crate::common::utils;
 use indexmap::IndexMap;
 use std::cmp::max;
 use std::io::Write;

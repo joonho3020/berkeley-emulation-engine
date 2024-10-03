@@ -1,4 +1,7 @@
-use crate::common::*;
+use crate::common::{
+    primitive::{Primitive, Bit, Bits},
+    config::*
+};
 use crate::fsim::memory::*;
 use std::fmt::Debug;
 

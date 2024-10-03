@@ -1,4 +1,4 @@
-use crate::common::*;
+use crate::common::primitive::{Bit, Cycle};
 use crate::fsim::memory::Token;
 
 #[derive(Default, Clone, Debug)]

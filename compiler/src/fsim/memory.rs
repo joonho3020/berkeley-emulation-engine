@@ -1,4 +1,4 @@
-use crate::common::*;
+use crate::common::primitive::{Cycle, Bits};
 use std::fmt::Debug;
 use std::ops::{Index, IndexMut};
 

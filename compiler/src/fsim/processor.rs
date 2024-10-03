@@ -1,4 +1,4 @@
-use crate::common::*;
+use crate::common::{config::*, primitive::*, instruction::*};
 use crate::fsim::memory::*;
 use crate::fsim::sram::ProcessorSRAMPort;
 use std::fmt::Debug;
@@ -226,7 +226,6 @@ impl Processor {
         }
 
         // Set SRAM port values
-// self.sram_port.ip = f_out;
         self.sram_port.val = de_inst.mem as Bit;
         self.sram_port.idx = sram_idx;
 

@@ -1,5 +1,12 @@
 use indexmap::{IndexMap, IndexSet};
-use crate::common::*;
+use crate::common::{
+    circuit::Circuit,
+    primitive::*,
+    hwgraph::*,
+    mapping::*,
+    config::*,
+    network::*
+};
 use petgraph::{
     graph::{Graph, NodeIndex}, visit::EdgeRef, Direction::{Incoming, Outgoing}, Undirected
 };

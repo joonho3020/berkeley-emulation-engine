@@ -1,5 +1,5 @@
 use bee::rtlsim::ref_rtlsim_testharness;
-use bee::utils::*;
+use bee::common::config::*;
 use clap::Parser;
 
 fn main() -> std::io::Result<()> {

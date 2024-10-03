@@ -1,11 +1,10 @@
-use bee::common::*;
+use bee::common::{config::*, utils::*, primitive::Bit};
 use bee::fsim::board::*;
 use bee::passes::runner;
 use bee::passes::blif_to_circuit::blif_to_circuit;
 use bee::rtlsim::ref_rtlsim_testharness::*;
 use bee::rtlsim::rtlsim_utils::*;
 use bee::rtlsim::vcdparser::*;
-use bee::utils::*;
 use indexmap::IndexMap;
 use std::cmp::max;
 use std::{env, fs};

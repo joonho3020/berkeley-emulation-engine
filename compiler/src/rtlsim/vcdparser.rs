@@ -1,4 +1,4 @@
-use crate::common::FourStateBit;
+use crate::common::primitive::FourStateBit;
 use indexmap::IndexMap;
 use indicatif::ProgressStyle;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
