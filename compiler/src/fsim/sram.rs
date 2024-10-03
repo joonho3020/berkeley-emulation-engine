@@ -140,12 +140,12 @@ impl SRAMProcessor {
             Some(resp) => resp.data,
             None => SRAMEntry::new(self.pcfg.sram_width)
         };
-        println!("rd_resp: {:?}", rd_resp);
+// println!("rd_resp: {:?}", rd_resp);
 
         // Set the output port
         for p in self.ports.iter_mut() {
             let bit_pos = p.idx as usize;
-            println!("bit_pos: {}", bit_pos);
+// println!("bit_pos: {}", bit_pos);
             match rd_resp.bits.get(bit_pos) {
                 Some(bit) => { p.op = *bit; }
                 None => { }
@@ -157,14 +157,14 @@ impl SRAMProcessor {
     // - send out SRAM Rd/Wr request
     // - run_cycle
     pub fn run_cycle(self: &mut Self) {
-        println!("SRAM {} run cycle", self.id);
+// println!("SRAM {} run cycle", self.id);
 
         // Receive inputs and update input regs
         for p in self.ports.iter() {
             if p.val != 0 {
                 let (prim, bit_pos) = self.pcfg.index_to_sram_input_type(p.idx);
-                println!("SRAM port: {:?} prim: {:?} bit_pos: {:?}",
-                    p, prim, bit_pos);
+// println!("SRAM port: {:?} prim: {:?} bit_pos: {:?}",
+// p, prim, bit_pos);
                 let ridx = self.recv_input_idx() as usize;
                 let input = self.inputs.get_mut(ridx).unwrap();
                 match prim {
@@ -187,7 +187,7 @@ impl SRAMProcessor {
             addr: cur_input.rd_addr
         });
 
-        println!("SRAM Read Req: addr: {}", cur_input.rd_addr);
+// println!("SRAM Read Req: addr: {}", cur_input.rd_addr);
 
         // Send out SRAM write request
         if cur_input.wr_en != 0 {
@@ -196,14 +196,14 @@ impl SRAMProcessor {
                 addr: cur_input.wr_addr,
                 data: SRAMEntry { bits: cur_input.wr_data.clone() }
             });
-            println!("SRAM Write Req: addr: {} data: {:?}",
-                cur_input.wr_addr, cur_input.wr_data);
+// println!("SRAM Write Req: addr: {} data: {:?}",
+// cur_input.wr_addr, cur_input.wr_data);
         }
 
         // Update SRAM state
         self.sram.run_cycle();
 
-        println!("SRAM Data {:?}", self.sram.data);
+// println!("SRAM Data {:?}", self.sram.data);
 
         // Update PC
         if self.pc == self.host_steps - 1 {

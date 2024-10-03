@@ -80,10 +80,10 @@ fn test_emulator(
     circuit.save_emulator_instructions()?;
     circuit.save_emulator_sigmap()?;
 
-    save_graph_pdf(
-        &format!("{:?}", circuit),
-        &format!("{}/{}.dot", cwd.to_str().unwrap(), args.top_mod),
-        &format!("{}/{}.pdf", cwd.to_str().unwrap(), args.top_mod))?;
+// save_graph_pdf(
+// &format!("{:?}", circuit),
+// &format!("{}/{}.dot", cwd.to_str().unwrap(), args.top_mod),
+// &format!("{}/{}.pdf", cwd.to_str().unwrap(), args.top_mod))?;
 
     let verilog_str = match fs::read_to_string(&args.sv_file_path) {
         Ok(content) => content,
