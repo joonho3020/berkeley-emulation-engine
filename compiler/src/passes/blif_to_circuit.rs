@@ -8,11 +8,8 @@ use petgraph::graph::NodeIndex;
 use blif_parser::{parser::parse_blif_file, primitives::ParsedPrimitive};
 
 fn extract_index(input: &str) -> Option<u32> {
-    // Find the positions of the opening and closing brackets
     if let (Some(start), Some(end)) = (input.find('['), input.find(']')) {
-        // Extract the substring inside the brackets
         let index_str = &input[start + 1..end];
-        // Parse the substring to u32
         index_str.parse::<u32>().ok()
     } else {
         None
@@ -25,10 +22,18 @@ fn signal_type(src: &NodeIndex, circuit: &Circuit, wire: &str) -> SignalType {
     if let CircuitPrimitive::SRAMNode { name:_, conns } = &node.prim {
         // Parent node is a SRAM
         // Signal type should be a SRAMRdData as it is the only output port from SRAM nodes
-        let wire_to_port: IndexMap<String, String> = conns.iter().map(|(k, v)| (v.clone(), k.clone())).collect();
+        let wire_to_port: IndexMap<String, String> =
+            conns
+                .iter()
+                .map(|(k, v)| (v.clone(), k.clone()))
+                .collect();
+
         let port = wire_to_port.get(wire).unwrap();
         let bidx = extract_index(port);
-        assert!(bidx.is_some(), "SRAM Read Data Port ({}) does not contain a index", port);
+        assert!(bidx.is_some(),
+            "SRAM Read Data Port ({}) does not contain a index",
+            port);
+
         return SignalType::SRAMRdData { name: wire.to_string(), idx: bidx.unwrap() };
     } else {
         return SignalType::Wire { name: wire.to_string() };
@@ -45,19 +50,22 @@ fn module_to_circuit(module: &ParsedPrimitive, circuit: &mut Circuit) {
     if let ParsedPrimitive::Module { name:_, inputs, outputs, elems } = module {
         // Parse inputs
         for i in inputs.iter() {
-            let nidx = circuit.graph.add_node(HWNode::new(CircuitPrimitive::Input { name: i.to_string() }));
+            let nidx = circuit.graph.add_node(
+                HWNode::new(CircuitPrimitive::Input { name: i.to_string() }));
             net_to_nodeidx.insert(i.to_string(), nidx);
         }
 
         // Parse outputs
         for o in outputs.iter() {
-            let nidx = circuit.graph.add_node(HWNode::new(CircuitPrimitive::Output { name: o.to_string() }));
+            let nidx = circuit.graph.add_node(
+                HWNode::new(CircuitPrimitive::Output { name: o.to_string() }));
             out_to_nodeidx.insert(o.to_string(), nidx);
         }
 
         // Add nodes to graph
         for e in elems.iter() {
-            let nidx = circuit.graph.add_node(HWNode::new(CircuitPrimitive::from(e)));
+            let nidx = circuit.graph.add_node(
+                HWNode::new(CircuitPrimitive::from(e)));
             match e {
                 ParsedPrimitive::Lut { inputs:_, output, .. } => {
                     net_to_nodeidx.insert(output.to_string(), nidx);
@@ -72,7 +80,8 @@ fn module_to_circuit(module: &ParsedPrimitive, circuit: &mut Circuit) {
                     sram_to_nodeidx.insert(name.to_string(), nidx);
                     for (port, wire) in conns.iter() {
                         // TODO : Better handle SRAM ports...
-                        if port.contains("R0_data") {
+                        if port.contains("R0_data") ||
+                           port.contains("RW0_rdata") {
                             net_to_nodeidx.insert(wire.to_string(), nidx);
                         }
                     }
@@ -125,23 +134,58 @@ fn module_to_circuit(module: &ParsedPrimitive, circuit: &mut Circuit) {
                         // TODO : Better handle SRAM ports...
                         let bidx = extract_index(port);
                         let p_idx = net_to_nodeidx.get(wire).unwrap();
-                        let sig = if port.contains("R0_addr") {
-                            Some(SignalType::SRAMRdAddr { name: wire.to_string(), idx: bidx.unwrap() })
+
+                        let sig = if port.contains("RW0_addr") {
+                            Some(SignalType::SRAMRdWrAddr {
+                                name: wire.to_string(), idx: bidx.unwrap()
+                            })
+                        } else if port.contains("RW0_en") {
+                            Some(SignalType::SRAMRdWrEn {
+                                name: wire.to_string()
+                            })
+                        } else if port.contains("RW0_wmode") {
+                            Some(SignalType::SRAMRdWrMode {
+                                name: wire.to_string()
+                            })
+                        } else if port.contains("RW0_mask") {
+                            Some(SignalType::SRAMWrMask {
+                                name: wire.to_string(), idx: bidx.unwrap()
+                            })
+                        } else if port.contains("RW0_wdata") {
+                            Some(SignalType::SRAMWrData {
+                                name: wire.to_string(), idx: bidx.unwrap()
+                            })
+                        } else if port.contains("R0_addr") {
+                            Some(SignalType::SRAMRdAddr {
+                                name: wire.to_string(), idx: bidx.unwrap()
+                            })
                         } else if port.contains("R0_en") {
-                            Some(SignalType::SRAMRdEn { name: wire.to_string() })
+                            Some(SignalType::SRAMRdEn {
+                                name: wire.to_string()
+                            })
                         } else if port.contains("W0_en") {
-                            Some(SignalType::SRAMWrEn { name: wire.to_string() })
+                            Some(SignalType::SRAMWrEn {
+                                name: wire.to_string()
+                            })
                         } else if port.contains("W0_mask") {
-                            Some(SignalType::SRAMWrMask { name: wire.to_string(), idx: bidx.unwrap() })
+                            Some(SignalType::SRAMWrMask {
+                                name: wire.to_string(), idx: bidx.unwrap()
+                            })
                         } else if port.contains("W0_addr") {
-                            Some(SignalType::SRAMWrAddr { name: wire.to_string(), idx: bidx.unwrap() })
+                            Some(SignalType::SRAMWrAddr {
+                                name: wire.to_string(), idx: bidx.unwrap()
+                            })
                         } else if port.contains("W0_data") {
-                            Some(SignalType::SRAMWrData { name: wire.to_string(), idx: bidx.unwrap() })
+                            Some(SignalType::SRAMWrData {
+                                name: wire.to_string(), idx: bidx.unwrap()
+                            })
                         } else {
                             None
                         };
                         match sig {
-                            Some(s) => { circuit.graph.add_edge(*p_idx, *sram_idx, HWEdge::new(s)); }
+                            Some(s) => {
+                                circuit.graph.add_edge(*p_idx, *sram_idx, HWEdge::new(s));
+                            }
                             None => {}
                         }
                     }

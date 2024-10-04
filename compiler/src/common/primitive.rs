@@ -57,6 +57,9 @@ pub enum Primitive {
     SRAMWrAddr,
     SRAMWrMask,
     SRAMWrData,
+    SRAMRdWrEn,
+    SRAMRdWrMode,
+    SRAMRdWrAddr,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, EnumCountMacro)]
@@ -64,38 +67,44 @@ pub enum Primitive {
 pub enum CircuitPrimitive {
     #[default]
     NOP = 0,
-    Input      { name: String },
-    Output     { name: String },
-    Lut        { inputs: Vec<String>, output: String, table: Vec<Vec<u8>> },
-    Gate       { c: String, d: String, q: String, r: Option<String>, e: Option<String> },
-    Latch      { input: String, output: String, control: String, init: LatchInit },
-    SRAMNode   { name: String, conns: IndexMap<String, String> },
-    SRAMRdEn   { name: String },
-    SRAMWrEn   { name: String },
-    SRAMRdAddr { name: String, idx: u32 },
-    SRAMRdData { name: String, idx: u32 },
-    SRAMWrAddr { name: String, idx: u32 },
-    SRAMWrMask { name: String, idx: u32 },
-    SRAMWrData { name: String, idx: u32 },
+    Input        { name: String },
+    Output       { name: String },
+    Lut          { inputs: Vec<String>, output: String, table: Vec<Vec<u8>> },
+    Gate         { c: String, d: String, q: String, r: Option<String>, e: Option<String> },
+    Latch        { input: String, output: String, control: String, init: LatchInit },
+    SRAMNode     { name: String, conns: IndexMap<String, String> },
+    SRAMRdEn     { name: String },
+    SRAMWrEn     { name: String },
+    SRAMRdAddr   { name: String, idx: u32 },
+    SRAMRdData   { name: String, idx: u32 },
+    SRAMWrAddr   { name: String, idx: u32 },
+    SRAMWrMask   { name: String, idx: u32 },
+    SRAMWrData   { name: String, idx: u32 },
+    SRAMRdWrEn   { name: String },
+    SRAMRdWrMode { name: String },
+    SRAMRdWrAddr { name: String, idx: u32 }
 }
 
 impl From<&CircuitPrimitive> for Primitive {
     fn from(value: &CircuitPrimitive) -> Self {
         match value {
-            CircuitPrimitive::NOP               => Primitive::NOP,
-            CircuitPrimitive::Input      { .. } => Primitive::Input,
-            CircuitPrimitive::Output     { .. } => Primitive::Output,
-            CircuitPrimitive::Lut        { .. } => Primitive::Lut,
-            CircuitPrimitive::Gate       { .. } => Primitive::Gate,
-            CircuitPrimitive::Latch      { .. } => Primitive::Latch,
-            CircuitPrimitive::SRAMNode   { .. } => Primitive::SRAMNode,
-            CircuitPrimitive::SRAMRdEn   { .. } => Primitive::SRAMRdEn,
-            CircuitPrimitive::SRAMWrEn   { .. } => Primitive::SRAMWrEn,
-            CircuitPrimitive::SRAMRdAddr { .. } => Primitive::SRAMRdAddr,
-            CircuitPrimitive::SRAMRdData { .. } => Primitive::SRAMRdData,
-            CircuitPrimitive::SRAMWrAddr { .. } => Primitive::SRAMWrAddr,
-            CircuitPrimitive::SRAMWrMask { .. } => Primitive::SRAMWrMask,
-            CircuitPrimitive::SRAMWrData { .. } => Primitive::SRAMWrData,
+            CircuitPrimitive::NOP                 => Primitive::NOP,
+            CircuitPrimitive::Input        { .. } => Primitive::Input,
+            CircuitPrimitive::Output       { .. } => Primitive::Output,
+            CircuitPrimitive::Lut          { .. } => Primitive::Lut,
+            CircuitPrimitive::Gate         { .. } => Primitive::Gate,
+            CircuitPrimitive::Latch        { .. } => Primitive::Latch,
+            CircuitPrimitive::SRAMNode     { .. } => Primitive::SRAMNode,
+            CircuitPrimitive::SRAMRdEn     { .. } => Primitive::SRAMRdEn,
+            CircuitPrimitive::SRAMWrEn     { .. } => Primitive::SRAMWrEn,
+            CircuitPrimitive::SRAMRdAddr   { .. } => Primitive::SRAMRdAddr,
+            CircuitPrimitive::SRAMRdData   { .. } => Primitive::SRAMRdData,
+            CircuitPrimitive::SRAMWrAddr   { .. } => Primitive::SRAMWrAddr,
+            CircuitPrimitive::SRAMWrMask   { .. } => Primitive::SRAMWrMask,
+            CircuitPrimitive::SRAMWrData   { .. } => Primitive::SRAMWrData,
+            CircuitPrimitive::SRAMRdWrEn   { .. } => Primitive::SRAMRdWrEn,
+            CircuitPrimitive::SRAMRdWrMode { .. } => Primitive::SRAMRdWrMode,
+            CircuitPrimitive::SRAMRdWrAddr { .. } => Primitive::SRAMRdWrAddr,
         }
     }
 }
@@ -103,17 +112,45 @@ impl From<&CircuitPrimitive> for Primitive {
 impl From<&ParsedPrimitive> for CircuitPrimitive {
     fn from(value: &ParsedPrimitive) -> Self {
         match value {
-            ParsedPrimitive::NOP => Self::NOP,
-            ParsedPrimitive::Module { .. } => Self::NOP,
-            ParsedPrimitive::Input { name }  => Self::Input { name: name.to_string() },
-            ParsedPrimitive::Output { name } => Self::Output { name: name.to_string() },
-            ParsedPrimitive::Lut { inputs, output, table } =>
-                Self::Lut { inputs: inputs.to_vec(), output: output.to_string(), table: table.to_vec() },
-            ParsedPrimitive::Gate { c, d, q, r, e } =>
-                Self::Gate { c: c.clone(), d: d.clone(), q: q.clone(), r: r.clone(), e: e.clone() },
-            ParsedPrimitive::Latch { input, output, control, init } =>
-                Self::Latch { input: input.clone(), output: output.clone(), control: control.clone(), init: init.clone() },
-            ParsedPrimitive::Subckt { name, conns } => Self::SRAMNode { name: name.clone(), conns: conns.clone() }
+            ParsedPrimitive::NOP => {
+                Self::NOP
+            }
+            ParsedPrimitive::Module { .. } => {
+                Self::NOP
+            }
+            ParsedPrimitive::Input { name } => {
+                Self::Input { name: name.to_string() }
+            }
+            ParsedPrimitive::Output { name } => {
+                Self::Output { name: name.to_string() }
+            }
+            ParsedPrimitive::Lut { inputs, output, table } => {
+                Self::Lut {
+                    inputs: inputs.to_vec(),
+                    output: output.to_string(),
+                    table: table.to_vec()
+                }
+            }
+            ParsedPrimitive::Gate { c, d, q, r, e } => {
+                Self::Gate {
+                    c: c.clone(),
+                    d: d.clone(),
+                    q: q.clone(),
+                    r: r.clone(),
+                    e: e.clone()
+                }
+            }
+            ParsedPrimitive::Latch { input, output, control, init } => {
+                Self::Latch {
+                    input: input.clone(),
+                    output: output.clone(),
+                    control: control.clone(),
+                    init: init.clone()
+                }
+            }
+            ParsedPrimitive::Subckt { name, conns } => {
+                Self::SRAMNode { name: name.clone(), conns: conns.clone() }
+            }
         }
     }
 }
@@ -121,10 +158,14 @@ impl From<&ParsedPrimitive> for CircuitPrimitive {
 impl From<&SignalType> for CircuitPrimitive {
     fn from(value: &SignalType) -> Self {
         match value {
-            SignalType::NOP => Self::NOP,
-            SignalType::Wire { .. } => Self::NOP,
-            SignalType::SRAMRdEn { name } => Self::SRAMRdEn { name: name.to_string() },
-            SignalType::SRAMWrEn { name } => Self::SRAMWrEn { name: name.to_string() },
+            SignalType::NOP =>
+                Self::NOP,
+            SignalType::Wire { .. } =>
+                Self::NOP,
+            SignalType::SRAMRdEn { name } =>
+                Self::SRAMRdEn { name: name.to_string() },
+            SignalType::SRAMWrEn { name } =>
+                Self::SRAMWrEn { name: name.to_string() },
             SignalType::SRAMRdAddr { name, idx } =>
                 Self::SRAMRdAddr { name: name.to_string(), idx: idx.clone() },
             SignalType::SRAMRdData { name, idx } =>
@@ -135,6 +176,12 @@ impl From<&SignalType> for CircuitPrimitive {
                 Self::SRAMWrMask { name: name.to_string(), idx: idx.clone() },
             SignalType::SRAMWrAddr { name, idx } =>
                 Self::SRAMWrAddr { name: name.to_string(), idx: idx.clone() },
+            SignalType::SRAMRdWrEn { name } =>
+                Self::SRAMRdWrEn { name: name.to_string() },
+            SignalType::SRAMRdWrMode { name } =>
+                Self::SRAMRdWrMode { name: name.to_string() },
+            SignalType::SRAMRdWrAddr { name, idx } =>
+                Self::SRAMRdWrAddr { name: name.to_string(), idx: idx.clone() }
         }
     }
 }
@@ -142,12 +189,15 @@ impl From<&SignalType> for CircuitPrimitive {
 impl CircuitPrimitive {
     pub fn unique_sram_input_offset(self: &Self, pcfg: &PlatformConfig) -> u32 {
         match self {
-            Self::SRAMRdEn   { .. } => pcfg.sram_rd_en_offset(),
-            Self::SRAMWrEn   { .. } => pcfg.sram_wr_en_offset(),
-            Self::SRAMRdAddr { .. } => pcfg.sram_rd_addr_offset(),
-            Self::SRAMWrAddr { .. } => pcfg.sram_wr_addr_offset(),
-            Self::SRAMWrData { .. } => pcfg.sram_wr_data_offset(),
-            Self::SRAMWrMask { .. } => pcfg.sram_wr_mask_offset(),
+            Self::SRAMRdEn     { .. } => pcfg.sram_rd_en_offset(),
+            Self::SRAMWrEn     { .. } => pcfg.sram_wr_en_offset(),
+            Self::SRAMRdAddr   { .. } => pcfg.sram_rd_addr_offset(),
+            Self::SRAMWrAddr   { .. } => pcfg.sram_wr_addr_offset(),
+            Self::SRAMWrData   { .. } => pcfg.sram_wr_data_offset(),
+            Self::SRAMWrMask   { .. } => pcfg.sram_wr_mask_offset(),
+            Self::SRAMRdWrEn   { .. } => pcfg.sram_rdwr_en_offset(),
+            Self::SRAMRdWrMode { .. } => pcfg.sram_rdwr_mode_offset(),
+            Self::SRAMRdWrAddr { .. } => pcfg.sram_rdwr_addr_offset(),
             _ => pcfg.sram_other_offset()
         }
     }
@@ -155,12 +205,15 @@ impl CircuitPrimitive {
     pub fn unique_sram_input_idx(self: &Self, pcfg: &PlatformConfig) -> u32 {
         let offset = self.unique_sram_input_offset(pcfg);
         match self {
-            Self::SRAMRdEn   { name:_ }      => offset,
-            Self::SRAMWrEn   { name:_ }      => offset,
-            Self::SRAMRdAddr { name:_, idx } => offset + idx,
-            Self::SRAMWrAddr { name:_, idx } => offset + idx,
-            Self::SRAMWrMask { name:_, idx } => offset + idx,
-            Self::SRAMWrData { name:_, idx } => offset + idx,
+            Self::SRAMRdEn     { name:_ }      => offset,
+            Self::SRAMWrEn     { name:_ }      => offset,
+            Self::SRAMRdAddr   { name:_, idx } => offset + idx,
+            Self::SRAMWrAddr   { name:_, idx } => offset + idx,
+            Self::SRAMWrMask   { name:_, idx } => offset + idx,
+            Self::SRAMWrData   { name:_, idx } => offset + idx,
+            Self::SRAMRdWrEn   { name:_ }      => offset,
+            Self::SRAMRdWrMode { name:_ }      => offset,
+            Self::SRAMRdWrAddr { name:_, idx } => offset + idx,
             _ => offset
         }
     }

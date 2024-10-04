@@ -1,6 +1,5 @@
 use crate::common::{
-    primitive::{Primitive, Bit, Bits},
-    config::*
+    config::*, mapping::{SRAMMapping, SRAMPortType}, primitive::{Bit, Bits, Primitive}
 };
 use crate::fsim::memory::*;
 use std::fmt::Debug;
@@ -95,6 +94,7 @@ pub struct SRAMProcessor {
     pub host_steps: u32,
     pub pcfg: PlatformConfig,
     pub ports: Vec<ProcessorSRAMPort>,
+    port_type: SRAMPortType,
     cur: u32,
     inputs: Vec<SRAMInputs>,
     sram: AbstractMemory<SRAMEntry>
@@ -112,6 +112,7 @@ impl SRAMProcessor {
             pcfg: cfg.clone(),
             cur: 0,
             ports: vec![ProcessorSRAMPort::default(); cfg.num_procs as usize],
+            port_type: SRAMPortType::default(),
             inputs: vec![SRAMInputs::new(cfg.sram_width); 2],
             sram: AbstractMemory::new(
                 cfg.sram_entries,
@@ -122,6 +123,10 @@ impl SRAMProcessor {
             ret.sram[addr as usize] = SRAMEntry::new(cfg.sram_width);
         }
         return ret;
+    }
+
+    pub fn set_sram_config(self: &mut Self, map: &SRAMMapping) {
+        self.port_type = map.port_type.clone();
     }
 
     fn recv_input_idx(self: &Self) -> u32 {
@@ -168,12 +173,15 @@ impl SRAMProcessor {
                 let ridx = self.recv_input_idx() as usize;
                 let input = self.inputs.get_mut(ridx).unwrap();
                 match prim {
-                    Primitive::SRAMRdEn   => { input.set_rd_en(p.ip); }
-                    Primitive::SRAMWrEn   => { input.set_wr_en(p.ip); }
-                    Primitive::SRAMRdAddr => { input.set_rd_addr(p.ip, bit_pos); }
-                    Primitive::SRAMWrAddr => { input.set_wr_addr(p.ip, bit_pos); }
-                    Primitive::SRAMWrData => { input.set_wr_data(p.ip, bit_pos); }
-                    Primitive::SRAMWrMask => { input.set_wr_mask(p.ip, bit_pos); }
+                    Primitive::SRAMRdEn     => { input.set_rd_en(p.ip); }
+                    Primitive::SRAMWrEn     => { input.set_wr_en(p.ip); }
+                    Primitive::SRAMRdAddr   => { input.set_rd_addr(p.ip, bit_pos); }
+                    Primitive::SRAMWrAddr   => { input.set_wr_addr(p.ip, bit_pos); }
+                    Primitive::SRAMWrData   => { input.set_wr_data(p.ip, bit_pos); }
+                    Primitive::SRAMWrMask   => { input.set_wr_mask(p.ip, bit_pos); }
+                    Primitive::SRAMRdWrEn   => { input.set_rd_en(p.ip); }
+                    Primitive::SRAMRdWrMode => { input.set_wr_en(p.ip); }
+                    Primitive::SRAMRdWrAddr => { input.set_rd_addr(p.ip, bit_pos); }
                     _ => {}
                 }
             }
@@ -190,7 +198,16 @@ impl SRAMProcessor {
 // println!("SRAM Read Req: addr: {}", cur_input.rd_addr);
 
         // Send out SRAM write request
-        if cur_input.wr_en != 0 {
+        let wen = match self.port_type {
+            SRAMPortType::OneRdOneWrPortSRAM => {
+                cur_input.wr_en != 0
+            }
+            SRAMPortType::SinglePortSRAM => {
+                cur_input.wr_en != 0 && cur_input.rd_en != 0
+            }
+        };
+
+        if wen {
             // TODO: Write mask?
             self.sram.get_wport(0).submit_req(WriteReq {
                 addr: cur_input.wr_addr,

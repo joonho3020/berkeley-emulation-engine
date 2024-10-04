@@ -3,6 +3,7 @@ pub mod inst_map;
 pub mod inst_schedule;
 pub mod blif_to_circuit;
 pub mod partition;
+pub mod split_sram_nodes;
 pub mod set_rank;
 pub mod check_rank;
 pub mod print_stats;

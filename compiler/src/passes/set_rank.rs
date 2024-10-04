@@ -190,13 +190,16 @@ fn find_alap_rank_order(circuit: &mut Circuit) {
                     q.push_back(nx);
                     set_rank_alap(&mut circuit.graph, nx, 0);
                 }
-                Primitive::Output     |
-                Primitive::SRAMRdEn   |
-                Primitive::SRAMWrEn   |
-                Primitive::SRAMRdAddr |
-                Primitive::SRAMWrAddr |
-                Primitive::SRAMWrMask |
-                Primitive::SRAMWrData => {
+                Primitive::Output       |
+                Primitive::SRAMRdEn     |
+                Primitive::SRAMWrEn     |
+                Primitive::SRAMRdAddr   |
+                Primitive::SRAMWrAddr   |
+                Primitive::SRAMWrMask   |
+                Primitive::SRAMWrData   |
+                Primitive::SRAMRdWrEn   |
+                Primitive::SRAMRdWrMode |
+                Primitive::SRAMRdWrAddr => {
                     q.push_back(nx);
                     set_rank_alap(&mut circuit.graph, nx, max_rank);
                 }
@@ -243,14 +246,17 @@ fn find_alap_rank_order(circuit: &mut Circuit) {
                 let childs = circuit.graph.neighbors_directed(*nidx, Outgoing);
                 for cidx in childs {
                     let child = circuit.graph.node_weight(cidx).unwrap();
-                    if child.is() == Primitive::Gate       ||
-                       child.is() == Primitive::Latch      ||
-                       child.is() == Primitive::SRAMRdEn   ||
-                       child.is() == Primitive::SRAMWrEn   ||
-                       child.is() == Primitive::SRAMRdAddr ||
-                       child.is() == Primitive::SRAMWrAddr ||
-                       child.is() == Primitive::SRAMWrMask ||
-                       child.is() == Primitive::SRAMWrData  {
+                    if child.is() == Primitive::Gate         ||
+                       child.is() == Primitive::Latch        ||
+                       child.is() == Primitive::SRAMRdEn     ||
+                       child.is() == Primitive::SRAMWrEn     ||
+                       child.is() == Primitive::SRAMRdAddr   ||
+                       child.is() == Primitive::SRAMWrAddr   ||
+                       child.is() == Primitive::SRAMWrMask   ||
+                       child.is() == Primitive::SRAMWrData   ||
+                       child.is() == Primitive::SRAMRdWrEn   ||
+                       child.is() == Primitive::SRAMRdWrMode ||
+                       child.is() == Primitive::SRAMRdWrAddr {
                         min_child_rank = min(min_child_rank, circuit.emul.max_rank + 1);
                     } else {
                         min_child_rank = min(min_child_rank, child.info().rank.alap);

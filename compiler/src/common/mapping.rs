@@ -14,12 +14,30 @@ pub struct ProcessorMapping {
     pub signal_map: IndexMap<String, NodeMapInfo>,
 }
 
+/// Supported SRAM port types
+#[derive(Serialize, Debug, Default, Clone)]
+pub enum SRAMPortType {
+    #[default]
+    OneRdOneWrPortSRAM = 0,
+    SinglePortSRAM
+}
+
+/// # MappingInfo
+/// - Fields specific to how the design is mapped to a particular sram processor
+#[derive(Serialize, Debug, Default, Clone)]
+pub struct SRAMMapping {
+    pub port_type: SRAMPortType
+}
+
 /// # MappingInfo
 /// - Fields specific to how the design is mapped to a particular emulator module
 #[derive(Serialize, Debug, Default, Clone)]
 pub struct ModuleMapping {
     /// Per processor emulation mapping information
     pub proc_mappings: IndexMap<u32, ProcessorMapping>,
+
+    /// SRAM processor mapping information
+    pub sram_mapping: SRAMMapping,
 }
 
 /// # MappingInfo

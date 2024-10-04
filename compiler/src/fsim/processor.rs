@@ -174,12 +174,15 @@ impl Processor {
             Primitive::SRAMRdData => {
                 self.sram_port.op
             }
-            Primitive::SRAMRdEn   |
-            Primitive::SRAMWrEn   |
-            Primitive::SRAMRdAddr |
-            Primitive::SRAMWrAddr |
-            Primitive::SRAMWrData |
-            Primitive::SRAMWrMask => {
+            Primitive::SRAMRdEn     |
+            Primitive::SRAMWrEn     |
+            Primitive::SRAMRdAddr   |
+            Primitive::SRAMWrAddr   |
+            Primitive::SRAMWrData   |
+            Primitive::SRAMWrMask   |
+            Primitive::SRAMRdWrEn   |
+            Primitive::SRAMRdWrMode |
+            Primitive::SRAMRdWrAddr => {
                 *operands.get(0).unwrap()
             }
             _ => 0,
@@ -228,7 +231,6 @@ impl Processor {
         // Set SRAM port values
         self.sram_port.val = de_inst.mem as Bit;
         self.sram_port.idx = sram_idx;
-
     }
 
     pub fn update_sdm_and_pc(self: &mut Self) {

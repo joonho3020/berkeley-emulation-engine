@@ -30,8 +30,9 @@ pub fn map_instructions(circuit: &mut Circuit) {
     for nidx in circuit.graph.node_indices() {
         let node = circuit.graph.node_weight(nidx).unwrap();
         let coord = node.info().coord;
-        let node_inst = circuit.emul
-            .module_mappings.get_mut(&coord.module).unwrap()
+        let module_mapping = circuit.emul
+            .module_mappings.get_mut(&coord.module).unwrap();
+        let node_inst = module_mapping
             .proc_mappings.get_mut(&coord.proc).unwrap()
             .instructions.get_mut(node.info().pc as usize).unwrap();
 
@@ -90,12 +91,15 @@ pub fn map_instructions(circuit: &mut Circuit) {
         }
 
         // Node is input to the SRAM processor
-        if node.is() == Primitive::SRAMRdEn ||
-           node.is() == Primitive::SRAMWrEn ||
-           node.is() == Primitive::SRAMRdAddr ||
-           node.is() == Primitive::SRAMWrAddr ||
-           node.is() == Primitive::SRAMWrMask ||
-           node.is() == Primitive::SRAMWrData {
+        if node.is() == Primitive::SRAMRdEn     ||
+           node.is() == Primitive::SRAMWrEn     ||
+           node.is() == Primitive::SRAMRdAddr   ||
+           node.is() == Primitive::SRAMWrAddr   ||
+           node.is() == Primitive::SRAMWrMask   ||
+           node.is() == Primitive::SRAMWrData   ||
+           node.is() == Primitive::SRAMRdWrAddr ||
+           node.is() == Primitive::SRAMRdWrMode ||
+           node.is() == Primitive::SRAMRdWrEn {
             assert!(node_inst.operands.len() == 1,
                 "Number of operands for operator {:?} should be 1 but got {}",
                 node.is(), node_inst.operands.len());
@@ -119,6 +123,15 @@ pub fn map_instructions(circuit: &mut Circuit) {
                     local: false,
                     idx: i
                 });
+            }
+
+            // Set SRAM mapping
+            if node.is() == Primitive::SRAMRdWrAddr ||
+               node.is() == Primitive::SRAMRdWrMode ||
+               node.is() == Primitive::SRAMRdWrEn {
+                module_mapping.sram_mapping.port_type = SRAMPortType::SinglePortSRAM;
+            } else {
+                module_mapping.sram_mapping.port_type = SRAMPortType::OneRdOneWrPortSRAM;
             }
         }
 

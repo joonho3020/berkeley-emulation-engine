@@ -9,10 +9,13 @@ pub fn check_rank_order(circuit: &Circuit) {
         let node = circuit.graph.node_weight(nidx).unwrap();
 
         match node.is() {
-            Primitive::Latch | Primitive::Gate | Primitive::Input => {
+            Primitive::Latch |
+            Primitive::Gate  |
+            Primitive::Input |
+            Primitive::SRAMRdData => {
                 assert!(node.info().rank.asap == 0,
-                    "Latch, Gate, Input should have rank.asap 0, got {:?}",
-                    node.info().rank);
+                    "Latch, Gate, Input SRAMRdData should have rank.asap 0, node {:#?}",
+                    node);
             }
             _ => {
                 let parents = circuit.graph.neighbors_directed(nidx, Incoming);
@@ -26,8 +29,17 @@ pub fn check_rank_order(circuit: &Circuit) {
                         pnode.is(),
                         pnode.info().rank);
 
-                    if node.is() != Primitive::Latch ||
-                       node.is() != Primitive::Gate {
+                    if node.is() != Primitive::Latch        &&
+                       node.is() != Primitive::Gate         &&
+                       node.is() != Primitive::SRAMRdEn     &&
+                       node.is() != Primitive::SRAMWrEn     &&
+                       node.is() != Primitive::SRAMRdAddr   &&
+                       node.is() != Primitive::SRAMWrAddr   &&
+                       node.is() != Primitive::SRAMWrMask   &&
+                       node.is() != Primitive::SRAMWrData   &&
+                       node.is() != Primitive::SRAMRdWrEn   &&
+                       node.is() != Primitive::SRAMRdWrMode &&
+                       node.is() != Primitive::SRAMRdWrAddr {
                         assert!(node.info().rank.alap > pnode.info().rank.alap,
                             "node {:?} rank.alap {:?} should be > than pnode {:?} rank.alap {:?}",
                             node.is(),

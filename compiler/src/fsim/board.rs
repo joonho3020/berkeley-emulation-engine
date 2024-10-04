@@ -57,8 +57,8 @@ impl Board {
                     mod_signal_map.insert(sig.clone(), nm.clone());
                 }
             }
-
             module.signal_map = mod_signal_map;
+            module.sram_proc.set_sram_config(&mmap.sram_mapping);
             modules.insert(*m, module);
         }
 

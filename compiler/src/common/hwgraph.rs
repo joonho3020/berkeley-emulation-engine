@@ -184,28 +184,34 @@ pub type HWGraph = Graph<HWNode, HWEdge>;
 pub enum SignalType {
     #[default]
     NOP = 0,
-    Wire       { name: String },
-    SRAMRdEn   { name: String },
-    SRAMWrEn   { name: String },
-    SRAMRdAddr { name: String, idx: u32 },
-    SRAMRdData { name: String, idx: u32 },
-    SRAMWrAddr { name: String, idx: u32 },
-    SRAMWrMask { name: String, idx: u32 },
-    SRAMWrData { name: String, idx: u32 },
+    Wire         { name: String },
+    SRAMRdEn     { name: String },
+    SRAMWrEn     { name: String },
+    SRAMRdAddr   { name: String, idx: u32 },
+    SRAMRdData   { name: String, idx: u32 },
+    SRAMWrAddr   { name: String, idx: u32 },
+    SRAMWrMask   { name: String, idx: u32 },
+    SRAMWrData   { name: String, idx: u32 },
+    SRAMRdWrEn   { name: String },
+    SRAMRdWrMode { name: String },
+    SRAMRdWrAddr { name: String, idx: u32 }
 }
 
 impl Debug for SignalType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let name = match self {
-            SignalType::NOP                        => "",
-            SignalType::Wire       { name        } => name,
-            SignalType::SRAMRdEn   { name        } => name,
-            SignalType::SRAMWrEn   { name        } => name,
-            SignalType::SRAMRdAddr { name, idx:_ } => name,
-            SignalType::SRAMRdData { name, idx:_ } => name,
-            SignalType::SRAMWrAddr { name, idx:_ } => name,
-            SignalType::SRAMWrMask { name, idx:_ } => name,
-            SignalType::SRAMWrData { name, idx:_ } => name,
+            SignalType::NOP                          => "",
+            SignalType::Wire         { name        } => name,
+            SignalType::SRAMRdEn     { name        } => name,
+            SignalType::SRAMWrEn     { name        } => name,
+            SignalType::SRAMRdAddr   { name, idx:_ } => name,
+            SignalType::SRAMRdData   { name, idx:_ } => name,
+            SignalType::SRAMWrAddr   { name, idx:_ } => name,
+            SignalType::SRAMWrMask   { name, idx:_ } => name,
+            SignalType::SRAMWrData   { name, idx:_ } => name,
+            SignalType::SRAMRdWrEn   { name        } => name,
+            SignalType::SRAMRdWrAddr { name, idx:_ } => name,
+            SignalType::SRAMRdWrMode { name        } => name,
         };
         write!(f, "{}", name)
     }

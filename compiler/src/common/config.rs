@@ -145,8 +145,13 @@ impl Debug for GlobalNetworkTopology {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct KaMinParConfig {
+    /// Random seed for partitioner
     pub seed: u64,
+
+    /// Partitioner hyperparameter
     pub epsilon: f64,
+
+    /// Number of threads to perform partitioning
     pub nthreads: u32,
 }
 
@@ -379,14 +384,32 @@ impl PlatformConfig {
         self.sram_wr_data_offset() + self.sram_width
     }
 
-    pub fn sram_other_offset(self: &Self) -> u32 {
+    pub fn sram_rdwr_en_offset(self: &Self) -> u32 {
         self.sram_wr_mask_offset() + self.sram_width
+    }
+
+    pub fn sram_rdwr_mode_offset(self: &Self) -> u32 {
+        self.sram_rdwr_en_offset() + 1
+    }
+
+    pub fn sram_rdwr_addr_offset(self: &Self) -> u32 {
+        self.sram_rdwr_mode_offset() + 1
+    }
+
+    pub fn sram_other_offset(self: &Self) -> u32 {
+        self.sram_rdwr_mode_offset() + self.sram_entries
     }
 
     pub fn index_to_sram_input_type(self: &Self, idx: u32) -> (Primitive, u32) {
         if idx >= self.sram_other_offset() {
             assert!(false, "Unknown index to sram input type: {}", idx);
             (Primitive::NOP, 0)
+        } else if idx >= self.sram_rdwr_addr_offset() {
+            (Primitive::SRAMRdWrAddr, idx - self.sram_rdwr_addr_offset())
+        } else if idx >= self.sram_rdwr_mode_offset() {
+            (Primitive::SRAMRdWrMode, idx - self.sram_rdwr_mode_offset())
+        } else if idx >= self.sram_rdwr_en_offset() {
+            (Primitive::SRAMRdWrEn, idx - self.sram_rdwr_en_offset())
         } else if idx >= self.sram_wr_mask_offset() {
             (Primitive::SRAMWrMask, idx - self.sram_wr_mask_offset())
         } else if idx >= self.sram_wr_data_offset() {

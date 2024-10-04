@@ -1,5 +1,6 @@
 use crate::passes::*;
 use crate::common::circuit::Circuit;
+use split_sram_nodes::split_sram_nodes;
 use dce::dead_code_elimination;
 use inst_map::map_instructions;
 use inst_schedule::schedule_instructions;
@@ -17,6 +18,7 @@ pub fn run_compiler_passes(c: &mut Circuit) {
 
     let partition_start = Instant::now();
     partition(c);
+    split_sram_nodes(c);
     let partition_time = partition_start.elapsed().as_millis();
     println!("Partition done");
 
@@ -42,10 +44,10 @@ pub fn run_compiler_passes(c: &mut Circuit) {
     println!("===============================");
     println!("Compiler Execution Time");
     println!("===============================");
-    println!("DCE      : {} % {} ms", dce_time       as f32 / compiler_time as f32 * 100f32, dce_time);
-    println!("rank     : {} % {} ms", rank_time      as f32 / compiler_time as f32 * 100f32, rank_time);
-    println!("partition: {} % {} ms", partition_time as f32 / compiler_time as f32 * 100f32, partition_time);
-    println!("schedule : {} % {} ms", schedule_time  as f32 / compiler_time as f32 * 100f32, schedule_time);
-    println!("map      : {} % {} ms", map_time       as f32 / compiler_time as f32 * 100f32, map_time);
+    println!("DCE      : {} % {} ms", dce_time        as f32 / compiler_time as f32 * 100f32, dce_time);
+    println!("rank     : {} % {} ms", rank_time       as f32 / compiler_time as f32 * 100f32, rank_time);
+    println!("partition: {} % {} ms", partition_time  as f32 / compiler_time as f32 * 100f32, partition_time);
+    println!("schedule : {} % {} ms", schedule_time   as f32 / compiler_time as f32 * 100f32, schedule_time);
+    println!("map      : {} % {} ms", map_time        as f32 / compiler_time as f32 * 100f32, map_time);
     println!("===============================");
 }
