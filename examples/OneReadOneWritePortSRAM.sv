@@ -8,7 +8,8 @@ module mem_8x8(
   input  [2:0] W0_addr,
   input        W0_en,
   input        W0_clk,
-  input  [7:0] W0_data
+  input  [7:0] W0_data,
+  input  [3:0] W0_mask
 );
 
   reg [7:0] Memory[0:7];
@@ -19,27 +20,37 @@ module mem_8x8(
     _R0_addr_d0 <= R0_addr;
   end // always @(posedge)
   always @(posedge W0_clk) begin
-    if (W0_en & 1'h1)
-      Memory[W0_addr] <= W0_data;
+    if (W0_en & W0_mask[0])
+      Memory[W0_addr][32'h0 +: 2] <= W0_data[1:0];
+    if (W0_en & W0_mask[1])
+      Memory[W0_addr][32'h2 +: 2] <= W0_data[3:2];
+    if (W0_en & W0_mask[2])
+      Memory[W0_addr][32'h4 +: 2] <= W0_data[5:4];
+    if (W0_en & W0_mask[3])
+      Memory[W0_addr][32'h6 +: 2] <= W0_data[7:6];
   end // always @(posedge)
   assign R0_data = _R0_en_d0 ? Memory[_R0_addr_d0] : 8'bx;
 endmodule
 
-module SyncReadMemTest(
+module OneReadOneWritePortSRAM(
   input        clock,
   input        reset,
   input        io_ren,
-  input        io_wen,
   input  [2:0] io_raddr,
+  output [1:0] io_rdata_0,
+  output [1:0] io_rdata_1,
+  output [1:0] io_rdata_2,
+  output [1:0] io_rdata_3,
+  input        io_wen,
   input  [2:0] io_waddr,
   input  [1:0] io_wdata_0,
   input  [1:0] io_wdata_1,
   input  [1:0] io_wdata_2,
   input  [1:0] io_wdata_3,
-  output [1:0] io_rdata_0,
-  output [1:0] io_rdata_1,
-  output [1:0] io_rdata_2,
-  output [1:0] io_rdata_3
+  input        io_wmask_0,
+  input        io_wmask_1,
+  input        io_wmask_2,
+  input        io_wmask_3
 );
 
   wire [7:0] _mem_ext_R0_data;
@@ -51,7 +62,8 @@ module SyncReadMemTest(
     .W0_addr (io_waddr),
     .W0_en   (io_wen),
     .W0_clk  (clock),
-    .W0_data ({io_wdata_3, io_wdata_2, io_wdata_1, io_wdata_0})
+    .W0_data ({io_wdata_3, io_wdata_2, io_wdata_1, io_wdata_0}),
+    .W0_mask ({io_wmask_3, io_wmask_2, io_wmask_1, io_wmask_0})
   );
   assign io_rdata_0 = _mem_ext_R0_data[1:0];
   assign io_rdata_1 = _mem_ext_R0_data[3:2];

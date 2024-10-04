@@ -393,10 +393,10 @@ pub mod emulation_tester {
     pub fn test_1r1w_sram(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
         assert_eq!(
             perform_test(
-                "../examples/SyncReadMemTest.sv",
-                "SyncReadMemTest",
-                "../examples/SyncReadMemTest.input",
-                "../examples/SyncReadMemTest.lut.blif",
+                "../examples/OneReadOneWritePortSRAM.sv",
+                "OneReadOneWritePortSRAM",
+                "../examples/OneReadOneWritePortSRAM.input",
+                "../examples/OneReadOneWritePortSRAM.lut.blif",
                 num_mods, num_procs,
                 network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
             ),
