@@ -29,6 +29,8 @@ derivative = "2.2.0"
 yansi = "1.0.1"
 plotters = "0.3.6"
 blif-parser = "0.1.6"
+rng = "0.1.0"
+rand = "0.8.5"
 
 [profile.release]
 debug=true

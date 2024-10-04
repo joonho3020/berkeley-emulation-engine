@@ -1,5 +1,8 @@
 use indexmap::IndexMap;
 use std::fs;
+use rand::prelude::*;
+
+use crate::common::utils::write_string_to_file;
 
 #[derive(Debug, Clone)]
 pub struct Port {
@@ -168,4 +171,35 @@ pub fn aggregate_bitblasted_values(
         }
     }
     return aggregated;
+}
+
+fn random_number(bits: u32) -> u32 {
+    let max_plus_one = 1 << bits;
+    let mut rng = rand::thread_rng();
+    return rng.gen_range(0..max_plus_one);
+}
+
+pub fn generate_random_test_data(file_path: &str, ports: &Vec<Port>, ncycles: u32) -> std::io::Result<()> {
+    let mut ret = "".to_string();
+    let iports: Vec<Port> = ports.iter().filter(|x| x.input).map(|x| x.clone()).collect();
+
+    for ip in iports.iter() {
+        if ip.name != "clock" && ip.name != "reset" {
+            ret.push_str(&format!("{} ", ip.name));
+        }
+    }
+    ret.push_str("\n");
+
+    for _ in 0..ncycles {
+        for ip in iports.iter() {
+            if ip.name != "clock" && ip.name != "reset" {
+                let len = ip.name.len(); 
+                ret.push_str(&format!("{:width$} ",
+                        random_number(ip.width as u32), width = len));
+            }
+        }
+        ret.push_str("\n");
+    }
+    write_string_to_file(ret, file_path)?;
+    Ok(())
 }
