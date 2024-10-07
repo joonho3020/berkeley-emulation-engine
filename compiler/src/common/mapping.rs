@@ -26,7 +26,14 @@ pub enum SRAMPortType {
 /// - Fields specific to how the design is mapped to a particular sram processor
 #[derive(Serialize, Debug, Default, Clone)]
 pub struct SRAMMapping {
-    pub port_type: SRAMPortType
+    /// Type of SRAM
+    pub port_type: SRAMPortType,
+
+    /// Number of bits used in write mask field
+    pub wmask_bits: u32,
+
+    /// Number of bits per target SRAM entry
+    pub width_bits: u32
 }
 
 /// # MappingInfo

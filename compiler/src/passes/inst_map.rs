@@ -133,6 +133,12 @@ pub fn map_instructions(circuit: &mut Circuit) {
             } else {
                 module_mapping.sram_mapping.port_type = SRAMPortType::OneRdOneWrPortSRAM;
             }
+
+            if node.is() == Primitive::SRAMWrMask {
+                module_mapping.sram_mapping.wmask_bits += 1;
+            } else if node.is() == Primitive::SRAMWrData {
+                module_mapping.sram_mapping.width_bits += 1;
+            }
         }
 
         // Node is the output from the SRAM processor

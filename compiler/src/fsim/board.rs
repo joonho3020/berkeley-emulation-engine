@@ -58,7 +58,7 @@ impl Board {
                 }
             }
             module.signal_map = mod_signal_map;
-            module.sram_proc.set_sram_config(&mmap.sram_mapping);
+            module.sram_proc.set_sram_mapping(&mmap.sram_mapping);
             modules.insert(*m, module);
         }
 

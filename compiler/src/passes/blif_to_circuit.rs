@@ -79,7 +79,6 @@ fn module_to_circuit(module: &ParsedPrimitive, circuit: &mut Circuit) {
                 ParsedPrimitive::Subckt { name, conns } => {
                     sram_to_nodeidx.insert(name.to_string(), nidx);
                     for (port, wire) in conns.iter() {
-                        // TODO : Better handle SRAM ports...
                         if port.contains("R0_data") ||
                            port.contains("RW0_rdata") {
                             net_to_nodeidx.insert(wire.to_string(), nidx);
@@ -131,7 +130,6 @@ fn module_to_circuit(module: &ParsedPrimitive, circuit: &mut Circuit) {
                 ParsedPrimitive::Subckt { name, conns } => {
                     let sram_idx = sram_to_nodeidx.get(name).unwrap();
                     for (port, wire) in conns.iter() {
-                        // TODO : Better handle SRAM ports...
                         let bidx = extract_index(port);
                         let p_idx = net_to_nodeidx.get(wire).unwrap();
 
