@@ -130,6 +130,8 @@ impl HWNode {
         match &self.prim {
             CircuitPrimitive::Lut { inputs: _, output, .. }  => &output,
             CircuitPrimitive::Gate { c: _, d: _, q, .. }     => &q,
+            CircuitPrimitive::InputOne  { name }             => name,
+            CircuitPrimitive::InputZero { name }             => name,
             CircuitPrimitive::Input { name }                 => &name,
             CircuitPrimitive::Output { name }                => &name,
             CircuitPrimitive::Latch { input: _, output, .. } => &output,
@@ -142,38 +144,6 @@ impl HWNode {
             CircuitPrimitive::SRAMWrData { name, .. }        => &name,
             _ => ""
         }
-    }
-}
-
-impl PartialEq for HWNode {
-    fn eq(&self, other: &Self) -> bool {
-        if self.is() == other.is() {
-            self.info().rank.mob == other.info().rank.mob
-        } else {
-            false
-        }
-    }
-}
-
-impl Eq for HWNode {}
-
-impl Ord for HWNode {
-    fn cmp(&self, other: &Self) -> Ordering {
-        if (self.is() == Primitive::Input) && (other.is() == Primitive::Input)
-            || (self.is() != Primitive::Input) && (other.is() != Primitive::Input)
-        {
-            return self.info().rank.mob.cmp(&other.info().rank.mob);
-        } else if self.is() == Primitive::Input {
-            return Ordering::Less;
-        } else {
-            return Ordering::Greater;
-        }
-    }
-}
-
-impl PartialOrd for HWNode {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
     }
 }
 

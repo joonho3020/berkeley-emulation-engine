@@ -8,7 +8,7 @@ use petgraph::{
 };
 
 pub fn dead_code_elimination(circuit: &mut Circuit) {
-    // Get input and output nodes
+    // Get inputs and outputs
     let io_i = circuit.get_nodes_type(Primitive::Input);
     let io_o = circuit.get_nodes_type(Primitive::Output);
 

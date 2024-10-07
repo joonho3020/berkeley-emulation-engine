@@ -83,6 +83,7 @@ impl Module {
             }
             print!("\n");
         }
+        self.sram_proc.print();
     }
 
     pub fn print_sigmap(self: &Self) {

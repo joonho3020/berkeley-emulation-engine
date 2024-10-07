@@ -66,6 +66,12 @@ fn test_emulator(
             dbg_tail_threshold: args.dbg_tail_threshold,
         }
     );
+
+    save_graph_pdf(
+        &format!("{:?}", circuit),
+        &format!("{}/{}.parsed.dot", cwd.to_str().unwrap(), args.top_mod),
+        &format!("{}/{}.parsed.pdf", cwd.to_str().unwrap(), args.top_mod))?;
+
     println!("Running compiler passes with config: {:#?}", &circuit.platform_cfg);
 
     runner::run_compiler_passes(&mut circuit);
@@ -80,10 +86,10 @@ fn test_emulator(
     circuit.save_emulator_instructions()?;
     circuit.save_emulator_sigmap()?;
 
-// save_graph_pdf(
-// &format!("{:?}", circuit),
-// &format!("{}/{}.dot", cwd.to_str().unwrap(), args.top_mod),
-// &format!("{}/{}.pdf", cwd.to_str().unwrap(), args.top_mod))?;
+    save_graph_pdf(
+        &format!("{:?}", circuit),
+        &format!("{}/{}.dot", cwd.to_str().unwrap(), args.top_mod),
+        &format!("{}/{}.pdf", cwd.to_str().unwrap(), args.top_mod))?;
 
     let verilog_str = match fs::read_to_string(&args.sv_file_path) {
         Ok(content) => content,

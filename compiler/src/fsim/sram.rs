@@ -127,6 +127,10 @@ impl SRAMProcessor {
         return ret;
     }
 
+    pub fn print(self: &Self) {
+        println!("{:?}", self.sram);
+    }
+
     pub fn set_sram_mapping(self: &mut Self, map: &SRAMMapping) {
         println!("Emulating SRAM {:?} with {} wmask bits, {} bits per entry",
             map.port_type, map.wmask_bits, map.width_bits);
@@ -140,28 +144,6 @@ impl SRAMProcessor {
 
     fn use_input_idx(self: &Self) -> u32 {
         self.cur as u32
-    }
-
-    // - update output ports
-    pub fn set_sram_out(self: &mut Self) {
-        // Get value from the current read data port
-        self.sram.update_rd_ports();
-        let rd_resp = match self.sram.get_rport(0).cur_resp() {
-            Some(resp) => resp.data,
-            None => SRAMEntry::new(self.pcfg.sram_width),
-        };
-
-        // Set the current read port value for later use
-        self.cur_rd_data = rd_resp.clone();
-
-        // Set the output port
-        for p in self.ports.iter_mut() {
-            let bit_pos = p.idx as usize;
-            match rd_resp.bits.get(bit_pos) {
-                Some(bit) => { p.op = *bit; }
-                None => { }
-            }
-        }
     }
 
     fn masked_write_data(self: &Self, sram_input: &SRAMInputs, rd_data: &SRAMEntry) -> Vec<Bit> {
@@ -180,12 +162,13 @@ impl SRAMProcessor {
         assert!(self.mapping.wmask_bits > 0,
             "masked_write_data should only be called for SRAMs w/ wmask bits");
 
-        let num_bits_per_mask = self.pcfg.sram_width / self.mapping.wmask_bits;
-        let mut mask = vec![];
+        let num_bits_per_mask = self.mapping.width_bits / self.mapping.wmask_bits;
+        let mut mask = vec![0u8; self.pcfg.sram_width as usize];
         for i in 0..self.mapping.wmask_bits {
             let mask_value = sram_input.wr_mask.get(i as usize).unwrap();
-            for _ in 0..num_bits_per_mask {
-                mask.push(mask_value);
+            for j in 0..num_bits_per_mask {
+                let idx = i * num_bits_per_mask + j;
+                *mask.get_mut(idx as usize).unwrap() = *mask_value;
             }
         }
 
@@ -195,18 +178,46 @@ impl SRAMProcessor {
 
         let mut ret = vec![];
         for ((m, w), r) in mask.iter().zip(sram_input.wr_data.iter()).zip(rd_data.bits.iter()) {
-            if **m == 0 {
+            if *m == 0 {
                 ret.push(*r);
             } else {
                 ret.push(*w);
             }
         }
 
+// println!("wr_addr: {}\nwr_data: {:?}\nrd_data {:?}\nmask: {:?}\n ret: {:?}",
+// sram_input.wr_addr,
+// sram_input.wr_data,
+// rd_data.bits,
+// sram_input.wr_mask,
+// ret);
+
         assert!(ret.len() == sram_input.wr_data.len(),
             "masked write data: {:?}, expected length: {}",
             ret, sram_input.wr_data.len());
 
         return ret;
+    }
+
+    // - update output ports
+    pub fn set_sram_out(self: &mut Self) {
+        // Get value from the current read data port
+        self.sram.update_rd_ports();
+        let rd_resp = match self.sram.get_rport(0).cur_resp() {
+            Some(resp) => resp.data,
+            None => SRAMEntry::new(self.pcfg.sram_width),
+        };
+
+        self.cur_rd_data = rd_resp.clone();
+
+        // Set the output port
+        for p in self.ports.iter_mut() {
+            let bit_pos = p.idx as usize;
+            match rd_resp.bits.get(bit_pos) {
+                Some(bit) => { p.op = *bit; }
+                None => { }
+            }
+        }
     }
 
     // - update input ports
@@ -238,22 +249,30 @@ impl SRAMProcessor {
         let cur_input = self.inputs.get(uidx).unwrap();
 
         // Check if this request should be a read or a write
-        let wen = match self.mapping.port_type {
+        let (wen, waddr) = match self.mapping.port_type {
             SRAMPortType::OneRdOneWrPortSRAM => {
-                cur_input.wr_en != 0
+                (cur_input.wr_en != 0, cur_input.wr_addr)
             }
             SRAMPortType::SinglePortSRAM => {
-                cur_input.wr_en != 0 && cur_input.rd_en != 0
+                (cur_input.wr_en != 0 && cur_input.rd_en != 0, cur_input.rd_addr)
             }
         };
 
-        // Send out SRAM read request
-        self.sram.get_rport(0).submit_req(ReadReq {
-            addr: cur_input.rd_addr
-        });
+        if wen && self.pc == 0 {
+            // Write request, need to read the current value in the write address
+            // to emulate write mask behavior
+            self.sram.get_rport(0).submit_req(ReadReq {
+                addr: waddr
+            });
+        } else {
+            // Send out SRAM read request
+            self.sram.get_rport(0).submit_req(ReadReq {
+                addr: cur_input.rd_addr
+            });
+        }
 
         // Send out SRAM write request
-        if wen && self.pc > 0 {
+        if wen && self.pc == self.pcfg.sram_wr_lat {
             let wdata = if self.mapping.wmask_bits == 0 {
                 // No write mask for this SRAM
                 cur_input.wr_data.clone()
@@ -262,7 +281,7 @@ impl SRAMProcessor {
                 self.masked_write_data(cur_input, &self.cur_rd_data)
             };
             self.sram.get_wport(0).submit_req(WriteReq {
-                addr: cur_input.wr_addr,
+                addr: waddr,
                 data: SRAMEntry { bits: wdata }
             });
         }
@@ -273,6 +292,8 @@ impl SRAMProcessor {
         // Update PC
         if self.pc == self.host_steps - 1 {
             self.pc = 0;
+            println!("sram.inputs {:?}", self.inputs.get(self.cur as usize).unwrap());
+            self.print();
             self.inputs.get_mut(self.cur as usize).unwrap().init();
             self.cur = (self.cur + 1) % 2;
         } else {

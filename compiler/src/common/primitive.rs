@@ -67,6 +67,8 @@ pub enum Primitive {
 pub enum CircuitPrimitive {
     #[default]
     NOP = 0,
+    InputZero    { name: String },
+    InputOne     { name: String },
     Input        { name: String },
     Output       { name: String },
     Lut          { inputs: Vec<String>, output: String, table: Vec<Vec<u8>> },
@@ -89,6 +91,8 @@ impl From<&CircuitPrimitive> for Primitive {
     fn from(value: &CircuitPrimitive) -> Self {
         match value {
             CircuitPrimitive::NOP                 => Primitive::NOP,
+            CircuitPrimitive::InputZero    { .. } => Primitive::Input,
+            CircuitPrimitive::InputOne     { .. } => Primitive::Input,
             CircuitPrimitive::Input        { .. } => Primitive::Input,
             CircuitPrimitive::Output       { .. } => Primitive::Output,
             CircuitPrimitive::Lut          { .. } => Primitive::Lut,
@@ -125,10 +129,16 @@ impl From<&ParsedPrimitive> for CircuitPrimitive {
                 Self::Output { name: name.to_string() }
             }
             ParsedPrimitive::Lut { inputs, output, table } => {
-                Self::Lut {
-                    inputs: inputs.to_vec(),
-                    output: output.to_string(),
-                    table: table.to_vec()
+                if output == "$true" {
+                    Self::InputOne { name: output.to_string() }
+                } else if output == "$false" {
+                    Self::InputZero { name: output.to_string() }
+                } else {
+                    Self::Lut {
+                        inputs: inputs.to_vec(),
+                        output: output.to_string(),
+                        table: table.to_vec()
+                    }
                 }
             }
             ParsedPrimitive::Gate { c, d, q, r, e } => {

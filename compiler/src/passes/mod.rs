@@ -1,4 +1,5 @@
 pub mod dce;
+pub mod replicate_consts;
 pub mod inst_map;
 pub mod inst_schedule;
 pub mod blif_to_circuit;

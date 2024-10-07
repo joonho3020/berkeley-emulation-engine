@@ -1,6 +1,8 @@
 use crate::passes::*;
+use crate::common::utils::save_graph_pdf;
 use crate::common::circuit::Circuit;
 use split_sram_nodes::split_sram_nodes;
+use replicate_consts::replicate_consts;
 use dce::dead_code_elimination;
 use inst_map::map_instructions;
 use inst_schedule::schedule_instructions;
@@ -19,6 +21,7 @@ pub fn run_compiler_passes(c: &mut Circuit) {
     let partition_start = Instant::now();
     partition(c);
     split_sram_nodes(c);
+    replicate_consts(c);
     let partition_time = partition_start.elapsed().as_millis();
     println!("Partition done");
 

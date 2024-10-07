@@ -550,7 +550,7 @@ fn schedule_candidates_at_pc(
         let node = circuit.graph.node_weight(cand.index).unwrap();
 
         // Cannot schedule a SRAM read until pc >= pcfg.sram_rd_lat
-        if node.is() == Primitive::SRAMRdData && *pc < pcfg.sram_rd_lat {
+        if node.is() == Primitive::SRAMRdData && *pc < (pcfg.sram_rd_lat + pcfg.sram_wr_lat) {
             continue;
         }
 

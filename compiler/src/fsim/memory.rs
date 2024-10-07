@@ -150,7 +150,7 @@ impl<T: Default + Clone> WritePort<T> {
 /// The read and write ports can have a variable amount of latency,
 /// and the occupancy is 1 per port (i.e. the user can submit one inflight
 /// request every cycle for every port).
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone)]
 pub struct AbstractMemory<T: Default + Clone> {
     pub data: Vec<T>,
     rports: Vec<ReadPort<T>>,
@@ -222,5 +222,14 @@ impl<T: Default + Clone> Index<usize> for AbstractMemory<T> {
 impl<T: Default + Clone> IndexMut<usize> for AbstractMemory<T> {
     fn index_mut<'a>(&'a mut self, i: usize) -> &'a mut T {
         &mut self.data[i]
+    }
+}
+
+impl<T: Default + Clone + Debug> Debug for AbstractMemory<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for entry in self.data.iter() {
+            write!(f, "{:?}\n", entry)?;
+        }
+        Ok(())
     }
 }
