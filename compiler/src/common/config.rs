@@ -282,11 +282,9 @@ impl PlatformConfig {
         self.log2ceil(self.num_procs)
     }
 
-    /// log2Ceil(number of Primitive)
+    /// log2Ceil(number of Opcode)
     pub fn opcode_bits(self: &Self) -> u32 {
-        // NOTE: Currently subtracting 2 to exclude Subckt and Module
-        let num_prims: u32 = Primitive::COUNT as u32 - 2;
-        self.log2ceil(num_prims)
+        self.log2ceil(Opcode::COUNT as u32)
     }
 
     /// number of bits for the LUT

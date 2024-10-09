@@ -56,7 +56,7 @@ impl Circuit {
                     if (i as u32) < self.emul.host_steps {
                         inst_str.push_str(&format!("{} {:?}\n", i, inst));
                         match inst.opcode {
-                            Primitive::NOP => total_nops += 1,
+                            Opcode::NOP => total_nops += 1,
                             _ => ()
                         };
                     } else {
@@ -129,35 +129,38 @@ impl Circuit {
                     Some(v) => v,
                     None    => Bit::MAX
                 };
-                if node.is() == Primitive::Lut {
-                    outstring.push_str(&format!(
-                        "{}{} [ label = {:?} ]\n",
-                        indent,
-                        nidx.index(),
-                        format!("{} {:?}\nmod: {} proc: {}\nasap: {} alap: {} pc: {}\nlut: {:?} val: {}",
-                                node.name(),
-                                node.is(),
-                                node.info().coord.module,
-                                node.info().coord.proc,
-                                node.info().rank.asap,
-                                node.info().rank.alap,
-                                node.info().pc,
-                                node.get_lut_table().unwrap(),
-                                val)));
-                } else {
-                    outstring.push_str(&format!(
-                        "{}{} [ label = {:?} ]\n",
-                        indent,
-                        nidx.index(),
-                        format!("{} {:?}\nmod: {} proc: {}\nasap: {} alap: {} pc: {}\nval: {}",
-                                node.name(),
-                                node.is(),
-                                node.info().coord.module,
-                                node.info().coord.proc,
-                                node.info().rank.asap,
-                                node.info().rank.alap,
-                                node.info().pc,
-                                val)));
+                match &node.prim {
+                    CircuitPrimitive::Lut { inputs:_, output:_, table } => {
+                        outstring.push_str(&format!(
+                            "{}{} [ label = {:?} ]\n",
+                            indent,
+                            nidx.index(),
+                            format!("{} {:?}\nmod: {} proc: {}\nasap: {} alap: {} pc: {}\nlut: {:?} val: {}",
+                                    node.name(),
+                                    node.is(),
+                                    node.info().coord.module,
+                                    node.info().coord.proc,
+                                    node.info().rank.asap,
+                                    node.info().rank.alap,
+                                    node.info().pc,
+                                    table,
+                                    val)));
+                    }
+                    _ => {
+                        outstring.push_str(&format!(
+                            "{}{} [ label = {:?} ]\n",
+                            indent,
+                            nidx.index(),
+                            format!("{} {:?}\nmod: {} proc: {}\nasap: {} alap: {} pc: {}\nval: {}",
+                                    node.name(),
+                                    node.is(),
+                                    node.info().coord.module,
+                                    node.info().coord.proc,
+                                    node.info().rank.asap,
+                                    node.info().rank.alap,
+                                    node.info().pc,
+                                    val)));
+                    }
                 }
             }
         }
@@ -192,6 +195,14 @@ impl Circuit {
             }
         }
         return nodes;
+    }
+
+    pub fn save_graph(self: &Self, pfx: &str) -> std::io::Result<()> {
+        let ccfg = &self.compiler_cfg;
+        return save_graph_pdf(
+            &format!("{:?}", self),
+            &format!("{}/{}.{}.dot", ccfg.output_dir, ccfg.top_module, pfx),
+            &format!("{}/{}.{}.pdf", ccfg.output_dir, ccfg.top_module, pfx));
     }
 }
 

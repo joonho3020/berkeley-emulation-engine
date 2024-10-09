@@ -83,7 +83,7 @@ impl Module {
             }
             print!("\n");
         }
-        self.sram_proc.print();
+// self.sram_proc.print();
     }
 
     pub fn print_sigmap(self: &Self) {
@@ -159,7 +159,7 @@ impl Module {
         match self.signal_map.get(signal) {
             Some(map) => {
                 let inst = self.procs[map.info.coord.proc as usize].imem[map.info.pc as usize].clone();
-                if inst.opcode == Primitive::Input {
+                if inst.opcode == Opcode::Input {
                     self.procs[map.info.coord.proc as usize].set_io_i(val);
                     Some(val)
                 } else {

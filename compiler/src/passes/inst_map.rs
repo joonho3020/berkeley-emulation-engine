@@ -38,30 +38,41 @@ pub fn map_instructions(circuit: &mut Circuit) {
 
         // assign opcode
         node_inst.valid = true;
-        node_inst.opcode = node.is();
+        node_inst.opcode = Opcode::from(&node.is());
 
         // build LUT table
-        if node.is() == Primitive::Lut {
-            let table_vec = node.get_lut_table().unwrap();
-            let mut table: u64 = 0;
-            let mut ops: u32 = 0;
-            for entry in table_vec.iter() {
-                let mut x = 0;
-                ops = entry.len() as u32;
-                for (i, e) in entry.iter().enumerate() {
-                    x = x + (e << i);
+        match &node.prim {
+            CircuitPrimitive::Lut { inputs:_, output:_, table } => {
+                let table_vec = table.to_vec();
+                let mut table: u64 = 0;
+                let mut ops: u32 = 0;
+                for entry in table_vec.iter() {
+                    let mut x = 0;
+                    ops = entry.len() as u32;
+                    for (i, e) in entry.iter().enumerate() {
+                        x = x + (e << i);
+                    }
+                    table = table | (1 << x);
+                    assert!(x < 64,
+                        "Can support up to 6 operands with u64, node {} {:?} {:?}",
+                        node.name(), node.is(), node.info());
                 }
-                table = table | (1 << x);
-                assert!(x < 64,
-                    "Can support up to 6 operands with u64, node {} {:?} {:?}",
-                    node.name(), node.is(), node.info());
+                let mut table_repeated: u64 = table;
+                let nops = pcfg.lut_inputs - ops;
+                for i in 0..(1 << nops) {
+                    table_repeated |= table << ((1 << ops) * i);
+                }
+                node_inst.lut = table_repeated;
             }
-            let mut table_repeated: u64 = table;
-            let nops = pcfg.lut_inputs - ops;
-            for i in 0..(1 << nops) {
-                table_repeated |= table << ((1 << ops) * i);
+            CircuitPrimitive::ConstLut { val, .. } => {
+                let mut table: u64 = 0;
+                let num_bits = 1 << pcfg.lut_inputs;
+                for i in 0..num_bits {
+                    table |= (*val as u64) << (i as u64);
+                }
+                node_inst.lut = table;
             }
-            node_inst.lut = table_repeated;
+            _ => { }
         }
 
         // assign operands
@@ -70,9 +81,12 @@ pub fn map_instructions(circuit: &mut Circuit) {
             let pnode = circuit.graph.node_weight(pedge.source()).unwrap();
 
             let mut op_idx = 0;
-            if node.is() == Primitive::Lut {
-                let lut_inputs = node.get_lut_inputs().unwrap();
-                op_idx = lut_inputs.iter().position(|n| n == pnode.name()).unwrap();
+            match &node.prim {
+                CircuitPrimitive::Lut { inputs, .. } => {
+                    let lut_inputs = inputs.to_vec();
+                    op_idx = lut_inputs.iter().position(|n| n == pnode.name()).unwrap();
+                }
+                _ => { }
             }
 
             let pcoord = pnode.info().coord;

@@ -41,12 +41,53 @@ impl FourStateBit {
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, EnumCountMacro)]
 #[repr(u32)]
+pub enum Opcode {
+    #[default]
+    NOP = 0,
+    Input,
+    Output,
+    Lut,
+    ConstLut,
+    Gate,
+    Latch,
+    SRAMIn,
+    SRAMOut,
+}
+
+impl From<&Primitive> for Opcode {
+    fn from(value: &Primitive) -> Self {
+        match value {
+            Primitive::NOP          => Opcode::NOP,
+            Primitive::Input        => Opcode::Input,
+            Primitive::Output       => Opcode::Output,
+            Primitive::Lut          => Opcode::Lut,
+            Primitive::ConstLut     => Opcode::Lut,
+            Primitive::Gate         => Opcode::Gate,
+            Primitive::Latch        => Opcode::Latch,
+            Primitive::SRAMNode     => Opcode::NOP,
+            Primitive::SRAMRdEn     => Opcode::SRAMIn,
+            Primitive::SRAMWrEn     => Opcode::SRAMIn,
+            Primitive::SRAMRdAddr   => Opcode::SRAMIn,
+            Primitive::SRAMWrAddr   => Opcode::SRAMIn,
+            Primitive::SRAMWrMask   => Opcode::SRAMIn,
+            Primitive::SRAMWrData   => Opcode::SRAMIn,
+            Primitive::SRAMRdWrEn   => Opcode::SRAMIn,
+            Primitive::SRAMRdWrMode => Opcode::SRAMIn,
+            Primitive::SRAMRdWrAddr => Opcode::SRAMIn,
+            Primitive::SRAMRdData   => Opcode::SRAMOut
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, EnumCountMacro)]
+#[repr(u32)]
 pub enum Primitive {
     #[default]
     NOP = 0,
     Input,
     Output,
     Lut,
+    ConstLut,
     Gate,
     Latch,
     SRAMNode,
@@ -67,11 +108,10 @@ pub enum Primitive {
 pub enum CircuitPrimitive {
     #[default]
     NOP = 0,
-    InputZero    { name: String },
-    InputOne     { name: String },
     Input        { name: String },
     Output       { name: String },
     Lut          { inputs: Vec<String>, output: String, table: Vec<Vec<u8>> },
+    ConstLut     { val: Bit, output: String },
     Gate         { c: String, d: String, q: String, r: Option<String>, e: Option<String> },
     Latch        { input: String, output: String, control: String, init: LatchInit },
     SRAMNode     { name: String, conns: IndexMap<String, String> },
@@ -91,11 +131,10 @@ impl From<&CircuitPrimitive> for Primitive {
     fn from(value: &CircuitPrimitive) -> Self {
         match value {
             CircuitPrimitive::NOP                 => Primitive::NOP,
-            CircuitPrimitive::InputZero    { .. } => Primitive::Input,
-            CircuitPrimitive::InputOne     { .. } => Primitive::Input,
             CircuitPrimitive::Input        { .. } => Primitive::Input,
             CircuitPrimitive::Output       { .. } => Primitive::Output,
             CircuitPrimitive::Lut          { .. } => Primitive::Lut,
+            CircuitPrimitive::ConstLut     { .. } => Primitive::ConstLut,
             CircuitPrimitive::Gate         { .. } => Primitive::Gate,
             CircuitPrimitive::Latch        { .. } => Primitive::Latch,
             CircuitPrimitive::SRAMNode     { .. } => Primitive::SRAMNode,
@@ -130,9 +169,15 @@ impl From<&ParsedPrimitive> for CircuitPrimitive {
             }
             ParsedPrimitive::Lut { inputs, output, table } => {
                 if output == "$true" {
-                    Self::InputOne { name: output.to_string() }
+                    Self::ConstLut {
+                        val: 1,
+                        output: output.to_string()
+                    }
                 } else if output == "$false" {
-                    Self::InputZero { name: output.to_string() }
+                    Self::ConstLut {
+                        val: 0,
+                        output: output.to_string()
+                    }
                 } else {
                     Self::Lut {
                         inputs: inputs.to_vec(),

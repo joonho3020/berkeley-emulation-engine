@@ -4,15 +4,18 @@ use crate::common::{
 };
 use petgraph::{
     prelude::Bfs,
-    visit::{VisitMap, Visitable}
+    visit::{VisitMap, Visitable}, Direction::Outgoing
 };
 
 pub fn dead_code_elimination(circuit: &mut Circuit) {
     // Get inputs and outputs
-    let io_i = circuit.get_nodes_type(Primitive::Input);
-    let io_o = circuit.get_nodes_type(Primitive::Output);
+    let io_o     = circuit.get_nodes_type(Primitive::Output);
+    let mut io_i = circuit.get_nodes_type(Primitive::Input);
+    let consts   = circuit.get_nodes_type(Primitive::ConstLut);
 
-    // BFS from inputs
+    io_i.extend(consts);
+
+    // BFS from inputs and constants
     let mut i_vismap = circuit.graph.visit_map();
     for nidx in io_i.iter() {
         let mut bfs = Bfs::new(&circuit.graph, *nidx);
@@ -32,10 +35,18 @@ pub fn dead_code_elimination(circuit: &mut Circuit) {
     }
     circuit.graph.reverse();
 
-    // Find nodes to delete (can't delete here due to immutable borrow)
     for nidx in circuit.graph.node_indices().rev() {
-        if !o_vismap.is_visited(&nidx) || !i_vismap.is_visited(&nidx) {
-            circuit.graph.remove_node(nidx);
+        match circuit.graph.node_weight(nidx).unwrap().is() {
+            Primitive::ConstLut => {
+                if circuit.graph.neighbors_directed(nidx, Outgoing).count() == 0 {
+                    circuit.graph.remove_node(nidx);
+                }
+            }
+            _ => {
+                if !o_vismap.is_visited(&nidx) || !i_vismap.is_visited(&nidx) {
+                    circuit.graph.remove_node(nidx);
+                }
+            }
         }
     }
 }

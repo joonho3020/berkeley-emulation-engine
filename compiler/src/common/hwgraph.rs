@@ -5,9 +5,7 @@ use serde::Serialize;
 use strum_macros::EnumCount as EnumCountMacro;
 use serde::ser::SerializeStruct;
 use serde::Serializer;
-use std::{
-    cmp::Ordering, fmt::Debug
-};
+use std::fmt::Debug;
 
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Ord, Eq, Hash)]
 pub struct RankInfo {
@@ -108,30 +106,11 @@ impl HWNode {
         &mut self.info
     }
 
-    pub fn set_info(&mut self, i: NodeInfo) {
-        self.info = i
-    }
-
-    pub fn get_lut_table(&self) -> Option<Vec<Vec<u8>>> {
-        match &self.prim {
-            CircuitPrimitive::Lut { inputs: _, output: _, table } => Some(table.to_vec()),
-            _ => None
-        }
-    }
-
-    pub fn get_lut_inputs(&self) -> Option<Vec<String>> {
-        match &self.prim {
-            CircuitPrimitive::Lut { inputs, .. } => Some(inputs.to_vec()),
-            _ => None
-        }
-    }
-
     pub fn name(&self) -> &str {
         match &self.prim {
             CircuitPrimitive::Lut { inputs: _, output, .. }  => &output,
+            CircuitPrimitive::ConstLut { val:_, output }     => &output,
             CircuitPrimitive::Gate { c: _, d: _, q, .. }     => &q,
-            CircuitPrimitive::InputOne  { name }             => name,
-            CircuitPrimitive::InputZero { name }             => name,
             CircuitPrimitive::Input { name }                 => &name,
             CircuitPrimitive::Output { name }                => &name,
             CircuitPrimitive::Latch { input: _, output, .. } => &output,

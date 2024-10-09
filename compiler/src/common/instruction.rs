@@ -40,7 +40,7 @@ pub struct Instruction {
     pub valid: bool,
 
     /// Opcode
-    pub opcode: Primitive,
+    pub opcode: Opcode,
 
     /// LUT table
     pub lut: u64,
@@ -60,7 +60,7 @@ impl Instruction {
     pub fn new(nops: u32) -> Self {
         Instruction {
             valid: false,
-            opcode: Primitive::NOP,
+            opcode: Opcode::NOP,
             lut: 0,
             operands: Vec::with_capacity(nops as usize),
             sinfo: SwitchInfo::default(),

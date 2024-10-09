@@ -107,7 +107,7 @@ impl Board {
                 let inst = self.modules[map.info.coord.module as usize]
                                .procs[map.info.coord.proc as usize]
                                .imem[map.info.pc as usize].clone();
-                if inst.opcode == Primitive::Input {
+                if inst.opcode == Opcode::Input {
                     self.modules[map.info.coord.module as usize]
                         .procs[map.info.coord.proc as usize]
                         .set_io_i(val);

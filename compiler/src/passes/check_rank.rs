@@ -9,9 +9,10 @@ pub fn check_rank_order(circuit: &Circuit) {
         let node = circuit.graph.node_weight(nidx).unwrap();
 
         match node.is() {
-            Primitive::Latch |
-            Primitive::Gate  |
-            Primitive::Input |
+            Primitive::Latch    |
+            Primitive::Gate     |
+            Primitive::Input    |
+            Primitive::ConstLut |
             Primitive::SRAMRdData => {
                 assert!(node.info().rank.asap == 0,
                     "Latch, Gate, Input SRAMRdData should have rank.asap 0, node {:#?}",

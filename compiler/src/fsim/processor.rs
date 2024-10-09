@@ -154,35 +154,27 @@ impl Processor {
 
         // LUT lookup
         let f_out = match &de_inst.opcode {
-            Primitive::NOP => 0,
-            Primitive::Input => self.io_i,
-            Primitive::Lut => {
+            Opcode::NOP => 0,
+            Opcode::Input => self.io_i,
+            Opcode::Lut => {
                 let mut entry = 0;
                 for (i, bit) in operands.iter().enumerate() {
                     entry = entry + (bit << i);
                 }
                 ((de_inst.lut >> entry) & 1) as u8
             }
-            Primitive::Output => {
+            Opcode::Output => {
                 let bit = *operands.get(0).unwrap();
                 self.io_o = bit;
                 bit
             }
-            Primitive::Gate | Primitive::Latch => {
+            Opcode::Gate | Opcode::Latch => {
                 *operands.get(0).unwrap()
             }
-            Primitive::SRAMRdData => {
+            Opcode::SRAMOut => {
                 self.sram_port.op
             }
-            Primitive::SRAMRdEn     |
-            Primitive::SRAMWrEn     |
-            Primitive::SRAMRdAddr   |
-            Primitive::SRAMWrAddr   |
-            Primitive::SRAMWrData   |
-            Primitive::SRAMWrMask   |
-            Primitive::SRAMRdWrEn   |
-            Primitive::SRAMRdWrMode |
-            Primitive::SRAMRdWrAddr => {
+            Opcode::SRAMIn => {
                 *operands.get(0).unwrap()
             }
             _ => 0,

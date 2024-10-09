@@ -293,8 +293,9 @@ fn all_inputs_arrived(circuit: &Circuit, nidx: &NodeIndex, pc: &u32) -> bool {
     let mut arrived = true;
     let node = circuit.graph.node_weight(*nidx).unwrap();
     let parent_edges = circuit.graph.edges_directed(*nidx, Incoming);
-    if node.is() != Primitive::Input &&
-       node.is() != Primitive::Latch &&
+    if node.is() != Primitive::Input    &&
+       node.is() != Primitive::ConstLut &&
+       node.is() != Primitive::Latch    &&
        node.is() != Primitive::Gate {
         for pedge in parent_edges {
             if !input_arrived(circuit, pedge, pc) {
@@ -304,6 +305,21 @@ fn all_inputs_arrived(circuit: &Circuit, nidx: &NodeIndex, pc: &u32) -> bool {
         }
     }
     return arrived;
+}
+
+fn child_ff_scheduled(circuit: &Circuit, nidx: &NodeIndex) -> bool {
+    let mut can_schedule = true;
+    let childs = circuit.graph.neighbors_directed(*nidx, Outgoing);
+    for cidx in childs {
+        let cnode = circuit.graph.node_weight(cidx).unwrap();
+        if cnode.is() == Primitive::Latch || cnode.is() == Primitive::Gate {
+            if !cnode.info().scheduled {
+                can_schedule = false;
+                break;
+            }
+        }
+    }
+    return can_schedule;
 }
 
 /// When shipping a bit starting at `pc`, the `route` doesn't have any
@@ -551,6 +567,13 @@ fn schedule_candidates_at_pc(
 
         // Cannot schedule a SRAM read until pc >= pcfg.sram_rd_lat
         if node.is() == Primitive::SRAMRdData && *pc < (pcfg.sram_rd_lat + pcfg.sram_wr_lat) {
+            continue;
+        }
+
+        // Cannot schedule a `Input` or a `SRAMRdData` if it is directly
+        // connected to a `Latch`/`Gate` until the `Latch`/`Gate` is scheduled
+        if (node.is() == Primitive::SRAMRdData || node.is() == Primitive::Input) &&
+            !child_ff_scheduled(circuit, &cand.index) {
             continue;
         }
 

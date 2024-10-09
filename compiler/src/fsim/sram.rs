@@ -292,8 +292,8 @@ impl SRAMProcessor {
         // Update PC
         if self.pc == self.host_steps - 1 {
             self.pc = 0;
-            println!("sram.inputs {:?}", self.inputs.get(self.cur as usize).unwrap());
-            self.print();
+// println!("sram.inputs {:?}", self.inputs.get(self.cur as usize).unwrap());
+// self.print();
             self.inputs.get_mut(self.cur as usize).unwrap().init();
             self.cur = (self.cur + 1) % 2;
         } else {

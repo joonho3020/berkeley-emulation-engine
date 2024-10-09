@@ -1,5 +1,4 @@
 use crate::passes::*;
-use crate::common::utils::save_graph_pdf;
 use crate::common::circuit::Circuit;
 use split_sram_nodes::split_sram_nodes;
 use replicate_consts::replicate_consts;
@@ -13,10 +12,14 @@ use print_stats::print_stats;
 use std::time::Instant;
 
 pub fn run_compiler_passes(c: &mut Circuit) {
+// let _ = c.save_graph("parsed");
+
     let dce_start = Instant::now();
     dead_code_elimination(c);
     let dce_time = dce_start.elapsed().as_millis();
     println!("DCE done");
+
+// let _ = c.save_graph("dce");
 
     let partition_start = Instant::now();
     partition(c);
@@ -24,6 +27,8 @@ pub fn run_compiler_passes(c: &mut Circuit) {
     replicate_consts(c);
     let partition_time = partition_start.elapsed().as_millis();
     println!("Partition done");
+
+// let _ = c.save_graph("partition");
 
     let rank_start = Instant::now();
     find_rank_order(c);

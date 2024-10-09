@@ -67,15 +67,8 @@ fn test_emulator(
         }
     );
 
-    save_graph_pdf(
-        &format!("{:?}", circuit),
-        &format!("{}/{}.parsed.dot", cwd.to_str().unwrap(), args.top_mod),
-        &format!("{}/{}.parsed.pdf", cwd.to_str().unwrap(), args.top_mod))?;
-
     println!("Running compiler passes with config: {:#?}", &circuit.platform_cfg);
-
     runner::run_compiler_passes(&mut circuit);
-
     println!("Compiler pass finished");
 
     save_graph_pdf(
@@ -85,11 +78,7 @@ fn test_emulator(
 
     circuit.save_emulator_instructions()?;
     circuit.save_emulator_sigmap()?;
-
-    save_graph_pdf(
-        &format!("{:?}", circuit),
-        &format!("{}/{}.dot", cwd.to_str().unwrap(), args.top_mod),
-        &format!("{}/{}.pdf", cwd.to_str().unwrap(), args.top_mod))?;
+// circuit.save_graph("final")?;
 
     let verilog_str = match fs::read_to_string(&args.sv_file_path) {
         Ok(content) => content,
@@ -420,6 +409,23 @@ pub mod emulation_tester {
                 "SinglePortSRAM",
                 "../examples/SinglePortSRAM.input",
                 "../examples/SinglePortSRAM.lut.blif",
+                num_mods, num_procs,
+                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+            ),
+            true
+        );
+    }
+
+    #[test_case(1, 2, 0, 0, 1, 0; "mod 1 procs 2 imem 0 dmem rd 0 wr 1 network 0")]
+    #[test_case(2, 4, 0, 0, 1, 0; "mod 2 procs 4 imem 0 dmem rd 0 wr 1 network 0")]
+    #[test_case(2, 8, 0, 0, 1, 0; "mod 2 procs 8 imem 0 dmem rd 0 wr 1 network 0")]
+    pub fn test_const(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
+        assert_eq!(
+            perform_test(
+                "../examples/Const.sv",
+                "Const",
+                "../examples/Const.input",
+                "../examples/Const.lut.blif",
                 num_mods, num_procs,
                 network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
             ),
