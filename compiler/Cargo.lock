@@ -143,9 +143,9 @@ checksum = "b048fb63fd8b5923fc5aa7b340d8e156aec7ec02f0c78fa8a6ddc2613f6f71de"
 
 [[package]]
 name = "blif-parser"
-version = "0.1.6"
+version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b37d6fc4151c5607666560a6d30f36f18151cbeccd2cb9bda8a1017cb93ec9c"
+checksum = "2aff910128aa1dc0a5d536528100bc35a182e3b5dd8462b7bd5235111162b59c"
 dependencies = [
  "derivative",
  "indexmap 2.5.0",
