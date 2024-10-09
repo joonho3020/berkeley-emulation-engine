@@ -2,8 +2,13 @@ use std::cmp::min;
 
 #[derive(Debug, Default, Clone)]
 pub struct BitBuf {
+    /// Array of bytes in this buffer
     pub bytes: Vec<u8>,
+
+    /// Current bit offset
     pub offset: u32,
+
+    /// Total number of bits in this buffer
     pub size: u32,
 }
 

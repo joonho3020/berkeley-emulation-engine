@@ -42,6 +42,7 @@ pub fn map_instructions(circuit: &mut Circuit) {
 
         // build LUT table
         match &node.prim {
+            // Normal LUT
             CircuitPrimitive::Lut { inputs:_, output:_, table } => {
                 let table_vec = table.to_vec();
                 let mut table: u64 = 0;
@@ -64,6 +65,7 @@ pub fn map_instructions(circuit: &mut Circuit) {
                 }
                 node_inst.lut = table_repeated;
             }
+            // Constant LUT
             CircuitPrimitive::ConstLut { val, .. } => {
                 let mut table: u64 = 0;
                 let num_bits = 1 << pcfg.lut_inputs;

@@ -398,6 +398,9 @@ impl PlatformConfig {
         self.sram_rdwr_mode_offset() + self.sram_entries
     }
 
+    /// To emulate SRAMs, the `operands` fields are used to set a unique ID
+    /// for each SRAM input bit type.
+    /// This function returns the type of the bit and its index given a unique ID
     pub fn index_to_sram_input_type(self: &Self, idx: u32) -> (Primitive, u32) {
         if idx >= self.sram_other_offset() {
             assert!(false, "Unknown index to sram input type: {}", idx);

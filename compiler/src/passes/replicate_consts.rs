@@ -22,6 +22,7 @@ impl ConstLutNode {
     }
 }
 
+/// Replicate `ConstLut`s so that we don't have to broadcast these nodes
 pub fn replicate_consts(circuit: &mut Circuit) {
     let mut const_info: IndexMap<NodeIndex, Vec<ConstLutNode>> = IndexMap::new();
     let mut remove_nodes: Vec<NodeIndex> = vec![];

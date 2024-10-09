@@ -39,6 +39,7 @@ impl FourStateBit {
     }
 }
 
+/// Opcodes for the emulator instructions
 #[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, EnumCountMacro)]
 #[repr(u32)]
 pub enum Opcode {
@@ -79,6 +80,8 @@ impl From<&Primitive> for Opcode {
     }
 }
 
+/// Same as CircuitPrimitive, except that is doesn't contain fields
+/// This is purely to make the compiler code cleaner
 #[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, EnumCountMacro)]
 #[repr(u32)]
 pub enum Primitive {
@@ -103,6 +106,7 @@ pub enum Primitive {
     SRAMRdWrAddr,
 }
 
+/// Represents a node in the gate level netlist
 #[derive(Debug, Clone, Default, PartialEq, Serialize, EnumCountMacro)]
 #[repr(u32)]
 pub enum CircuitPrimitive {

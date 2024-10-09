@@ -185,13 +185,6 @@ impl SRAMProcessor {
             }
         }
 
-// println!("wr_addr: {}\nwr_data: {:?}\nrd_data {:?}\nmask: {:?}\n ret: {:?}",
-// sram_input.wr_addr,
-// sram_input.wr_data,
-// rd_data.bits,
-// sram_input.wr_mask,
-// ret);
-
         assert!(ret.len() == sram_input.wr_data.len(),
             "masked write data: {:?}, expected length: {}",
             ret, sram_input.wr_data.len());
@@ -292,8 +285,6 @@ impl SRAMProcessor {
         // Update PC
         if self.pc == self.host_steps - 1 {
             self.pc = 0;
-// println!("sram.inputs {:?}", self.inputs.get(self.cur as usize).unwrap());
-// self.print();
             self.inputs.get_mut(self.cur as usize).unwrap().init();
             self.cur = (self.cur + 1) % 2;
         } else {

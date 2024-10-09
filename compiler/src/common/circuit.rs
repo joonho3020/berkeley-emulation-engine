@@ -17,7 +17,6 @@ pub struct Circuit {
     pub compiler_cfg: CompilerConfig,
     pub platform_cfg: PlatformConfig,
     pub kaminpar_cfg: KaMinParConfig,
-
     pub graph: HWGraph,
     pub emul:  EmulatorMapping
 }
@@ -186,6 +185,7 @@ impl Circuit {
         return outstring;
     }
 
+    /// Returns a vector of `NodeIndex` for nodes of `nodetype`
     pub fn get_nodes_type(self: &Self, nodetype: Primitive) -> Vec<NodeIndex> {
         let mut nodes: Vec<NodeIndex> = vec![];
         for nidx in self.graph.node_indices() {
@@ -197,6 +197,8 @@ impl Circuit {
         return nodes;
     }
 
+    /// Save the graph in a pdf form
+    /// ** Use only for small graphs **
     pub fn save_graph(self: &Self, pfx: &str) -> std::io::Result<()> {
         let ccfg = &self.compiler_cfg;
         return save_graph_pdf(
