@@ -1,4 +1,7 @@
 reset io_in_valid io_in_bits_a io_in_bits_b io_out_ready
+1 1 1 1 0
+1 0 1 1 0
+1 0 1 1 0
 0 0 1 1 0
 0 1 1 1 0
 0 1 2 2 0
