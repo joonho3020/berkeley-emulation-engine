@@ -166,8 +166,18 @@ fn test_emulator(
         // Compare the emulated signals with the reference RTL simulation
         let mut found_mismatch = false;
         let ref_signals = waveform_db.signal_values_at_cycle((cycle * 2 + 8) as u32);
-        for (signal_name, four_state_bit) in ref_signals.iter() {
-            let peek = board.peek(signal_name);
+        for (signal_path, four_state_bit) in ref_signals.iter() {
+            let name = signal_path.name();
+
+            let mut signal_path = signal_path.hier();
+            if signal_path.len() > 2 {
+                signal_path.drain(0..2);
+            }
+            signal_path.push(name);
+
+            let signal_name = signal_path.join(".");
+
+            let peek = board.peek(&signal_name);
             match (peek, four_state_bit.to_bit()) {
                 (Some(bit), Some(ref_bit)) => {
                     if bit != ref_bit {
@@ -177,7 +187,7 @@ fn test_emulator(
                             cycle, signal_name, ref_bit, bit
                         );
 
-                        match board.nodeindex(signal_name) {
+                        match board.nodeindex(&signal_name) {
                             Some(nodeidx) => {
                                 save_graph_pdf(
                                     &circuit.debug_graph(nodeidx, &board),
@@ -426,6 +436,38 @@ pub mod emulation_tester {
                 "Const",
                 "../examples/Const.input",
                 "../examples/Const.lut.blif",
+                num_mods, num_procs,
+                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+            ),
+            true
+        );
+    }
+
+    #[test_case(1, 2, 0, 0, 1, 0; "mod 1 procs 2 imem 0 dmem rd 0 wr 1 network 0")]
+    #[test_case(2, 4, 0, 0, 1, 0; "mod 2 procs 4 imem 0 dmem rd 0 wr 1 network 0")]
+    pub fn test_counter(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
+        assert_eq!(
+            perform_test(
+                "../examples/Counter.sv",
+                "Counter",
+                "../examples/Counter.input",
+                "../examples/Counter.lut.blif",
+                num_mods, num_procs,
+                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+            ),
+            true
+        );
+    }
+
+    #[test_case(1, 2, 0, 0, 1, 0; "mod 1 procs 2 imem 0 dmem rd 0 wr 1 network 0")]
+    #[test_case(2, 4, 0, 0, 1, 0; "mod 2 procs 4 imem 0 dmem rd 0 wr 1 network 0")]
+    pub fn test_pointer_chasing(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
+        assert_eq!(
+            perform_test(
+                "../examples/PointerChasing.sv",
+                "PointerChasing",
+                "../examples/PointerChasing.input",
+                "../examples/PointerChasing.lut.blif",
                 num_mods, num_procs,
                 network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
             ),

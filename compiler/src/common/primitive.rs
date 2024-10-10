@@ -10,35 +10,6 @@ pub type Bit = u8;
 pub type Bits = u32;
 pub type Cycle = u32;
 
-#[derive(Debug, Clone, Default, PartialEq)]
-pub enum FourStateBit {
-    #[default]
-    ZERO,
-    ONE,
-    X,
-    Z,
-}
-
-impl FourStateBit {
-    pub fn from_char(c: char) -> Self {
-        match c {
-            '0' => Self::ZERO,
-            '1' => Self::ONE,
-            'x' => Self::X,
-            'z' => Self::Z,
-            _ => Self::X,
-        }
-    }
-
-    pub fn to_bit(self: &Self) -> Option<Bit> {
-        match self {
-            Self::ZERO => Some(0),
-            Self::ONE => Some(1),
-            _ => None,
-        }
-    }
-}
-
 /// Opcodes for the emulator instructions
 #[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, EnumCountMacro)]
 #[repr(u32)]

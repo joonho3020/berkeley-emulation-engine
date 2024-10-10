@@ -184,7 +184,7 @@ pub fn generate_random_test_data(file_path: &str, ports: &Vec<Port>, ncycles: u3
     let iports: Vec<Port> = ports.iter().filter(|x| x.input).map(|x| x.clone()).collect();
 
     for ip in iports.iter() {
-        if ip.name != "clock" && ip.name != "reset" {
+        if ip.name != "clock" {
             ret.push_str(&format!("{} ", ip.name));
         }
     }
@@ -192,7 +192,12 @@ pub fn generate_random_test_data(file_path: &str, ports: &Vec<Port>, ncycles: u3
 
     for _ in 0..ncycles {
         for ip in iports.iter() {
-            if ip.name != "clock" && ip.name != "reset" {
+            if ip.name == "clock" {
+                continue;
+            } else if ip.name == "reset" {
+                let len = ip.name.len(); 
+                ret.push_str(&format!("{:width$} ", 0, width = len));
+            } else {
                 let len = ip.name.len(); 
                 ret.push_str(&format!("{:width$} ",
                         random_number(ip.width as u32), width = len));

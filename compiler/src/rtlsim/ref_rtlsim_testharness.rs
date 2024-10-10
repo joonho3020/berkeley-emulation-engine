@@ -44,8 +44,7 @@ initial begin
   clock  = 1'b1;
   reset = 1'b1;
 
-  #(T*2) reset = 1'b1;
-  #(T*2) reset = 1'b0;
+  #(T/2*8) reset = 1'b1;
 
   $display($time, \" ** Start Simulation **\");
 

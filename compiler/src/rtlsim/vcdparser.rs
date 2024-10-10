@@ -1,10 +1,62 @@
-use crate::common::primitive::FourStateBit;
+use crate::common::primitive::Bit;
 use indexmap::IndexMap;
 use indicatif::ProgressStyle;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::thread;
 use wellen::*;
+
+#[derive(Debug, Clone, Default, PartialEq)]
+pub enum FourStateBit {
+    #[default]
+    ZERO,
+    ONE,
+    X,
+    Z,
+}
+
+impl FourStateBit {
+    pub fn from_char(c: char) -> Self {
+        match c {
+            '0' => Self::ZERO,
+            '1' => Self::ONE,
+            'x' => Self::X,
+            'z' => Self::Z,
+            _ => Self::X,
+        }
+    }
+
+    pub fn to_bit(self: &Self) -> Option<Bit> {
+        match self {
+            Self::ZERO => Some(0),
+            Self::ONE => Some(1),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub struct WaveformSignal {
+    path: Vec<String>,
+}
+
+impl WaveformSignal {
+    pub fn new(path_: Vec<String>) -> Self {
+        Self {
+            path: path_
+        }
+    }
+
+    pub fn hier(self: &Self) -> Vec<String> {
+        let len = self.path.len();
+        return self.path[..len-1].to_vec();
+    }
+
+    pub fn name(self: &Self) -> String {
+        assert!(self.path.len() > 0, "WaveformSignal path is empty");
+        return self.path.last().unwrap().to_string();
+    }
+}
 
 const LOAD_OPTS: LoadOptions = LoadOptions {
     multi_thread: true,
@@ -76,10 +128,10 @@ impl WaveformDB {
     }
 
     /// Returns a signal name to bit value map for all signals at `cycle`
-    pub fn signal_values_at_cycle(self: &mut Self, cycle: u32) -> IndexMap<String, FourStateBit> {
+    pub fn signal_values_at_cycle(self: &mut Self, cycle: u32) -> IndexMap<WaveformSignal, FourStateBit> {
         let hierarchy = &self.header.hierarchy;
 
-        let mut ret: IndexMap<String, FourStateBit> = IndexMap::new();
+        let mut ret: IndexMap<WaveformSignal, FourStateBit> = IndexMap::new();
 
         for var in hierarchy.get_unique_signals_vars().iter().flatten() {
             let _signal_name: String = var.full_name(&hierarchy);
@@ -94,7 +146,9 @@ impl WaveformDB {
             match offset {
                 Some(idx) => {
                     for elemidx in 0..idx.elements {
-                        let name = _signal_name.split('.').last().unwrap().to_string();
+                        let signal_path: Vec<String> = _signal_name.split('.').map(|s| s.to_string()).collect();
+                        let name = signal_path.last().unwrap().clone();
+
                         let sig_val = loaded_signal.get_value_at(&idx, elemidx);
                         let numbits = match sig_val.bits() {
                             Some(x) => x,
@@ -107,14 +161,21 @@ impl WaveformDB {
                         let bits_array: Vec<char> = bits.chars().rev().collect();
                         assert!(numbits == bits_array.len() as u32);
                         if numbits == 1 {
-                            ret.insert(name, FourStateBit::from_char(bits_array[0]));
+                            let val = FourStateBit::from_char(bits_array[0]);
+                            ret.insert(WaveformSignal::new(signal_path), val);
                         } else {
                             for bit in 0..numbits {
                                 let val = FourStateBit::from_char(bits_array[bit as usize]);
                                 let index = format!("[{}]", bit);
+
                                 let mut name_bit = name.clone();
                                 name_bit.push_str(&index);
-                                ret.insert(name_bit, val);
+
+                                let mut sp = signal_path.clone();
+                                sp.pop();
+                                sp.push(name_bit);
+
+                                ret.insert(WaveformSignal::new(sp), val);
                             }
                         }
                     }
