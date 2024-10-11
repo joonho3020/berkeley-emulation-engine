@@ -63,16 +63,16 @@ fn adjust_sram_nodes(circuit: &mut Circuit) {
 
 #[derive(Debug)]
 struct ReplaceSRAMInfo {
-    pub parents: IndexMap<NodeIndex, HWEdge>,
-    pub childs:  IndexMap<NodeIndex, HWEdge>,
+    pub parents: Vec<(NodeIndex, HWEdge)>,
+    pub childs:  Vec<(NodeIndex, HWEdge)>,
     pub node: HWNode
 }
 
 impl ReplaceSRAMInfo {
     fn new(n: HWNode) -> Self {
         ReplaceSRAMInfo {
-            parents: IndexMap::default(),
-            childs : IndexMap::default(),
+            parents: vec![],
+            childs : vec![],
             node: n
         }
     }
@@ -109,7 +109,7 @@ fn split_sram_node_by_io(circuit: &mut Circuit) {
         for pedge in pedges {
             let pidx = pedge.source();
             let edge = circuit.graph.edge_weight(pedge.id()).unwrap().clone();
-            sram_info.get_mut(&nidx).unwrap().parents.insert(pidx, edge);
+            sram_info.get_mut(&nidx).unwrap().parents.push((pidx, edge));
             check_nodes.insert(pidx);
         }
 
@@ -118,7 +118,7 @@ fn split_sram_node_by_io(circuit: &mut Circuit) {
         for cedge in cedges {
             let cidx = cedge.target();
             let edge = circuit.graph.edge_weight(cedge.id()).unwrap().clone();
-            sram_info.get_mut(&nidx).unwrap().childs.insert(cidx, edge);
+            sram_info.get_mut(&nidx).unwrap().childs.push((cidx, edge));
             check_nodes.insert(cidx);
         }
     }
