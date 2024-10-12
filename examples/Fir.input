@@ -1,4 +1,7 @@
 reset io_in io_valid io_consts_0 io_consts_1 io_consts_2 io_consts_3
+1 0 0 3 6 8 12
+1 0 0 3 6 8 12
+0 0 0 3 6 8 12
 0 0 0 3 6 8 12
 0 1 0 3 6 8 12
 0 2 1 3 6 8 12

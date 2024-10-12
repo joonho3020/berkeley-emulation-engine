@@ -81,6 +81,7 @@ impl Board {
     pub fn print(self: &Self) {
         for (_, module) in self.modules.iter().enumerate() {
             module.print();
+            module.sram_proc.print();
         }
     }
 

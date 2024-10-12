@@ -84,56 +84,52 @@ module Cache(
   input  [7:0] io_memDataIn
 );
 
-  wire [7:0] _dataMem_io_readData;
-  wire [2:0] _tagMem_ext_R0_data;
-  reg  [1:0] state;
-  reg  [2:0] reqTagReg;
-  reg  [2:0] reqIndexReg;
-  wire       hit = _tagMem_ext_R0_data == io_reqAddr[7:5] & (|_tagMem_ext_R0_data);
-  wire       _GEN = ~hit | io_reqRead | ~io_reqWrite;
-  wire       _GEN_0 = state == 2'h1;
-  wire       _GEN_1 = ~_GEN_0 & (&state);
-  wire       _GEN_2 = _GEN_0 | ~(&state);
-  wire [7:0] _GEN_3 = _GEN_2 ? 8'h0 : io_memDataIn;
+  wire [7:0]      _dataMem_io_readData;
+  wire [2:0]      _tagMem_ext_R0_data;
+  reg  [1:0]      state;
+  reg  [2:0]      reqTagReg;
+  reg  [2:0]      reqIndexReg;
+  wire            hit = _tagMem_ext_R0_data == io_reqAddr[7:5] & (|_tagMem_ext_R0_data);
+  wire            _GEN = state == 2'h0;
+  wire            _GEN_0 = ~hit | io_reqRead | ~io_reqWrite;
+  wire            _GEN_1 = state == 2'h1;
+  wire            _GEN_2 = ~_GEN_1 & (&state);
+  wire            _GEN_3 = _GEN_1 | ~(&state);
+  wire [7:0]      _GEN_4 = _GEN_3 ? 8'h0 : io_memDataIn;
+  wire [3:0][1:0] _GEN_5 = {{2'h0}, {state}, {2'h3}, {hit ? state : 2'h1}};
   always @(posedge clock) begin
     if (reset)
       state <= 2'h0;
-    else if (|state) begin
-      if (_GEN_0)
-        state <= 2'h3;
-      else if (&state)
-        state <= 2'h0;
-    end
-    else if (~hit)
-      state <= 2'h1;
-    if (~(|state)) begin
+    else
+      state <= _GEN_5[state];
+    if (_GEN) begin
       reqTagReg <= io_reqAddr[7:5];
       reqIndexReg <= io_reqAddr[4:2];
     end
   end // always @(posedge)
   tagMem_8x3 tagMem_ext (
     .R0_addr (io_reqAddr[4:2]),
-    .R0_en   (~(|state)),
+    .R0_en   (1'h1),
     .R0_clk  (clock),
     .R0_data (_tagMem_ext_R0_data),
     .W0_addr (reqIndexReg),
-    .W0_en   (~(~(|state) | _GEN_0) & (&state)),
+    .W0_en   (~(_GEN | _GEN_1) & (&state)),
     .W0_clk  (clock),
     .W0_data (reqTagReg)
   );
   SRAM dataMem (
     .clock          (clock),
-    .io_writeEnable ((|state) ? _GEN_1 : hit & ~io_reqRead & io_reqWrite),
+    .io_writeEnable (_GEN ? hit & ~io_reqRead & io_reqWrite : _GEN_2),
     .io_writeAddr
-      ((|state) ? (_GEN_2 ? 3'h0 : reqIndexReg) : _GEN ? 3'h0 : io_reqAddr[4:2]),
-    .io_writeData   ((|state) ? _GEN_3 : _GEN ? 8'h0 : io_reqData),
+      (_GEN ? (_GEN_0 ? 3'h0 : io_reqAddr[4:2]) : _GEN_3 ? 3'h0 : reqIndexReg),
+    .io_writeData   (_GEN ? (_GEN_0 ? 8'h0 : io_reqData) : _GEN_4),
     .io_readAddr    (io_reqAddr[4:2]),
     .io_readData    (_dataMem_io_readData)
   );
-  assign io_respData = (|state) ? _GEN_3 : hit & io_reqRead ? _dataMem_io_readData : 8'h0;
-  assign io_respValid = (|state) ? _GEN_1 : hit & io_reqRead;
-  assign io_memAddr = (|state) | hit ? 8'h0 : io_reqAddr;
-  assign io_memRead = ~(|state) & ~hit;
+  assign io_respData = _GEN ? (hit & io_reqRead ? _dataMem_io_readData : 8'h0) : _GEN_4;
+  assign io_respValid = _GEN ? hit & io_reqRead : _GEN_2;
+  assign io_memAddr = ~_GEN | hit ? 8'h0 : io_reqAddr;
+  assign io_memRead = _GEN & ~hit;
   assign io_memWrite = 1'h0;
   assign io_memDataOut = 8'h0;
 endmodule

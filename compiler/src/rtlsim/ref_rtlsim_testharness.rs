@@ -171,29 +171,19 @@ pub fn run_rtl_simulation(
         .arg("build")
         .status()?;
 
-    Command::new("iverilog")
+    Command::new("vcs")
         .current_dir(&cwd)
-        .arg("-o")
-        .arg("build/rtlsim_binary")
+        .arg("-sverilog")
+        .arg("-full64")
+        .arg("+notimingchecks")
         .arg(&tb_name)
         .arg(verilog_file.file_name().unwrap())
+        .arg("-o")
+        .arg("build/rtlsim_binary")
         .status()?;
-
-    // Command::new("verilator")
-    // .current_dir(&cwd)
-    // .arg("--trace")
-    // .arg("--binary")
-    // .arg(&tb_name)
-    // .arg(verilog_file.file_name().unwrap())
-    // .arg("-o")
-    // .arg("rtlsim_binary")
-    // .arg("--Mdir")
-    // .arg("build")
-    // .status()?;
 
     let stdout = Command::new("./rtlsim_binary")
         .current_dir(cwd.join("build"))
-        .arg("--help")
         .output()?
         .stdout;
 

@@ -263,8 +263,8 @@ pub fn map_instructions(circuit: &mut Circuit) {
             }
         }
 
-        if node.is() != Primitive::SRAMRdEn &&
-           node.is() != Primitive::SRAMWrEn &&
+        if node.is() != Primitive::SRAMRdEn   &&
+           node.is() != Primitive::SRAMWrEn   &&
            node.is() != Primitive::SRAMRdAddr &&
            node.is() != Primitive::SRAMWrAddr &&
            node.is() != Primitive::SRAMWrMask &&
