@@ -96,12 +96,16 @@ fn module_to_circuit(module: &ParsedPrimitive, circuit: &mut Circuit) {
             match elem {
                 ParsedPrimitive::Lut { inputs, output, .. } => {
                     for inet in inputs.iter() {
-                        let src_nidx = net_to_nodeidx.get(inet).unwrap();
-                        let dst_nidx = net_to_nodeidx.get(output).unwrap();
-                        let sig = signal_type(src_nidx, circuit, inet);
-                        circuit
-                            .graph
-                            .add_edge(*src_nidx, *dst_nidx, HWEdge::new(sig));
+                        match net_to_nodeidx.get(inet) {
+                            Some(src_nidx) => {
+                                let dst_nidx = net_to_nodeidx.get(output).unwrap();
+                                let sig = signal_type(src_nidx, circuit, inet);
+                                circuit
+                                    .graph
+                                    .add_edge(*src_nidx, *dst_nidx, HWEdge::new(sig));
+                            }
+                            None => { }
+                        }
                     }
                 }
                 ParsedPrimitive::Gate { c:_, d, q, r:_, e } => {
