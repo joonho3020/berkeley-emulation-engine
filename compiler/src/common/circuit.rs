@@ -93,6 +93,7 @@ impl Circuit {
     /// It will also print the bit-value associated with the node
     /// computed by the emulation processor.
     pub fn debug_graph(&self, dbg_node: NodeIndex, board: &Board) -> String {
+        let mut node_cnt = 0;
         let indent: &str = "    ";
         let mut vis_map = self.graph.visit_map();
         let mut q = vec![];
@@ -110,6 +111,11 @@ impl Circuit {
                 } else {
                     root = false;
                 }
+            }
+            node_cnt += 1;
+
+            if node_cnt > 50 {
+                break;
             }
 
             let mut parents = self.graph.neighbors_directed(nidx, Incoming).detach();

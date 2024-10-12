@@ -6,10 +6,12 @@ use bee::rtlsim::ref_rtlsim_testharness::*;
 use bee::rtlsim::rtlsim_utils::*;
 use bee::rtlsim::vcdparser::*;
 use indexmap::IndexMap;
+use itertools::Itertools;
 use std::cmp::max;
 use std::{env, fs};
 use std::process::Command;
 use clap::Parser;
+use indicatif::ProgressBar;
 
 #[derive(Debug, PartialEq)]
 enum ReturnCode {
@@ -107,19 +109,27 @@ fn test_emulator(
         output_blasted.insert(opb.to_string(), vec![]);
     }
 
-    // Run reference RTL simulation
-    let sim_output_file = format!("{}-simulation.out", args.top_mod);
-    run_rtl_simulation(
-        &args.sv_file_path,
-        &args.top_mod,
-        &args.input_stimuli_path,
-        &sim_dir,
-        &sim_output_file,
-    )?;
-    println!("Reference RTL simulation finished");
+    let waveform_path = match args.vcd {
+        Some(vcd) => {
+            vcd
+        }
+        None => {
+            // No reference waveform provided: run reference RTL simulation
+            let sim_output_file = format!("{}-simulation.out", args.top_mod);
+            run_rtl_simulation(
+                &args.sv_file_path,
+                &args.top_mod,
+                &args.input_stimuli_path,
+                &sim_dir,
+                &sim_output_file,
+            )?;
+            println!("Reference RTL simulation finished");
 
-    let mut waveform_path = sim_dir.clone();
-    waveform_path.push_str("/build/sim.vcd");
+            let mut waveform_path = sim_dir.clone();
+            waveform_path.push_str("/build/sim.vcd");
+            waveform_path
+        }
+    };
     let mut waveform_db = WaveformDB::new(waveform_path);
 
     let mut board     = Board::from(&circuit);
@@ -128,7 +138,11 @@ fn test_emulator(
     let cycles = input_stimuli_blasted.values().fold(0, |x, y| max(x, y.len()));
     assert!(cycles > 1, "No point in running {}", cycles);
 
+    let instance_depth = args.instance_path.split(".").collect_vec().len();
+
+    let bar = ProgressBar::new(cycles as u64);
     for cycle in 0..(cycles-1) {
+        bar.inc(1);
 
         // Collect input stimuli for the current cycle by name
         let mut input_stimuli_by_name: IndexMap<String, Bit> = IndexMap::new();
@@ -166,12 +180,16 @@ fn test_emulator(
         }
 
         // Compare the emulated signals with the reference RTL simulation
+        let mut at_least_one_compare = false;
+        let mut reset_cycle = false;
         let mut found_mismatch = false;
-        let ref_signals = waveform_db.signal_values_at_cycle((cycle * 2 + 8) as u32);
+        let waveform_time = 4 * (cycle + args.ref_skip_cycles as usize) + 1;
+        let ref_signals = waveform_db.signal_values_at_cycle(waveform_time as u32);
         for (signal_path, four_state_bit) in ref_signals.iter() {
             match input_stimuli_by_name.get("reset") {
                 Some(bit) => {
                     if *bit > 0 {
+                        reset_cycle = true;
                         break;
                     }
                 }
@@ -180,15 +198,17 @@ fn test_emulator(
 
             let name = signal_path.name();
             let mut signal_path = signal_path.hier();
-            if signal_path.len() >= 2 {
-                signal_path.drain(0..2);
+            let signal_path_str = signal_path.join(".");
+            if signal_path_str == args.instance_path && signal_path.len() >= instance_depth {
+                signal_path.drain(0..instance_depth);
             }
-            signal_path.push(name);
+            signal_path.push(name.clone());
 
             let signal_name = signal_path.join(".");
             let peek = board.peek(&signal_name);
             match (peek, four_state_bit.to_bit()) {
                 (Some(bit), Some(ref_bit)) => {
+                    at_least_one_compare = true;
                     if bit != ref_bit {
                         found_mismatch = true;
                         println!(
@@ -223,6 +243,9 @@ fn test_emulator(
                 _ => {}
             }
         }
+        if !reset_cycle && !at_least_one_compare {
+            println!("WARNING, no signals are getting compared");
+        }
 
         if found_mismatch {
             println!("input: {:#?}", input_stimuli_by_step);
@@ -238,6 +261,7 @@ fn test_emulator(
             output_blasted.get_mut(opb).unwrap().push(output as u64);
         }
     }
+    bar.finish();
 
     write_string_to_file(
         output_value_fmt(&aggregate_bitblasted_values(&ports, &mut output_blasted)),
@@ -272,6 +296,9 @@ pub mod emulation_tester {
             top_mod:            top_mod.to_string(),
             input_stimuli_path: input_stimuli_path.to_string(),
             blif_file_path:     blif_file_path.to_string(),
+            vcd:                None,
+            instance_path:      "testharness.top".to_string(),
+            ref_skip_cycles:    4,
             num_mods:           num_mods,
             num_procs:          num_procs,
             max_steps:          65536,

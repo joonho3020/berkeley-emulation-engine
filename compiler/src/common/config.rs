@@ -431,6 +431,7 @@ impl PlatformConfig {
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub struct Args {
+    /// Enable functional simulation prints
     #[arg(short, long, default_value_t = false)]
     pub verbose: bool,
 
@@ -449,6 +450,18 @@ pub struct Args {
     /// Blif file path
     #[arg(short, long, default_value = "")]
     pub blif_file_path: String,
+
+    /// Reference waveform
+    #[arg(short, long)]
+    pub vcd: Option<String>,
+
+    /// Hierarchy path to the instance under emulation
+    #[arg(short, long, default_value = "testharness.top")]
+    pub instance_path: String,
+
+    /// number of cycles to skip when parsing reference rtl sim vcd
+    #[arg(long, default_value_t = 4)]
+    pub ref_skip_cycles: u32,
 
     /// number of modules
     #[arg(long, default_value_t = 1)]
