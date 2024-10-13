@@ -208,3 +208,49 @@ pub fn generate_random_test_data(file_path: &str, ports: &Vec<Port>, ncycles: u3
     write_string_to_file(ret, file_path)?;
     Ok(())
 }
+
+pub fn binary_to_decimal(binary: &str) -> Result<u128, std::num::ParseIntError> {
+    u128::from_str_radix(binary, 2)
+}
+
+fn last_five_chars(s: &str) -> Option<String> {
+    let end = s.chars().count();
+    if end >= 5 {
+        let start = end - 5;
+        let last_five: String = s.chars().skip(start).collect();
+        return Some(last_five);
+    } else {
+        return None;
+    }
+}
+
+pub fn is_clock_signal(s: &str) -> bool {
+    match last_five_chars(s) {
+        Some(x) => {
+            x == "clock"
+        }
+        None => {
+            false
+        }
+    }
+}
+
+pub fn is_reset_signal(s: &str) -> bool {
+    match last_five_chars(s) {
+        Some(x) => {
+            x == "reset"
+        }
+        None => {
+            false
+        }
+    }
+}
+
+pub fn is_clock_tap(s: &str) -> bool {
+    s == "clock_tap"
+}
+
+
+pub fn is_debug_reset(s: &str) -> bool {
+    (s == "debug_systemjtag_reset") || (s == "debug_reset")
+}

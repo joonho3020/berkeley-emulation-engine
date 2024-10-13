@@ -181,30 +181,44 @@ fn test_emulator(
 
         // Compare the emulated signals with the reference RTL simulation
         let mut at_least_one_compare = false;
-        let mut reset_cycle = false;
         let mut found_mismatch = false;
-        let waveform_time = 4 * (cycle + args.ref_skip_cycles as usize) + 1;
+
+        let offset = if args.clock_start_low { 1 } else { 0 };
+        let waveform_time = (args.timesteps_per_cycle as usize) * (cycle + args.ref_skip_cycles as usize) + offset;
         let ref_signals = waveform_db.signal_values_at_cycle(waveform_time as u32);
+
+        let mut has_reset = false;
+        for (s, b) in input_stimuli_by_name.iter() {
+            if !is_debug_reset(s) && is_reset_signal(s) && *b > 0 {
+                has_reset = true;
+                break;
+            }
+        }
+
         for (signal_path, four_state_bit) in ref_signals.iter() {
-            match input_stimuli_by_name.get("reset") {
-                Some(bit) => {
-                    if *bit > 0 {
-                        reset_cycle = true;
-                        break;
-                    }
-                }
-                None => { }
+            if has_reset {
+                break;
             }
 
             let name = signal_path.name();
             let mut signal_path = signal_path.hier();
-            let signal_path_str = signal_path.join(".");
-            if signal_path_str == args.instance_path && signal_path.len() >= instance_depth {
-                signal_path.drain(0..instance_depth);
+
+            if signal_path.len() >= instance_depth {
+                let signal_path_depth = &signal_path[..instance_depth];
+                let signal_path_str = signal_path_depth.join(".");
+                if signal_path_str == args.instance_path {
+                    signal_path.drain(0..instance_depth);
+                    signal_path.push(name.clone());
+                } else {
+                    continue;
+                }
             }
-            signal_path.push(name.clone());
 
             let signal_name = signal_path.join(".");
+            if is_clock_signal(&signal_name) || is_clock_tap(&signal_name) {
+                continue;
+            }
+
             let peek = board.peek(&signal_name);
             match (peek, four_state_bit.to_bit()) {
                 (Some(bit), Some(ref_bit)) => {
@@ -233,7 +247,6 @@ fn test_emulator(
                             }
                             None => {}
                         }
-
                         if args.verbose {
                             println!("============= Sig Map ================");
                             board.print_sigmap();
@@ -243,7 +256,7 @@ fn test_emulator(
                 _ => {}
             }
         }
-        if !reset_cycle && !at_least_one_compare {
+        if !has_reset && !at_least_one_compare {
             println!("WARNING, no signals are getting compared");
         }
 
@@ -298,6 +311,8 @@ pub mod emulation_tester {
             blif_file_path:     blif_file_path.to_string(),
             vcd:                None,
             instance_path:      "testharness.top".to_string(),
+            clock_start_low:    false,
+            timesteps_per_cycle: 2,
             ref_skip_cycles:    4,
             num_mods:           num_mods,
             num_procs:          num_procs,

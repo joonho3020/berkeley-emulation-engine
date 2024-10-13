@@ -459,6 +459,14 @@ pub struct Args {
     #[arg(short, long, default_value = "testharness.top")]
     pub instance_path: String,
 
+    /// clock starts low
+    #[arg(short, long, default_value_t = false)]
+    pub clock_start_low: bool,
+
+    /// timesteps per cycle
+    #[arg(short, long, default_value_t = 2)]
+    pub timesteps_per_cycle: u32,
+
     /// number of cycles to skip when parsing reference rtl sim vcd
     #[arg(long, default_value_t = 4)]
     pub ref_skip_cycles: u32,

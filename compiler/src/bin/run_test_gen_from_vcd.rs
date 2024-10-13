@@ -4,6 +4,7 @@ use indexmap::{IndexSet, IndexMap};
 use clap::Parser;
 use std::fs;
 use std::cmp::max;
+use bee::rtlsim::rtlsim_utils::*;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -28,15 +29,18 @@ pub struct Args {
     #[arg(short, long)]
     pub output: String,
 
-    /// clock starts high
+    /// clock starts low
     #[arg(short, long)]
     pub clock_start_low: bool,
-}
 
-fn binary_to_decimal(binary: &str) -> Result<u128, std::num::ParseIntError> {
-    u128::from_str_radix(binary, 2)
-}
+    /// timesteps per cycle
+    #[arg(short, long, default_value_t = 2)]
+    pub timesteps_per_cycle: u32,
 
+    /// number of cycles to skip when parsing reference rtl sim vcd
+    #[arg(long, default_value_t = 4)]
+    pub ref_skip_cycles: u32,
+}
 fn main() -> std::io::Result<()> {
     let args = Args::parse();
 
@@ -55,7 +59,7 @@ fn main() -> std::io::Result<()> {
 
     let mut signals: IndexSet<WaveformSignal> = IndexSet::new();
     for io in ios {
-        if io.input && io.name != "clock" {
+        if io.input && !is_clock_signal(&io.name) {
             assert!(io.width <= 64, "input width {} > 64", io.width);
             let mut s = WaveformSignal::from(args.instance_path.clone());
             s.append(io.name.clone());
@@ -80,11 +84,14 @@ fn main() -> std::io::Result<()> {
         .unwrap_or(0);
     println!("max_steps: {}", max_steps);
 
-    let max_cycles = max_steps / 2;
+    assert!(args.timesteps_per_cycle > 0,
+        "timesteps_per_cycle should be a nonzero integer");
+
+    let max_cycles = max_steps / args.timesteps_per_cycle;
     let offset = if args.clock_start_low { 1 } else { 0 };
 
-    for cycle in 0..max_cycles {
-        let step = cycle * 4 + offset;
+    for cycle in args.ref_skip_cycles..max_cycles {
+        let step = cycle * args.timesteps_per_cycle + offset;
         for (h, s) in h2s.iter() {
             match s.get_offset(step) {
                 Some(idx) => {
