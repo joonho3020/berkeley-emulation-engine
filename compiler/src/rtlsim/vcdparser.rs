@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::thread;
 use wellen::*;
 
-#[derive(Debug, Clone, Copy, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub enum FourStateBit {
     #[default]
     ZERO,

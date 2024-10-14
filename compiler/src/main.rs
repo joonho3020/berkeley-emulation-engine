@@ -5,7 +5,7 @@ use bee::passes::blif_to_circuit::blif_to_circuit;
 use bee::rtlsim::ref_rtlsim_testharness::*;
 use bee::rtlsim::rtlsim_utils::*;
 use bee::rtlsim::vcdparser::*;
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexMap;
 use itertools::Itertools;
 use std::cmp::max;
 use std::{env, fs};
@@ -140,77 +140,6 @@ fn test_emulator(
 
     let instance_depth = args.instance_path.split(".").collect_vec().len();
 
-    let check_signals: IndexSet<String> = IndexSet::from_iter(vec![
-        "auto_master_out_a_valid".to_string(),
-        "io_resp_valid".to_string()
-    ]);
-
-    let cond_check_signals: IndexMap<String, String> = IndexMap::from_iter(vec![
-        ("auto_master_out_a_bits_address[0]".to_string(), "auto_master_out_a_valid".to_string()),
-        ("auto_master_out_a_bits_address[1]".to_string(), "auto_master_out_a_valid".to_string()),
-        ("auto_master_out_a_bits_address[2]".to_string(), "auto_master_out_a_valid".to_string()),
-        ("auto_master_out_a_bits_address[3]".to_string(), "auto_master_out_a_valid".to_string()),
-        ("auto_master_out_a_bits_address[4]".to_string(), "auto_master_out_a_valid".to_string()),
-        ("auto_master_out_a_bits_address[5]".to_string(), "auto_master_out_a_valid".to_string()),
-        ("auto_master_out_a_bits_address[6]".to_string(), "auto_master_out_a_valid".to_string()),
-        ("auto_master_out_a_bits_address[7]".to_string(), "auto_master_out_a_valid".to_string()),
-        ("auto_master_out_a_bits_address[8]".to_string(), "auto_master_out_a_valid".to_string()),
-        ("auto_master_out_a_bits_address[9]".to_string(), "auto_master_out_a_valid".to_string()),
-        ("auto_master_out_a_bits_address[10]".to_string(), "auto_master_out_a_valid".to_string()),
-        ("auto_master_out_a_bits_address[11]".to_string(), "auto_master_out_a_valid".to_string()),
-        ("auto_master_out_a_bits_address[12]".to_string(), "auto_master_out_a_valid".to_string()),
-        ("auto_master_out_a_bits_address[13]".to_string(), "auto_master_out_a_valid".to_string()),
-        ("auto_master_out_a_bits_address[15]".to_string(), "auto_master_out_a_valid".to_string()),
-        ("auto_master_out_a_bits_address[16]".to_string(), "auto_master_out_a_valid".to_string()),
-        ("auto_master_out_a_bits_address[17]".to_string(), "auto_master_out_a_valid".to_string()),
-        ("auto_master_out_a_bits_address[18]".to_string(), "auto_master_out_a_valid".to_string()),
-        ("auto_master_out_a_bits_address[19]".to_string(), "auto_master_out_a_valid".to_string()),
-        ("auto_master_out_a_bits_address[20]".to_string(), "auto_master_out_a_valid".to_string()),
-        ("auto_master_out_a_bits_address[21]".to_string(), "auto_master_out_a_valid".to_string()),
-        ("auto_master_out_a_bits_address[22]".to_string(), "auto_master_out_a_valid".to_string()),
-        ("auto_master_out_a_bits_address[23]".to_string(), "auto_master_out_a_valid".to_string()),
-        ("auto_master_out_a_bits_address[24]".to_string(), "auto_master_out_a_valid".to_string()),
-        ("auto_master_out_a_bits_address[25]".to_string(), "auto_master_out_a_valid".to_string()),
-        ("auto_master_out_a_bits_address[26]".to_string(), "auto_master_out_a_valid".to_string()),
-        ("auto_master_out_a_bits_address[27]".to_string(), "auto_master_out_a_valid".to_string()),
-        ("auto_master_out_a_bits_address[28]".to_string(), "auto_master_out_a_valid".to_string()),
-        ("auto_master_out_a_bits_address[29]".to_string(), "auto_master_out_a_valid".to_string()),
-        ("auto_master_out_a_bits_address[30]".to_string(), "auto_master_out_a_valid".to_string()),
-        ("auto_master_out_a_bits_address[31]".to_string(), "auto_master_out_a_valid".to_string()),
-        ("io_resp_bits_data[0]".to_string(),              "io_resp_valid".to_string()),
-        ("io_resp_bits_data[1]".to_string(),              "io_resp_valid".to_string()),
-        ("io_resp_bits_data[2]".to_string(),              "io_resp_valid".to_string()),
-        ("io_resp_bits_data[3]".to_string(),              "io_resp_valid".to_string()),
-        ("io_resp_bits_data[4]".to_string(),              "io_resp_valid".to_string()),
-        ("io_resp_bits_data[5]".to_string(),              "io_resp_valid".to_string()),
-        ("io_resp_bits_data[6]".to_string(),              "io_resp_valid".to_string()),
-        ("io_resp_bits_data[8]".to_string(),              "io_resp_valid".to_string()),
-        ("io_resp_bits_data[9]".to_string(),              "io_resp_valid".to_string()),
-        ("io_resp_bits_data[10]".to_string(),              "io_resp_valid".to_string()),
-        ("io_resp_bits_data[11]".to_string(),              "io_resp_valid".to_string()),
-        ("io_resp_bits_data[12]".to_string(),              "io_resp_valid".to_string()),
-        ("io_resp_bits_data[13]".to_string(),              "io_resp_valid".to_string()),
-        ("io_resp_bits_data[14]".to_string(),              "io_resp_valid".to_string()),
-        ("io_resp_bits_data[15]".to_string(),              "io_resp_valid".to_string()),
-        ("io_resp_bits_data[16]".to_string(),              "io_resp_valid".to_string()),
-        ("io_resp_bits_data[17]".to_string(),              "io_resp_valid".to_string()),
-        ("io_resp_bits_data[18]".to_string(),              "io_resp_valid".to_string()),
-        ("io_resp_bits_data[19]".to_string(),              "io_resp_valid".to_string()),
-        ("io_resp_bits_data[20]".to_string(),              "io_resp_valid".to_string()),
-        ("io_resp_bits_data[21]".to_string(),              "io_resp_valid".to_string()),
-        ("io_resp_bits_data[22]".to_string(),              "io_resp_valid".to_string()),
-        ("io_resp_bits_data[23]".to_string(),              "io_resp_valid".to_string()),
-        ("io_resp_bits_data[24]".to_string(),              "io_resp_valid".to_string()),
-        ("io_resp_bits_data[25]".to_string(),              "io_resp_valid".to_string()),
-        ("io_resp_bits_data[26]".to_string(),              "io_resp_valid".to_string()),
-        ("io_resp_bits_data[27]".to_string(),              "io_resp_valid".to_string()),
-        ("io_resp_bits_data[28]".to_string(),              "io_resp_valid".to_string()),
-        ("io_resp_bits_data[29]".to_string(),              "io_resp_valid".to_string()),
-        ("io_resp_bits_data[30]".to_string(),              "io_resp_valid".to_string()),
-        ("io_resp_bits_data[31]".to_string(),              "io_resp_valid".to_string()),
-        ("io_resp_bits_ae".to_string(),                "io_resp_valid".to_string())
-    ]);
-
     let bar = ProgressBar::new(cycles as u64);
     for cycle in 0..(cycles-1) {
         bar.inc(1);
@@ -258,7 +187,6 @@ fn test_emulator(
         let waveform_time = (args.timesteps_per_cycle as usize) * (cycle + args.ref_skip_cycles as usize) + offset;
         let ref_signals = waveform_db.signal_values_at_cycle(waveform_time as u32);
 
-        // if this cycle has a reset, don't perform comparisons
         let mut has_reset = false;
         for (s, b) in input_stimuli_by_name.iter() {
             if !is_debug_reset(s) && is_reset_signal(s) && *b > 0 {
@@ -266,17 +194,15 @@ fn test_emulator(
                 break;
             }
         }
-        if has_reset {
-            continue;
-        }
 
-        let mut      check_signal_vals: IndexMap<String, FourStateBit> = IndexMap::new();
-        let mut cond_check_signal_vals: IndexMap<String, FourStateBit> = IndexMap::new();
         for (signal_path, four_state_bit) in ref_signals.iter() {
+            if has_reset {
+                break;
+            }
+
             let name = signal_path.name();
             let mut signal_path = signal_path.hier();
 
-            // Find the signals under interest
             if signal_path.len() >= instance_depth {
                 let signal_path_depth = &signal_path[..instance_depth];
                 let signal_path_str = signal_path_depth.join(".");
@@ -288,25 +214,14 @@ fn test_emulator(
                 }
             }
 
-            // Ignore certain signals
             let signal_name = signal_path.join(".");
             if is_clock_signal(&signal_name) || is_clock_tap(&signal_name) {
                 continue;
             }
 
-            if check_signals.contains(&signal_name) {
-                check_signal_vals.insert(signal_name, *four_state_bit);
-            } else if cond_check_signals.contains_key(&signal_name) {
-                cond_check_signal_vals.insert(signal_name, *four_state_bit);
-            }
-        }
-
-        for (signal_name, four_state_bit) in check_signal_vals.iter() {
             let peek = board.peek(&signal_name);
             match (peek, four_state_bit.to_bit()) {
                 (Some(bit), Some(ref_bit)) => {
-                    println!("performing signal check: {} emu: {} ref: {}", signal_name, bit, ref_bit);
-
                     at_least_one_compare = true;
                     if bit != ref_bit {
                         found_mismatch = true;
@@ -341,62 +256,6 @@ fn test_emulator(
                 _ => {}
             }
         }
-
-        for (signal_name, four_state_bit) in cond_check_signal_vals.iter() {
-            let cond_signal = cond_check_signals.get(signal_name).unwrap();
-            let cond = match check_signal_vals.get(cond_signal).unwrap().to_bit() {
-                Some(bit) => {
-                    bit == 1
-                }
-                None => {
-                    false
-                }
-            };
-
-            if !cond {
-                continue;
-            }
-
-            let peek = board.peek(&signal_name);
-            match (peek, four_state_bit.to_bit()) {
-                (Some(bit), Some(ref_bit)) => {
-                    at_least_one_compare = true;
-                    if bit != ref_bit {
-                        found_mismatch = true;
-                        println!(
-                            "cycle {} signal {} expected {} get {}",
-                            cycle, signal_name, ref_bit, bit
-                        );
-
-                        match board.nodeindex(&signal_name) {
-                            Some(nodeidx) => {
-                                save_graph_pdf(
-                                    &circuit.debug_graph(nodeidx, &board),
-                                    &format!("{}/after-cycle-{}-signal-{}.dot",
-                                        cwd.to_str().unwrap(), cycle, signal_name),
-                                        &format!("{}/after-cycle-{}-signal-{}.pdf",
-                                            cwd.to_str().unwrap(), cycle, signal_name))?;
-                                save_graph_pdf(
-                                    &circuit.debug_graph(nodeidx, &board_lag),
-                                    &format!("{}/before-cycle-{}-signal-{}.dot",
-                                        cwd.to_str().unwrap(), cycle, signal_name),
-                                        &format!("{}/before-cycle-{}-signal-{}.pdf",
-                                            cwd.to_str().unwrap(), cycle, signal_name))?;
-                            }
-                            None => {}
-                        }
-                        if args.verbose {
-                            println!("============= Sig Map ================");
-                            board.print_sigmap();
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-
-
-
         if !has_reset && !at_least_one_compare {
             println!("WARNING, no signals are getting compared");
         }
