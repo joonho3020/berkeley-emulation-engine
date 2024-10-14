@@ -161,7 +161,7 @@ fn module_to_circuit(module: &ParsedPrimitive, circuit: &mut Circuit) {
                             Some(SignalType::SRAMRdWrMode {
                                 name: wire.to_string()
                             })
-                        } else if port.contains("RW0_mask") {
+                        } else if port.contains("RW0_wmask") {
                             Some(SignalType::SRAMWrMask {
                                 name: wire.to_string(), idx: bidx.unwrap()
                             })
