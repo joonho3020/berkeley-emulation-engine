@@ -31,6 +31,7 @@ plotters = "0.3.6"
 blif-parser = "0.1.7"
 rng = "0.1.0"
 rand = "0.8.5"
+twox-hash = "1.6.3"
 
 [profile.release]
 debug=true

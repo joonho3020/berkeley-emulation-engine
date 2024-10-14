@@ -4,8 +4,10 @@ use crate::common::{
     hwgraph::*
 };
 use indexmap::IndexMap;
+use itertools::Itertools;
 use petgraph::graph::NodeIndex;
 use blif_parser::{parser::parse_blif_file, primitives::ParsedPrimitive};
+use twox_hash::xxh3::hash64;
 
 fn extract_index(input: &str) -> Option<u32> {
     if let (Some(start), Some(end)) = (input.find('['), input.find(']')) {
@@ -40,6 +42,16 @@ fn signal_type(src: &NodeIndex, circuit: &Circuit, wire: &str) -> SignalType {
     }
 }
 
+fn hash_subckt(name: &String, conns: &IndexMap<String, String>) -> String {
+    let hash = hash64(&conns
+                        .values()
+                        .flat_map(|x| x.as_bytes().to_vec())
+                        .collect_vec());
+    let mut ret = name.clone();
+    ret.push_str(&format!("-{}", hash));
+    return ret;
+}
+
 // nidx  wire
 //   o  ------> o ----> o ---->
 fn module_to_circuit(module: &ParsedPrimitive, circuit: &mut Circuit) {
@@ -64,8 +76,7 @@ fn module_to_circuit(module: &ParsedPrimitive, circuit: &mut Circuit) {
 
         // Add nodes to graph
         for e in elems.iter() {
-            let nidx = circuit.graph.add_node(
-                HWNode::new(CircuitPrimitive::from(e)));
+            let nidx = circuit.graph.add_node(HWNode::new(CircuitPrimitive::from(e)));
             match e {
                 ParsedPrimitive::Lut { inputs:_, output, .. } => {
                     net_to_nodeidx.insert(output.to_string(), nidx);
@@ -77,7 +88,7 @@ fn module_to_circuit(module: &ParsedPrimitive, circuit: &mut Circuit) {
                     net_to_nodeidx.insert(output.to_string(), nidx);
                 }
                 ParsedPrimitive::Subckt { name, conns } => {
-                    sram_to_nodeidx.insert(name.to_string(), nidx);
+                    sram_to_nodeidx.insert(hash_subckt(name, conns), nidx);
                     for (port, wire) in conns.iter() {
                         if port.contains("R0_data") ||
                            port.contains("RW0_rdata") {
@@ -132,7 +143,8 @@ fn module_to_circuit(module: &ParsedPrimitive, circuit: &mut Circuit) {
                         .add_edge(*d_idx, *q_idx, HWEdge::new(sig));
                 }
                 ParsedPrimitive::Subckt { name, conns } => {
-                    let sram_idx = sram_to_nodeidx.get(name).unwrap();
+                    let uname = hash_subckt(name, conns);
+                    let sram_idx = sram_to_nodeidx.get(&uname).unwrap();
                     for (port, wire) in conns.iter() {
                         let bidx = extract_index(port);
                         let p_idx = net_to_nodeidx.get(wire).unwrap();

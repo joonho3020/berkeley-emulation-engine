@@ -124,6 +124,7 @@ dependencies = [
  "strum",
  "strum_macros",
  "test-case",
+ "twox-hash",
  "wait-timeout",
  "wellen",
  "yansi 1.0.1",
@@ -1754,6 +1755,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
 dependencies = [
  "cfg-if",
+ "rand 0.3.23",
  "static_assertions",
 ]
 

@@ -7,5 +7,6 @@ pub mod partition;
 pub mod split_sram_nodes;
 pub mod set_rank;
 pub mod check_rank;
+pub mod check_connectivity;
 pub mod print_stats;
 pub mod runner;

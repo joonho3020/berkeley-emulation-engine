@@ -142,6 +142,8 @@ fn split_sram_node_by_io(circuit: &mut Circuit) {
             let mut node = assign_proc_to_sram_node(&rinfo.node, i as u32, pcfg);
             node.prim = CircuitPrimitive::from(&edge.signal);
 
+            assert!(node.is() != Primitive::SRAMNode, "Node to add should not be a SRAMNode type");
+
             let sram_idx = circuit.graph.add_node(node);
             circuit.graph.add_edge(sram_idx, *cidx, edge.clone());
 
@@ -152,8 +154,13 @@ fn split_sram_node_by_io(circuit: &mut Circuit) {
 
     // Remove SRAM nodes
     for nidx in circuit.graph.node_indices().rev() {
-        if sram_info.contains_key(&nidx) {
-            circuit.graph.remove_node(nidx);
+        match circuit.graph.node_weight(nidx) {
+            Some(node) => {
+                if node.is() == Primitive::SRAMNode {
+                    circuit.graph.remove_node(nidx);
+                }
+            }
+            None => { }
         }
     }
 }
