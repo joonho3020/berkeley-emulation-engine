@@ -109,9 +109,7 @@ fn compare_signals(
     }
 
     if found_mismatch {
-        println!("input: {:#?}", input_stimuli_by_step);
         board_lag.run_cycle_verbose(&input_stimuli_by_step, &(cycle as u32));
-        println!("Test failed");
         return Ok(ReturnCode::TestFailed);
     }
 
@@ -124,8 +122,9 @@ fn run_test_cycle(
     board: &mut Board,
     board_lag: &mut Board,
     waveform_db: &mut WaveformDB,
-    input_stimuli_by_step: &IndexMap<u32, Vec<(&str, Bit)>>,
     args: &Args,
+    has_reset: &bool,
+    input_stimuli_by_step: &IndexMap<u32, Vec<(&str, Bit)>>,
     cycle: usize,
 ) -> std::io::Result<ReturnCode> {
     // run a cycle
@@ -135,7 +134,7 @@ fn run_test_cycle(
         board.run_cycle(&input_stimuli_by_step);
     }
 
-    if (cycle as u32) < args.no_check_cycles {
+    if (cycle as u32) < args.no_check_cycles || *has_reset {
         board_lag.run_cycle(&input_stimuli_by_step);
     } else {
         let rc = compare_signals(circuit, waveform_db, board, board_lag, input_stimuli_by_step, args, cycle);
@@ -144,14 +143,14 @@ fn run_test_cycle(
                 board_lag.run_cycle(&input_stimuli_by_step);
             }
             Ok(ReturnCode::TestFailed) => {
+                println!("input: {:#?}", input_stimuli_by_step);
                 board_lag.run_cycle_verbose(&input_stimuli_by_step, &(cycle as u32));
+                println!("Test failed");
             }
-            Err(..) => {
-                return rc;
-            }
+            Err(..) => { }
         }
+        return rc;
     }
-
     return Ok(ReturnCode::TestSuccess);
 }
 
@@ -198,8 +197,24 @@ fn run_test(
             }
         }
 
+        let mut has_reset = false;
+        for (s, b) in input_stimuli_by_name.iter() {
+            if !is_debug_reset(s) && is_reset_signal(s) && *b > 0 {
+                has_reset = true;
+                break;
+            }
+        }
+
         // Run test cycle
-        run_test_cycle(circuit, board, board_lag, waveform_db, &input_stimuli_by_step, args, cycle)?;
+        run_test_cycle(
+            circuit,
+            board,
+            board_lag,
+            waveform_db,
+            args,
+            &has_reset,
+            &input_stimuli_by_step,
+            cycle)?;
     }
     bar.finish();
     return Ok(ReturnCode::TestSuccess);
@@ -366,7 +381,7 @@ pub mod emulation_tester {
         });
         match ret {
             Ok(rc) => return rc == ReturnCode::TestSuccess,
-            Err(_) => return false
+            _      => return false
         }
     }
 
