@@ -123,7 +123,9 @@ fn run_test_cycle(
         board.run_cycle(&input_stimuli_by_step);
     }
 
-    if (cycle as u32) < args.no_check_cycles || *has_reset {
+    let check_period = (cycle as u32) % args.check_cycle_period == 0;
+
+    if (cycle as u32) < args.no_check_cycles || *has_reset || !check_period {
         board_lag.run_cycle(&input_stimuli_by_step);
     } else {
         let rc = compare_signals(circuit, waveform_db, board, board_lag, input_stimuli_by_step, args, cycle);

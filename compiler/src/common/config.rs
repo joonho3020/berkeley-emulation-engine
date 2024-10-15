@@ -475,6 +475,10 @@ pub struct Args {
     #[arg(long, default_value_t = 0)]
     pub no_check_cycles: u32,
 
+    /// number of cycles to skip when parsing reference rtl sim vcd
+    #[arg(long, default_value_t = 1)]
+    pub check_cycle_period: u32,
+
     /// number of modules
     #[arg(long, default_value_t = 1)]
     pub num_mods: u32,
