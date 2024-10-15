@@ -7,6 +7,7 @@ use crate::common::{
     network::*
 };
 use indexmap::IndexMap;
+use itertools::Itertools;
 use petgraph::{
     visit::EdgeRef,
     Direction::{Incoming, Outgoing}
@@ -278,6 +279,20 @@ pub fn map_instructions(circuit: &mut Circuit) {
                 .module_mappings.get_mut(&coord.module).unwrap()
                 .proc_mappings.get_mut(&coord.proc).unwrap()
                 .signal_map.insert(node.name().to_string(), nodemap);
+        } else {
+            // HACK: Check if the SRAM is in the top of the module hierarchy
+            // If it is, there may be aliases to the node which can mess things up
+            // Otherwise, it is save to add as a signal mapping
+            if node.name().split(".").collect_vec().len() > 1 {
+                let nodemap = NodeMapInfo {
+                    info: node.info().clone(),
+                    idx: nidx,
+                };
+                circuit.emul
+                    .module_mappings.get_mut(&coord.module).unwrap()
+                    .proc_mappings.get_mut(&coord.proc).unwrap()
+                    .signal_map.insert(node.name().to_string(), nodemap);
+                }
         }
     }
 }

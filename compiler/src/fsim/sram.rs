@@ -5,7 +5,7 @@ use crate::fsim::memory::*;
 use std::fmt::Debug;
 
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Clone)]
 struct SRAMEntry {
     pub bits: Vec<Bit>
 }
@@ -15,6 +15,28 @@ impl SRAMEntry {
         SRAMEntry {
             bits: vec![0; width as usize]
         }
+    }
+
+    fn to_u64_vec(self: &Self) -> Vec<u64> {
+        let mut result = Vec::new();
+        let mut current = 0u64;
+
+        for (i, bit) in self.bits.iter().enumerate() {
+            if *bit > 0{
+                current |= 1 << (i % 64);
+            }
+            if i % 64 == 63 || i == self.bits.len() - 1 {
+                result.push(current);
+                current = 0;
+            }
+        }
+        result
+    }
+}
+
+impl Debug for SRAMEntry {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.to_u64_vec())
     }
 }
 
@@ -97,6 +119,7 @@ pub struct SRAMProcessor {
     mapping: SRAMMapping,
     cur: u32,
     inputs: Vec<SRAMInputs>,
+    prev_input: SRAMInputs,
     cur_rd_data: SRAMEntry,
     sram: AbstractMemory<SRAMEntry>
 }
@@ -115,6 +138,7 @@ impl SRAMProcessor {
             ports: vec![ProcessorSRAMPort::default(); cfg.num_procs as usize],
             mapping: SRAMMapping::default(),
             inputs: vec![SRAMInputs::new(cfg.sram_width); 2],
+            prev_input: SRAMInputs::new(cfg.sram_width),
             cur_rd_data: SRAMEntry::new(cfg.sram_width),
             sram: AbstractMemory::new(
                 cfg.sram_entries,
@@ -128,7 +152,9 @@ impl SRAMProcessor {
     }
 
     pub fn print(self: &Self) {
-        println!("{:?}", self.sram);
+        if self.mapping.width_bits > 0 {
+            println!("{:?}", self.sram);
+        }
     }
 
     pub fn set_sram_mapping(self: &mut Self, map: &SRAMMapping) {
@@ -251,6 +277,23 @@ impl SRAMProcessor {
             }
         };
 
+        let ren = match self.mapping.port_type {
+            SRAMPortType::OneRdOneWrPortSRAM => {
+                cur_input.rd_en != 0
+            }
+            SRAMPortType::SinglePortSRAM => {
+                cur_input.wr_en == 0 && cur_input.rd_en != 0
+            }
+        };
+
+        // If read enable is high, read from the current input
+        // otherwise, use the address from the previous input
+        let raddr = if ren {
+            cur_input.rd_addr
+        } else {
+            self.prev_input.rd_addr
+        };
+
         if wen && self.pc == 0 {
             // Write request, need to read the current value in the write address
             // to emulate write mask behavior
@@ -260,7 +303,7 @@ impl SRAMProcessor {
         } else {
             // Send out SRAM read request
             self.sram.get_rport(0).submit_req(ReadReq {
-                addr: cur_input.rd_addr
+                addr: raddr
             });
         }
 
@@ -285,6 +328,7 @@ impl SRAMProcessor {
         // Update PC
         if self.pc == self.host_steps - 1 {
             self.pc = 0;
+            self.prev_input = cur_input.clone();
             self.inputs.get_mut(self.cur as usize).unwrap().init();
             self.cur = (self.cur + 1) % 2;
         } else {

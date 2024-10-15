@@ -20,7 +20,14 @@ enum ReturnCode {
 
 fn main() -> std::io::Result<()> {
     let args = Args::parse();
-    let _ = test_emulator(args);
+    match test_emulator(args) {
+        Ok(ReturnCode::TestSuccess) => {
+            println!("Test Success!");
+        }
+        _ => {
+            println!("Test Failed");
+        }
+    }
     Ok(())
 }
 
@@ -188,7 +195,7 @@ fn run_test(
         }
 
         // Run test cycle
-        run_test_cycle(
+        let rc = run_test_cycle(
             circuit,
             board,
             board_lag,
@@ -197,11 +204,16 @@ fn run_test(
             &has_reset,
             &input_stimuli_by_step,
             cycle)?;
+        match rc {
+            ReturnCode::TestFailed => {
+                return Ok(rc);
+            }
+            _ => { }
+        }
     }
     bar.finish();
     return Ok(ReturnCode::TestSuccess);
 }
-
 
 fn test_emulator(
     args: Args
@@ -301,16 +313,12 @@ fn test_emulator(
     let mut board     = Board::from(&circuit);
     let mut board_lag = Board::from(&circuit);
 
-    run_test(&mut circuit,
+    return run_test(&mut circuit,
         &mut board,
         &mut board_lag,
         &input_stimuli_blasted,
         &mut waveform_db,
-        &args)?;
-
-    println!("Test Success!");
-
-    return Ok(ReturnCode::TestSuccess);
+        &args);
 }
 
 #[cfg(test)]
