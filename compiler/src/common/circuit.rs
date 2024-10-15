@@ -4,11 +4,16 @@ use crate::common::utils::*;
 use crate::common::primitive::*;
 use crate::common::hwgraph::*;
 use crate::fsim::board::Board;
+use crate::rtlsim::vcdparser::FourStateBit;
+use indexmap::IndexMap;
 use std::fmt::Debug;
+use std::collections::VecDeque;
 use petgraph::{
     graph::NodeIndex,
+    Undirected,
     visit::{EdgeRef, VisitMap, Visitable},
     Direction::{Incoming, Outgoing},
+    prelude::Dfs
 };
 
 
@@ -19,6 +24,12 @@ pub struct Circuit {
     pub kaminpar_cfg: KaMinParConfig,
     pub graph: HWGraph,
     pub emul:  EmulatorMapping
+}
+
+fn set_debug(graph: &mut HWGraph, nidx: NodeIndex, check: NodeCheckState) {
+    let node = graph.node_weight_mut(nidx).unwrap();
+    let info = node.info_mut();
+    info.debug.check = check;
 }
 
 impl Circuit {
@@ -87,28 +98,157 @@ impl Circuit {
         Ok(())
     }
 
-    pub fn debug_graph_2(&mut self, dbg_node: NodeIndex, board: &Board) -> String {
-        let mut outstring = "digraph {\n".to_string();
-
-        for nidx in self.graph.node_indices() {
-            let node = self.graph.node_weight(nidx).unwrap();
-            let bit = match board.peek(node.name()) {
-                Some(b) => b,
-                None    => Bit::MAX
-            };
-        }
-
-        return outstring;
-    }
-
     /// #debug_graph
     /// Given a `dbg_node` in the graph, search for all parents nodes up until
     /// it reaches Gate, Latch or Input.
     /// It will also print the bit-value associated with the node
     /// computed by the emulation processor.
-    pub fn debug_graph(&self, dbg_node: NodeIndex, board: &Board) -> String {
+    pub fn debug_graph(&mut self, dbg_node: NodeIndex, board: &Board, rs: &IndexMap<String, FourStateBit>) -> String {
+        for nidx in self.graph.node_indices() {
+            let node = self.graph.node_weight_mut(nidx).unwrap();
+            if !rs.contains_key(node.name()) {
+                continue;
+            }
+            let four_state_bit = rs.get(node.name()).unwrap();
+            match (board.peek(node.name()), four_state_bit.to_bit()) {
+                (Some(b), Some(rb)) => {
+                    if b == rb {
+                        node.info_mut().debug.check = NodeCheckState::Match;
+                    } else {
+                        node.info_mut().debug.check = NodeCheckState::Mismatch;
+                    }
+                }
+                _ => { }
+            }
+        }
+
+        // compute indeg for the entire graph
+        let mut indeg: IndexMap<NodeIndex, u32> = IndexMap::new();
+        for nidx in self.graph.node_indices() {
+            indeg.insert(nidx, 0);
+        }
+        for eidx in self.graph.edge_indices() {
+            let e = self.graph.edge_endpoints(eidx).unwrap();
+            let dst = e.1;
+            *indeg.get_mut(&dst).unwrap() += 1;
+        }
+
+        let undir_graph = self.graph.clone().into_edge_type::<Undirected>();
+        let mut vis_map = self.graph.visit_map();
+        for curidx in self.graph.node_indices() {
+            if vis_map.is_visited(&curidx) {
+                continue;
+            }
+
+            // Found new connected component
+            // DFS to search for all the relevant nodes
+            let mut ff_nodes: Vec<NodeIndex> = vec![];
+            let mut in_nodes: Vec<NodeIndex> = vec![];
+            let mut sr_nodes: Vec<NodeIndex> = vec![];
+
+            let mut dfs = Dfs::new(&undir_graph, curidx);
+            while let Some(nx) = dfs.next(&undir_graph) {
+                vis_map.visit(nx);
+
+                let node = self.graph.node_weight(nx).unwrap();
+                match node.is() {
+                    Primitive::Latch => {
+                        ff_nodes.push(nx);
+                    }
+                    Primitive::Gate => {
+                        ff_nodes.push(nx);
+                    }
+                    Primitive::Input => {
+                        in_nodes.push(nx);
+                    }
+                    Primitive::ConstLut => {
+                        in_nodes.push(nx);
+                    }
+                    Primitive::SRAMRdData => {
+                        sr_nodes.push(nx);
+                    }
+                    _ => {
+                    }
+                }
+            }
+
+            // Start topological sort
+            let mut q: VecDeque<NodeIndex> = VecDeque::new();
+            for nidx in in_nodes.iter() {
+                q.push_back(*nidx);
+            }
+            for nidx in ff_nodes.iter() {
+                q.push_back(*nidx);
+            }
+            for nidx in sr_nodes.iter() {
+                q.push_back(*nidx);
+            }
+
+            // BFS
+            let mut topo_sort_order: Vec<NodeIndex> = vec![];
+            let mut topo_vis_map = self.graph.visit_map();
+            while !q.is_empty() {
+                let nidx = q.pop_front().unwrap();
+                if topo_vis_map.is_visited(&nidx) {
+                    continue;
+                }
+
+                topo_vis_map.visit(nidx);
+                topo_sort_order.push(nidx);
+
+                let childs = self.graph.neighbors_directed(nidx, Outgoing);
+                for cidx in childs {
+                    let cnode = self.graph.node_weight(cidx).unwrap();
+                    if !topo_vis_map.is_visited(&cidx)    &&
+                        cnode.is() != Primitive::Gate     &&
+                        cnode.is() != Primitive::Latch    &&
+                        cnode.is() != Primitive::Input    &&
+                        cnode.is() != Primitive::ConstLut &&
+                        cnode.is() != Primitive::SRAMRdData {
+                        *indeg.get_mut(&cidx).unwrap() -= 1;
+                        if *indeg.get(&cidx).unwrap() == 0 {
+                            q.push_back(cidx);
+                        }
+                    }
+                }
+            }
+
+            // Set rank based on the topo sorted order
+            for nidx in topo_sort_order.iter() {
+                let node = self.graph.node_weight(*nidx).unwrap();
+                if node.info().debug.check != NodeCheckState::Unknown {
+                    continue;
+                }
+                if node.is() != Primitive::Gate     &&
+                   node.is() != Primitive::Latch    &&
+                   node.is() != Primitive::Input    &&
+                   node.is() != Primitive::ConstLut &&
+                   node.is() != Primitive::SRAMRdData {
+                    let mut found_mismatch = false;
+                    let mut found_unknown = false;
+                    let parents = self.graph.neighbors_directed(*nidx, Incoming);
+                    for pidx in parents {
+                        let parent = self.graph.node_weight(pidx).unwrap();
+                        match parent.info().debug.check {
+                            NodeCheckState::Unknown => {
+                                found_unknown = true;
+                                break;
+                            }
+                            NodeCheckState::Mismatch => {
+                                found_mismatch = true;
+                                break;
+                            }
+                            _ => { }
+                        }
+                    }
+                    if !found_mismatch && !found_unknown {
+                        set_debug(&mut self.graph, *nidx, NodeCheckState::Match);
+                    }
+                }
+            }
+        }
+
         let mut node_cnt = 0;
-        let indent: &str = "    ";
         let mut vis_map = self.graph.visit_map();
         let mut q = vec![];
         q.push(dbg_node);
@@ -128,7 +268,7 @@ impl Circuit {
             }
             node_cnt += 1;
 
-            if node_cnt > 50 {
+            if node_cnt > 200 {
                 break;
             }
 
@@ -139,6 +279,7 @@ impl Circuit {
         }
 
         let mut outstring = "digraph {\n".to_string();
+        let indent: &str = "    ";
 
         // print nodes
         for nidx in self.graph.node_indices() {
@@ -148,10 +289,15 @@ impl Circuit {
                     Some(v) => v,
                     None    => Bit::MAX
                 };
+                let color = match node.info().debug.check {
+                    NodeCheckState::Unknown  => { "purple" }
+                    NodeCheckState::Mismatch => { "red"    }
+                    NodeCheckState::Match    => { "green"  }
+                };
                 match &node.prim {
                     CircuitPrimitive::Lut { inputs:_, output:_, table } => {
                         outstring.push_str(&format!(
-                            "{}{} [ label = {:?} ]\n",
+                            "{}{} [ label = {:?} color = \"{}\"]\n",
                             indent,
                             nidx.index(),
                             format!("{} {:?}\nmod: {} proc: {}\nasap: {} alap: {} pc: {}\nlut: {:?} val: {}",
@@ -163,11 +309,12 @@ impl Circuit {
                                     node.info().rank.alap,
                                     node.info().pc,
                                     table,
-                                    val)));
+                                    val),
+                            color));
                     }
                     _ => {
                         outstring.push_str(&format!(
-                            "{}{} [ label = {:?} ]\n",
+                            "{}{} [ label = {:?} color = \"{}\"]\n",
                             indent,
                             nidx.index(),
                             format!("{} {:?}\nmod: {} proc: {}\nasap: {} alap: {} pc: {}\nval: {}",
@@ -178,7 +325,8 @@ impl Circuit {
                                     node.info().rank.asap,
                                     node.info().rank.alap,
                                     node.info().pc,
-                                    val)));
+                                    val),
+                            color));
                     }
                 }
             }
@@ -186,22 +334,31 @@ impl Circuit {
 
         // print edges
         for nidx in self.graph.node_indices() {
+            let node = self.graph.node_weight(nidx).unwrap();
+
             if vis_map.is_visited(&nidx) {
                 let mut childs = self.graph.neighbors_directed(nidx, Outgoing).detach();
                 while let Some(cidx) = childs.next_node(&self.graph) {
+                    let cnode = self.graph.node_weight(cidx).unwrap();
+                    let mut op_idx = 0;
+                    match &cnode.prim {
+                        CircuitPrimitive::Lut { inputs, .. } => {
+                            let lut_inputs = inputs.to_vec();
+                            op_idx = lut_inputs.iter().position(|n| n == node.name()).unwrap();
+                        }
+                        _ => { }
+                    }
+
                     if vis_map.is_visited(&cidx) {
-                        outstring.push_str(&format!(
-                            "{}{} {} {} \n",
-                            indent,
-                            nidx.index(),
-                            "->",
-                            cidx.index()
-                        ));
+                        outstring.push_str(&format!("{}{} {} {} ",
+                            indent, nidx.index(), "->", cidx.index()));
+                        outstring.push_str(&format!("[ label=\"{}\" ]", op_idx));
                     }
                 }
             }
         }
         outstring.push_str("}");
+
         return outstring;
     }
 

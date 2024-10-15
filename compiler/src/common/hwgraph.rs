@@ -7,9 +7,17 @@ use serde::ser::SerializeStruct;
 use serde::Serializer;
 use std::fmt::Debug;
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub enum NodeCheckState {
+    #[default]
+    Unknown = 0,
+    Match,
+    Mismatch
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct DebugInfo {
-    pub correct: bool
+    pub check: NodeCheckState
 }
 
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Ord, Eq, Hash)]

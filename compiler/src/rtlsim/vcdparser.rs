@@ -5,6 +5,9 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::thread;
 use wellen::*;
+use itertools::Itertools;
+
+pub type SignalMap = IndexMap<WaveformSignal, FourStateBit>;
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub enum FourStateBit {
@@ -60,13 +63,17 @@ impl WaveformSignal {
     pub fn append(self: &mut Self, sig: String) {
         self.path.push(sig);
     }
+
+    pub fn to_string(self: &Self) -> String {
+        return self.path.join(".");
+    }
 }
 
 impl From<String> for WaveformSignal {
     fn from(value: String) -> Self {
-        let path: Vec<String> = value.split('.').map(|s| s.to_string()).collect();
+        let path_: Vec<String> = value.split('.').map(|s| s.to_string()).collect();
         Self {
-            path: path
+            path: path_
         }
     }
 }
@@ -141,11 +148,10 @@ impl WaveformDB {
     }
 
     /// Returns a signal name to bit value map for all signals at `cycle`
-    pub fn signal_values_at_cycle(self: &mut Self, cycle: u32) -> IndexMap<WaveformSignal, FourStateBit> {
+    pub fn signal_values_at_cycle(self: &mut Self, cycle: u32) -> SignalMap {
+        let mut ret: SignalMap = SignalMap::new();
+
         let hierarchy = &self.header.hierarchy;
-
-        let mut ret: IndexMap<WaveformSignal, FourStateBit> = IndexMap::new();
-
         for var in hierarchy.iter_vars() {
             let _signal_name: String = var.full_name(&hierarchy);
             let ids = [var.signal_ref(); 1];
@@ -197,6 +203,30 @@ impl WaveformDB {
                 }
                 _ => {}
             }
+        }
+        return ret;
+    }
+
+    pub fn signal_values_at_cycle_rebase_top(self: &mut Self, cycle: u32, instance_path: String) -> IndexMap<String, FourStateBit> {
+        let ref_signals = self.signal_values_at_cycle(cycle);
+        let instance_depth = instance_path.split(".").collect_vec().len();
+
+        let mut ret: IndexMap<String, FourStateBit> = IndexMap::new();
+        for (signal_path, four_state_bit) in ref_signals.iter() {
+            let name = signal_path.name();
+            let mut hier = signal_path.hier();
+
+            if hier.len() >= instance_depth {
+                let hier_depth = &hier[..instance_depth];
+                let hier_str = hier_depth.join(".");
+                if hier_str == instance_path {
+                    hier.drain(0..instance_depth);
+                    hier.push(name.clone());
+                } else {
+                    continue;
+                }
+            }
+            ret.insert(hier.join("."), four_state_bit.clone());
         }
         return ret;
     }

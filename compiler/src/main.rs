@@ -6,7 +6,6 @@ use bee::rtlsim::ref_rtlsim_testharness::*;
 use bee::rtlsim::rtlsim_utils::*;
 use bee::rtlsim::vcdparser::*;
 use indexmap::IndexMap;
-use itertools::Itertools;
 use std::cmp::max;
 use std::{env, fs};
 use std::process::Command;
@@ -34,9 +33,7 @@ fn compare_signals(
     args: &Args,
     cycle: usize,
 ) -> std::io::Result<ReturnCode> {
-    let cwd = &circuit.compiler_cfg.output_dir;
-
-    let instance_depth = args.instance_path.split(".").collect_vec().len();
+    let cwd = circuit.compiler_cfg.output_dir.clone();
 
     // Compare the emulated signals with the reference RTL simulation
     let mut at_least_one_compare = false;
@@ -44,24 +41,9 @@ fn compare_signals(
 
     let offset = if args.clock_start_low { 1 } else { 0 };
     let waveform_time = (args.timesteps_per_cycle as usize) * (cycle + args.ref_skip_cycles as usize) + offset;
-    let ref_signals = waveform_db.signal_values_at_cycle(waveform_time as u32);
+    let ref_signals = waveform_db.signal_values_at_cycle_rebase_top(waveform_time as u32, args.instance_path.clone());
 
-    for (signal_path, four_state_bit) in ref_signals.iter() {
-        let name = signal_path.name();
-        let mut signal_path = signal_path.hier();
-
-        if signal_path.len() >= instance_depth {
-            let signal_path_depth = &signal_path[..instance_depth];
-            let signal_path_str = signal_path_depth.join(".");
-            if signal_path_str == args.instance_path {
-                signal_path.drain(0..instance_depth);
-                signal_path.push(name.clone());
-            } else {
-                continue;
-            }
-        }
-
-        let signal_name = signal_path.join(".");
+    for (signal_name, four_state_bit) in ref_signals.iter() {
         if is_clock_signal(&signal_name) || is_clock_tap(&signal_name) {
             continue;
         }
@@ -80,13 +62,13 @@ fn compare_signals(
                     match board.nodeindex(&signal_name) {
                         Some(nodeidx) => {
                             save_graph_pdf(
-                                &circuit.debug_graph(nodeidx, &board),
+                                &circuit.debug_graph(nodeidx, &board, &ref_signals),
                                 &format!("{}/after-cycle-{}-signal-{}.dot",
                                          cwd, cycle, signal_name),
                                 &format!("{}/after-cycle-{}-signal-{}.pdf",
                                          cwd, cycle, signal_name))?;
                             save_graph_pdf(
-                                &circuit.debug_graph(nodeidx, &board_lag),
+                                &circuit.debug_graph(nodeidx, &board_lag, &ref_signals),
                                 &format!("{}/before-cycle-{}-signal-{}.dot",
                                          cwd, cycle, signal_name),
                                 &format!("{}/before-cycle-{}-signal-{}.pdf",
@@ -562,20 +544,4 @@ pub mod emulation_tester {
             true
         );
     }
-
-// #[test_case(2, 4, 0, 0, 1, 0; "mod 2 procs 4 imem 0 dmem rd 0 wr 1 network 0")]
-// #[test_case(5, 4, 0, 0, 1, 0; "mod 5 procs 4 imem 0 dmem rd 0 wr 1 network 0")]
-// pub fn test_cache(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
-// assert_eq!(
-// perform_test(
-// "../examples/Cache.sv",
-// "Cache",
-// "../examples/Cache.input",
-// "../examples/Cache.lut.blif",
-// num_mods, num_procs,
-// network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
-// ),
-// true
-// );
-// }
 }
