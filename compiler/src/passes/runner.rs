@@ -13,25 +13,18 @@ use print_stats::print_stats;
 use std::time::Instant;
 
 pub fn run_compiler_passes(c: &mut Circuit) {
-// let _ = c.save_graph("parsed");
-
     let dce_start = Instant::now();
     dead_code_elimination(c);
     let dce_time = dce_start.elapsed().as_millis();
     println!("DCE done");
-
-// let _ = c.save_graph("dce");
 
     let partition_start = Instant::now();
     partition(c);
     let partition_time = partition_start.elapsed().as_millis();
     println!("Partition done");
 
-// let _ = c.save_graph("partition");
-
     let sram_const_start = Instant::now();
     split_sram_nodes(c);
-// let _ = c.save_graph("sramsplit");
 
 // check_connectivity(c);
 

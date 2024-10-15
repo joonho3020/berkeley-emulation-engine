@@ -7,6 +7,11 @@ use serde::ser::SerializeStruct;
 use serde::Serializer;
 use std::fmt::Debug;
 
+#[derive(Debug, Clone, Default)]
+pub struct DebugInfo {
+    pub correct: bool
+}
+
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Ord, Eq, Hash)]
 pub struct RankInfo {
     /// Rank of the node assigned during forward pass topo sort
@@ -37,8 +42,8 @@ pub struct NodeInfo {
     /// register group that this node is in
     pub reggrp: u32,
 
-    /// debug
-    pub debug: bool,
+    /// Debug information
+    pub debug: DebugInfo
 }
 
 impl Serialize for NodeInfo {

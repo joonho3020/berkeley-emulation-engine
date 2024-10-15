@@ -70,7 +70,7 @@ fn main() -> std::io::Result<()> {
     }
     ret.push_str("\n");
 
-    let mut waveform_db = WaveformDB::new(args.vcd.to_string());
+    let mut waveform_db = WaveformDB::new(&args.vcd.to_string());
     let h2s: IndexMap<WaveformSignal, wellen::Signal> = waveform_db
         .hierarchy_to_signal()
         .into_iter()

@@ -87,6 +87,20 @@ impl Circuit {
         Ok(())
     }
 
+    pub fn debug_graph_2(&mut self, dbg_node: NodeIndex, board: &Board) -> String {
+        let mut outstring = "digraph {\n".to_string();
+
+        for nidx in self.graph.node_indices() {
+            let node = self.graph.node_weight(nidx).unwrap();
+            let bit = match board.peek(node.name()) {
+                Some(b) => b,
+                None    => Bit::MAX
+            };
+        }
+
+        return outstring;
+    }
+
     /// #debug_graph
     /// Given a `dbg_node` in the graph, search for all parents nodes up until
     /// it reaches Gate, Latch or Input.

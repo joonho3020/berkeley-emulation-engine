@@ -82,7 +82,7 @@ pub struct WaveformDB {
 }
 
 impl WaveformDB {
-    pub fn new(vcd_file: String) -> WaveformDB {
+    pub fn new(vcd_file: &String) -> WaveformDB {
         let header = viewers::read_header(&vcd_file, &LOAD_OPTS).expect("Failed to load file!");
         let hierarchy = header.hierarchy;
         let body = header.body;
