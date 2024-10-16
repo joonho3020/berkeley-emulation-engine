@@ -28,6 +28,7 @@ pub mod blif_sim_test {
     ) -> bool {
         let args = Args {
             verbose:            false,
+            sim_dir:            format!("blif-sim-dir-{}", top_mod),
             sv_file_path:       sv_file_path.to_string(),
             top_mod:            top_mod.to_string(),
             input_stimuli_path: input_stimuli_path.to_string(),
@@ -219,6 +220,7 @@ pub mod emulation_tester {
     ) -> bool {
         let ret = test_emulator(Args {
             verbose:            false,
+            sim_dir:            format!("sim-dir-{}", top_mod),
             sv_file_path:       sv_file_path.to_string(),
             top_mod:            top_mod.to_string(),
             input_stimuli_path: input_stimuli_path.to_string(),

@@ -435,6 +435,10 @@ pub struct Args {
     #[arg(short, long, default_value_t = false)]
     pub verbose: bool,
 
+    /// Simulation output directory path
+    #[arg(short, long, default_value = "sim-dir")]
+    pub sim_dir: String,
+
     /// SystemVerilog file path
     #[arg(short, long, default_value = "")]
     pub sv_file_path: String,
