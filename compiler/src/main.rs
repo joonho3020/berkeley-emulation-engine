@@ -353,6 +353,7 @@ pub mod emulation_tester {
             timesteps_per_cycle: 2,
             ref_skip_cycles:    4,
             no_check_cycles:    0,
+            check_cycle_period: 1,
             num_mods:           num_mods,
             num_procs:          num_procs,
             max_steps:          65536,

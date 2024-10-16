@@ -103,7 +103,12 @@ impl Circuit {
     /// it reaches Gate, Latch or Input.
     /// It will also print the bit-value associated with the node
     /// computed by the emulation processor.
-    pub fn debug_graph(&mut self, dbg_node: NodeIndex, board: &Board, rs: &IndexMap<String, FourStateBit>) -> String {
+    pub fn debug_graph(
+        &mut self,
+        dbg_node: NodeIndex,
+        board: &Board,
+        rs: &IndexMap<String, FourStateBit>
+    ) -> String {
         for nidx in self.graph.node_indices() {
             let node = self.graph.node_weight_mut(nidx).unwrap();
             if !rs.contains_key(node.name()) {
@@ -244,6 +249,8 @@ impl Circuit {
                     if !found_mismatch && !found_unknown {
                         set_debug(&mut self.graph, *nidx, NodeCheckState::Match);
                     }
+                } else if node.is() == Primitive::ConstLut {
+                    set_debug(&mut self.graph, *nidx, NodeCheckState::Match);
                 }
             }
         }
@@ -258,7 +265,7 @@ impl Circuit {
             vis_map.visit(nidx);
 
             let node = self.graph.node_weight(nidx).unwrap();
-            if node.is() == Primitive::Gate || node.is() == Primitive::Latch {
+            if node.info().debug.check == NodeCheckState::Match {
                 if !root {
                     continue;
                 } else {

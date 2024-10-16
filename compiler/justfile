@@ -8,6 +8,7 @@ lut_file   := dir + "/" + top + ".lut.blif"
 instance_path := ""
 time_steps_per_cycle := "4"
 ref_skip_cycles := "470"
+check_cycle_period := "1"
 num_mods := "33"
 num_procs := "64"
 sram_width := "256"
@@ -59,7 +60,8 @@ bee_vcd $RUST_BACKTRACE="1":
        --instance-path {{instance_path}} \
        --ref-skip-cycles {{ref_skip_cycles}} \
        --clock-start-low \
-       --timesteps-per-cycle {{time_steps_per_cycle}} | tee DEBUG
+       --timesteps-per-cycle {{time_steps_per_cycle}} \
+       --check-cycle-period {{check_cycle_period}} | tee DEBUG
 
 [group: 'run']
 bee $RUST_BACKTRACE="1":
@@ -73,4 +75,5 @@ bee $RUST_BACKTRACE="1":
        --num-procs {{num_procs}} \
        --sram-width {{sram_width}} \
        --sram-entries {{sram_entries}} \
-       --max-steps 65536 | tee DEBUG
+       --max-steps 65536 \
+       --check-cycle-period {{check_cycle_period}} | tee DEBUG
