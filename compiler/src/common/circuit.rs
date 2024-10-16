@@ -99,10 +99,12 @@ impl Circuit {
     }
 
     /// #debug_graph
-    /// Given a `dbg_node` in the graph, search for all parents nodes up until
-    /// it reaches Gate, Latch or Input.
-    /// It will also print the bit-value associated with the node
-    /// computed by the emulation processor.
+    /// - Given a `dbg_node` in the graph and reference signal values `rs` from
+    /// a VCD file print a debug graph.
+    /// - Perform a BFS and compare each node to the `rs` signals. If it matches or
+    /// if all of its parent node matches, we mark it as `NodeCheckState::Match`
+    /// and print it in green.
+    /// - Unknown nodes are purple and mismatched nodes are red.
     pub fn debug_graph(
         &mut self,
         dbg_node: NodeIndex,
@@ -366,6 +368,110 @@ impl Circuit {
         }
         outstring.push_str("}");
 
+        return outstring;
+    }
+
+    /// #debug_graph_2
+    /// - Given a `dbg_node` in the graph, search for all parents nodes up until
+    /// it reaches Gate, Latch or Input.
+    /// - It will also print the bit-value associated with the node
+    /// computed by the emulation processor.
+    pub fn debug_graph_2(&self, dbg_node: NodeIndex, board: &Board) -> String {
+        let mut node_cnt = 0;
+        let indent: &str = "    ";
+        let mut vis_map = self.graph.visit_map();
+        let mut q = vec![];
+        q.push(dbg_node);
+        let mut root = true;
+
+        while !q.is_empty() {
+            let nidx = q.remove(0);
+            vis_map.visit(nidx);
+
+            let node = self.graph.node_weight(nidx).unwrap();
+            if node.is() == Primitive::Gate || node.is() == Primitive::Latch {
+                if !root {
+                    continue;
+                } else {
+                    root = false;
+                }
+            }
+            node_cnt += 1;
+
+            if node_cnt > 50 {
+                break;
+            }
+
+            let mut parents = self.graph.neighbors_directed(nidx, Incoming).detach();
+            while let Some(pidx) = parents.next_node(&self.graph) {
+                q.push(pidx);
+            }
+        }
+
+        let mut outstring = "digraph {\n".to_string();
+
+        // print nodes
+        for nidx in self.graph.node_indices() {
+            if vis_map.is_visited(&nidx) {
+                let node = self.graph.node_weight(nidx).unwrap();
+                let val = match board.peek(node.name()) {
+                    Some(v) => v,
+                    None    => Bit::MAX
+                };
+                match &node.prim {
+                    CircuitPrimitive::Lut { inputs:_, output:_, table } => {
+                        outstring.push_str(&format!(
+                            "{}{} [ label = {:?} ]\n",
+                            indent,
+                            nidx.index(),
+                            format!("{} {:?}\nmod: {} proc: {}\nasap: {} alap: {} pc: {}\nlut: {:?} val: {}",
+                                    node.name(),
+                                    node.is(),
+                                    node.info().coord.module,
+                                    node.info().coord.proc,
+                                    node.info().rank.asap,
+                                    node.info().rank.alap,
+                                    node.info().pc,
+                                    table,
+                                    val)));
+                    }
+                    _ => {
+                        outstring.push_str(&format!(
+                            "{}{} [ label = {:?} ]\n",
+                            indent,
+                            nidx.index(),
+                            format!("{} {:?}\nmod: {} proc: {}\nasap: {} alap: {} pc: {}\nval: {}",
+                                    node.name(),
+                                    node.is(),
+                                    node.info().coord.module,
+                                    node.info().coord.proc,
+                                    node.info().rank.asap,
+                                    node.info().rank.alap,
+                                    node.info().pc,
+                                    val)));
+                    }
+                }
+            }
+        }
+
+        // print edges
+        for nidx in self.graph.node_indices() {
+            if vis_map.is_visited(&nidx) {
+                let mut childs = self.graph.neighbors_directed(nidx, Outgoing).detach();
+                while let Some(cidx) = childs.next_node(&self.graph) {
+                    if vis_map.is_visited(&cidx) {
+                        outstring.push_str(&format!(
+                            "{}{} {} {} \n",
+                            indent,
+                            nidx.index(),
+                            "->",
+                            cidx.index()
+                        ));
+                    }
+                }
+            }
+        }
+        outstring.push_str("}");
         return outstring;
     }
 

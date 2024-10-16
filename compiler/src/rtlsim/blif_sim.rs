@@ -1,5 +1,5 @@
 use crate::common::circuit::*;
-use crate::common::mapping::SRAMMapping;
+use crate::common::mapping::{SRAMMapping, SRAMPortType};
 use crate::common::primitive::*;
 use crate::rtlsim::rtlsim_utils::InputStimuliMap;
 use crate::fsim::sram::{SRAMEntry, SRAMInputs};
@@ -29,6 +29,66 @@ impl SRAMState {
             mem: vec![SRAMEntry::new(cfg.width_bits); 1024], // FIXME
             input: SRAMInputs::new(cfg.width_bits),
             rddata: SRAMEntry::new(cfg.width_bits)
+        }
+    }
+
+    pub fn update_cycle(self: &mut Self) {
+        let (ren, wen, waddr) = match self.cfg.port_type {
+            SRAMPortType::OneRdOneWrPortSRAM => {
+                (self.input.rd_en != 0,
+                 self.input.wr_en != 0,
+                 self.input.wr_addr)
+            }
+            SRAMPortType::SinglePortSRAM => {
+                (self.input.wr_en == 0 && self.input.rd_en != 0,
+                 self.input.wr_en != 0 && self.input.rd_en != 0,
+                 self.input.rd_addr)
+            }
+        };
+
+        // Write to SRAM
+        if wen {
+            let wdata = if self.cfg.wmask_bits == 0 {
+                // No mask, just write the entire input wr_data
+                self.input.wr_data.clone()
+            } else {
+                // Read the current data
+                let cur_data = self.mem.get(waddr as usize).unwrap();
+
+                // Compute mask
+                let num_bits_per_mask = self.cfg.width_bits / self.cfg.wmask_bits;
+                let mut mask = vec![0u8; self.cfg.width_bits as usize];
+                for i in 0..self.cfg.wmask_bits {
+                    let mask_value = self.input.wr_mask.get(i as usize).unwrap();
+                    for j in 0..num_bits_per_mask {
+                        let idx = i * num_bits_per_mask + j;
+                        *mask.get_mut(idx as usize).unwrap() = *mask_value;
+                    }
+                }
+
+                assert!(mask.len() == self.input.wr_data.len(),
+                    "mask {:?}, expected length: {}, num_masks: {} num_bits_per_mask: {}",
+                    mask, self.input.wr_data.len(), self.cfg.wmask_bits, num_bits_per_mask);
+
+                // Compute masked written value
+                let mut ret = vec![];
+                for ((m, w), r) in mask.iter().zip(self.input.wr_data.iter()).zip(cur_data.bits.iter()) {
+                    if *m == 0 {
+                        ret.push(*r);
+                    } else {
+                        ret.push(*w);
+                    }
+                }
+                ret
+            };
+
+            // Perform the write
+            self.mem[waddr as usize] = SRAMEntry { bits:  wdata };
+        }
+
+        // Read to SRAM
+        if ren {
+            self.rddata = self.mem.get(self.input.rd_addr as usize).unwrap().clone();
         }
     }
 }
@@ -206,7 +266,6 @@ impl BlifSimulator {
 
                     self.srams.get_mut(&module).unwrap()
                         .input.set_rd_en(node_value);
-
                 }
                 CircuitPrimitive::SRAMWrEn { name:_ } => {
                     node_value = self.circuit.graph
@@ -254,7 +313,7 @@ impl BlifSimulator {
                         .info().debug.val;
 
                     self.srams.get_mut(&module).unwrap()
-                        .input.set_wr_en(node_value);
+                        .input.set_rd_en(node_value);
                 }
                 CircuitPrimitive::SRAMRdWrMode { name:_ } => {
                     node_value = self.circuit.graph
@@ -278,11 +337,357 @@ impl BlifSimulator {
                 _ => {
                 }
             }
-            self.circuit.graph.node_weight_mut(*nidx).unwrap().info_mut().debug.val = node_value;
+            self.circuit.graph
+                .node_weight_mut(*nidx).unwrap()
+                .info_mut().debug.val = node_value;
         }
 
-        // TODO: update self.srams
+        for (_, s) in self.srams.iter_mut() {
+            s.update_cycle();
+        }
 
         self.cur_cycle += 1;
+    }
+}
+
+#[cfg(test)]
+pub mod blif_sim_test {
+    use super::*;
+    use crate::common::config::*;
+    use crate::common::utils::save_graph_pdf;
+    use crate::passes::runner;
+    use crate::passes::blif_to_circuit::blif_to_circuit;
+    use crate::fsim::board::*;
+    use crate::rtlsim::rtlsim_utils::*;
+    use std::env;
+    use std::fs;
+    use std::cmp::max;
+    use std::process::Command;
+    use indicatif::ProgressBar;
+    use test_case::test_case;
+
+    fn compare_blif_sim_to_fsim(args: Args) -> std::io::Result<()> {
+        let sim_dir = format!("blif-sim-dir-{}", args.top_mod);
+        let mut cwd = env::current_dir()?;
+        cwd.push(sim_dir.clone());
+        Command::new("mkdir").arg(&cwd).status()?;
+
+        println!("Parsing blif file");
+        let res = blif_to_circuit(&args.blif_file_path);
+        let mut circuit = match res {
+            Ok(c) => c,
+            Err(e) => {
+                return Err(std::io::Error::other(format!("{}", e)));
+            }
+        };
+
+        circuit.set_cfg(
+            PlatformConfig {
+                num_mods:          args.num_mods,
+                num_procs:         args.num_procs,
+                max_steps:         args.max_steps,
+                lut_inputs:        args.lut_inputs,
+                inter_proc_nw_lat: args.inter_proc_nw_lat,
+                inter_mod_nw_lat:  args.inter_mod_nw_lat,
+                imem_lat:          args.imem_lat,
+                dmem_rd_lat:       args.dmem_rd_lat,
+                dmem_wr_lat:       args.dmem_wr_lat,
+                sram_width:        args.sram_width,
+                sram_entries:      args.sram_entries,
+                sram_rd_ports:     args.sram_rd_ports,
+                sram_wr_ports:     args.sram_wr_ports,
+                sram_rd_lat:       args.sram_rd_lat,
+                sram_wr_lat:       args.sram_wr_lat,
+                topology: GlobalNetworkTopology::new(args.num_mods, args.num_procs)
+            },
+            CompilerConfig {
+                top_module: args.top_mod.clone(),
+                output_dir: cwd.to_str().unwrap().to_string(),
+                dbg_tail_length: args.dbg_tail_length,
+                dbg_tail_threshold: args.dbg_tail_threshold,
+            }
+        );
+
+        println!("Running compiler passes with config: {:#?}", &circuit.platform_cfg);
+        runner::run_compiler_passes(&mut circuit);
+        println!("Compiler pass finished");
+
+        let verilog_str = match fs::read_to_string(&args.sv_file_path) {
+            Ok(content) => content,
+            Err(e) => {
+                return Err(std::io::Error::other(format!(
+                    "Error while parsing:\n{}",
+                    e
+                )));
+            }
+        };
+
+        // convert input stimuli to bit-blasted input stimuli
+        let ports = get_io(verilog_str.to_string(), args.top_mod.to_string());
+        let input_stimuli = get_input_stimuli(&args.input_stimuli_path);
+        let input_stimuli_blasted = bitblast_input_stimuli(&input_stimuli, &ports);
+
+        let mut board = Board::from(&circuit);
+        let mut bsim  = BlifSimulator::new(circuit.clone(), input_stimuli_blasted.clone());
+
+        let cycles = input_stimuli_blasted.values().fold(0, |x, y| max(x, y.len()));
+        assert!(cycles > 1, "No point in running {}", cycles);
+
+        let bar = ProgressBar::new(cycles as u64);
+        for cycle in 0..(cycles-1) {
+            bar.inc(1);
+
+            // Collect input stimuli for the current cycle by name
+            let mut input_stimuli_by_name: IndexMap<String, Bit> = IndexMap::new();
+            for key in input_stimuli_blasted.keys() {
+                let val = input_stimuli_blasted[key].get(cycle);
+                match val {
+                    Some(b) => input_stimuli_by_name.insert(key.to_string(), *b as Bit),
+                    None => None
+                };
+            }
+
+            // Find the step at which the input has to be poked
+            // Save that in the input_stimuli_by_step
+            let mut input_stimuli_by_step: IndexMap<u32, Vec<(&str, Bit)>> = IndexMap::new();
+            for (sig, bit) in input_stimuli_by_name.iter() {
+                match board.nodeindex(sig) {
+                    Some(nidx) => {
+                        let pc = circuit.graph.node_weight(nidx).unwrap().info().pc;
+                        let step = pc + circuit.platform_cfg.pc_ldm_offset();
+                        if input_stimuli_by_step.get(&step) == None {
+                            input_stimuli_by_step.insert(step, vec![]);
+                        }
+                        input_stimuli_by_step.get_mut(&step).unwrap().push((sig, *bit));
+                    }
+                    None => {
+                    }
+                }
+            }
+
+            // Run emulator & blif simulator
+            board.run_cycle(&input_stimuli_by_step);
+            bsim.run_cycle();
+
+            let mut found_mismatch = false;
+            for nidx in bsim.circuit.graph.node_indices() {
+                let node = bsim.circuit.graph.node_weight(nidx).unwrap();
+                let bsim_val = node.info().debug.val;
+                let opt_emul_val = board.peek(node.name());
+                match opt_emul_val {
+                    Some(emul_val) => {
+                        if bsim_val != emul_val {
+                            found_mismatch = true;
+
+                            println!("node: {:?} blif sim val {} emul sim val {}",
+                                circuit.graph.node_weight(nidx).unwrap(),
+                                bsim_val,
+                                emul_val);
+
+                            save_graph_pdf(
+                                &circuit.debug_graph_2(nidx, &board),
+                                &format!("{}/after-cycle-{}-signal-{}.dot",
+                                    cwd.to_str().unwrap(), cycle, node.name()),
+                                &format!("{}/after-cycle-{}-signal-{}.pdf",
+                                    cwd.to_str().unwrap(), cycle, node.name()))?;
+                        }
+                    }
+                    None => {
+                    }
+                }
+            }
+
+            if found_mismatch {
+                return Err(std::io::Error::other(format!("Simulation mismatch")));
+            }
+        }
+        bar.finish();
+
+        return Ok(());
+    }
+
+    fn test_blif_sim(
+        sv_file_path: &str,
+        top_mod: &str,
+        input_stimuli_path: &str,
+        blif_file_path: &str,
+        num_mods: u32,
+        num_procs: u32,
+        inter_proc_nw_lat: u32,
+        inter_mod_nw_lat: u32,
+        imem_lat: u32,
+        dmem_rd_lat: u32,
+        dmem_wr_lat: u32,
+    ) -> bool {
+        let args = Args {
+            verbose:            false,
+            sv_file_path:       sv_file_path.to_string(),
+            top_mod:            top_mod.to_string(),
+            input_stimuli_path: input_stimuli_path.to_string(),
+            blif_file_path:     blif_file_path.to_string(),
+            vcd:                None,
+            instance_path:      "testharness.top".to_string(),
+            clock_start_low:    false,
+            timesteps_per_cycle: 2,
+            ref_skip_cycles:    4,
+            no_check_cycles:    0,
+            check_cycle_period: 1,
+            num_mods:           num_mods,
+            num_procs:          num_procs,
+            max_steps:          65536,
+            lut_inputs:         3,
+            inter_proc_nw_lat:  inter_proc_nw_lat,
+            inter_mod_nw_lat:   inter_mod_nw_lat,
+            imem_lat:           imem_lat,
+            dmem_rd_lat:        dmem_rd_lat,
+            dmem_wr_lat:        dmem_wr_lat,
+            sram_width:         128,
+            sram_entries:       1024,
+            sram_rd_ports:      1,
+            sram_wr_ports:      1,
+            sram_rd_lat:        1,
+            sram_wr_lat:        1,
+            dbg_tail_length:    u32::MAX, // don't print debug graph when testing
+            dbg_tail_threshold: u32::MAX  // don't print debug graph when testing
+        };
+        match compare_blif_sim_to_fsim(args) {
+            Ok(_)  => { return true;  }
+            Err(_) => { return false; }
+        }
+    }
+
+    #[test_case(5, 4, 0, 0, 1, 0; "mod 5 procs 4 imem 0 dmem rd 0 wr 1 network 0")]
+    pub fn test_adder(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
+        assert_eq!(
+            test_blif_sim(
+                "../examples/Adder.sv",
+                "Adder",
+                "../examples/Adder.input",
+                "../examples/Adder.lut.blif",
+                num_mods, num_procs,
+                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+            ),
+            true
+        );
+    }
+
+    #[test_case(5, 4, 0, 0, 1, 0; "mod 5 procs 4 imem 0 dmem rd 0 wr 1 network 0")]
+    pub fn test_testreginit(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
+        assert_eq!(
+            test_blif_sim(
+                "../examples/TestRegInit.sv",
+                "TestRegInit",
+                "../examples/TestRegInit.input",
+                "../examples/TestRegInit.lut.blif",
+                num_mods, num_procs,
+                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+            ),
+            true
+        );
+    }
+
+    #[test_case(2, 8, 0, 0, 1, 0; "mod 2 procs 8 imem 0 dmem rd 0 wr 1 network 0")]
+    pub fn test_const(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
+        assert_eq!(
+            test_blif_sim(
+                "../examples/Const.sv",
+                "Const",
+                "../examples/Const.input",
+                "../examples/Const.lut.blif",
+                num_mods, num_procs,
+                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+            ),
+            true
+        );
+    }
+
+    #[test_case(9, 8, 0, 0, 1, 0; "mod 9 procs 8 imem 0 dmem rd 0 wr 1 network 0")]
+    pub fn test_gcd(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
+        assert_eq!(
+            test_blif_sim(
+                "../examples/GCD.sv",
+                "GCD",
+                "../examples/GCD.input",
+                "../examples/GCD.lut.blif",
+                num_mods, num_procs,
+                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+            ),
+            true
+        );
+    }
+
+    #[test_case(9, 8, 0, 0, 1, 0; "mod 9 procs 8 imem 0 dmem rd 0 wr 1 network 0")]
+    pub fn test_fir(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
+        assert_eq!(
+            test_blif_sim(
+                "../examples/Fir.sv",
+                "Fir",
+                "../examples/Fir.input",
+                "../examples/Fir.lut.blif",
+                num_mods, num_procs,
+                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+            ),
+            true
+        );
+    }
+
+    #[test_case(9, 8, 0, 0, 1, 0; "mod 9 procs 8 imem 0 dmem rd 0 wr 1 network 0")]
+    pub fn test_myqueue(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
+        assert_eq!(
+            test_blif_sim(
+                "../examples/MyQueue.sv",
+                "MyQueue",
+                "../examples/MyQueue.input",
+                "../examples/MyQueue.lut.blif",
+                num_mods, num_procs,
+                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+            ),
+            true
+        );
+    }
+
+    #[test_case(2, 8, 0, 0, 1, 0; "mod 2 procs 8 imem 0 dmem rd 0 wr 1 network 0")]
+    pub fn test_1r1w_sram(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
+        assert_eq!(
+            test_blif_sim(
+                "../examples/OneReadOneWritePortSRAM.sv",
+                "OneReadOneWritePortSRAM",
+                "../examples/OneReadOneWritePortSRAM.input",
+                "../examples/OneReadOneWritePortSRAM.lut.blif",
+                num_mods, num_procs,
+                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+            ),
+            true
+        );
+    }
+
+    #[test_case(2, 8, 0, 0, 1, 0; "mod 2 procs 8 imem 0 dmem rd 0 wr 1 network 0")]
+    pub fn test_1rw_sram(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
+        assert_eq!(
+            test_blif_sim(
+                "../examples/SinglePortSRAM.sv",
+                "SinglePortSRAM",
+                "../examples/SinglePortSRAM.input",
+                "../examples/SinglePortSRAM.lut.blif",
+                num_mods, num_procs,
+                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+            ),
+            true
+        );
+    }
+
+    #[test_case(2, 4, 0, 0, 1, 0; "mod 2 procs 4 imem 0 dmem rd 0 wr 1 network 0")]
+    pub fn test_pointer_chasing(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
+        assert_eq!(
+            test_blif_sim(
+                "../examples/PointerChasing.sv",
+                "PointerChasing",
+                "../examples/PointerChasing.input",
+                "../examples/PointerChasing.lut.blif",
+                num_mods, num_procs,
+                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+            ),
+            true
+        );
     }
 }

@@ -17,11 +17,11 @@ sram_entries := "1024"
 [group: 'clean']
 clean:
   rm -rf sim-dir-*
-
+  rm -rf blif-sim-dir-*
 
 [group: 'test']
 test $RUST_TEST_THREADS="1":
-  cargo test --release | tee DEBUG
+  cargo test --release --tests | tee DEBUG
 
 [group: 'echo']
 echo:
