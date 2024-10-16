@@ -21,7 +21,7 @@ clean:
 
 [group: 'test']
 test $RUST_TEST_THREADS="1":
-  cargo test --release --tests | tee DEBUG
+  cargo test --release --verbose | tee DEBUG
 
 [group: 'echo']
 echo:
