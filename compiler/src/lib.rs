@@ -90,6 +90,7 @@ pub fn compare_blif_sim_to_fsim(args: Args) -> std::io::Result<()> {
     assert!(cycles > 1, "No point in running {}", cycles);
 
     let bar = ProgressBar::new(cycles as u64);
+    let mut printed_compared_cnt = false;
     for cycle in 0..(cycles-1) {
         bar.inc(1);
 
@@ -101,6 +102,14 @@ pub fn compare_blif_sim_to_fsim(args: Args) -> std::io::Result<()> {
                 Some(b) => input_stimuli_by_name.insert(key.to_string(), *b as Bit),
                 None => None
             };
+        }
+
+        let mut has_reset = false;
+        for (s, b) in input_stimuli_by_name.iter() {
+            if !is_debug_reset(s) && is_reset_signal(s) && *b > 0 {
+                has_reset = true;
+                break;
+            }
         }
 
         // Find the step at which the input has to be poked
@@ -125,6 +134,10 @@ pub fn compare_blif_sim_to_fsim(args: Args) -> std::io::Result<()> {
         board.run_cycle(&input_stimuli_by_step);
         bsim.run_cycle();
 // bsim.circuit.save_graph(&format!("cycle-{}", cycle))?;
+
+        if has_reset {
+            continue;
+        }
 
         let mut compared_cnt = 0;
         let mut found_mismatch = false;
@@ -159,8 +172,9 @@ pub fn compare_blif_sim_to_fsim(args: Args) -> std::io::Result<()> {
             }
         }
 
-        if cycle == 0 {
+        if !printed_compared_cnt {
             println!("Compared {} nodes", compared_cnt);
+            printed_compared_cnt = true;
         }
 
         if found_mismatch {
