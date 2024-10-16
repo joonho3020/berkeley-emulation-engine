@@ -1,6 +1,6 @@
 use bee::common::config::*;
-use bee::test_emulator;
-use bee::ReturnCode;
+use bee::testing::fsim::test_emulator;
+use bee::testing::fsim::ReturnCode;
 use clap::Parser;
 
 fn main() -> std::io::Result<()> {
@@ -11,4 +11,3 @@ fn main() -> std::io::Result<()> {
     }
     Ok(())
 }
-

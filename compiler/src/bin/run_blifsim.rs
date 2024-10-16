@@ -1,5 +1,5 @@
 use bee::common::config::*;
-use bee::compare_blif_sim_to_fsim;
+use bee::testing::blifsim::compare_blif_sim_to_fsim;
 use clap::Parser;
 
 fn main() -> std::io::Result<()> {

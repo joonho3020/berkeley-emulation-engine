@@ -477,7 +477,7 @@ impl Circuit {
             }
             node_cnt += 1;
 
-            if node_cnt > 50 {
+            if node_cnt > 300 {
                 break;
             }
 
