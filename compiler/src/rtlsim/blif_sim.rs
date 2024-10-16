@@ -19,7 +19,9 @@ pub struct SRAMState {
     pub cfg: SRAMMapping,
     pub mem: Vec<SRAMEntry>,
     pub input: SRAMInputs,
-    pub rddata: SRAMEntry
+    pub rddata: SRAMEntry,
+    pub cur_rdaddr: Bits,
+
 }
 
 impl SRAMState {
@@ -28,7 +30,8 @@ impl SRAMState {
             cfg: cfg.clone(),
             mem: vec![SRAMEntry::new(cfg.width_bits); 1024], // FIXME
             input: SRAMInputs::new(cfg.width_bits),
-            rddata: SRAMEntry::new(cfg.width_bits)
+            rddata: SRAMEntry::new(cfg.width_bits),
+            cur_rdaddr: 0
         }
     }
 
@@ -45,6 +48,9 @@ impl SRAMState {
                  self.input.rd_addr)
             }
         };
+
+// println!("ren: {} wen: {} waddr: {} rdaddr: {}",
+// ren, wen, waddr, self.input.rd_addr);
 
         // Write to SRAM
         if wen {
@@ -88,8 +94,11 @@ impl SRAMState {
 
         // Read to SRAM
         if ren {
-            self.rddata = self.mem.get(self.input.rd_addr as usize).unwrap().clone();
+            self.cur_rdaddr = self.input.rd_addr;
         }
+        self.rddata = self.mem.get(self.cur_rdaddr as usize).unwrap().clone();
+
+        self.input.init();
     }
 }
 

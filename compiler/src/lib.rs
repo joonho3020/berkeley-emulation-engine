@@ -124,7 +124,9 @@ pub fn compare_blif_sim_to_fsim(args: Args) -> std::io::Result<()> {
         // Run emulator & blif simulator
         board.run_cycle(&input_stimuli_by_step);
         bsim.run_cycle();
+// bsim.circuit.save_graph(&format!("cycle-{}", cycle))?;
 
+        let mut compared_cnt = 0;
         let mut found_mismatch = false;
         for nidx in bsim.circuit.graph.node_indices() {
             let node = bsim.circuit.graph.node_weight(nidx).unwrap();
@@ -132,11 +134,15 @@ pub fn compare_blif_sim_to_fsim(args: Args) -> std::io::Result<()> {
             let opt_emul_val = board.peek(node.name());
             match opt_emul_val {
                 Some(emul_val) => {
+                    compared_cnt += 1;
                     if bsim_val != emul_val {
-                        found_mismatch = true;
+                        if !found_mismatch {
+                            println!("========= cycle: {} ==============", cycle);
+                            found_mismatch = true;
+                        }
 
                         println!("node: {:?} blif sim val {} emul sim val {}",
-                            circuit.graph.node_weight(nidx).unwrap(),
+                            circuit.graph.node_weight(nidx).unwrap().name(),
                             bsim_val,
                             emul_val);
 
@@ -151,6 +157,10 @@ pub fn compare_blif_sim_to_fsim(args: Args) -> std::io::Result<()> {
                 None => {
                 }
             }
+        }
+
+        if cycle == 0 {
+            println!("Compared {} nodes", compared_cnt);
         }
 
         if found_mismatch {

@@ -1,6 +1,7 @@
 **/*.dot
 **/.DS_STORE
 **/sim-dir-*
+**/blif-sim-dir-*
 **/ise_project
 
 examples/*.blif

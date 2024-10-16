@@ -182,7 +182,10 @@ impl Board {
         self.global_switch.run_cycle();
     }
 
-    pub fn run_cycle(self: &mut Self, input_stimuli: &IndexMap<u32, Vec<(&str, Bit)>>) {
+    pub fn run_cycle(
+        self: &mut Self,
+        input_stimuli: &IndexMap<u32, Vec<(&str, Bit)>>
+    ) {
         for step in 0..self.host_steps {
             match input_stimuli.get(&(step as u32)) {
                 Some(vec) => {
@@ -196,7 +199,11 @@ impl Board {
         }
     }
 
-    pub fn run_cycle_verbose(self: &mut Self, input_stimuli: &IndexMap<u32, Vec<(&str, Bit)>>, cycle: &u32) {
+    pub fn run_cycle_verbose(
+        self: &mut Self,
+        input_stimuli: &IndexMap<u32, Vec<(&str, Bit)>>,
+        cycle: &u32
+    ) {
         println!("==================== Running Cycle {} ======================", cycle);
         for step in 0..self.host_steps {
             match input_stimuli.get(&(step as u32)) {

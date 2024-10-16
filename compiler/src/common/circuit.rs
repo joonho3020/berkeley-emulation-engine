@@ -536,14 +536,15 @@ impl Debug for Circuit {
                 "{}{} [ label = {:?} color = \"{}\"]\n",
                 indent,
                 nidx.index(),
-                format!("{} {:?}\nmod: {} proc: {} pc: {}\nasap: {} alap: {}\n",
+                format!("{} {:?}\nmod: {} proc: {} pc: {}\nasap: {} alap: {}\ndbg val: {}",
                         node.name(),
                         node.is(),
                         node.info().coord.module,
                         node.info().coord.proc,
                         node.info().pc,
                         node.info().rank.asap,
-                        node.info().rank.alap),
+                        node.info().rank.alap,
+                        node.info().debug.val),
                 color
             )?;
 
@@ -577,14 +578,15 @@ impl Debug for Circuit {
                 "{}{} [ label = {:?} color = \"{}\"]\n",
                 indent,
                 nidx.index(),
-                format!("{} {:?}\nmod: {} proc: {} pc: {}\nasap: {} alap: {}\n",
+                format!("{} {:?}\nmod: {} proc: {} pc: {}\nasap: {} alap: {}\ndbg val: {}",
                         node.name(),
                         node.is(),
                         node.info().coord.module,
                         node.info().coord.proc,
                         node.info().pc,
                         node.info().rank.asap,
-                        node.info().rank.alap),
+                        node.info().rank.alap,
+                        node.info().debug.val),
                 color
             )?;
         }

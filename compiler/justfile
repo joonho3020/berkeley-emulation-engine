@@ -77,3 +77,17 @@ bee $RUST_BACKTRACE="1":
        --sram-entries {{sram_entries}} \
        --max-steps 65536 \
        --check-cycle-period {{check_cycle_period}} | tee DEBUG
+
+[group: 'run']
+run_blifsim $RUST_BACKTRACE="1":
+  cargo run --release \
+    --bin run_blifsim \
+    -- -s {{svfile}} \
+       -t {{top}} \
+       -i {{input_file}} \
+       -b {{lut_file}} \
+       --num-mods {{num_mods}} \
+       --num-procs {{num_procs}} \
+       --sram-width {{sram_width}} \
+       --sram-entries {{sram_entries}} \
+       --max-steps 65536 | tee DEBUG

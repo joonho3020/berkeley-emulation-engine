@@ -136,6 +136,9 @@ impl HWNode {
             CircuitPrimitive::SRAMWrAddr { name, .. }        => &name,
             CircuitPrimitive::SRAMWrMask { name, .. }        => &name,
             CircuitPrimitive::SRAMWrData { name, .. }        => &name,
+            CircuitPrimitive::SRAMRdWrEn { name }            => &name,
+            CircuitPrimitive::SRAMRdWrMode { name }          => &name,
+            CircuitPrimitive::SRAMRdWrAddr { name, .. }      => &name,
             _ => ""
         }
     }
