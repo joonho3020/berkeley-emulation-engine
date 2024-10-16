@@ -1,0 +1,76 @@
+top := "Adder"
+vcd_file := "hello.vcd"
+dir := "../examples/digitaltop"
+vcd        := dir + "/" + vcd_file
+svfile     := dir + "/" + top + ".sv"
+input_file := dir + "/" + top + ".input"
+lut_file   := dir + "/" + top + ".lut.blif"
+instance_path := ""
+time_steps_per_cycle := "4"
+ref_skip_cycles := "470"
+num_mods := "33"
+num_procs := "64"
+sram_width := "256"
+sram_entries := "1024"
+
+[group: 'clean']
+clean:
+  rm -rf sim-dir-*
+
+
+[group: 'test']
+test $RUST_TEST_THREADS="1":
+  cargo test --release | tee DEBUG
+
+[group: 'echo']
+echo:
+  echo {{top}}
+  echo {{svfile}}
+  echo {{input_file}}
+  echo {{instance_path}}
+
+[group: 'run']
+run_test_gen_from_vcd $RUST_BACKTRACE="1":
+  cargo run --release \
+    --bin run_test_gen_from_vcd \
+    -- --vcd {{vcd}} \
+       --sv-file-path {{svfile}}  \
+       --top-mod {{top}} \
+       --instance-path {{instance_path}} \
+       --output {{input_file}} \
+       --clock-start-low \
+       --timesteps-per-cycle {{time_steps_per_cycle}} \
+       --ref-skip-cycles {{ref_skip_cycles}} | tee DEBUG
+
+[group: 'run']
+bee_vcd $RUST_BACKTRACE="1":
+  cargo run --release \
+    --bin bee \
+    -- -s {{svfile}} \
+       -t {{top}} \
+       -i {{input_file}} \
+       -b {{lut_file}} \
+       --vcd {{vcd}} \
+       --num-mods {{num_mods}} \
+       --num-procs {{num_procs}} \
+       --sram-width {{sram_width}} \
+       --sram-entries {{sram_entries}} \
+       --max-steps 65536 \
+       --instance-path {{instance_path}} \
+       --ref-skip-cycles {{ref_skip_cycles}} \
+       --clock-start-low \
+       --timesteps-per-cycle {{time_steps_per_cycle}} | tee DEBUG
+
+[group: 'run']
+bee $RUST_BACKTRACE="1":
+  cargo run --release \
+    --bin bee \
+    -- -s {{svfile}} \
+       -t {{top}} \
+       -i {{input_file}} \
+       -b {{lut_file}} \
+       --num-mods {{num_mods}} \
+       --num-procs {{num_procs}} \
+       --sram-width {{sram_width}} \
+       --sram-entries {{sram_entries}} \
+       --max-steps 65536 | tee DEBUG
