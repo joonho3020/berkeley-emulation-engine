@@ -6,18 +6,18 @@ use std::fmt::Debug;
 
 
 #[derive(Default, Clone)]
-struct SRAMEntry {
+pub struct SRAMEntry {
     pub bits: Vec<Bit>
 }
 
 impl SRAMEntry {
-    fn new(width: u32) -> Self {
+    pub fn new(width: u32) -> Self {
         SRAMEntry {
             bits: vec![0; width as usize]
         }
     }
 
-    fn to_u64_vec(self: &Self) -> Vec<u64> {
+    pub fn to_u64_vec(self: &Self) -> Vec<u64> {
         let mut result = Vec::new();
         let mut current = 0u64;
 
@@ -32,6 +32,10 @@ impl SRAMEntry {
         }
         result
     }
+
+    pub fn bit(self: &Self, idx: u32) -> Bit {
+        self.bits.get(idx as usize).unwrap().clone()
+    }
 }
 
 impl Debug for SRAMEntry {
@@ -41,7 +45,7 @@ impl Debug for SRAMEntry {
 }
 
 #[derive(Default, Debug, Clone)]
-struct SRAMInputs {
+pub struct SRAMInputs {
     pub rd_en: Bit,
     pub wr_en: Bit,
     pub rd_addr: Bits,
@@ -51,7 +55,7 @@ struct SRAMInputs {
 }
 
 impl SRAMInputs {
-    fn new(width_bits: u32) -> Self {
+    pub fn new(width_bits: u32) -> Self {
         SRAMInputs {
             rd_en: 0,
             wr_en: 0,
@@ -62,7 +66,7 @@ impl SRAMInputs {
         }
     }
 
-    fn init(self: &mut Self) {
+    pub fn init(self: &mut Self) {
         self.rd_en = 0;
         self.wr_en = 0;
         self.rd_addr = 0;
@@ -75,28 +79,28 @@ impl SRAMInputs {
         }
     }
 
-    fn set_rd_en(self: &mut Self, ibit: Bit) {
+    pub fn set_rd_en(self: &mut Self, ibit: Bit) {
         self.rd_en = ibit;
     }
 
-    fn set_wr_en(self: &mut Self, ibit: Bit) {
+    pub fn set_wr_en(self: &mut Self, ibit: Bit) {
         self.wr_en = ibit;
     }
 
-    fn set_rd_addr(self: &mut Self, ibit: Bit, idx: u32) {
+    pub fn set_rd_addr(self: &mut Self, ibit: Bit, idx: u32) {
         self.rd_addr |= (ibit as u32) << idx;
     }
 
-    fn set_wr_addr(self: &mut Self, ibit: Bit, idx: u32) {
+    pub fn set_wr_addr(self: &mut Self, ibit: Bit, idx: u32) {
         self.wr_addr |= (ibit as u32) << idx;
     }
 
-    fn set_wr_data(self: &mut Self, ibit: Bit, idx: u32) {
+    pub fn set_wr_data(self: &mut Self, ibit: Bit, idx: u32) {
         let bit = self.wr_data.get_mut(idx as usize).unwrap();
         *bit = ibit;
     }
 
-    fn set_wr_mask(self: &mut Self, ibit: Bit, idx: u32) {
+    pub fn set_wr_mask(self: &mut Self, ibit: Bit, idx: u32) {
         let bit = self.wr_mask.get_mut(idx as usize).unwrap();
         *bit = ibit;
     }

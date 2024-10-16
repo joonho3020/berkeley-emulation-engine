@@ -260,6 +260,7 @@ impl Circuit {
         q.push(dbg_node);
         let mut root = true;
 
+        let mut node_cnt = 0;
         while !q.is_empty() {
             let nidx = q.remove(0);
             vis_map.visit(nidx);
@@ -272,6 +273,12 @@ impl Circuit {
                     root = false;
                 }
             }
+
+            node_cnt += 1;
+            if node_cnt >= 300 {
+                break;
+            }
+
             let mut parents = self.graph.neighbors_directed(nidx, Incoming).detach();
             while let Some(pidx) = parents.next_node(&self.graph) {
                 q.push(pidx);

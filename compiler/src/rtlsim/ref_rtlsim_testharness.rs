@@ -9,7 +9,7 @@ use std::{env, fs};
 
 /// Generates a testharness String
 fn generate_testbench_string(
-    input_stimuli: &IndexMap<String, Vec<u64>>,
+    input_stimuli: &InputStimuliMap,
     io: Vec<Port>,
     top: String,
 ) -> String {
@@ -121,7 +121,7 @@ end
 fn generate_testbench(
     file_path: &str,
     top_mod: &str,
-    input_stimuli: &IndexMap<String, Vec<u64>>,
+    input_stimuli: &InputStimuliMap,
 ) -> Result<String, String> {
     let verilog_str = match fs::read_to_string(file_path) {
         Ok(content) => content,
@@ -230,7 +230,7 @@ pub fn run_rtl_simulation(
     Ok(())
 }
 
-pub fn output_value_fmt(values: &IndexMap<String, Vec<u64>>) -> String {
+pub fn output_value_fmt(values: &InputStimuliMap) -> String {
     let mut output_str = "** Start Simulation **\n".to_string();
     let cycles = values.values().fold(0, |x, y| max(x, y.len()));
     for cycle in 0..cycles {

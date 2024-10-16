@@ -4,6 +4,8 @@ use rand::prelude::*;
 
 use crate::common::utils::write_string_to_file;
 
+pub type InputStimuliMap = IndexMap<String, Vec<u64>>;
+
 #[derive(Debug, Clone)]
 pub struct Port {
     pub name: String,
@@ -59,7 +61,7 @@ pub fn get_io(verilog_str: String, top: String) -> Vec<Port> {
 }
 
 /// Parses a file containing the stimuli of a test module
-pub fn get_input_stimuli(file_path: &str) -> IndexMap<String, Vec<u64>> {
+pub fn get_input_stimuli(file_path: &str) -> InputStimuliMap {
     let input_str = match fs::read_to_string(file_path) {
         Ok(content) => content,
         Err(_) => "".to_string(),
@@ -84,10 +86,10 @@ pub fn get_input_stimuli(file_path: &str) -> IndexMap<String, Vec<u64>> {
 }
 
 pub fn bitblast_input_stimuli(
-    input_stimuli: &IndexMap<String, Vec<u64>>,
+    input_stimuli: &InputStimuliMap,
     ports: &Vec<Port>,
-) -> IndexMap<String, Vec<u64>> {
-    let mut input_stimuli_blasted: IndexMap<String, Vec<u64>> = IndexMap::new();
+) -> InputStimuliMap {
+    let mut input_stimuli_blasted: InputStimuliMap = InputStimuliMap::new();
     for port in ports.iter() {
         if !input_stimuli.contains_key(&port.name) {
             continue;
@@ -130,9 +132,9 @@ pub fn bitblasted_port_names(ports: &Vec<Port>) -> Vec<String> {
 
 pub fn aggregate_bitblasted_values(
     ports: &Vec<Port>,
-    blasted_values: &mut IndexMap<String, Vec<u64>>,
-) -> IndexMap<String, Vec<u64>> {
-    let mut aggregated: IndexMap<String, Vec<u64>> = IndexMap::new();
+    blasted_values: &mut InputStimuliMap,
+) -> InputStimuliMap {
+    let mut aggregated: InputStimuliMap = InputStimuliMap::new();
     for port in ports.iter() {
         if port.input {
             continue;

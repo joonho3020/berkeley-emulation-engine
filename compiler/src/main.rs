@@ -149,7 +149,7 @@ fn run_test(
     circuit: &mut Circuit,
     board: &mut Board,
     board_lag: &mut Board,
-    input_stimuli_blasted: &IndexMap<String, Vec<u64>>,
+    input_stimuli_blasted: &InputStimuliMap,
     waveform_db: &mut WaveformDB,
     args: &Args
 ) -> std::io::Result<ReturnCode> {

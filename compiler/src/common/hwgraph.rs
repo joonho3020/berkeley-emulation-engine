@@ -17,7 +17,9 @@ pub enum NodeCheckState {
 
 #[derive(Debug, Clone, Default)]
 pub struct DebugInfo {
-    pub check: NodeCheckState
+    pub check: NodeCheckState,
+
+    pub val: Bit
 }
 
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Ord, Eq, Hash)]
