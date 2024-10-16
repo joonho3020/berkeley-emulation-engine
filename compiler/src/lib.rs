@@ -9,6 +9,7 @@ use std::fs;
 use std::cmp::max;
 use std::process::Command;
 use indicatif::ProgressBar;
+use petgraph::graph::NodeIndex;
 
 use crate::common::primitive::*;
 use crate::common::config::*;
@@ -133,7 +134,6 @@ pub fn compare_blif_sim_to_fsim(args: Args) -> std::io::Result<()> {
         // Run emulator & blif simulator
         board.run_cycle(&input_stimuli_by_step);
         bsim.run_cycle();
-// bsim.circuit.save_graph(&format!("cycle-{}", cycle))?;
 
         if has_reset {
             continue;
@@ -141,6 +141,7 @@ pub fn compare_blif_sim_to_fsim(args: Args) -> std::io::Result<()> {
 
         let mut compared_cnt = 0;
         let mut found_mismatch = false;
+        let mut mismatch_nodes: Vec<NodeIndex> = vec![];
         for nidx in bsim.circuit.graph.node_indices() {
             let node = bsim.circuit.graph.node_weight(nidx).unwrap();
             let bsim_val = node.info().debug.val;
@@ -159,12 +160,7 @@ pub fn compare_blif_sim_to_fsim(args: Args) -> std::io::Result<()> {
                             bsim_val,
                             emul_val);
 
-                        save_graph_pdf(
-                            &circuit.debug_graph_2(nidx, &board),
-                            &format!("{}/after-cycle-{}-signal-{}.dot",
-                                cwd.to_str().unwrap(), cycle, node.name()),
-                            &format!("{}/after-cycle-{}-signal-{}.pdf",
-                                cwd.to_str().unwrap(), cycle, node.name()))?;
+                        mismatch_nodes.push(nidx);
                     }
                 }
                 None => {
@@ -178,6 +174,14 @@ pub fn compare_blif_sim_to_fsim(args: Args) -> std::io::Result<()> {
         }
 
         if found_mismatch {
+            let outdir = &bsim.circuit.compiler_cfg.output_dir;
+            save_graph_pdf(
+                &bsim.circuit.print_given_nodes(&mismatch_nodes),
+                &format!("{}/after-cycle-{}.blifsim.dot",
+                         outdir, cycle),
+                &format!("{}/after-cycle-{}.blifsim.pdf",
+                         outdir, cycle))?;
+
             return Err(std::io::Error::other(format!("Simulation mismatch")));
         }
     }

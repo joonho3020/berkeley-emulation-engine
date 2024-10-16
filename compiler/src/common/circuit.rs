@@ -98,6 +98,85 @@ impl Circuit {
         Ok(())
     }
 
+    /// # print_given_nodes
+    /// - Given a `Vec<NodeIndex>` prints a subgraph containing those nodes
+    /// and the edges between them
+    pub fn print_given_nodes(
+        &self,
+        nodes: &Vec<NodeIndex>
+    ) -> String {
+        let mut outstring = "digraph {\n".to_string();
+        let indent: &str = "    ";
+
+        // print nodes
+        for nidx in nodes.iter() {
+            let node = self.graph.node_weight(*nidx).unwrap();
+            let color = "purple";
+            match &node.prim {
+                CircuitPrimitive::Lut { inputs:_, output:_, table } => {
+                    outstring.push_str(&format!(
+                        "{}{} [ label = {:?} color = \"{}\"]\n",
+                        indent,
+                        nidx.index(),
+                        format!("{} {:?}\nmod: {} proc: {}\nasap: {} alap: {} pc: {}\nlut: {:?} val: {}",
+                                node.name(),
+                                node.is(),
+                                node.info().coord.module,
+                                node.info().coord.proc,
+                                node.info().rank.asap,
+                                node.info().rank.alap,
+                                node.info().pc,
+                                table,
+                                node.info().debug.val),
+                        color));
+                }
+                _ => {
+                    outstring.push_str(&format!(
+                        "{}{} [ label = {:?} color = \"{}\"]\n",
+                        indent,
+                        nidx.index(),
+                        format!("{} {:?}\nmod: {} proc: {}\nasap: {} alap: {} pc: {}\nval: {}",
+                                node.name(),
+                                node.is(),
+                                node.info().coord.module,
+                                node.info().coord.proc,
+                                node.info().rank.asap,
+                                node.info().rank.alap,
+                                node.info().pc,
+                                node.info().debug.val),
+                        color));
+                }
+            }
+        }
+
+        // print edges
+        for nidx in nodes.iter() {
+            let node = self.graph.node_weight(*nidx).unwrap();
+
+            let mut childs = self.graph.neighbors_directed(*nidx, Outgoing).detach();
+            while let Some(cidx) = childs.next_node(&self.graph) {
+                let cnode = self.graph.node_weight(cidx).unwrap();
+                let mut op_idx = 0;
+                match &cnode.prim {
+                    CircuitPrimitive::Lut { inputs, .. } => {
+                        let lut_inputs = inputs.to_vec();
+                        op_idx = lut_inputs.iter().position(|n| n == node.name()).unwrap();
+                    }
+                    _ => { }
+                }
+
+                if nodes.contains(&cidx) {
+                    outstring.push_str(&format!("{}{} {} {} ",
+                        indent, nidx.index(), "->", cidx.index()));
+                    outstring.push_str(&format!("[ label=\"{}\" ]", op_idx));
+                }
+            }
+        }
+        outstring.push_str("}");
+
+        return outstring;
+    }
+
     /// #debug_graph
     /// - Given a `dbg_node` in the graph and reference signal values `rs` from
     /// a VCD file print a debug graph.
