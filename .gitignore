@@ -11,6 +11,7 @@ examples/*.instructions
 examples/obj_dir
 
 compiler/emulation-info
+compiler/DEBUG*
 
 emulator/out
 emulator/.bloop

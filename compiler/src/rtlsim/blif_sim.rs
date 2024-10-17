@@ -259,9 +259,10 @@ impl BlifSimulator {
                         .info().debug.val;
                 }
                 CircuitPrimitive::Input { name } => {
-                    node_value = *self.input_stimulti_blasted
-                        .get(&name).unwrap()
-                        .get(self.cur_cycle as usize).unwrap() as Bit;
+                    node_value = match self.input_stimulti_blasted.get(&name) {
+                        Some(x) => { *x.get(self.cur_cycle as usize).unwrap() as Bit },
+                        None => 0,
+                    }
                 }
                 CircuitPrimitive::Output { name:_ } => {
                     node_value = self.circuit.graph
