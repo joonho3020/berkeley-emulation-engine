@@ -1,6 +1,7 @@
 use crate::passes::*;
 use crate::common::circuit::Circuit;
 use split_sram_nodes::split_sram_nodes;
+use split_reg_nodes::split_reg_nodes;
 use replicate_consts::replicate_consts;
 use dce::dead_code_elimination;
 use inst_map::map_instructions;
@@ -24,8 +25,10 @@ pub fn run_compiler_passes(c: &mut Circuit) {
     println!("Partition done");
 
     let sram_const_start = Instant::now();
-    split_sram_nodes(c);
+    split_reg_nodes(c);
+// check_connectivity(c);
 
+    split_sram_nodes(c);
 // check_connectivity(c);
 
     replicate_consts(c);

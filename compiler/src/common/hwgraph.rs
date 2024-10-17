@@ -49,9 +49,6 @@ pub struct NodeInfo {
     /// index to the allocated imem slot
     pub pc: u32,
 
-    /// register group that this node is in
-    pub reggrp: u32,
-
     /// Debug information
     pub debug: DebugInfo
 }

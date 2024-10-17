@@ -435,10 +435,6 @@ pub struct Args {
     #[arg(short, long, default_value_t = false)]
     pub verbose: bool,
 
-    /// Simulation output directory path
-    #[arg(short, long, default_value = "sim-dir")]
-    pub sim_dir: String,
-
     /// SystemVerilog file path
     #[arg(short, long, default_value = "")]
     pub sv_file_path: String,
@@ -482,6 +478,10 @@ pub struct Args {
     /// number of cycles to skip when parsing reference rtl sim vcd
     #[arg(long, default_value_t = 1)]
     pub check_cycle_period: u32,
+
+    /// Simulation output directory path
+    #[arg(short, long, default_value = "sim-dir")]
+    pub sim_dir: String,
 
     /// number of modules
     #[arg(long, default_value_t = 1)]

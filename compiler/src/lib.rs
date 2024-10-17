@@ -4,13 +4,11 @@ pub mod passes;
 pub mod rtlsim;
 pub mod testing;
 
-use crate::common::config::*;
-use crate::testing::fsim::*;
-use crate::testing::blifsim::compare_blif_sim_to_fsim;
 
 #[cfg(test)]
 pub mod blif_sim_test {
-    use super::*;
+    use crate::common::config::*;
+    use crate::testing::blifsim::compare_blif_sim_to_fsim;
     use test_case::test_case;
 
     fn test_blif_sim(
@@ -203,7 +201,8 @@ pub mod blif_sim_test {
 #[cfg(test)]
 pub mod emulation_tester {
     use test_case::test_case;
-    use super::*;
+    use crate::common::config::*;
+    use crate::testing::fsim::*;
 
     fn perform_test(
         sv_file_path: &str,

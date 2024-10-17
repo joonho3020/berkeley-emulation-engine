@@ -10,6 +10,9 @@ use petgraph::{
     graph::NodeIndex, visit::EdgeRef, Direction::{Incoming, Outgoing}
 };
 
+/// - split_sram_nodes
+/// Given a SRAMNode which represents a SRAM blackbox, split up its
+/// IO port bits into separate nodes.
 pub fn split_sram_nodes(circuit: &mut Circuit) {
     adjust_sram_nodes(circuit);
     split_sram_node_by_io(circuit);

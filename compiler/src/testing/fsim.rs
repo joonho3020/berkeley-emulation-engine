@@ -216,7 +216,7 @@ pub fn test_emulator(
         &format!("{}/{}.topology.dot", out_dir, args.top_mod),
         &format!("{}/{}.topology.pdf", out_dir, args.top_mod))?;
 
-// circuit.save_graph("final")?;
+    circuit.save_graph("final")?;
 
     let verilog_str = match fs::read_to_string(&args.sv_file_path) {
         Ok(content) => content,
