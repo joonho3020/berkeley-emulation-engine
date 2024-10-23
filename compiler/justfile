@@ -14,6 +14,9 @@ num_mods := "33"
 num_procs := "64"
 sram_width := "256"
 sram_entries := "1024"
+imem_lat := "0"
+inter_mod_nw_lat := "0"
+inter_proc_nw_lat := "0"
 
 [group: 'clean']
 clean:
@@ -57,6 +60,9 @@ bee_vcd $RUST_BACKTRACE="1":
        --num-procs {{num_procs}} \
        --sram-width {{sram_width}} \
        --sram-entries {{sram_entries}} \
+       --imem-lat {{imem_lat}} \
+       --inter-proc-nw-lat {{inter_proc_nw_lat}} \
+       --inter-mod-nw-lat {{inter_mod_nw_lat}} \
        --max-steps 65536 \
        --instance-path {{instance_path}} \
        --ref-skip-cycles {{ref_skip_cycles}} \
@@ -77,6 +83,9 @@ bee $RUST_BACKTRACE="1":
        --num-procs {{num_procs}} \
        --sram-width {{sram_width}} \
        --sram-entries {{sram_entries}} \
+       --imem-lat {{imem_lat}} \
+       --inter-proc-nw-lat {{inter_proc_nw_lat}} \
+       --inter-mod-nw-lat {{inter_mod_nw_lat}} \
        --max-steps 65536 \
        --sim-dir {{sim_dir}} \
        --check-cycle-period {{check_cycle_period}} | tee DEBUG-BEE
@@ -93,5 +102,8 @@ run_blifsim $RUST_BACKTRACE="1":
        --num-procs {{num_procs}} \
        --sram-width {{sram_width}} \
        --sram-entries {{sram_entries}} \
+       --imem-lat {{imem_lat}} \
+       --inter-proc-nw-lat {{inter_proc_nw_lat}} \
+       --inter-mod-nw-lat {{inter_mod_nw_lat}} \
        --sim-dir {{sim_dir}} \
        --max-steps 65536 | tee DEBUG-BLIFSIM
