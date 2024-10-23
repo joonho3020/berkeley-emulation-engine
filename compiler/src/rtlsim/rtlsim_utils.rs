@@ -248,11 +248,15 @@ pub fn is_reset_signal(s: &str) -> bool {
     }
 }
 
+/// Note: This is required to simulate chipyard DigitalTop as it has
+/// custom names for clock and reset
 pub fn is_clock_tap(s: &str) -> bool {
     s == "clock_tap"
 }
 
 
+/// This is required to simulate chipyard DigitalTop as it has
+/// custom names for clock and reset
 pub fn is_debug_reset(s: &str) -> bool {
     (s == "debug_systemjtag_reset") || (s == "debug_reset")
 }

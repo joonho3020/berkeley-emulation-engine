@@ -1,5 +1,4 @@
 use std::hash::{DefaultHasher, Hash, Hasher};
-
 use indexmap::IndexMap;
 use crate::common::{
     circuit::Circuit,

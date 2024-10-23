@@ -296,30 +296,6 @@ impl PlatformConfig {
         self.num_mods * self.num_procs
     }
 
-    /// - I can start using bits computed from a local processor at
-    /// `local.pc + intra_proc_dep_lat`
-    ///   <me> | read imem | read dmem | compute + write dmem |
-    ///   <me>                                    | read imem | read dmem | compute
-// pub fn intra_proc_dep_lat(self: &Self) -> Cycle {
-// self.dmem_rd_lat + self.dmem_wr_lat
-// }
-
-    /// - I can start using bits computed from a remote processor at
-    /// `remote.pc + inter_proc_dep_lat`.
-    ///   <other> | read imem | read dmem | lut + network | write dmem |
-    ///   <me>                                             | read imem | read dmem | compute |
-// pub fn inter_proc_dep_lat(self: &Self) -> Cycle {
-// self.dmem_rd_lat + self.inter_proc_nw_lat + self.dmem_wr_lat
-// }
-
-    /// - I have to receive a incoming bit from a remote processor at
-    /// `remote.pc + remote_sin_lat`
-    /// <other> | read imem | read dmem | compute | network |
-    /// <me>                        | read imem | read dmem | compute + write sdm |
-    pub fn remote_sin_lat(self: &Self) -> Cycle {
-        self.inter_proc_nw_lat
-    }
-
     /// If the current pc is `X`, store the current local compute result in
     /// `X - pc_ldm_offset`
     pub fn pc_ldm_offset(self: &Self) -> Cycle {
@@ -332,8 +308,7 @@ impl PlatformConfig {
         self.imem_lat + self.dmem_rd_lat + self.inter_proc_nw_lat
     }
 
-    // TODO: Add global network latency, fix these functions for proper abstraction
-    pub fn nw_path_lat(self: &Self, path: &NetworkPath) -> u32 {
+    fn nw_path_lat(self: &Self, path: &NetworkPath) -> u32 {
         match path.tpe {
             PathTypes::ProcessorInternal => 0,
             PathTypes::InterProcessor    => self.inter_proc_nw_lat,
@@ -341,9 +316,21 @@ impl PlatformConfig {
         }
     }
 
-    // TODO: Add global network latency, fix these functions for proper abstraction
+    /// Fetch and decode latency
+    /// | Fetch          | Decode              |
+    /// | Read from Imem | Read from LDM & SDM |
+    pub fn fetch_decode_lat(self: &Self) -> u32 {
+        self.imem_lat + self.dmem_rd_lat
+    }
+
+    /// Parent fetch PC ~ child network input port latency
+    /// proc A | Fetch PC | Decode | Execute |
+    /// nw A~B                     | NW 0    | NW 1    |
+    /// proc B                                         | dmem_wr |
+    /// nw B~C                                         | NW 0    | NW 1    | NW 2    |
+    /// proc C                                                                       |
     pub fn nw_route_lat(self: &Self, route: &NetworkRoute) -> u32 {
-        let mut latency = 0;
+        let mut latency = self.fetch_decode_lat();
         for (hop, path) in route.iter().enumerate() {
             latency += self.nw_path_lat(path);
             if hop != route.len() - 1 {
@@ -353,10 +340,25 @@ impl PlatformConfig {
         return latency;
     }
 
-    // TODO: Add global network latency, fix these functions for proper abstraction
+    /// Parent fetch PC ~ child network output port latency
+    /// - Bit is usable from the child proc
+    /// - Bit can be shipped out again to the network
+    /// proc A | Fetch PC | Decode | Execute |
+    /// nw A~B                     | NW 0    | NW 1    |
+    /// proc B                                         | dmem_wr |
+    /// nw B~C                                         | NW 0    | NW 1    | NW 2    |
+    /// proc C                                                                       | dmem_wr |
     pub fn nw_route_dep_lat(self: &Self, route: &NetworkRoute) -> u32 {
         return self.nw_route_lat(route) + self.dmem_wr_lat;
     }
+
+    /// For write operations, we want to read in the first cycle and then
+    /// perform the write in the next cycle
+    pub fn sram_rd_en_step(self: &Self) -> Cycle {
+        self.sram_rd_lat + self.sram_wr_lat
+    }
+
+    //////////////////////////////////////////////////////////
 
     pub fn sram_rd_en_offset(self: &Self) -> u32 {
         0

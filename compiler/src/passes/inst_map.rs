@@ -200,9 +200,9 @@ pub fn map_instructions(circuit: &mut Circuit) {
                     let mut cur_route = NetworkRoute::new();
                     for (i, path) in route.iter().enumerate() {
                         let src_send_pc = if i == 0 {
-                            node.info().pc
+                            node.info().pc + pcfg.nw_route_lat(&cur_route) - pcfg.fetch_decode_lat()
                         } else {
-                            node.info().pc + pcfg.nw_route_dep_lat(&cur_route)
+                            node.info().pc + pcfg.nw_route_dep_lat(&cur_route) - pcfg.fetch_decode_lat()
                         };
 
                         assert!(src_send_pc < circuit.emul.host_steps,
@@ -234,7 +234,7 @@ pub fn map_instructions(circuit: &mut Circuit) {
 
                         cur_route.push_back(*path);
 
-                        let dst_recv_pc = node.info().pc + pcfg.nw_route_lat(&cur_route);
+                        let dst_recv_pc = node.info().pc + pcfg.nw_route_lat(&cur_route) - pcfg.fetch_decode_lat();
                         let dst_inst = circuit.emul
                             .module_mappings.get_mut(&path.dst.module).unwrap()
                             .proc_mappings.get_mut(&path.dst.proc).unwrap()

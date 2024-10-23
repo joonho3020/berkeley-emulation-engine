@@ -24,6 +24,8 @@ fn set_rank_alap(graph: &mut HWGraph, nidx: NodeIndex, rank: u32) {
     info.rank = RankInfo { alap: rank, ..info.rank };
 }
 
+/// Assign the ASAP & ALAP ranks to each node in the graph by topologically
+/// sortng the graph
 pub fn find_rank_order(circuit: &mut Circuit) {
     find_asap_rank_order(circuit);
     find_alap_rank_order(circuit);

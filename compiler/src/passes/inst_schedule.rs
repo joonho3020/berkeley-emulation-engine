@@ -334,7 +334,7 @@ fn route_usable(
     let mut cur_route = NetworkRoute::new();
     for (i, path) in route.iter().enumerate() {
         if i == 0 {
-            if nw.oports.is_busy(path.src.id(pcfg), *pc) {
+            if nw.oports.is_busy(path.src.id(pcfg), *pc + pcfg.nw_route_lat(&cur_route)) {
                 usable = false;
                 break;
             }
@@ -460,7 +460,10 @@ fn child_reachable(
     }
 }
 
-fn coalesce_paths(routes: &IndexMap<NodeIndex, NetworkRoute>, pcfg: &PlatformConfig) -> IndexMap<NodeIndex, NetworkRoute> {
+fn coalesce_paths(
+    routes: &IndexMap<NodeIndex, NetworkRoute>,
+    pcfg: &PlatformConfig
+) -> IndexMap<NodeIndex, NetworkRoute> {
     let mut ret: IndexMap<NodeIndex, NetworkRoute> = IndexMap::new();
     let mut visited: IndexMap<(Coordinate, u32), NetworkRoute> = IndexMap::new();
 
@@ -544,7 +547,7 @@ fn mark_nw_busy(
     let mut cur_route = NetworkRoute::new();
     for (i, path) in route.iter().enumerate() {
         if i == 0 {
-            nw.oports.set_busy(path.src.id(pcfg), *pc);
+            nw.oports.set_busy(path.src.id(pcfg), *pc + pcfg.nw_route_lat(&cur_route));
         } else {
             nw.oports.set_busy(path.src.id(pcfg), pc + pcfg.nw_route_dep_lat(&cur_route));
         }
@@ -565,8 +568,8 @@ fn schedule_candidates_at_pc(
     for cand in candidates.iter() {
         let node = circuit.graph.node_weight(cand.index).unwrap();
 
-        // Cannot schedule a SRAM read until pc >= pcfg.sram_rd_lat
-        if node.is() == Primitive::SRAMRdData && *pc < (pcfg.sram_rd_lat + pcfg.sram_wr_lat) {
+        // Cannot schedule a SRAM read until pc >= pcfg.sram_rd_en_step
+        if node.is() == Primitive::SRAMRdData && *pc < pcfg.sram_rd_en_step() {
             continue;
         }
 
@@ -765,7 +768,6 @@ fn schedule_instructions_internal(circuit: &mut Circuit) {
         }
     }
 
-    // TODO: consider global networking lat
     //                        <base> + <NW>
     circuit.emul.host_steps = pc + 1 + max_nw_route_dep_lat;
 
