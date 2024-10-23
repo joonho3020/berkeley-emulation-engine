@@ -66,11 +66,10 @@ pub fn compare_blif_sim_to_fsim(args: Args) -> std::io::Result<()> {
             match board.nodeindex(sig) {
                 Some(nidx) => {
                     let pc = circuit.graph.node_weight(nidx).unwrap().info().pc;
-                    let step = pc + circuit.platform_cfg.pc_ldm_offset();
-                    if input_stimuli_by_step.get(&step) == None {
-                        input_stimuli_by_step.insert(step, vec![]);
+                    if input_stimuli_by_step.get(&pc) == None {
+                        input_stimuli_by_step.insert(pc, vec![]);
                     }
-                    input_stimuli_by_step.get_mut(&step).unwrap().push((sig, *bit));
+                    input_stimuli_by_step.get_mut(&pc).unwrap().push((sig, *bit));
                 }
                 None => {
                 }

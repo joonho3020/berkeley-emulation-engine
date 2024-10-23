@@ -183,12 +183,10 @@ impl Processor {
         self.sram_port.ip = f_out;
 
         // Write to LDM
-        if self.pc as Cycle >= self.cfg.pc_ldm_offset() {
-            self.ldm.get_wport(0).submit_req(WriteReq {
-                addr: self.pc - (self.cfg.pc_ldm_offset() as Bits),
-                data: f_out
-            });
-        }
+        self.ldm.get_wport(0).submit_req(WriteReq {
+            addr: self.pc,
+            data: f_out
+        });
 
         // Set switch out
         if de_inst.sinfo.fwd {
@@ -233,12 +231,10 @@ impl Processor {
         };
 
         // Update SDM
-        if self.pc as u32 >= self.cfg.pc_sdm_offset() {
-            self.sdm.get_wport(0).submit_req(WriteReq {
-                addr: (self.pc as u32) - self.cfg.pc_sdm_offset(),
-                data: sdm_store_bit
-            });
-        }
+        self.sdm.get_wport(0).submit_req(WriteReq {
+            addr: self.pc as u32,
+            data: sdm_store_bit
+        });
 
         self.sin_fwd_bit = sdm_store_bit;
 

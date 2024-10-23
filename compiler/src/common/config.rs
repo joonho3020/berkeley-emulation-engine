@@ -296,18 +296,6 @@ impl PlatformConfig {
         self.num_mods * self.num_procs
     }
 
-    /// If the current pc is `X`, store the current local compute result in
-    /// `X - pc_ldm_offset`
-    pub fn pc_ldm_offset(self: &Self) -> Cycle {
-        self.imem_lat + self.dmem_rd_lat
-    }
-
-    /// If the current pc is `X`, store the current switch compute result in
-    /// `X - pc_sdm_offset`
-    pub fn pc_sdm_offset(self: &Self) -> Cycle {
-        self.imem_lat + self.dmem_rd_lat + self.inter_proc_nw_lat
-    }
-
     fn nw_path_lat(self: &Self, path: &NetworkPath) -> u32 {
         match path.tpe {
             PathTypes::ProcessorInternal => 0,
