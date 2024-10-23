@@ -183,10 +183,12 @@ impl Processor {
         self.sram_port.ip = f_out;
 
         // Write to LDM
-        self.ldm.get_wport(0).submit_req(WriteReq {
-            addr: self.pc,
-            data: f_out
-        });
+        if self.pc as Cycle >= self.cfg.fetch_decode_lat() {
+            self.ldm.get_wport(0).submit_req(WriteReq {
+                addr: self.pc - (self.cfg.fetch_decode_lat() as Bits),
+                data: f_out
+            });
+        }
 
         // Set switch out
         if de_inst.sinfo.fwd {
@@ -231,10 +233,12 @@ impl Processor {
         };
 
         // Update SDM
-        self.sdm.get_wport(0).submit_req(WriteReq {
-            addr: self.pc as u32,
-            data: sdm_store_bit
-        });
+        if self.pc as u32 >= self.cfg.fetch_decode_lat() {
+            self.sdm.get_wport(0).submit_req(WriteReq {
+                addr: (self.pc as u32) - self.cfg.fetch_decode_lat(),
+                data: sdm_store_bit
+            });
+        }
 
         self.sin_fwd_bit = sdm_store_bit;
 

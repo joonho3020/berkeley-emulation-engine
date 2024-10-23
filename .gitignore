@@ -1,6 +1,6 @@
 **/*.dot
 **/.DS_STORE
-**/sim-dir-*
+**/sim-dir*
 **/blif-sim-dir-*
 **/ise_project
 

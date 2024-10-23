@@ -62,8 +62,8 @@ pub mod blif_sim_test {
         }
     }
 
-    #[test_case(5, 4, 0, 0, 1, 0; "mod 5 procs 4 imem 0 dmem rd 0 wr 1 network 0")]
-    pub fn test_adder(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
+    #[test_case(5, 4, 0, 0, 1, 0, 0; "mod 5 procs 4 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
+    pub fn test_adder(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, inter_proc_nw_lat: u32, inter_mod_nw_lat: u32) {
         assert_eq!(
             test_blif_sim(
                 "../examples/Adder.sv",
@@ -71,14 +71,14 @@ pub mod blif_sim_test {
                 "../examples/Adder.input",
                 "../examples/Adder.lut.blif",
                 num_mods, num_procs,
-                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+                inter_proc_nw_lat, inter_mod_nw_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
             ),
             true
         );
     }
 
-    #[test_case(5, 4, 0, 0, 1, 0; "mod 5 procs 4 imem 0 dmem rd 0 wr 1 network 0")]
-    pub fn test_testreginit(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
+    #[test_case(5, 4, 0, 0, 1, 0, 0; "mod 5 procs 4 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
+    pub fn test_reginit(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, inter_proc_nw_lat: u32, inter_mod_nw_lat: u32) {
         assert_eq!(
             test_blif_sim(
                 "../examples/TestRegInit.sv",
@@ -86,14 +86,14 @@ pub mod blif_sim_test {
                 "../examples/TestRegInit.input",
                 "../examples/TestRegInit.lut.blif",
                 num_mods, num_procs,
-                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+                inter_proc_nw_lat, inter_mod_nw_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
             ),
             true
         );
     }
 
-    #[test_case(2, 8, 0, 0, 1, 0; "mod 2 procs 8 imem 0 dmem rd 0 wr 1 network 0")]
-    pub fn test_const(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
+    #[test_case(2, 8, 0, 0, 1, 0, 0; "mod 2 procs 8 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
+    pub fn test_const(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, inter_proc_nw_lat: u32, inter_mod_nw_lat: u32) {
         assert_eq!(
             test_blif_sim(
                 "../examples/Const.sv",
@@ -101,14 +101,14 @@ pub mod blif_sim_test {
                 "../examples/Const.input",
                 "../examples/Const.lut.blif",
                 num_mods, num_procs,
-                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+                inter_proc_nw_lat, inter_mod_nw_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
             ),
             true
         );
     }
 
-    #[test_case(9, 8, 0, 0, 1, 0; "mod 9 procs 8 imem 0 dmem rd 0 wr 1 network 0")]
-    pub fn test_gcd(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
+    #[test_case(9, 8, 0, 0, 1, 0, 0; "mod 9 procs 8 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
+    pub fn test_gcd(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, inter_proc_nw_lat: u32, inter_mod_nw_lat: u32) {
         assert_eq!(
             test_blif_sim(
                 "../examples/GCD.sv",
@@ -116,14 +116,14 @@ pub mod blif_sim_test {
                 "../examples/GCD.input",
                 "../examples/GCD.lut.blif",
                 num_mods, num_procs,
-                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+                inter_proc_nw_lat, inter_mod_nw_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
             ),
             true
         );
     }
 
-    #[test_case(9, 8, 0, 0, 1, 0; "mod 9 procs 8 imem 0 dmem rd 0 wr 1 network 0")]
-    pub fn test_fir(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
+    #[test_case(9, 8, 0, 0, 1, 0, 0; "mod 9 procs 8 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
+    pub fn test_fir(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, inter_proc_nw_lat: u32, inter_mod_nw_lat: u32) {
         assert_eq!(
             test_blif_sim(
                 "../examples/Fir.sv",
@@ -131,14 +131,14 @@ pub mod blif_sim_test {
                 "../examples/Fir.input",
                 "../examples/Fir.lut.blif",
                 num_mods, num_procs,
-                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+                inter_proc_nw_lat, inter_mod_nw_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
             ),
             true
         );
     }
 
-    #[test_case(9, 8, 0, 0, 1, 0; "mod 9 procs 8 imem 0 dmem rd 0 wr 1 network 0")]
-    pub fn test_myqueue(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
+    #[test_case(9, 8, 0, 0, 1, 0, 0; "mod 9 procs 8 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
+    pub fn test_myqueue(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, inter_proc_nw_lat: u32, inter_mod_nw_lat: u32) {
         assert_eq!(
             test_blif_sim(
                 "../examples/MyQueue.sv",
@@ -146,14 +146,14 @@ pub mod blif_sim_test {
                 "../examples/MyQueue.input",
                 "../examples/MyQueue.lut.blif",
                 num_mods, num_procs,
-                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+                inter_proc_nw_lat, inter_mod_nw_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
             ),
             true
         );
     }
 
-    #[test_case(2, 8, 0, 0, 1, 0; "mod 2 procs 8 imem 0 dmem rd 0 wr 1 network 0")]
-    pub fn test_1r1w_sram(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
+    #[test_case(2, 8, 0, 0, 1, 0, 0; "mod 2 procs 8 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
+    pub fn test_1r1w_sram(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, inter_proc_nw_lat: u32, inter_mod_nw_lat: u32) {
         assert_eq!(
             test_blif_sim(
                 "../examples/OneReadOneWritePortSRAM.sv",
@@ -161,14 +161,14 @@ pub mod blif_sim_test {
                 "../examples/OneReadOneWritePortSRAM.input",
                 "../examples/OneReadOneWritePortSRAM.lut.blif",
                 num_mods, num_procs,
-                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+                inter_proc_nw_lat, inter_mod_nw_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
             ),
             true
         );
     }
 
-    #[test_case(2, 8, 0, 0, 1, 0; "mod 2 procs 8 imem 0 dmem rd 0 wr 1 network 0")]
-    pub fn test_1rw_sram(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
+    #[test_case(2, 8, 0, 0, 1, 0, 0; "mod 2 procs 8 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
+    pub fn test_1rw_sram(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, inter_proc_nw_lat: u32, inter_mod_nw_lat: u32) {
         assert_eq!(
             test_blif_sim(
                 "../examples/SinglePortSRAM.sv",
@@ -176,14 +176,14 @@ pub mod blif_sim_test {
                 "../examples/SinglePortSRAM.input",
                 "../examples/SinglePortSRAM.lut.blif",
                 num_mods, num_procs,
-                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+                inter_proc_nw_lat, inter_mod_nw_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
             ),
             true
         );
     }
 
-    #[test_case(2, 4, 0, 0, 1, 0; "mod 2 procs 4 imem 0 dmem rd 0 wr 1 network 0")]
-    pub fn test_pointer_chasing(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
+    #[test_case(2, 4, 0, 0, 1, 0, 0; "mod 2 procs 4 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
+    pub fn test_pointer_chasing(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, inter_proc_nw_lat: u32, inter_mod_nw_lat: u32) {
         assert_eq!(
             test_blif_sim(
                 "../examples/PointerChasing.sv",
@@ -191,7 +191,7 @@ pub mod blif_sim_test {
                 "../examples/PointerChasing.input",
                 "../examples/PointerChasing.lut.blif",
                 num_mods, num_procs,
-                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+                inter_proc_nw_lat, inter_mod_nw_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
             ),
             true
         );
@@ -255,9 +255,10 @@ pub mod emulation_tester {
         }
     }
 
-    #[test_case(1, 4, 0, 0, 1, 0; "mod 1 procs 4 imem 0 dmem rd 0 wr 1 network 0")]
-    #[test_case(5, 4, 0, 0, 1, 0; "mod 5 procs 4 imem 0 dmem rd 0 wr 1 network 0")]
-    pub fn test_adder(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
+    #[test_case(1, 4, 0, 0, 1, 0, 0; "mod 1 procs 4 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
+    #[test_case(5, 4, 0, 0, 1, 0, 0; "mod 5 procs 4 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
+    #[test_case(5, 4, 1, 0, 1, 0, 1; "mod 5 procs 4 imem 1 dmem rd 0 wr 1 nw proc 0 nw mod 1")]
+    pub fn test_adder(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, inter_proc_nw_lat: u32, inter_mod_nw_lat: u32) {
         assert_eq!(
             perform_test(
                 "../examples/Adder.sv",
@@ -265,15 +266,16 @@ pub mod emulation_tester {
                 "../examples/Adder.input",
                 "../examples/Adder.lut.blif",
                 num_mods, num_procs,
-                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+                inter_proc_nw_lat, inter_mod_nw_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
             ),
             true
         );
     }
 
-    #[test_case(1, 4, 0, 0, 1, 0; "mod 1 procs 4 imem 0 dmem rd 0 wr 1 network 0")]
-    #[test_case(5, 4, 0, 0, 1, 0; "mod 5 procs 4 imem 0 dmem rd 0 wr 1 network 0")]
-    pub fn test_testreginit(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
+    #[test_case(1, 4, 0, 0, 1, 0, 0; "mod 1 procs 4 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
+    #[test_case(5, 4, 0, 0, 1, 0, 0; "mod 5 procs 4 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
+    #[test_case(5, 4, 1, 0, 1, 0, 1; "mod 5 procs 4 imem 1 dmem rd 0 wr 1 nw proc 0 nw mod 1")]
+    pub fn test_testreginit(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, inter_proc_nw_lat: u32, inter_mod_nw_lat: u32) {
         assert_eq!(
             perform_test(
                 "../examples/TestRegInit.sv",
@@ -281,15 +283,16 @@ pub mod emulation_tester {
                 "../examples/TestRegInit.input",
                 "../examples/TestRegInit.lut.blif",
                 num_mods, num_procs,
-                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+                inter_proc_nw_lat, inter_mod_nw_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
             ),
             true
         );
     }
 
-    #[test_case(1, 2, 0, 0, 1, 0; "mod 1 procs 2 imem 0 dmem rd 0 wr 1 network 0")]
-    #[test_case(2, 8, 0, 0, 1, 0; "mod 2 procs 8 imem 0 dmem rd 0 wr 1 network 0")]
-    pub fn test_const(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
+    #[test_case(1, 2, 0, 0, 1, 0, 0; "mod 1 procs 2 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
+    #[test_case(2, 8, 0, 0, 1, 0, 0; "mod 2 procs 8 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
+    #[test_case(2, 8, 1, 0, 1, 0, 1; "mod 2 procs 8 imem 1 dmem rd 0 wr 1 nw proc 0 nw mod 1")]
+    pub fn test_const(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, inter_proc_nw_lat: u32, inter_mod_nw_lat: u32) {
         assert_eq!(
             perform_test(
                 "../examples/Const.sv",
@@ -297,15 +300,16 @@ pub mod emulation_tester {
                 "../examples/Const.input",
                 "../examples/Const.lut.blif",
                 num_mods, num_procs,
-                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+                inter_proc_nw_lat, inter_mod_nw_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
             ),
             true
         );
     }
 
-    #[test_case(1, 2, 0, 0, 1, 0; "mod 1 procs 2 imem 0 dmem rd 0 wr 1 network 0")]
-    #[test_case(2, 4, 0, 0, 1, 0; "mod 2 procs 4 imem 0 dmem rd 0 wr 1 network 0")]
-    pub fn test_counter(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
+    #[test_case(1, 2, 0, 0, 1, 0, 0; "mod 1 procs 2 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
+    #[test_case(2, 4, 0, 0, 1, 0, 0; "mod 2 procs 4 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
+    #[test_case(2, 4, 1, 0, 1, 0, 1; "mod 2 procs 4 imem 1 dmem rd 0 wr 1 nw proc 0 nw mod 1")]
+    pub fn test_counter(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, inter_proc_nw_lat: u32, inter_mod_nw_lat: u32) {
         assert_eq!(
             perform_test(
                 "../examples/Counter.sv",
@@ -313,17 +317,18 @@ pub mod emulation_tester {
                 "../examples/Counter.input",
                 "../examples/Counter.lut.blif",
                 num_mods, num_procs,
-                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+                inter_proc_nw_lat, inter_mod_nw_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
             ),
             true
         );
     }
 
-    #[test_case(1, 4, 0, 0, 1, 0; "mod 1 procs 4 imem 0 dmem rd 0 wr 1 network 0")]
-    #[test_case(2, 4, 0, 0, 1, 0; "mod 2 procs 4 imem 0 dmem rd 0 wr 1 network 0")]
-    #[test_case(5, 4, 0, 0, 1, 0; "mod 5 procs 4 imem 0 dmem rd 0 wr 1 network 0")]
-    #[test_case(9, 8, 0, 0, 1, 0; "mod 9 procs 8 imem 0 dmem rd 0 wr 1 network 0")]
-    pub fn test_gcd(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
+    #[test_case(1, 4, 0, 0, 1, 0, 0; "mod 1 procs 4 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
+    #[test_case(2, 4, 0, 0, 1, 0, 0; "mod 2 procs 4 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
+    #[test_case(5, 4, 0, 0, 1, 0, 0; "mod 5 procs 4 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
+    #[test_case(9, 8, 0, 0, 1, 0, 0; "mod 9 procs 8 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
+    #[test_case(9, 8, 1, 0, 1, 0, 1; "mod 9 procs 8 imem 1 dmem rd 0 wr 1 nw proc 0 nw mod 1")]
+    pub fn test_gcd(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, inter_proc_nw_lat: u32, inter_mod_nw_lat: u32) {
         assert_eq!(
             perform_test(
                 "../examples/GCD.sv",
@@ -331,15 +336,16 @@ pub mod emulation_tester {
                 "../examples/GCD.input",
                 "../examples/GCD.lut.blif",
                 num_mods, num_procs,
-                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+                inter_proc_nw_lat, inter_mod_nw_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
             ),
             true
         );
     }
 
-    #[test_case(1, 4, 0, 0, 1, 0; "mod 1 procs 4 imem 0 dmem rd 0 wr 1 network 0")]
-    #[test_case(9, 8, 0, 0, 1, 0; "mod 9 procs 8 imem 0 dmem rd 0 wr 1 network 0")]
-    pub fn test_fir(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
+    #[test_case(1, 4, 0, 0, 1, 0, 0; "mod 1 procs 4 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
+    #[test_case(9, 8, 0, 0, 1, 0, 0; "mod 9 procs 8 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
+    #[test_case(9, 8, 1, 0, 1, 0, 1; "mod 9 procs 8 imem 1 dmem rd 0 wr 1 nw proc 0 nw mod 1")]
+    pub fn test_fir(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, inter_proc_nw_lat: u32, inter_mod_nw_lat: u32) {
         assert_eq!(
             perform_test(
                 "../examples/Fir.sv",
@@ -347,15 +353,16 @@ pub mod emulation_tester {
                 "../examples/Fir.input",
                 "../examples/Fir.lut.blif",
                 num_mods, num_procs,
-                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+                inter_proc_nw_lat, inter_mod_nw_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
             ),
             true
         );
     }
 
-    #[test_case(1, 4, 0, 0, 1, 0; "mod 1 procs 4 imem 0 dmem rd 0 wr 1 network 0")]
-    #[test_case(9, 8, 0, 0, 1, 0; "mod 9 procs 8 imem 0 dmem rd 0 wr 1 network 0")]
-    pub fn test_myqueue(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
+    #[test_case(1, 4, 0, 0, 1, 0, 0; "mod 1 procs 4 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
+    #[test_case(9, 8, 0, 0, 1, 0, 0; "mod 9 procs 8 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
+    #[test_case(9, 8, 1, 0, 1, 0, 1; "mod 9 procs 8 imem 1 dmem rd 0 wr 1 nw proc 0 nw mod 1")]
+    pub fn test_myqueue(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, inter_proc_nw_lat: u32, inter_mod_nw_lat: u32) {
         assert_eq!(
             perform_test(
                 "../examples/MyQueue.sv",
@@ -363,15 +370,16 @@ pub mod emulation_tester {
                 "../examples/MyQueue.input",
                 "../examples/MyQueue.lut.blif",
                 num_mods, num_procs,
-                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+                inter_proc_nw_lat, inter_mod_nw_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
             ),
             true
         );
     }
 
-    #[test_case(1, 4, 0, 0, 1, 0; "mod 1 procs 4 imem 0 dmem rd 0 wr 1 network 0")]
-    #[test_case(9, 8, 0, 0, 1, 0; "mod 9 procs 8 imem 0 dmem rd 0 wr 1 network 0")]
-    pub fn test_core(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
+    #[test_case(1, 4, 0, 0, 1, 0, 0; "mod 1 procs 4 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
+    #[test_case(9, 8, 0, 0, 1, 0, 0; "mod 9 procs 8 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
+    #[test_case(9, 8, 1, 0, 1, 0, 1; "mod 9 procs 8 imem 1 dmem rd 0 wr 1 nw proc 0 nw mod 1")]
+    pub fn test_core(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, inter_proc_nw_lat: u32, inter_mod_nw_lat: u32) {
         assert_eq!(
             perform_test(
                 "../examples/Core.sv",
@@ -379,15 +387,16 @@ pub mod emulation_tester {
                 "../examples/Core.input",
                 "../examples/Core.lut.blif",
                 num_mods, num_procs,
-                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+                inter_proc_nw_lat, inter_mod_nw_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
             ),
             true
         );
     }
 
-    #[test_case(1, 2, 0, 0, 1, 0; "mod 1 procs 2 imem 0 dmem rd 0 wr 1 network 0")]
-    #[test_case(2, 8, 0, 0, 1, 0; "mod 2 procs 8 imem 0 dmem rd 0 wr 1 network 0")]
-    pub fn test_1r1w_sram(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
+    #[test_case(1, 2, 0, 0, 1, 0, 0; "mod 1 procs 2 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
+    #[test_case(2, 8, 0, 0, 1, 0, 0; "mod 2 procs 8 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
+    #[test_case(2, 8, 1, 0, 1, 0, 1; "mod 2 procs 8 imem 1 dmem rd 0 wr 1 nw proc 0 nw mod 1")]
+    pub fn test_1r1w_sram(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, inter_proc_nw_lat: u32, inter_mod_nw_lat: u32) {
         assert_eq!(
             perform_test(
                 "../examples/OneReadOneWritePortSRAM.sv",
@@ -395,15 +404,16 @@ pub mod emulation_tester {
                 "../examples/OneReadOneWritePortSRAM.input",
                 "../examples/OneReadOneWritePortSRAM.lut.blif",
                 num_mods, num_procs,
-                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+                inter_proc_nw_lat, inter_mod_nw_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
             ),
             true
         );
     }
 
-    #[test_case(1, 2, 0, 0, 1, 0; "mod 1 procs 2 imem 0 dmem rd 0 wr 1 network 0")]
-    #[test_case(2, 8, 0, 0, 1, 0; "mod 2 procs 8 imem 0 dmem rd 0 wr 1 network 0")]
-    pub fn test_1rw_sram(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
+    #[test_case(1, 2, 0, 0, 1, 0, 0; "mod 1 procs 2 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
+    #[test_case(2, 8, 0, 0, 1, 0, 0; "mod 2 procs 8 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
+    #[test_case(2, 8, 1, 0, 1, 0, 1; "mod 2 procs 8 imem 1 dmem rd 0 wr 1 nw proc 0 nw mod 1")]
+    pub fn test_1rw_sram(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, inter_proc_nw_lat: u32, inter_mod_nw_lat: u32) {
         assert_eq!(
             perform_test(
                 "../examples/SinglePortSRAM.sv",
@@ -411,15 +421,16 @@ pub mod emulation_tester {
                 "../examples/SinglePortSRAM.input",
                 "../examples/SinglePortSRAM.lut.blif",
                 num_mods, num_procs,
-                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+                inter_proc_nw_lat, inter_mod_nw_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
             ),
             true
         );
     }
 
-    #[test_case(1, 2, 0, 0, 1, 0; "mod 1 procs 2 imem 0 dmem rd 0 wr 1 network 0")]
-    #[test_case(2, 4, 0, 0, 1, 0; "mod 2 procs 4 imem 0 dmem rd 0 wr 1 network 0")]
-    pub fn test_pointer_chasing(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, network_lat: u32) {
+    #[test_case(1, 2, 0, 0, 1, 0, 0; "mod 1 procs 2 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
+    #[test_case(2, 4, 0, 0, 1, 0, 0; "mod 2 procs 4 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
+    #[test_case(2, 4, 1, 0, 1, 0, 1; "mod 2 procs 4 imem 1 dmem rd 0 wr 1 nw proc 0 nw mod 1")]
+    pub fn test_pointer_chasing(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, inter_proc_nw_lat: u32, inter_mod_nw_lat: u32) {
         assert_eq!(
             perform_test(
                 "../examples/PointerChasing.sv",
@@ -427,7 +438,7 @@ pub mod emulation_tester {
                 "../examples/PointerChasing.input",
                 "../examples/PointerChasing.lut.blif",
                 num_mods, num_procs,
-                network_lat, network_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+                inter_proc_nw_lat, inter_mod_nw_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
             ),
             true
         );

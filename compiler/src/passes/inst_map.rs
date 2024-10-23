@@ -97,7 +97,7 @@ pub fn map_instructions(circuit: &mut Circuit) {
             let use_ldm = pcoord == coord;
 
             let pc_offset = match &pedge.weight().route {
-                Some(r) => pcfg.nw_route_lat(&r),
+                Some(r) => pcfg.nw_route_lat(&r) - pcfg.fetch_decode_lat(),
                 None    => 0
             };
             node_inst.operands.push(Operand {
