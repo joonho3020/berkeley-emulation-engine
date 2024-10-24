@@ -39,15 +39,15 @@ pub struct Processor {
     io_o: Bit,
 
     /// Local switch port (within a `Module`)
-    s_local_port: ProcessorSwitchPort,
+    sw_loc: ProcessorSwitchPort,
 
     /// Receive bit from `sin_idx` from Local switch
     sin_idx: u32,
 
     /// Global switch port (within a `Board`)
-    s_global_port: ProcessorSwitchPort,
+    sw_glb: ProcessorSwitchPort,
 
-    /// true when receiving from `s_local_port` instead of `s_global_port` & vice versa
+    /// true when receiving from `sw_loc` instead of `sw_glb` & vice versa
     sin_local: bool,
 
     /// Bit to send when we need to forward the bit to the network instead of
@@ -70,8 +70,8 @@ impl Processor {
             io_o: 0,
             pc: 0,
             target_cycle: 0,
-            s_local_port: ProcessorSwitchPort::default(),
-            s_global_port: ProcessorSwitchPort::default(),
+            sw_loc: ProcessorSwitchPort::default(),
+            sw_glb: ProcessorSwitchPort::default(),
             sin_local: false,
             sin_fwd_bit: 0,
             sin_idx: 0,
@@ -192,11 +192,11 @@ impl Processor {
 
         // Set switch out
         if de_inst.sinfo.fwd {
-            self.s_local_port.op  = self.sin_fwd_bit;
-            self.s_global_port.op = self.sin_fwd_bit;
+            self.sw_loc.op  = self.sin_fwd_bit;
+            self.sw_glb.op = self.sin_fwd_bit;
         } else {
-            self.s_local_port.op  = f_out;
-            self.s_global_port.op = f_out;
+            self.sw_loc.op  = f_out;
+            self.sw_glb.op = f_out;
         }
 
         self.ldm.run_cycle();
@@ -227,9 +227,9 @@ impl Processor {
 
     pub fn update_sdm_and_pc(self: &mut Self) {
         let sdm_store_bit = if self.sin_local {
-            self.s_local_port.ip
+            self.sw_loc.ip
         } else {
-            self.s_global_port.ip
+            self.sw_glb.ip
         };
 
         // Update SDM
@@ -258,19 +258,19 @@ impl Processor {
     }
 
     pub fn set_local_switch_in(self: &mut Self, b: Bit) {
-        self.s_local_port.ip = b;
+        self.sw_loc.ip = b;
     }
 
     pub fn get_local_switch_out(self: &mut Self) -> Bit {
-        self.s_local_port.op
+        self.sw_loc.op
     }
 
     pub fn set_global_switch_in(self: &mut Self, b: Bit) {
-        self.s_global_port.ip = b;
+        self.sw_glb.ip = b;
     }
 
     pub fn get_global_switch_out(self: &mut Self) -> Bit {
-        self.s_global_port.op
+        self.sw_glb.op
     }
 
     pub fn set_io_i(self: &mut Self, x: Bit) {

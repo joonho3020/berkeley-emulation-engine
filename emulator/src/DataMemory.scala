@@ -3,33 +3,35 @@ package emulator
 import chisel3._
 import chisel3.util._
 
-class DataMemoryReadPort(cfg: ModuleConfig) extends Bundle {
+class DataMemoryReadPort(cfg: EmulatorConfig) extends Bundle {
   val idx = Input(UInt(cfg.index_bits.W))
   val bit = Output(UInt(cfg.num_bits.W))
 }
 
-class DataMemoryWritePort(cfg: ModuleConfig) extends Bundle {
+class DataMemoryWritePort(cfg: EmulatorConfig) extends Bundle {
   val idx = Input(UInt(cfg.index_bits.W))
   val bit = Input(UInt(cfg.num_bits.W))
+  val en  = Input(Bool())
 }
 
-class DataMemory(cfg: ModuleConfig) extends Module {
+class DataMemory(cfg: EmulatorConfig) extends Module {
   import cfg._
   val io = IO(new Bundle {
     val rd = Vec(lut_inputs, new DataMemoryReadPort(cfg))
     val wr = new DataMemoryWritePort(cfg)
-    val dbg = Output(UInt(dmem_bits.W))
+    val dbg = if (cfg.debug) Some(Output(UInt(dmem_bits.W))) else None
   })
 
   val mem = RegInit(VecInit(Seq.fill(max_steps)(0.U(num_bits.W))))
 
-  val dbg = Cat(mem.reverse)
-  io.dbg := dbg
-  dontTouch(dbg)
+  if (cfg.debug) {
+    val dbg = Cat(mem.reverse)
+    io.dbg.map(x => x := dbg)
+  }
 
   // Write
   for (i <- 0 until max_steps) {
-    when (i.U === io.wr.idx) {
+    when (i.U === io.wr.idx && io.wr.en) {
       mem(i) := io.wr.bit
     }
   }

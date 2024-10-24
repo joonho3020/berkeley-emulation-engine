@@ -3,61 +3,64 @@ package emulator
 import chisel3._
 import chisel3.util._
 import chisel3.util.Decoupled
+import chisel3.experimental.hierarchy.{instantiable, public}
 
-class ProcessorConfigBundle(cfg: ModuleConfig) extends Bundle {
-  val host_steps = UInt(cfg.index_bits.W)
-}
-
-class ProcessorDebugBundle(cfg: ModuleConfig) extends Bundle {
+class ProcessorDebugBundle(cfg: EmulatorConfig) extends Bundle {
   val ldm = UInt(cfg.dmem_bits.W)
   val sdm = UInt(cfg.dmem_bits.W)
   val ops = Vec(cfg.lut_inputs, UInt(cfg.num_bits.W))
 }
 
-class ProcessorBundle(cfg: ModuleConfig) extends Bundle {
-  import cfg._
-  val run  = Input(Bool())
-  val host_steps  = Input(UInt(index_bits.W))
-
+class InstScanChainBundle(cfg: EmulatorConfig) extends Bundle {
   val init_o = Output(Bool())
   val inst_i = Flipped(Decoupled(Instruction(cfg)))
   val init_i = Input(Bool())
   val inst_o = Decoupled(Instruction(cfg))
+}
 
-  val swp  = new SwitchPort(cfg)
+class ProcessorBundle(cfg: EmulatorConfig) extends Bundle {
+  import cfg._
+  val run  = Input(Bool())
+  val host_steps  = Input(UInt(index_bits.W))
+
+  val isc = new InstScanChainBundle(cfg)
+
+  val sw_loc = new LocalSwitchPort(cfg)
+  val sw_glb = new GlobalSwitchPort(cfg)
 
   val io_i = Input (UInt(num_bits.W))
   val io_o = Output(UInt(num_bits.W))
 
-  val dbg = Output(new ProcessorDebugBundle(cfg))
+  val dbg = if (cfg.debug) Some(Output(new ProcessorDebugBundle(cfg))) else None
 }
 
-class Processor(cfg: ModuleConfig) extends Module {
+@instantiable
+class Processor(cfg: EmulatorConfig) extends Module {
   import cfg._
 
-  val io = IO(new ProcessorBundle(cfg))
+  @public val io = IO(new ProcessorBundle(cfg))
+
   val io_o = RegInit(0.U(num_bits.W))
   io.io_o := io_o
 
   val pc = RegInit(0.U(index_bits.W))
   val init = RegInit(false.B)
-  io.init_o := init
+  io.isc.init_o := init
 
-  val imem = Module(new InstructionMemory(cfg))
-  imem.io.pc := pc
+  val imem = Module(new InstMem(cfg))
   imem.io.wen := false.B
-  imem.io.winst := io.inst_i.bits
+  imem.io.winst := io.isc.inst_i.bits
 
-  io.inst_o.valid := false.B
-  io.inst_o.bits  := DontCare
-  io.inst_i.ready := false.B
+  io.isc.inst_o.valid := false.B
+  io.isc.inst_o.bits  := DontCare
+  io.isc.inst_i.ready := false.B
 
   when (!init) {
-    when (!io.init_i) {
-      io.inst_o <> io.inst_i
+    when (!io.isc.init_i) {
+      io.isc.inst_o <> io.isc.inst_i
     } .otherwise {
-      io.inst_i.ready := true.B
-      when (io.inst_i.valid) {
+      io.isc.inst_i.ready := true.B
+      when (io.isc.inst_i.valid) {
         when (pc === io.host_steps - 1.U) {
           pc := 0.U
           init := true.B
@@ -67,65 +70,85 @@ class Processor(cfg: ModuleConfig) extends Module {
         imem.io.wen := true.B
       }
     }
-
   } .otherwise {
     when (io.run) {
       pc := Mux(pc === io.host_steps - 1.U, 0.U, pc + 1.U)
     }
   }
 
-  val inst = imem.io.rinst
+  // -------------------------- Fetch -----------------------------------
+  imem.io.pc := pc
+
+  // -------------------------- Decode -----------------------------------
+  val fd_inst = imem.io.rinst
   val ldm = Module(new DataMemory(cfg))
   val sdm = Module(new DataMemory(cfg))
 
   for (i <- 0 until cfg.lut_inputs) {
-    ldm.io.rd(i).idx := inst.ops(i).rs
-    sdm.io.rd(i).idx := inst.ops(i).rs
+    ldm.io.rd(i).idx := fd_inst.ops(i).rs
+    sdm.io.rd(i).idx := fd_inst.ops(i).rs
   }
 
+  // -------------------------- Execute -----------------------------------
+  val de_inst = if (cfg.dmem_rd_lat == 1) {
+    RegNext(fd_inst)
+  } else {
+    fd_inst
+  }
   val ops = Seq.fill(cfg.lut_inputs)(Wire(UInt(num_bits.W)))
   val lut_idx = Cat(ops.reverse)
   for (i <- 0 until cfg.lut_inputs) {
-    ops(i) := Mux(inst.ops(i).local, ldm.io.rd(i).bit, sdm.io.rd(i).bit)
+    ops(i) := Mux(de_inst.ops(i).local, ldm.io.rd(i).bit, sdm.io.rd(i).bit)
   }
 
-  val fout = Wire(UInt(num_bits.W))
-  fout := 0.U
-  switch (inst.opcode) {
+  val f_out = Wire(UInt(num_bits.W))
+  f_out := 0.U
+  switch (de_inst.opcode) {
     is (Instruction.NOP.U) {
-      fout := 0.U
+      f_out := 0.U
     }
     is (Instruction.Input.U) {
-      fout := io.io_i
+      f_out := io.io_i
     }
     is (Instruction.Lut.U) {
-      fout := inst.lut >> (lut_idx * num_bits.U)
+      f_out := de_inst.lut >> (lut_idx * num_bits.U)
     }
     is (Instruction.Output.U) {
       when (init) {
         io_o := ops(0)
       }
-      fout := ops(0)
+      f_out := ops(0)
     }
     is (Instruction.Gate.U) {
-      fout := ops(0)
+      f_out := ops(0)
     }
     is (Instruction.Latch.U) {
-      fout := ops(0)
+      f_out := ops(0)
     }
   }
 
-  sdm.io.wr.idx := pc
-  sdm.io.wr.bit := Mux(io.run, io.swp.i, 0.U)
+  val dmem_wr_en  = (pc >= cfg.fetch_decode_lat.U) && io.run
+  val dmem_wr_idx = (pc -  cfg.fetch_decode_lat.U)
 
-  ldm.io.wr.idx := pc
-  ldm.io.wr.bit := Mux(io.run, fout, 0.U)
+  ldm.io.wr.en  := dmem_wr_en
+  ldm.io.wr.idx := dmem_wr_idx
+  ldm.io.wr.bit := Mux(io.run, f_out, 0.U)
 
-  io.swp.o := Mux(io.run, fout, 0.U)
-  io.swp.id := inst.sin
+  val s_fwd = Reg(UInt(num_bits.W))
+  val s_in = Mux(de_inst.sinfo.local, io.sw_loc.ip, io.sw_glb.ip)
+  sdm.io.wr.en  := dmem_wr_en
+  sdm.io.wr.idx := dmem_wr_idx
+  sdm.io.wr.bit := Mux(io.run, s_in, 0.U)
+  s_fwd := s_in
 
-  io.dbg.ldm := ldm.io.dbg
-  io.dbg.sdm := sdm.io.dbg
-  io.dbg.ops := ops
-  dontTouch(io.dbg)
+  val s_out = Mux(io.run && de_inst.sinfo.fwd, s_fwd, f_out)
+  io.sw_loc.id := de_inst.sinfo.idx
+  io.sw_loc.op := s_out
+  io.sw_glb.op := s_out
+
+  if (cfg.debug) {
+    io.dbg.map(x => x.ldm := ldm.io.dbg.get)
+    io.dbg.map(x => x.sdm := sdm.io.dbg.get)
+    io.dbg.map(x => x.ops := ops)
+  }
 }

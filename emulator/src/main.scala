@@ -5,11 +5,9 @@ import chisel3._
 import _root_.circt.stage.ChiselStage
 
 object Main extends App {
-  val config = new ModuleConfig(max_steps = 8, module_sz = 8)
-  val opalkelly = new OpalKellyConfig(wire_bits = 16)
-
+  val config = new EmulatorConfig
   ChiselStage.emitSystemVerilogFile(
-    new OpalKellyFPGATop(config, opalkelly),
+    new Board(config),
     firtoolOpts = Array(
       "-disable-all-randomization",
       "-strip-debug-info",
