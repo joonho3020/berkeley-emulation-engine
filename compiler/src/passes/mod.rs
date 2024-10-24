@@ -10,4 +10,5 @@ pub mod set_rank;
 pub mod check_rank;
 pub mod check_connectivity;
 pub mod print_stats;
+pub mod distribute_io;
 pub mod runner;

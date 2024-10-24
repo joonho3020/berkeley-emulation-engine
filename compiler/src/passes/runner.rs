@@ -10,6 +10,7 @@ use set_rank::find_rank_order;
 use partition::partition;
 use check_rank::check_rank_order;
 use check_connectivity::check_connectivity;
+use distribute_io::distribute_io;
 use print_stats::print_stats;
 use std::time::Instant;
 
@@ -33,6 +34,9 @@ pub fn run_compiler_passes(c: &mut Circuit) {
 
     replicate_consts(c);
 // check_connectivity(c);
+
+    distribute_io(c);
+
     let sram_const_time = sram_const_start.elapsed().as_millis();
     println!("SRAM and constant replication done");
 
