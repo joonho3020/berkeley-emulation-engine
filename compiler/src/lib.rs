@@ -132,6 +132,23 @@ pub mod blif_sim_test {
     #[test_case(9, 8, 0, 0, 1, 0, 0; "mod 9 procs 8 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
     #[test_case(9, 8, 1, 0, 1, 0, 1; "mod 9 procs 8 imem 1 dmem rd 0 wr 1 nw proc 0 nw mod 1")]
     #[test_case(9, 8, 1, 1, 1, 0, 1; "mod 9 procs 8 imem 1 dmem rd 1 wr 1 nw proc 0 nw mod 1")]
+    pub fn test_shiftreg(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, inter_proc_nw_lat: u32, inter_mod_nw_lat: u32) {
+        assert_eq!(
+            test_blif_sim(
+                "../examples/ShiftReg.sv",
+                "ShiftReg",
+                "../examples/ShiftReg.input",
+                "../examples/ShiftReg.lut.blif",
+                num_mods, num_procs,
+                inter_proc_nw_lat, inter_mod_nw_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+            ),
+            true
+        );
+    }
+
+    #[test_case(9, 8, 0, 0, 1, 0, 0; "mod 9 procs 8 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
+    #[test_case(9, 8, 1, 0, 1, 0, 1; "mod 9 procs 8 imem 1 dmem rd 0 wr 1 nw proc 0 nw mod 1")]
+    #[test_case(9, 8, 1, 1, 1, 0, 1; "mod 9 procs 8 imem 1 dmem rd 1 wr 1 nw proc 0 nw mod 1")]
     pub fn test_fir(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, inter_proc_nw_lat: u32, inter_mod_nw_lat: u32) {
         assert_eq!(
             test_blif_sim(
@@ -337,6 +354,24 @@ pub mod emulation_tester {
                 "Counter",
                 "../examples/Counter.input",
                 "../examples/Counter.lut.blif",
+                num_mods, num_procs,
+                inter_proc_nw_lat, inter_mod_nw_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
+            ),
+            true
+        );
+    }
+
+    #[test_case(9, 8, 0, 0, 1, 0, 0; "mod 9 procs 8 imem 0 dmem rd 0 wr 1 nw proc 0 nw mod 0")]
+    #[test_case(9, 8, 1, 0, 1, 0, 1; "mod 9 procs 8 imem 1 dmem rd 0 wr 1 nw proc 0 nw mod 1")]
+    #[test_case(9, 8, 1, 1, 1, 0, 1; "mod 9 procs 8 imem 1 dmem rd 1 wr 1 nw proc 0 nw mod 1")]
+    #[test_case(9, 8, 1, 1, 1, 1, 1; "mod 9 procs 8 imem 1 dmem rd 1 wr 1 nw proc 1 nw mod 1")]
+    pub fn test_shiftreg(num_mods: u32, num_procs: u32, imem_lat: u32, dmem_rd_lat: u32, dmem_wr_lat: u32, inter_proc_nw_lat: u32, inter_mod_nw_lat: u32) {
+        assert_eq!(
+            perform_test(
+                "../examples/ShiftReg.sv",
+                "ShiftReg",
+                "../examples/ShiftReg.input",
+                "../examples/ShiftReg.lut.blif",
                 num_mods, num_procs,
                 inter_proc_nw_lat, inter_mod_nw_lat, imem_lat, dmem_rd_lat, dmem_wr_lat
             ),
