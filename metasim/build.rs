@@ -150,6 +150,8 @@ fn generate_rust_bindings(top: &str, signals: &Vec<Signal>, output_path: &str) -
 }
 
 fn main() -> std::io::Result<()> {
+    println!("cargo:rerun-if-changed=build.rs");
+
     // Unfortunately, there is no good way to pass command line arguments
     // to build.rs
     let args = Args {
@@ -172,14 +174,14 @@ fn main() -> std::io::Result<()> {
 
     let sv_file_path = Path::new(&args.sv_file_path);
     let sv_file = sv_file_path.file_name().unwrap().to_str().unwrap();
-// Command::new("verilator")
-// .current_dir(&cwd)
-// .arg("--cc").arg(sv_file)
-// .arg("--build")
-// .arg("-j").arg("32")
-// .arg("-CFLAGS").arg("-fPIC")
-// .arg("--trace")
-// .status()?;
+    Command::new("verilator")
+        .current_dir(&cwd)
+        .arg("--cc").arg(sv_file)
+        .arg("--build")
+        .arg("-j").arg("32")
+        .arg("-CFLAGS").arg("-fPIC")
+        .arg("--trace")
+        .status()?;
 
     let top = sv_file_path.file_stem().unwrap().to_str().unwrap();
     let obj_dir = format!("{}/obj_dir", cwd.to_str().unwrap());
@@ -247,7 +249,6 @@ fn main() -> std::io::Result<()> {
     println!("cargo:rustc-link-search=native=./");
     println!("cargo:rustc-link-arg=-Wl,-rpath-link,{}/lib,-rpath,{}", conda_prefix, "./");
     println!("cargo:rustc-link-lib=dylib=Vdut");
-    println!("cargo:rerun-if-changed=build-dir/Board.sv");
 
     return Ok(());
 }

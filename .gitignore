@@ -24,6 +24,7 @@ emulator/test/*
 
 metasim/build-dir
 metasim/libVdut.so
+**/*.vcd
 
 # Added by cargo
 
