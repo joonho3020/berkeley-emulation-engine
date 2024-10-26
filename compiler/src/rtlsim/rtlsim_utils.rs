@@ -114,6 +114,18 @@ pub fn bitblast_input_stimuli(
     return input_stimuli_blasted;
 }
 
+pub fn get_input_stimuli_blasted(
+    top_mod: &str,
+    input_stimuli_path: &str,
+    sv_file_path: &str
+) -> Result<InputStimuliMap, std::io::Error> {
+    let verilog_str = fs::read_to_string(sv_file_path)?;
+    let ports = get_io(verilog_str.to_string(), top_mod.to_string());
+    let input_stimuli = get_input_stimuli(input_stimuli_path);
+    let input_stimuli_blasted = bitblast_input_stimuli(&input_stimuli, &ports);
+    return Ok(input_stimuli_blasted);
+}
+
 pub fn bitblasted_port_names(ports: &Vec<Port>) -> Vec<String> {
     let mut ret = vec![];
     for port in ports.iter() {

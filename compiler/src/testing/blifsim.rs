@@ -14,21 +14,10 @@ use crate::testing::try_new_circuit;
 
 pub fn compare_blif_sim_to_fsim(args: Args) -> std::io::Result<()> {
     let circuit = try_new_circuit(&args)?;
-
-    let verilog_str = match fs::read_to_string(&args.sv_file_path) {
-        Ok(content) => content,
-        Err(e) => {
-            return Err(std::io::Error::other(format!(
-                "Error while parsing:\n{}",
-                e
-            )));
-        }
-    };
-
-    // convert input stimuli to bit-blasted input stimuli
-    let ports = get_io(verilog_str.to_string(), args.top_mod.to_string());
-    let input_stimuli = get_input_stimuli(&args.input_stimuli_path);
-    let input_stimuli_blasted = bitblast_input_stimuli(&input_stimuli, &ports);
+    let input_stimuli_blasted = get_input_stimuli_blasted(
+        &args.top_mod,
+        &args.input_stimuli_path,
+        &args.sv_file_path)?;
 
     let mut board = Board::from(&circuit);
     let mut bsim  = BlifSimulator::new(circuit.clone(), input_stimuli_blasted.clone());
