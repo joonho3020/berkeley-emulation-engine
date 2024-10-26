@@ -1,13 +1,13 @@
-use std::process::Command;
 use std::env;
-use std::fs::File;
 use std::fs;
+use std::fs::File;
+use std::io::{self, BufRead, BufWriter, Write};
 use std::path::Path;
-use std::io::{self, BufRead, Write, BufWriter};
+use std::process::Command;
 
 pub struct Args {
     pub sv_file_path: String,
-    pub build_dir: String
+    pub build_dir: String,
 }
 
 #[derive(Debug)]
@@ -29,17 +29,20 @@ fn parse_file(file_path: &str) -> io::Result<Vec<Signal>> {
                 .replace("(", ",") // Replace '(' with ',' to unify delimiter
                 .replace(")", ",") // Replace ')' with ',' to unify delimiter
                 .replace("&", ",") // Replace ')' with ',' to unify delimiter
-                .split(',')        // Split by ','
-                .map(|s| {
-                    s.trim().to_string()
-                }) // Trim whitespace around parts
+                .split(',') // Split by ','
+                .map(|s| s.trim().to_string()) // Trim whitespace around parts
                 .collect();
 
             if parts.len() >= 5 {
                 // Extract direction, name, and bit width
-                let input = if parts[0].contains("VL_IN") { true } else { false };
+                let input = if parts[0].contains("VL_IN") {
+                    true
+                } else {
+                    false
+                };
                 let name = parts[2].to_string();
-                let bits: u32 = parts[3].parse::<u32>().unwrap() - parts[4].parse::<u32>().unwrap() + 1;
+                let bits: u32 =
+                    parts[3].parse::<u32>().unwrap() - parts[4].parse::<u32>().unwrap() + 1;
 
                 // Store the signal in the vector
                 signals.push(Signal { input, name, bits });
@@ -85,20 +88,36 @@ fn generate_c_bindings(top: &str, signals: &Vec<Signal>, output_path: &str) -> i
     writeln!(writer, "       tfp->close();")?;
     writeln!(writer, "     }}\n")?;
 
-    writeln!(writer, "    void dump_vcd(VerilatedVcdC* tfp, unsigned int i) {{")?;
+    writeln!(
+        writer,
+        "    void dump_vcd(VerilatedVcdC* tfp, unsigned int i) {{"
+    )?;
     writeln!(writer, "      tfp->dump(i);")?;
     writeln!(writer, "    }}\n")?;
 
     // Write the generated functions
     for signal in signals {
-        assert!(signal.bits <= 64, "Signal {} width {} :(", signal.name, signal.bits);
+        assert!(
+            signal.bits <= 64,
+            "Signal {} width {} :(",
+            signal.name,
+            signal.bits
+        );
 
         if signal.input {
-            writeln!(writer, "    void poke_{} ({}* dut, uint64_t {}) {{", signal.name, vtop, signal.name)?;
+            writeln!(
+                writer,
+                "    void poke_{} ({}* dut, uint64_t {}) {{",
+                signal.name, vtop, signal.name
+            )?;
             writeln!(writer, "        dut->{} = {};", signal.name, signal.name)?;
             writeln!(writer, "    }}\n")?;
         } else {
-            writeln!(writer, "    uint64_t peek_{} ({}* dut) {{", signal.name, vtop)?;
+            writeln!(
+                writer,
+                "    uint64_t peek_{} ({}* dut) {{",
+                signal.name, vtop
+            )?;
             writeln!(writer, "        return dut->{};", signal.name)?;
             writeln!(writer, "    }}\n")?;
         }
@@ -129,18 +148,38 @@ fn generate_rust_bindings(top: &str, signals: &Vec<Signal>, output_path: &str) -
     writeln!(writer, "    pub fn {}_new() -> *mut {};", top, vtop)?;
     writeln!(writer, "    pub fn {}_eval(dut: *mut {});", top, vtop)?;
     writeln!(writer, "    pub fn {}_delete(dut: *mut {});", top, vtop)?;
-    writeln!(writer, "    pub fn enable_trace(dut: *mut {}) -> *mut VerilatedVcdC;", vtop)?;
+    writeln!(
+        writer,
+        "    pub fn enable_trace(dut: *mut {}) -> *mut VerilatedVcdC;",
+        vtop
+    )?;
     writeln!(writer, "    pub fn close_trace(tfp: *mut VerilatedVcdC);")?;
-    writeln!(writer, "    pub fn dump_vcd(tfp: *mut VerilatedVcdC, timestep: u32);")?;
+    writeln!(
+        writer,
+        "    pub fn dump_vcd(tfp: *mut VerilatedVcdC, timestep: u32);"
+    )?;
 
     // Write the generated functions
     for signal in signals {
-        assert!(signal.bits <= 64, "Signal {} width {} :(", signal.name, signal.bits);
+        assert!(
+            signal.bits <= 64,
+            "Signal {} width {} :(",
+            signal.name,
+            signal.bits
+        );
 
         if signal.input {
-            writeln!(writer, "    pub fn poke_{} (dut: *mut {}, {}: u64);", signal.name, vtop, signal.name)?;
+            writeln!(
+                writer,
+                "    pub fn poke_{} (dut: *mut {}, {}: u64);",
+                signal.name, vtop, signal.name
+            )?;
         } else {
-            writeln!(writer, "    pub fn peek_{} (dut: *mut {});", signal.name, vtop)?;
+            writeln!(
+                writer,
+                "    pub fn peek_{} (dut: *mut {}) -> u64;",
+                signal.name, vtop
+            )?;
         }
     }
 
@@ -156,7 +195,7 @@ fn main() -> std::io::Result<()> {
     // to build.rs
     let args = Args {
         sv_file_path: "../emulator/Board.sv".to_string(),
-        build_dir:      "build-dir".to_string()
+        build_dir: "build-dir".to_string(),
     };
 
     let mut cwd = env::current_dir()?;
@@ -170,16 +209,20 @@ fn main() -> std::io::Result<()> {
 
     Command::new("which")
         .arg("verilator")
-        .status().expect("verilator is not in path");
+        .status()
+        .expect("verilator is not in path");
 
     let sv_file_path = Path::new(&args.sv_file_path);
     let sv_file = sv_file_path.file_name().unwrap().to_str().unwrap();
     Command::new("verilator")
         .current_dir(&cwd)
-        .arg("--cc").arg(sv_file)
+        .arg("--cc")
+        .arg(sv_file)
         .arg("--build")
-        .arg("-j").arg("32")
-        .arg("-CFLAGS").arg("-fPIC")
+        .arg("-j")
+        .arg("32")
+        .arg("-CFLAGS")
+        .arg("-fPIC")
         .arg("--trace")
         .status()?;
 
@@ -247,7 +290,10 @@ fn main() -> std::io::Result<()> {
     generate_rust_bindings(top, &signals, &rust_binding_path)?;
 
     println!("cargo:rustc-link-search=native=./");
-    println!("cargo:rustc-link-arg=-Wl,-rpath-link,{}/lib,-rpath,{}", conda_prefix, "./");
+    println!(
+        "cargo:rustc-link-arg=-Wl,-rpath-link,{}/lib,-rpath,{}",
+        conda_prefix, "./"
+    );
     println!("cargo:rustc-link-lib=dylib=Vdut");
 
     return Ok(());

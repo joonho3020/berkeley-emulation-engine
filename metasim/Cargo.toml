@@ -4,8 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-# bee = { git = "ssh://git@github.com/joonho3020/berkeley-emulation-engine.git", branch = "main" }
+bee = { git = "ssh://git@github.com/joonho3020/berkeley-emulation-engine.git", branch = "main" }
 clap = "4.5.20"
+indexmap = "2.6.0"
 
 [build-dependencies]
 cc = "1.0"
