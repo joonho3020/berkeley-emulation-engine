@@ -7,10 +7,10 @@ import chisel3.util._
 case class Coordinate(mod: Int, proc: Int)
 
 case class EmulatorConfig(
-  max_steps:   Int = 1024,        // Maximum host steps that can be run
+  max_steps:   Int = 128,        // Maximum host steps that can be run
   num_bits:    Int = 1,           // Width of the datapath
-  num_procs:   Int = 64,          // Number of processor in a module
-  num_mods:    Int = 33,          // Number of modules in a board
+  num_procs:   Int = 8,          // Number of processor in a module
+  num_mods:    Int = 9,          // Number of modules in a board
   imem_lat:    Int = 1,           // Instruction memory read latency
   dmem_rd_lat: Int = 0,           // Data memory read latency
   num_prims:   Int = 9,           // Number of primitives
