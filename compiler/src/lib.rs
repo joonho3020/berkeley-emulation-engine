@@ -4,7 +4,6 @@ pub mod passes;
 pub mod rtlsim;
 pub mod testing;
 
-
 #[cfg(test)]
 pub mod blif_sim_test {
     use crate::common::config::*;

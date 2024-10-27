@@ -9,6 +9,25 @@ use dut::*;
 use indexmap::IndexMap;
 use std::{collections::VecDeque, cmp::max};
 
+
+#[derive(Debug)]
+pub enum RTLSimError {
+    IOError(std::io::Error),
+    SimError(String)
+}
+
+impl From<std::io::Error> for RTLSimError {
+    fn from(err: std::io::Error) -> RTLSimError {
+        RTLSimError::IOError(err)
+    }
+}
+
+impl From<String> for RTLSimError {
+    fn from(err: String) -> RTLSimError {
+        RTLSimError::SimError(err)
+    }
+}
+
 unsafe fn step(dut: *mut VBoard, vcd: *mut VerilatedVcdC, cycle: &mut u32) {
     let time = *cycle * 2;
     poke_clock(dut, 1);
@@ -622,8 +641,7 @@ pub fn get_input_stimuli_by_step<'a>(
     return input_stimuli_by_step;
 }
 
-fn main() -> std::io::Result<()> {
-    let args = Args::parse();
+pub fn test_rtl(args: &Args) -> Result<(), RTLSimError> {
     let circuit = try_new_circuit(&args)?;
     let mut funct_sim = Board::from(&circuit);
 
@@ -672,9 +690,7 @@ fn main() -> std::io::Result<()> {
         }
     }
 
-    println!("all_signal_map: {:?}", all_signal_map);
-    println!("output_signals: {:?}", output_signals);
-
+    let mut mismatch_string: Option<String> = None;
     let mut cycle = 0;
     unsafe {
         let dut = Board_new();
@@ -794,7 +810,7 @@ fn main() -> std::io::Result<()> {
             step(dut, vcd, &mut cycle);
         }
 
-        for tcycle in 0..target_cycles {
+        'emulation_loop: for tcycle in 0..target_cycles {
 
             // Run emulator RTL
             for (coord, stim) in mapped_input_stimulti_blasted.iter_mut() {
@@ -825,10 +841,10 @@ fn main() -> std::io::Result<()> {
                 match funct_sim.peek(os) {
                     Some(bit) => {
                         if (bit as u64) != rtl_val {
-                            println!("Target cycle {} mismatch, got {} expect {}, signal {} coord {:?}",
-                                tcycle, rtl_val, bit, os, coord);
-                        } else {
-                            println!("Target cycle {} match for signal {} val {}", tcycle, os, bit);
+                            mismatch_string = Some(format!(
+                                    "Target cycle {} mismatch, got {} expect {}, signal {} coord {:?}",
+                                    tcycle, rtl_val, bit, os, coord));
+                            break 'emulation_loop;
                         }
                     }
                     None => { }
@@ -839,6 +855,94 @@ fn main() -> std::io::Result<()> {
         close_trace(vcd);
         Board_delete(dut);
     }
-    println!("Test finished");
-    return Ok(());
+    match mismatch_string {
+        Some(emsg) => Err(RTLSimError::from(emsg)),
+        None       => Ok(())
+    }
+}
+
+fn main() {
+    let args = Args::parse();
+    match test_rtl(&args) {
+        Ok(_) => { println!("Test Success!"); }
+        Err(emsg) => { println!("Test Failed {:?}", emsg); }
+    }
+}
+
+
+#[cfg(test)]
+pub mod emulator_rtl_test {
+    use crate::test_rtl;
+    use bee::common::config::Args;
+    use test_case::test_case;
+
+    fn test_emulator_rtl(
+        sv_file_path: &str,
+        top_mod: &str,
+        input_stimuli_path: &str,
+        blif_file_path: &str,
+    ) -> bool {
+        let args = Args {
+            verbose:            false,
+            sim_dir:            format!("blif-sim-dir-{}", top_mod),
+            sv_file_path:       sv_file_path.to_string(),
+            top_mod:            top_mod.to_string(),
+            input_stimuli_path: input_stimuli_path.to_string(),
+            blif_file_path:     blif_file_path.to_string(),
+            vcd:                None,
+            instance_path:      "testharness.top".to_string(),
+            clock_start_low:    false,
+            timesteps_per_cycle: 2,
+            ref_skip_cycles:    4,
+            no_check_cycles:    0,
+            check_cycle_period: 1,
+            num_mods:           9,
+            num_procs:          8,
+            max_steps:          128,
+            lut_inputs:         3,
+            inter_proc_nw_lat:  0,
+            inter_mod_nw_lat:   0,
+            imem_lat:           1,
+            dmem_rd_lat:        0,
+            dmem_wr_lat:        1,
+            sram_width:         128,
+            sram_entries:       1024,
+            sram_rd_ports:      1,
+            sram_wr_ports:      1,
+            sram_rd_lat:        1,
+            sram_wr_lat:        1,
+            dbg_tail_length:    u32::MAX, // don't print debug graph when testing
+            dbg_tail_threshold: u32::MAX  // don't print debug graph when testing
+        };
+
+        match test_rtl(&args) {
+            Ok(_) => {
+                println!("Test Success!");
+                return true;
+            }
+            Err(emsg) => {
+                println!("Test Failed {:?}", emsg);
+                return false;
+            }
+        }
+    }
+
+// #[test_case("Core"; "Core")]
+    #[test_case("Adder"; "Adder Test")]
+    #[test_case("TestRegInit"; "TestRegInit Test")]
+    #[test_case("Const"; "Const Test")]
+    #[test_case("GCD"; "GCD Test")]
+    #[test_case("ShiftReg"; "ShiftReg Test")]
+    #[test_case("Fir"; "Fir Test")]
+    #[test_case("MyQueue"; "MyQueue Test")]
+    pub fn test(top: &str) {
+        assert_eq!(
+            test_emulator_rtl(
+                &format!("../examples/{}.sv", top),
+                &top,
+                &format!("../examples/{}.input", top),
+                &format!("../examples/{}.lut.blif", top)),
+                true
+        );
+    }
 }

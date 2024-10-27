@@ -7,6 +7,7 @@ edition = "2021"
 bee = { git = "ssh://git@github.com/joonho3020/berkeley-emulation-engine.git", branch = "main" }
 clap = "4.5.20"
 indexmap = "2.6.0"
+test-case = "3.3.1"
 
 [build-dependencies]
 cc = "1.0"
@@ -17,3 +18,6 @@ rustflags = [
     "-C", "link-args=-L./build-dir -lVdut",
     "-C", "link-args=-Wl,-rpath,."
 ]
+
+[dev-dependencies]
+serial_test = "3.1.1"
