@@ -1,8 +1,8 @@
 pub mod dut;
 use bee::{
-    common::{config::Args, hwgraph::NodeMapInfo, instruction::*, network::Coordinate},
-    rtlsim::rtlsim_utils::get_input_stimuli_blasted,
-    testing::try_new_circuit,
+    common::{
+        circuit::Circuit, config::Args, hwgraph::NodeMapInfo, instruction::*, network::Coordinate, primitive::{Bit, Primitive}
+    }, fsim::board::Board, rtlsim::rtlsim_utils::{get_input_stimuli_blasted, InputStimuliMap}, testing::try_new_circuit
 };
 use clap::Parser;
 use dut::*;
@@ -166,6 +166,156 @@ unsafe fn poke_io_coord(dut: *mut VBoard, coord: &Coordinate, bit: u64) {
         poke_io_io_8_i_6(dut, bit);
     } else if coord.module == 8 && coord.proc == 7 {
         poke_io_io_8_i_7(dut, bit);
+    }
+}
+
+unsafe fn peek_io_coord(dut: *mut VBoard, coord: &Coordinate) -> u64 {
+    if coord.module == 0 && coord.proc == 0 {
+        return peek_io_io_0_o_0(dut);
+    } else if coord.module == 0 && coord.proc == 1 {
+        return peek_io_io_0_o_1(dut);
+    } else if coord.module == 0 && coord.proc == 2 {
+        return peek_io_io_0_o_2(dut);
+    } else if coord.module == 0 && coord.proc == 3 {
+        return peek_io_io_0_o_3(dut);
+    } else if coord.module == 0 && coord.proc == 4 {
+        return peek_io_io_0_o_4(dut);
+    } else if coord.module == 0 && coord.proc == 5 {
+        return peek_io_io_0_o_5(dut);
+    } else if coord.module == 0 && coord.proc == 6 {
+        return peek_io_io_0_o_6(dut);
+    } else if coord.module == 0 && coord.proc == 7 {
+        return peek_io_io_0_o_7(dut);
+    } else if coord.module == 1 && coord.proc == 0 {
+        return peek_io_io_1_o_0(dut);
+    } else if coord.module == 1 && coord.proc == 1 {
+        return peek_io_io_1_o_1(dut);
+    } else if coord.module == 1 && coord.proc == 2 {
+        return peek_io_io_1_o_2(dut);
+    } else if coord.module == 1 && coord.proc == 3 {
+        return peek_io_io_1_o_3(dut);
+    } else if coord.module == 1 && coord.proc == 4 {
+        return peek_io_io_1_o_4(dut);
+    } else if coord.module == 1 && coord.proc == 5 {
+        return peek_io_io_1_o_5(dut);
+    } else if coord.module == 1 && coord.proc == 6 {
+        return peek_io_io_1_o_6(dut);
+    } else if coord.module == 1 && coord.proc == 7 {
+        return peek_io_io_1_o_7(dut);
+    } else if coord.module == 2 && coord.proc == 0 {
+        return peek_io_io_2_o_0(dut);
+    } else if coord.module == 2 && coord.proc == 1 {
+        return peek_io_io_2_o_1(dut);
+    } else if coord.module == 2 && coord.proc == 2 {
+        return peek_io_io_2_o_2(dut);
+    } else if coord.module == 2 && coord.proc == 3 {
+        return peek_io_io_2_o_3(dut);
+    } else if coord.module == 2 && coord.proc == 4 {
+        return peek_io_io_2_o_4(dut);
+    } else if coord.module == 2 && coord.proc == 5 {
+        return peek_io_io_2_o_5(dut);
+    } else if coord.module == 2 && coord.proc == 6 {
+        return peek_io_io_2_o_6(dut);
+    } else if coord.module == 2 && coord.proc == 7 {
+        return peek_io_io_2_o_7(dut);
+    } else if coord.module == 3 && coord.proc == 0 {
+        return peek_io_io_3_o_0(dut);
+    } else if coord.module == 3 && coord.proc == 1 {
+        return peek_io_io_3_o_1(dut);
+    } else if coord.module == 3 && coord.proc == 2 {
+        return peek_io_io_3_o_2(dut);
+    } else if coord.module == 3 && coord.proc == 3 {
+        return peek_io_io_3_o_3(dut);
+    } else if coord.module == 3 && coord.proc == 4 {
+        return peek_io_io_3_o_4(dut);
+    } else if coord.module == 3 && coord.proc == 5 {
+        return peek_io_io_3_o_5(dut);
+    } else if coord.module == 3 && coord.proc == 6 {
+        return peek_io_io_3_o_6(dut);
+    } else if coord.module == 3 && coord.proc == 7 {
+        return peek_io_io_3_o_7(dut);
+    } else if coord.module == 4 && coord.proc == 0 {
+        return peek_io_io_4_o_0(dut);
+    } else if coord.module == 4 && coord.proc == 1 {
+        return peek_io_io_4_o_1(dut);
+    } else if coord.module == 4 && coord.proc == 2 {
+        return peek_io_io_4_o_2(dut);
+    } else if coord.module == 4 && coord.proc == 3 {
+        return peek_io_io_4_o_3(dut);
+    } else if coord.module == 4 && coord.proc == 4 {
+        return peek_io_io_4_o_4(dut);
+    } else if coord.module == 4 && coord.proc == 5 {
+        return peek_io_io_4_o_5(dut);
+    } else if coord.module == 4 && coord.proc == 6 {
+        return peek_io_io_4_o_6(dut);
+    } else if coord.module == 4 && coord.proc == 7 {
+        return peek_io_io_4_o_7(dut);
+    } else if coord.module == 5 && coord.proc == 0 {
+        return peek_io_io_5_o_0(dut);
+    } else if coord.module == 5 && coord.proc == 1 {
+        return peek_io_io_5_o_1(dut);
+    } else if coord.module == 5 && coord.proc == 2 {
+        return peek_io_io_5_o_2(dut);
+    } else if coord.module == 5 && coord.proc == 3 {
+        return peek_io_io_5_o_3(dut);
+    } else if coord.module == 5 && coord.proc == 4 {
+        return peek_io_io_5_o_4(dut);
+    } else if coord.module == 5 && coord.proc == 5 {
+        return peek_io_io_5_o_5(dut);
+    } else if coord.module == 5 && coord.proc == 6 {
+        return peek_io_io_5_o_6(dut);
+    } else if coord.module == 5 && coord.proc == 7 {
+        return peek_io_io_5_o_7(dut);
+    } else if coord.module == 6 && coord.proc == 0 {
+        return peek_io_io_6_o_0(dut);
+    } else if coord.module == 6 && coord.proc == 1 {
+        return peek_io_io_6_o_1(dut);
+    } else if coord.module == 6 && coord.proc == 2 {
+        return peek_io_io_6_o_2(dut);
+    } else if coord.module == 6 && coord.proc == 3 {
+        return peek_io_io_6_o_3(dut);
+    } else if coord.module == 6 && coord.proc == 4 {
+        return peek_io_io_6_o_4(dut);
+    } else if coord.module == 6 && coord.proc == 5 {
+        return peek_io_io_6_o_5(dut);
+    } else if coord.module == 6 && coord.proc == 6 {
+        return peek_io_io_6_o_6(dut);
+    } else if coord.module == 6 && coord.proc == 7 {
+        return peek_io_io_6_o_7(dut);
+    } else if coord.module == 7 && coord.proc == 0 {
+        return peek_io_io_7_o_0(dut);
+    } else if coord.module == 7 && coord.proc == 1 {
+        return peek_io_io_7_o_1(dut);
+    } else if coord.module == 7 && coord.proc == 2 {
+        return peek_io_io_7_o_2(dut);
+    } else if coord.module == 7 && coord.proc == 3 {
+        return peek_io_io_7_o_3(dut);
+    } else if coord.module == 7 && coord.proc == 4 {
+        return peek_io_io_7_o_4(dut);
+    } else if coord.module == 7 && coord.proc == 5 {
+        return peek_io_io_7_o_5(dut);
+    } else if coord.module == 7 && coord.proc == 6 {
+        return peek_io_io_7_o_6(dut);
+    } else if coord.module == 7 && coord.proc == 7 {
+        return peek_io_io_7_o_7(dut);
+    } else if coord.module == 8 && coord.proc == 0 {
+        return peek_io_io_8_o_0(dut);
+    } else if coord.module == 8 && coord.proc == 1 {
+        return peek_io_io_8_o_1(dut);
+    } else if coord.module == 8 && coord.proc == 2 {
+        return peek_io_io_8_o_2(dut);
+    } else if coord.module == 8 && coord.proc == 3 {
+        return peek_io_io_8_o_3(dut);
+    } else if coord.module == 8 && coord.proc == 4 {
+        return peek_io_io_8_o_4(dut);
+    } else if coord.module == 8 && coord.proc == 5 {
+        return peek_io_io_8_o_5(dut);
+    } else if coord.module == 8 && coord.proc == 6 {
+        return peek_io_io_8_o_6(dut);
+    } else if coord.module == 8 && coord.proc == 7 {
+        return peek_io_io_8_o_7(dut);
+    } else {
+        return 0;
     }
 }
 
@@ -346,9 +496,46 @@ unsafe fn poke_inst_module(dut: *mut VBoard, module: &u32, inst: &Instruction) {
     }
 }
 
+pub fn get_input_stimuli_by_step<'a>(
+    circuit: &'a Circuit,
+    input_stimuli_blasted: &'a InputStimuliMap,
+    signal_map: &IndexMap<String, NodeMapInfo>,
+    cycle: u32
+) -> IndexMap<u32, Vec<(&'a str, Bit)>> {
+    // Collect input stimuli for the current cycle by name
+    let mut input_stimuli_by_name: IndexMap<&str, Bit> = IndexMap::new();
+    for key in input_stimuli_blasted.keys() {
+        let val = input_stimuli_blasted[key].get(cycle as usize);
+        match val {
+            Some(b) => input_stimuli_by_name.insert(key, *b as Bit),
+            None => None
+        };
+    }
+
+    // Find the step at which the input has to be poked
+    // Save that in the input_stimuli_by_step
+    let mut input_stimuli_by_step: IndexMap<u32, Vec<(&str, Bit)>> = IndexMap::new();
+    for (sig, bit) in input_stimuli_by_name.iter() {
+        match signal_map.get(*sig) {
+            Some(nmap) => {
+                let pc = circuit.graph.node_weight(nmap.idx).unwrap().info().pc;
+                let step = pc + circuit.platform_cfg.fetch_decode_lat();
+                if input_stimuli_by_step.get(&step) == None {
+                    input_stimuli_by_step.insert(step, vec![]);
+                }
+                input_stimuli_by_step.get_mut(&step).unwrap().push((sig, *bit));
+            }
+            None => {
+            }
+        }
+    }
+    return input_stimuli_by_step;
+}
+
 fn main() -> std::io::Result<()> {
     let args = Args::parse();
     let circuit = try_new_circuit(&args)?;
+    let mut funct_sim = Board::from(&circuit);
 
     // Aggregate per module instructions
     let mut module_insts: IndexMap<u32, VecDeque<Instruction>> = IndexMap::new();
@@ -380,7 +567,17 @@ fn main() -> std::io::Result<()> {
         let coord = all_signal_map.get(sig).unwrap().info.coord;
         mapped_input_stimulti_blasted.insert(coord, VecDeque::from(stim.clone()));
     }
+
+    // Total number of target cycles
     let target_cycles = mapped_input_stimulti_blasted.values().fold(0, |x, y| max(x, y.len()));
+
+    let mut output_signals: IndexMap<String, Coordinate> = IndexMap::new();
+    for (s, nm) in all_signal_map.iter() {
+        let node = circuit.graph.node_weight(nm.idx).unwrap();
+        if node.is() == Primitive::Output {
+            output_signals.insert(s.to_string(), node.info().coord);
+        }
+    }
 
     let mut cycle = 0;
     unsafe {
@@ -501,8 +698,9 @@ fn main() -> std::io::Result<()> {
             step(dut, vcd, &mut cycle);
         }
 
-        for _tcycle in 0..target_cycles {
+        for tcycle in 0..target_cycles {
 
+            // Run emulator RTL
             for (coord, stim) in mapped_input_stimulti_blasted.iter_mut() {
                 let bit = stim.pop_front().unwrap();
                 poke_io_coord(dut, coord, bit as u64);
@@ -517,6 +715,29 @@ fn main() -> std::io::Result<()> {
 
             poke_io_run(dut, 0);
             step(dut, vcd, &mut cycle);
+
+            // Run functional simulator
+            let input_stimuli_by_step = get_input_stimuli_by_step(
+                &circuit,
+                &input_stimuli_blasted,
+                &all_signal_map,
+                tcycle as u32);
+            funct_sim.run_cycle(&input_stimuli_by_step);
+
+            for (os, coord) in output_signals.iter() {
+                let rtl_val = peek_io_coord(dut, coord);
+                match funct_sim.peek(os) {
+                    Some(bit) => {
+                        if (bit as u64) != rtl_val {
+                            println!("Target cycle {} mismatch, got {} expect {}, signal {} coord {:?}",
+                                tcycle, rtl_val, bit, os, coord);
+                        } else {
+                            println!("Target cycle {} match for signal {}", tcycle, os);
+                        }
+                    }
+                    None => { }
+                }
+            }
         }
 
         close_trace(vcd);

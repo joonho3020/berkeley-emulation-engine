@@ -1,7 +1,6 @@
 use indexmap::IndexMap;
 use std::fs;
 use rand::prelude::*;
-
 use crate::common::utils::write_string_to_file;
 
 pub type InputStimuliMap = IndexMap<String, Vec<u64>>;
