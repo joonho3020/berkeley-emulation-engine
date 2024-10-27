@@ -3,6 +3,11 @@
 ## Usage
 
 - Requires a conda env with Verilator installed
+- Since we require the verilated shared library, we can't run the tests in a single process. We can use the `cargo-nextest` program to solve this issue
+
+```bash
+cargo nextest run --release
+```
 
 ## Flow
 
