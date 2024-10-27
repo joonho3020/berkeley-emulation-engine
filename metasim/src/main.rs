@@ -325,16 +325,26 @@ unsafe fn poke_inst_module(dut: *mut VBoard, module: &u32, inst: &Instruction) {
             poke_io_insts_0_valid(dut, 1);
             poke_io_insts_0_bits_opcode(dut, inst.opcode as u64);
             poke_io_insts_0_bits_lut(dut, inst.lut);
+
+            poke_io_insts_0_bits_ops_2_rs(dut, 0);
+            poke_io_insts_0_bits_ops_2_local(dut, 0);
+            poke_io_insts_0_bits_ops_1_rs(dut, 0);
+            poke_io_insts_0_bits_ops_1_local(dut, 0);
+            poke_io_insts_0_bits_ops_0_rs(dut, 0);
+            poke_io_insts_0_bits_ops_0_local(dut, 0);
             if inst.operands.len() > 2 {
                 poke_io_insts_0_bits_ops_2_rs(dut, inst.operands[2].rs as u64);
                 poke_io_insts_0_bits_ops_2_local(dut, inst.operands[2].local as u64);
-            } else if inst.operands.len() > 1 {
+            }
+            if inst.operands.len() > 1 {
                 poke_io_insts_0_bits_ops_1_rs(dut, inst.operands[1].rs as u64);
                 poke_io_insts_0_bits_ops_1_local(dut, inst.operands[1].local as u64);
-            } else if inst.operands.len() > 0 {
+            }
+            if inst.operands.len() > 0 {
                 poke_io_insts_0_bits_ops_0_rs(dut, inst.operands[0].rs as u64);
                 poke_io_insts_0_bits_ops_0_local(dut, inst.operands[0].local as u64);
             }
+
             poke_io_insts_0_bits_sinfo_idx(dut, inst.sinfo.idx as u64);
             poke_io_insts_0_bits_sinfo_local(dut, inst.sinfo.local as u64);
             poke_io_insts_0_bits_sinfo_fwd(dut, inst.sinfo.fwd as u64);
@@ -344,16 +354,26 @@ unsafe fn poke_inst_module(dut: *mut VBoard, module: &u32, inst: &Instruction) {
             poke_io_insts_1_valid(dut, 1);
             poke_io_insts_1_bits_opcode(dut, inst.opcode as u64);
             poke_io_insts_1_bits_lut(dut, inst.lut);
+
+            poke_io_insts_1_bits_ops_2_rs(dut, 0);
+            poke_io_insts_1_bits_ops_2_local(dut, 0);
+            poke_io_insts_1_bits_ops_1_rs(dut, 0);
+            poke_io_insts_1_bits_ops_1_local(dut, 0);
+            poke_io_insts_1_bits_ops_0_rs(dut, 0);
+            poke_io_insts_1_bits_ops_0_local(dut, 0);
             if inst.operands.len() > 2 {
                 poke_io_insts_1_bits_ops_2_rs(dut, inst.operands[2].rs as u64);
                 poke_io_insts_1_bits_ops_2_local(dut, inst.operands[2].local as u64);
-            } else if inst.operands.len() > 1 {
+            }
+            if inst.operands.len() > 1 {
                 poke_io_insts_1_bits_ops_1_rs(dut, inst.operands[1].rs as u64);
                 poke_io_insts_1_bits_ops_1_local(dut, inst.operands[1].local as u64);
-            } else if inst.operands.len() > 0 {
+            }
+            if inst.operands.len() > 0 {
                 poke_io_insts_1_bits_ops_0_rs(dut, inst.operands[0].rs as u64);
                 poke_io_insts_1_bits_ops_0_local(dut, inst.operands[0].local as u64);
             }
+
             poke_io_insts_1_bits_sinfo_idx(dut, inst.sinfo.idx as u64);
             poke_io_insts_1_bits_sinfo_local(dut, inst.sinfo.local as u64);
             poke_io_insts_1_bits_sinfo_fwd(dut, inst.sinfo.fwd as u64);
@@ -363,16 +383,26 @@ unsafe fn poke_inst_module(dut: *mut VBoard, module: &u32, inst: &Instruction) {
             poke_io_insts_2_valid(dut, 1);
             poke_io_insts_2_bits_opcode(dut, inst.opcode as u64);
             poke_io_insts_2_bits_lut(dut, inst.lut);
+
+            poke_io_insts_2_bits_ops_2_rs(dut, 0);
+            poke_io_insts_2_bits_ops_2_local(dut, 0);
+            poke_io_insts_2_bits_ops_1_rs(dut, 0);
+            poke_io_insts_2_bits_ops_1_local(dut, 0);
+            poke_io_insts_2_bits_ops_0_rs(dut, 0);
+            poke_io_insts_2_bits_ops_0_local(dut, 0);
             if inst.operands.len() > 2 {
                 poke_io_insts_2_bits_ops_2_rs(dut, inst.operands[2].rs as u64);
                 poke_io_insts_2_bits_ops_2_local(dut, inst.operands[2].local as u64);
-            } else if inst.operands.len() > 1 {
+            }
+            if inst.operands.len() > 1 {
                 poke_io_insts_2_bits_ops_1_rs(dut, inst.operands[1].rs as u64);
                 poke_io_insts_2_bits_ops_1_local(dut, inst.operands[1].local as u64);
-            } else if inst.operands.len() > 0 {
+            }
+            if inst.operands.len() > 0 {
                 poke_io_insts_2_bits_ops_0_rs(dut, inst.operands[0].rs as u64);
                 poke_io_insts_2_bits_ops_0_local(dut, inst.operands[0].local as u64);
             }
+
             poke_io_insts_2_bits_sinfo_idx(dut, inst.sinfo.idx as u64);
             poke_io_insts_2_bits_sinfo_local(dut, inst.sinfo.local as u64);
             poke_io_insts_2_bits_sinfo_fwd(dut, inst.sinfo.fwd as u64);
@@ -382,16 +412,26 @@ unsafe fn poke_inst_module(dut: *mut VBoard, module: &u32, inst: &Instruction) {
             poke_io_insts_3_valid(dut, 1);
             poke_io_insts_3_bits_opcode(dut, inst.opcode as u64);
             poke_io_insts_3_bits_lut(dut, inst.lut);
+
+            poke_io_insts_3_bits_ops_2_rs(dut, 0);
+            poke_io_insts_3_bits_ops_2_local(dut, 0);
+            poke_io_insts_3_bits_ops_1_rs(dut, 0);
+            poke_io_insts_3_bits_ops_1_local(dut, 0);
+            poke_io_insts_3_bits_ops_0_rs(dut, 0);
+            poke_io_insts_3_bits_ops_0_local(dut, 0);
             if inst.operands.len() > 2 {
                 poke_io_insts_3_bits_ops_2_rs(dut, inst.operands[2].rs as u64);
                 poke_io_insts_3_bits_ops_2_local(dut, inst.operands[2].local as u64);
-            } else if inst.operands.len() > 1 {
+            }
+            if inst.operands.len() > 1 {
                 poke_io_insts_3_bits_ops_1_rs(dut, inst.operands[1].rs as u64);
                 poke_io_insts_3_bits_ops_1_local(dut, inst.operands[1].local as u64);
-            } else if inst.operands.len() > 0 {
+            }
+            if inst.operands.len() > 0 {
                 poke_io_insts_3_bits_ops_0_rs(dut, inst.operands[0].rs as u64);
                 poke_io_insts_3_bits_ops_0_local(dut, inst.operands[0].local as u64);
             }
+
             poke_io_insts_3_bits_sinfo_idx(dut, inst.sinfo.idx as u64);
             poke_io_insts_3_bits_sinfo_local(dut, inst.sinfo.local as u64);
             poke_io_insts_3_bits_sinfo_fwd(dut, inst.sinfo.fwd as u64);
@@ -401,16 +441,26 @@ unsafe fn poke_inst_module(dut: *mut VBoard, module: &u32, inst: &Instruction) {
             poke_io_insts_4_valid(dut, 1);
             poke_io_insts_4_bits_opcode(dut, inst.opcode as u64);
             poke_io_insts_4_bits_lut(dut, inst.lut);
+
+            poke_io_insts_4_bits_ops_2_rs(dut, 0);
+            poke_io_insts_4_bits_ops_2_local(dut, 0);
+            poke_io_insts_4_bits_ops_1_rs(dut, 0);
+            poke_io_insts_4_bits_ops_1_local(dut, 0);
+            poke_io_insts_4_bits_ops_0_rs(dut, 0);
+            poke_io_insts_4_bits_ops_0_local(dut, 0);
             if inst.operands.len() > 2 {
                 poke_io_insts_4_bits_ops_2_rs(dut, inst.operands[2].rs as u64);
                 poke_io_insts_4_bits_ops_2_local(dut, inst.operands[2].local as u64);
-            } else if inst.operands.len() > 1 {
+            }
+            if inst.operands.len() > 1 {
                 poke_io_insts_4_bits_ops_1_rs(dut, inst.operands[1].rs as u64);
                 poke_io_insts_4_bits_ops_1_local(dut, inst.operands[1].local as u64);
-            } else if inst.operands.len() > 0 {
+            }
+            if inst.operands.len() > 0 {
                 poke_io_insts_4_bits_ops_0_rs(dut, inst.operands[0].rs as u64);
                 poke_io_insts_4_bits_ops_0_local(dut, inst.operands[0].local as u64);
             }
+
             poke_io_insts_4_bits_sinfo_idx(dut, inst.sinfo.idx as u64);
             poke_io_insts_4_bits_sinfo_local(dut, inst.sinfo.local as u64);
             poke_io_insts_4_bits_sinfo_fwd(dut, inst.sinfo.fwd as u64);
@@ -420,16 +470,26 @@ unsafe fn poke_inst_module(dut: *mut VBoard, module: &u32, inst: &Instruction) {
             poke_io_insts_5_valid(dut, 1);
             poke_io_insts_5_bits_opcode(dut, inst.opcode as u64);
             poke_io_insts_5_bits_lut(dut, inst.lut);
+
+            poke_io_insts_5_bits_ops_2_rs(dut, 0);
+            poke_io_insts_5_bits_ops_2_local(dut, 0);
+            poke_io_insts_5_bits_ops_1_rs(dut, 0);
+            poke_io_insts_5_bits_ops_1_local(dut, 0);
+            poke_io_insts_5_bits_ops_0_rs(dut, 0);
+            poke_io_insts_5_bits_ops_0_local(dut, 0);
             if inst.operands.len() > 2 {
                 poke_io_insts_5_bits_ops_2_rs(dut, inst.operands[2].rs as u64);
                 poke_io_insts_5_bits_ops_2_local(dut, inst.operands[2].local as u64);
-            } else if inst.operands.len() > 1 {
+            }
+            if inst.operands.len() > 1 {
                 poke_io_insts_5_bits_ops_1_rs(dut, inst.operands[1].rs as u64);
                 poke_io_insts_5_bits_ops_1_local(dut, inst.operands[1].local as u64);
-            } else if inst.operands.len() > 0 {
+            }
+            if inst.operands.len() > 0 {
                 poke_io_insts_5_bits_ops_0_rs(dut, inst.operands[0].rs as u64);
                 poke_io_insts_5_bits_ops_0_local(dut, inst.operands[0].local as u64);
             }
+
             poke_io_insts_5_bits_sinfo_idx(dut, inst.sinfo.idx as u64);
             poke_io_insts_5_bits_sinfo_local(dut, inst.sinfo.local as u64);
             poke_io_insts_5_bits_sinfo_fwd(dut, inst.sinfo.fwd as u64);
@@ -439,16 +499,26 @@ unsafe fn poke_inst_module(dut: *mut VBoard, module: &u32, inst: &Instruction) {
             poke_io_insts_6_valid(dut, 1);
             poke_io_insts_6_bits_opcode(dut, inst.opcode as u64);
             poke_io_insts_6_bits_lut(dut, inst.lut);
+
+            poke_io_insts_6_bits_ops_2_rs(dut, 0);
+            poke_io_insts_6_bits_ops_2_local(dut, 0);
+            poke_io_insts_6_bits_ops_1_rs(dut, 0);
+            poke_io_insts_6_bits_ops_1_local(dut, 0);
+            poke_io_insts_6_bits_ops_0_rs(dut, 0);
+            poke_io_insts_6_bits_ops_0_local(dut, 0);
             if inst.operands.len() > 2 {
                 poke_io_insts_6_bits_ops_2_rs(dut, inst.operands[2].rs as u64);
                 poke_io_insts_6_bits_ops_2_local(dut, inst.operands[2].local as u64);
-            } else if inst.operands.len() > 1 {
+            }
+            if inst.operands.len() > 1 {
                 poke_io_insts_6_bits_ops_1_rs(dut, inst.operands[1].rs as u64);
                 poke_io_insts_6_bits_ops_1_local(dut, inst.operands[1].local as u64);
-            } else if inst.operands.len() > 0 {
+            }
+            if inst.operands.len() > 0 {
                 poke_io_insts_6_bits_ops_0_rs(dut, inst.operands[0].rs as u64);
                 poke_io_insts_6_bits_ops_0_local(dut, inst.operands[0].local as u64);
             }
+
             poke_io_insts_6_bits_sinfo_idx(dut, inst.sinfo.idx as u64);
             poke_io_insts_6_bits_sinfo_local(dut, inst.sinfo.local as u64);
             poke_io_insts_6_bits_sinfo_fwd(dut, inst.sinfo.fwd as u64);
@@ -458,16 +528,26 @@ unsafe fn poke_inst_module(dut: *mut VBoard, module: &u32, inst: &Instruction) {
             poke_io_insts_7_valid(dut, 1);
             poke_io_insts_7_bits_opcode(dut, inst.opcode as u64);
             poke_io_insts_7_bits_lut(dut, inst.lut);
+
+            poke_io_insts_7_bits_ops_2_rs(dut, 0);
+            poke_io_insts_7_bits_ops_2_local(dut, 0);
+            poke_io_insts_7_bits_ops_1_rs(dut, 0);
+            poke_io_insts_7_bits_ops_1_local(dut, 0);
+            poke_io_insts_7_bits_ops_0_rs(dut, 0);
+            poke_io_insts_7_bits_ops_0_local(dut, 0);
             if inst.operands.len() > 2 {
                 poke_io_insts_7_bits_ops_2_rs(dut, inst.operands[2].rs as u64);
                 poke_io_insts_7_bits_ops_2_local(dut, inst.operands[2].local as u64);
-            } else if inst.operands.len() > 1 {
+            }
+            if inst.operands.len() > 1 {
                 poke_io_insts_7_bits_ops_1_rs(dut, inst.operands[1].rs as u64);
                 poke_io_insts_7_bits_ops_1_local(dut, inst.operands[1].local as u64);
-            } else if inst.operands.len() > 0 {
+            }
+            if inst.operands.len() > 0 {
                 poke_io_insts_7_bits_ops_0_rs(dut, inst.operands[0].rs as u64);
                 poke_io_insts_7_bits_ops_0_local(dut, inst.operands[0].local as u64);
             }
+
             poke_io_insts_7_bits_sinfo_idx(dut, inst.sinfo.idx as u64);
             poke_io_insts_7_bits_sinfo_local(dut, inst.sinfo.local as u64);
             poke_io_insts_7_bits_sinfo_fwd(dut, inst.sinfo.fwd as u64);
@@ -477,16 +557,26 @@ unsafe fn poke_inst_module(dut: *mut VBoard, module: &u32, inst: &Instruction) {
             poke_io_insts_8_valid(dut, 1);
             poke_io_insts_8_bits_opcode(dut, inst.opcode as u64);
             poke_io_insts_8_bits_lut(dut, inst.lut);
+
+            poke_io_insts_8_bits_ops_2_rs(dut, 0);
+            poke_io_insts_8_bits_ops_2_local(dut, 0);
+            poke_io_insts_8_bits_ops_1_rs(dut, 0);
+            poke_io_insts_8_bits_ops_1_local(dut, 0);
+            poke_io_insts_8_bits_ops_0_rs(dut, 0);
+            poke_io_insts_8_bits_ops_0_local(dut, 0);
             if inst.operands.len() > 2 {
                 poke_io_insts_8_bits_ops_2_rs(dut, inst.operands[2].rs as u64);
                 poke_io_insts_8_bits_ops_2_local(dut, inst.operands[2].local as u64);
-            } else if inst.operands.len() > 1 {
+            }
+            if inst.operands.len() > 1 {
                 poke_io_insts_8_bits_ops_1_rs(dut, inst.operands[1].rs as u64);
                 poke_io_insts_8_bits_ops_1_local(dut, inst.operands[1].local as u64);
-            } else if inst.operands.len() > 0 {
+            }
+            if inst.operands.len() > 0 {
                 poke_io_insts_8_bits_ops_0_rs(dut, inst.operands[0].rs as u64);
                 poke_io_insts_8_bits_ops_0_local(dut, inst.operands[0].local as u64);
             }
+
             poke_io_insts_8_bits_sinfo_idx(dut, inst.sinfo.idx as u64);
             poke_io_insts_8_bits_sinfo_local(dut, inst.sinfo.local as u64);
             poke_io_insts_8_bits_sinfo_fwd(dut, inst.sinfo.fwd as u64);
@@ -572,12 +662,18 @@ fn main() -> std::io::Result<()> {
     let target_cycles = mapped_input_stimulti_blasted.values().fold(0, |x, y| max(x, y.len()));
 
     let mut output_signals: IndexMap<String, Coordinate> = IndexMap::new();
-    for (s, nm) in all_signal_map.iter() {
-        let node = circuit.graph.node_weight(nm.idx).unwrap();
+    for nidx in circuit.graph.node_indices() {
+        let node = circuit.graph.node_weight(nidx).unwrap();
         if node.is() == Primitive::Output {
-            output_signals.insert(s.to_string(), node.info().coord);
+            assert!(all_signal_map.contains_key(node.name()),
+                    "Output {} not found in signal map",
+                    node.name());
+            output_signals.insert(node.name().to_string(), node.info().coord);
         }
     }
+
+    println!("all_signal_map: {:?}", all_signal_map);
+    println!("output_signals: {:?}", output_signals);
 
     let mut cycle = 0;
     unsafe {
@@ -732,7 +828,7 @@ fn main() -> std::io::Result<()> {
                             println!("Target cycle {} mismatch, got {} expect {}, signal {} coord {:?}",
                                 tcycle, rtl_val, bit, os, coord);
                         } else {
-                            println!("Target cycle {} match for signal {}", tcycle, os);
+                            println!("Target cycle {} match for signal {} val {}", tcycle, os, bit);
                         }
                     }
                     None => { }
