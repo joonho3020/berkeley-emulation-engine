@@ -37,7 +37,7 @@ case class EmulatorConfig(
   require(imem_lat <= 1)
   require(sram_wr_lat == 1)
   require(sram_rd_lat == 1)
-  require(sram_width & (sram_width - 1) == 0)
+  require((sram_width & (sram_width - 1)) == 0)
 
   // Processor related parameters
   val index_bits = log2Ceil(max_steps)

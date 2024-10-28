@@ -21,7 +21,7 @@ class EModuleDebugBundle(cfg: EmulatorConfig) extends Bundle {
 }
 
 class EModuleBundle(cfg: EmulatorConfig) extends Bundle {
-  val cfg_in = Input(new EmulatorConfigBundle(cfg))
+  val cfg_in = Input(new EModuleConfigBundle(cfg))
   val init = Output(Bool())
   val inst = Flipped(Decoupled(Instruction(cfg)))
 
@@ -78,13 +78,15 @@ class EModule(cfg: EmulatorConfig) extends Module {
   procs(0).io.isc.inst_o.ready := false.B
   procs(num_procs-1).io.isc.inst_i <> io.inst
 
-  io.init := procs.zipWithIndex.map { case(p, i) => {
+  val procs_init = procs.zipWithIndex.map { case(p, i) => {
     Mux(i.U < io.cfg_in.used_procs, p.io.isc.init_o, true.B)
-  }}.reduce(_ && _) && sram_proc.io.init
+  }}.reduce(_ && _)
+
+  io.init := procs_init &&  sram_proc.io.init
 
   sram_proc.io.run := io.run
   sram_proc.io.host_steps := host_steps
-  sram_proc.io.cfg := io.cfg.sram
+  sram_proc.io.cfg_in := io.cfg_in.sram
 
   for (i <- 0 until num_procs) {
     sram_proc.io.ports(i) <> procs(i).io.sram_port

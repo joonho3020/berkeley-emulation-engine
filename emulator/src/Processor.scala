@@ -154,10 +154,9 @@ class Processor(cfg: EmulatorConfig) extends Module {
   io.sw_loc.op := s_out
   io.sw_glb.op := s_out
 
-  val sram_idx = Cat(ops.tail.flip)
   io.sram_port.ip := f_out
   io.sram_port.valid := de_inst.mem
-  io.sram_port.idx 
+  io.sram_port.idx   := Cat(ops.tail.reverse)
 
   if (cfg.debug) {
     io.dbg.map(x => x.ldm := ldm.io.dbg.get)
