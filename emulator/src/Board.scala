@@ -12,7 +12,7 @@ class BoardDebugBundle(cfg: EmulatorConfig) extends Bundle {
 class BoardBundle(cfg: EmulatorConfig) extends Bundle {
   import cfg._
 
-  val cfg_in = Vec(num_mods, Input(new EmulatorConfigBundle(cfg)))
+  val cfg_in = Vec(num_mods, Input(new EModuleConfigBundle(cfg)))
   val init = Output(Bool())
   val insts = Vec(num_mods, Flipped(Decoupled(Instruction(cfg))))
 

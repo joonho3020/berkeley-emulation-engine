@@ -31,6 +31,8 @@ class ProcessorBundle(cfg: EmulatorConfig) extends Bundle {
   val io_i = Input (UInt(num_bits.W))
   val io_o = Output(UInt(num_bits.W))
 
+  val sram_port = Flipped(new PerProcessorSRAMBundle(cfg))
+
   val dbg = if (cfg.debug) Some(Output(new ProcessorDebugBundle(cfg))) else None
 }
 
@@ -125,6 +127,12 @@ class Processor(cfg: EmulatorConfig) extends Module {
     is (Instruction.Latch.U) {
       f_out := ops(0)
     }
+    is (Instruction.SRAMOut.U) {
+      f_out := io.sram_port.op
+    }
+    is (Instruction.SRAMIn.U) {
+      f_out := ops(0)
+    }
   }
 
   val dmem_wr_en  = (pc >= cfg.fetch_decode_lat.U) && io.run
@@ -145,6 +153,11 @@ class Processor(cfg: EmulatorConfig) extends Module {
   io.sw_loc.id := de_inst.sinfo.idx
   io.sw_loc.op := s_out
   io.sw_glb.op := s_out
+
+  val sram_idx = Cat(ops.tail.flip)
+  io.sram_port.ip := f_out
+  io.sram_port.valid := de_inst.mem
+  io.sram_port.idx 
 
   if (cfg.debug) {
     io.dbg.map(x => x.ldm := ldm.io.dbg.get)

@@ -5,9 +5,10 @@ import chisel3.util._
 import chisel3.util.Decoupled
 import chisel3.experimental.hierarchy._
 
-class EmulatorConfigBundle(cfg: EmulatorConfig) extends Bundle {
+class EModuleConfigBundle(cfg: EmulatorConfig) extends Bundle {
   val host_steps  = UInt(cfg.index_bits.W)
   val used_procs  = UInt(cfg.index_bits.W)
+  val sram        = new SRAMProcessorConfigBundle(cfg)
 }
 
 class EModuleIOBitsBundle(cfg: EmulatorConfig) extends Bundle {
@@ -43,6 +44,9 @@ class EModule(cfg: EmulatorConfig) extends Module {
   val pdef = Definition(new Processor(cfg))
   val procs: Seq[Instance[Processor]] = Seq.fill(num_procs)(Instance(pdef))
 
+  val sdef = Definition(new SRAMProcessor(cfg))
+  val sram_proc = Instance(sdef)
+
   val local_switch = Module(new LocalSwitch(cfg))
   for (i <- 0 until num_procs) {
     local_switch.io.ports(i) <> procs(i).io.sw_loc
@@ -76,7 +80,15 @@ class EModule(cfg: EmulatorConfig) extends Module {
 
   io.init := procs.zipWithIndex.map { case(p, i) => {
     Mux(i.U < io.cfg_in.used_procs, p.io.isc.init_o, true.B)
-  }}.reduce(_ && _)
+  }}.reduce(_ && _) && sram_proc.io.init
+
+  sram_proc.io.run := io.run
+  sram_proc.io.host_steps := host_steps
+  sram_proc.io.cfg := io.cfg.sram
+
+  for (i <- 0 until num_procs) {
+    sram_proc.io.ports(i) <> procs(i).io.sram_port
+  }
 
   io.dbg.map(_.pdbg.zipWithIndex.map { case(dbg, i) => {
     dbg := procs(i).io.dbg.get
