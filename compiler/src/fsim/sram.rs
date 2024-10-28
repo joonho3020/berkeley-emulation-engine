@@ -312,7 +312,7 @@ impl SRAMProcessor {
         }
 
         // Send out SRAM write request
-        if wen && self.pc == self.pcfg.sram_wr_lat {
+        if wen && self.pc == self.pcfg.sram_rd_lat {
             let wdata = if self.mapping.wmask_bits == 0 {
                 // No write mask for this SRAM
                 cur_input.wr_data.clone()
