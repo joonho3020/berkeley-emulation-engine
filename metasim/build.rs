@@ -80,7 +80,7 @@ fn generate_c_bindings(top: &str, signals: &Vec<Signal>, output_path: &str) -> i
     writeln!(writer, "        Verilated::traceEverOn(true);")?;
     writeln!(writer, "        VerilatedVcdC* tfp = new VerilatedVcdC;")?;
     writeln!(writer, "        dut->trace(tfp, 99);")?;
-    writeln!(writer, "        tfp->open(\"sim.vcd\");")?;
+    writeln!(writer, "        tfp->open(\"emul.vcd\");")?;
     writeln!(writer, "        return tfp;")?;
     writeln!(writer, "    }}\n")?;
 
