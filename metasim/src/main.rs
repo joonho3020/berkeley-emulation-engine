@@ -1,14 +1,13 @@
 pub mod dut;
 use bee::{
     common::{
-        circuit::Circuit, config::Args, hwgraph::NodeMapInfo, instruction::*, network::Coordinate, primitive::{Bit, Primitive}
+        circuit::Circuit, config::Args, hwgraph::NodeMapInfo, instruction::*, mapping::{SRAMMapping, SRAMPortType}, network::Coordinate, primitive::{Bit, Primitive}
     }, fsim::board::Board, rtlsim::rtlsim_utils::{get_input_stimuli_blasted, InputStimuliMap}, testing::try_new_circuit
 };
 use clap::Parser;
 use dut::*;
 use indexmap::IndexMap;
 use std::{collections::VecDeque, cmp::max};
-
 
 #[derive(Debug)]
 pub enum RTLSimError {
@@ -30,13 +29,14 @@ impl From<String> for RTLSimError {
 
 unsafe fn step(dut: *mut VBoard, vcd: *mut VerilatedVcdC, cycle: &mut u32) {
     let time = *cycle * 2;
-    poke_clock(dut, 1);
     Board_eval(dut);
     dump_vcd(vcd, time);
 
-    poke_clock(dut, 0);
+    poke_clock(dut, 1);
     Board_eval(dut);
     dump_vcd(vcd, time + 1);
+
+    poke_clock(dut, 0);
     *cycle += 1;
 }
 
@@ -335,6 +335,63 @@ unsafe fn peek_io_coord(dut: *mut VBoard, coord: &Coordinate) -> u64 {
         return peek_io_io_8_o_7(dut);
     } else {
         return 0;
+    }
+}
+
+unsafe  fn poke_sram_cfg(dut: *mut VBoard, module: &u32, cfg: &SRAMMapping) {
+    let single_port_sram = match cfg.port_type {
+        SRAMPortType::SinglePortSRAM => { true }
+        SRAMPortType::OneRdOneWrPortSRAM => { false }
+    };
+
+    match module {
+        0 => {
+            poke_io_cfg_in_0_sram_width_bits(dut, cfg.width_bits as u64);
+            poke_io_cfg_in_0_sram_wmask_bits(dut, cfg.wmask_bits as u64);
+            poke_io_cfg_in_0_sram_single_port_ram(dut, single_port_sram as u64);
+        }
+        1 => {
+            poke_io_cfg_in_1_sram_width_bits(dut, cfg.width_bits as u64);
+            poke_io_cfg_in_1_sram_wmask_bits(dut, cfg.wmask_bits as u64);
+            poke_io_cfg_in_1_sram_single_port_ram(dut, single_port_sram as u64);
+        }
+        2 => {
+            poke_io_cfg_in_2_sram_width_bits(dut, cfg.width_bits as u64);
+            poke_io_cfg_in_2_sram_wmask_bits(dut, cfg.wmask_bits as u64);
+            poke_io_cfg_in_2_sram_single_port_ram(dut, single_port_sram as u64);
+        }
+        3 => {
+            poke_io_cfg_in_3_sram_width_bits(dut, cfg.width_bits as u64);
+            poke_io_cfg_in_3_sram_wmask_bits(dut, cfg.wmask_bits as u64);
+            poke_io_cfg_in_3_sram_single_port_ram(dut, single_port_sram as u64);
+        }
+        4 => {
+            poke_io_cfg_in_4_sram_width_bits(dut, cfg.width_bits as u64);
+            poke_io_cfg_in_4_sram_wmask_bits(dut, cfg.wmask_bits as u64);
+            poke_io_cfg_in_4_sram_single_port_ram(dut, single_port_sram as u64);
+        }
+        5 => {
+            poke_io_cfg_in_5_sram_width_bits(dut, cfg.width_bits as u64);
+            poke_io_cfg_in_5_sram_wmask_bits(dut, cfg.wmask_bits as u64);
+            poke_io_cfg_in_5_sram_single_port_ram(dut, single_port_sram as u64);
+        }
+        6 => {
+            poke_io_cfg_in_6_sram_width_bits(dut, cfg.width_bits as u64);
+            poke_io_cfg_in_6_sram_wmask_bits(dut, cfg.wmask_bits as u64);
+            poke_io_cfg_in_6_sram_single_port_ram(dut, single_port_sram as u64);
+        }
+        7 => {
+            poke_io_cfg_in_7_sram_width_bits(dut, cfg.width_bits as u64);
+            poke_io_cfg_in_7_sram_wmask_bits(dut, cfg.wmask_bits as u64);
+            poke_io_cfg_in_7_sram_single_port_ram(dut, single_port_sram as u64);
+        }
+        8 => {
+            poke_io_cfg_in_8_sram_width_bits(dut, cfg.width_bits as u64);
+            poke_io_cfg_in_8_sram_wmask_bits(dut, cfg.wmask_bits as u64);
+            poke_io_cfg_in_8_sram_single_port_ram(dut, single_port_sram as u64);
+        }
+        _ => {
+        }
     }
 }
 
@@ -647,6 +704,7 @@ pub fn test_rtl(args: &Args) -> Result<(), RTLSimError> {
 
     // Aggregate per module instructions
     let mut module_insts: IndexMap<u32, VecDeque<Instruction>> = IndexMap::new();
+    let mut sram_cfgs: IndexMap<u32, SRAMMapping> = IndexMap::new();
     for (m, mmap) in circuit.emul.module_mappings.iter() {
         let mut insts: VecDeque<Instruction> = VecDeque::new();
         let mut mmap_ = mmap.clone();
@@ -655,6 +713,7 @@ pub fn test_rtl(args: &Args) -> Result<(), RTLSimError> {
             insts.extend(pmap.instructions.clone());
         }
         module_insts.insert(*m, insts);
+        sram_cfgs.insert(*m, mmap.sram_mapping.clone());
     }
 
     // Get the input stimuli
@@ -734,6 +793,12 @@ pub fn test_rtl(args: &Args) -> Result<(), RTLSimError> {
         poke_io_cfg_in_7_used_procs(dut, used_procs.into());
         poke_io_cfg_in_8_used_procs(dut, used_procs.into());
 
+        // Set SRAM configuration
+        for (m, sram_cfg) in sram_cfgs.iter() {
+            poke_sram_cfg(dut, m, sram_cfg);
+        }
+
+        // Do nothing for N steps
         for _ in 0..5 {
             step(dut, vcd, &mut cycle);
         }
@@ -905,8 +970,8 @@ pub mod emulator_rtl_test {
             imem_lat:           1,
             dmem_rd_lat:        0,
             dmem_wr_lat:        1,
-            sram_width:         128,
-            sram_entries:       1024,
+            sram_width:         16,
+            sram_entries:       16,
             sram_rd_ports:      1,
             sram_wr_ports:      1,
             sram_rd_lat:        1,
