@@ -83,6 +83,8 @@ class Processor(cfg: EmulatorConfig) extends Module {
 
   // -------------------------- Decode -----------------------------------
   val fd_inst = imem.io.rinst
+  dontTouch(fd_inst)
+
   val ldm = Module(new DataMemory(cfg))
   val sdm = Module(new DataMemory(cfg))
 
@@ -97,6 +99,9 @@ class Processor(cfg: EmulatorConfig) extends Module {
   } else {
     fd_inst
   }
+  dontTouch(de_inst)
+
+
   val ops = Seq.fill(cfg.lut_inputs)(Wire(UInt(num_bits.W)))
   val lut_idx = Cat(ops.reverse)
   for (i <- 0 until cfg.lut_inputs) {
@@ -156,7 +161,7 @@ class Processor(cfg: EmulatorConfig) extends Module {
 
   io.sram_port.ip := f_out
   io.sram_port.valid := de_inst.mem
-  io.sram_port.idx   := Cat(ops.tail.reverse)
+  io.sram_port.idx   := Cat(de_inst.ops.map(_.rs).tail.reverse)
 
   if (cfg.debug) {
     io.dbg.map(x => x.ldm := ldm.io.dbg.get)

@@ -882,10 +882,8 @@ pub fn test_rtl(args: &Args) -> Result<(), RTLSimError> {
                 let bit = stim.pop_front().unwrap();
                 poke_io_coord(dut, coord, bit as u64);
             }
-            step(dut, vcd, &mut cycle);
 
             poke_io_run(dut, 1);
-
             for _hcycle in 0..host_steps {
                 step(dut, vcd, &mut cycle);
             }
