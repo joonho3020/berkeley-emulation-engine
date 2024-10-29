@@ -998,6 +998,9 @@ pub mod emulator_rtl_test {
     #[test_case("ShiftReg"; "ShiftReg Test")]
     #[test_case("Fir"; "Fir Test")]
     #[test_case("MyQueue"; "MyQueue Test")]
+    #[test_case("PointerChasing"; "PointerChasing Test")]
+    #[test_case("SinglePortSRAM"; "SinglePortSRAM Test")]
+    #[test_case("OneReadOneWritePortSRAM"; "OneReadOneWritePortSRAM Test")]
     pub fn test(top: &str) {
         assert_eq!(
             test_emulator_rtl(
