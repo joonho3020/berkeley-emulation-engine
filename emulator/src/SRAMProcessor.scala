@@ -6,7 +6,15 @@ import chisel3.util.Decoupled
 import chisel3.experimental.hierarchy.{instantiable, public}
 
 object SRAMInputTypes extends ChiselEnum {
-  val SRAMRdEn, SRAMWrEn, SRAMRdAddr, SRAMWrAddr, SRAMWrData, SRAMWrMask, SRAMRdWrEn, SRAMRdWrMode, SRAMRdWrAddr = Value
+  val SRAMRdEn,
+      SRAMWrEn,
+      SRAMRdAddr,
+      SRAMWrAddr,
+      SRAMWrData,
+      SRAMWrMask,
+      SRAMRdWrEn,
+      SRAMRdWrMode,
+      SRAMRdWrAddr = Value
 }
 
 class SRAMIndexDecoder(cfg: EmulatorConfig) extends Module {
@@ -117,8 +125,8 @@ class SRAMProcessor(cfg: EmulatorConfig) extends Module {
   @public val io = IO(new SRAMProcessorBundle(cfg))
 
   val init = RegInit(false.B)
-  val pc = RegInit(0.U(index_bits.W))
-  val cur = RegInit(0.U(1.W))
+  val pc   = RegInit(0.U(index_bits.W))
+  val cur  = RegInit(0.U(1.W))
   val inputs = Seq.fill(2)(RegInit(0.U.asTypeOf(new SRAMInputs(cfg))))
   val prev_input = Reg(new SRAMInputs(cfg))
   val sram = SyncReadMem(cfg.sram_entries, UInt(cfg.sram_width.W))
@@ -139,45 +147,54 @@ class SRAMProcessor(cfg: EmulatorConfig) extends Module {
   }})
 
   val recv_rd_en = Wire(UInt(1.W))
-  recv_rd_en := decs.map(d => d.io.prim === SRAMInputTypes.SRAMRdEn || d.io.prim === SRAMInputTypes.SRAMRdWrEn)
+  recv_rd_en := decs.map(d =>
+      d.io.prim === SRAMInputTypes.SRAMRdEn ||
+      d.io.prim === SRAMInputTypes.SRAMRdWrEn)
     .zip(ip_shift_offsets)
     .map({ case (prim_match, iso) => Mux(prim_match, iso, 0.U) })
     .reduce(_ | _)
 
   val recv_wr_en = Wire(UInt(1.W))
-  recv_wr_en := decs.map(d => d.io.prim === SRAMInputTypes.SRAMWrEn || d.io.prim === SRAMInputTypes.SRAMRdWrMode)
+  recv_wr_en := decs.map(d =>
+      d.io.prim === SRAMInputTypes.SRAMWrEn ||
+      d.io.prim === SRAMInputTypes.SRAMRdWrMode)
     .zip(ip_shift_offsets)
     .map({ case (prim_match, iso) => Mux(prim_match, iso, 0.U) })
     .reduce(_ | _)
 
   val recv_rd_addr = Wire(UInt(sram_addr_width_max.W))
-  recv_rd_addr := decs.map(d => d.io.prim === SRAMInputTypes.SRAMRdAddr || d.io.prim === SRAMInputTypes.SRAMRdWrAddr)
+  recv_rd_addr := decs.map(d =>
+      d.io.prim === SRAMInputTypes.SRAMRdAddr ||
+      d.io.prim === SRAMInputTypes.SRAMRdWrAddr)
     .zip(ip_shift_offsets)
     .map({ case (prim_match, iso) => Mux(prim_match, iso, 0.U) })
     .reduce(_ | _)
 
   val recv_wr_addr = Wire(UInt(sram_addr_width_max.W))
-  recv_wr_addr := decs.map(_.io.prim === SRAMInputTypes.SRAMWrAddr)
+  recv_wr_addr := decs
+    .map(_.io.prim === SRAMInputTypes.SRAMWrAddr)
     .zip(ip_shift_offsets)
     .map({ case (prim_match, iso) => Mux(prim_match, iso, 0.U) })
     .reduce(_ | _)
 
   val recv_wr_data = Wire(UInt(sram_addr_width_max.W))
-  recv_wr_data := decs.map(_.io.prim === SRAMInputTypes.SRAMWrData)
+  recv_wr_data := decs
+    .map(_.io.prim === SRAMInputTypes.SRAMWrData)
     .zip(ip_shift_offsets)
     .map({ case (prim_match, iso) => Mux(prim_match, iso, 0.U) })
     .reduce(_ | _)
 
   val recv_wr_mask = Wire(UInt(sram_addr_width_max.W))
-  recv_wr_mask := decs.map(_.io.prim === SRAMInputTypes.SRAMWrMask)
+  recv_wr_mask := decs
+    .map(_.io.prim === SRAMInputTypes.SRAMWrMask)
     .zip(ip_shift_offsets)
     .map({ case (prim_match, iso) => Mux(prim_match, iso, 0.U) })
     .reduce(_ | _)
 
   for (i <- 0 until 2) {
     when (rec === i.U) {
-      inputs(i).rd_en := inputs(i).rd_en | recv_rd_en
-      inputs(i).wr_en := inputs(i).wr_en | recv_wr_en
+      inputs(i).rd_en   := inputs(i).rd_en   | recv_rd_en
+      inputs(i).wr_en   := inputs(i).wr_en   | recv_wr_en
       inputs(i).rd_addr := inputs(i).rd_addr | recv_rd_addr
       inputs(i).wr_addr := inputs(i).wr_addr | recv_wr_addr
       inputs(i).wr_data := inputs(i).wr_data | recv_wr_data
@@ -218,11 +235,11 @@ class SRAMProcessor(cfg: EmulatorConfig) extends Module {
   masked_wr_data.io.wr_data      := cur_input.wr_data
   masked_wr_data.io.rd_data      := rdata
 
-  // FIXME: This generates two ports for the SRAMs
-  when (io.run && wen && pc === cfg.sram_rd_lat.U) {
-    sram.write(waddr, masked_wr_data.io.masked_wr_data)
-  } .elsewhen (!init) {
-    sram.write(pc, 0.U)
+  val wcond = io.run && wen && pc === cfg.sram_rd_lat.U
+  val wport_waddr = Mux(wcond, waddr, pc)
+  val wport_wdata = Mux(wcond, masked_wr_data.io.masked_wr_data, 0.U)
+  when (wcond || !init) {
+    sram.write(wport_waddr, wport_wdata)
   }
 
   for (i <- 0 until num_procs) {

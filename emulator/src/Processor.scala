@@ -159,7 +159,7 @@ class Processor(cfg: EmulatorConfig) extends Module {
   io.sw_loc.op := s_out
   io.sw_glb.op := s_out
 
-  io.sram_port.ip := f_out
+  io.sram_port.ip    := f_out
   io.sram_port.valid := de_inst.mem
   io.sram_port.idx   := Cat(de_inst.ops.map(_.rs).tail.reverse)
 
