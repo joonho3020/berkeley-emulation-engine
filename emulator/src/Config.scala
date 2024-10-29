@@ -64,6 +64,7 @@ case class EmulatorConfig(
   val sram_other_offset     = sram_rdwr_addr_offset + sram_entries
 
   val sram_offset_decode_bits = sram_addr_bits.max(sram_width_bits)
+  val sram_addr_width_max = sram_addr_bits.max(sram_width)
 
   val sram_unique_indices = 1 + sram_other_offset
   val sram_unique_indices_bits = log2Ceil(sram_unique_indices)

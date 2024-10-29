@@ -133,7 +133,7 @@ class SRAMProcessor(cfg: EmulatorConfig) extends Module {
     decs(i).io.idx := io.ports(i).idx
   }
 
-  val ip_shift_offsets = Seq.fill(num_procs)(Wire(UInt(sram_offset_decode_bits.W)))
+  val ip_shift_offsets = Seq.fill(num_procs)(Wire(UInt(sram_addr_width_max.W)))
   ip_shift_offsets.zip(io.ports).zipWithIndex.foreach({ case ((iso, p), i) => {
     iso := Mux(p.valid && io.run, p.ip << decs(i).io.offset, 0.U)
   }})
@@ -150,25 +150,25 @@ class SRAMProcessor(cfg: EmulatorConfig) extends Module {
     .map({ case (prim_match, iso) => Mux(prim_match, iso, 0.U) })
     .reduce(_ | _)
 
-  val recv_rd_addr = Wire(UInt(sram_offset_decode_bits.W))
+  val recv_rd_addr = Wire(UInt(sram_addr_width_max.W))
   recv_rd_addr := decs.map(d => d.io.prim === SRAMInputTypes.SRAMRdAddr || d.io.prim === SRAMInputTypes.SRAMRdWrAddr)
     .zip(ip_shift_offsets)
     .map({ case (prim_match, iso) => Mux(prim_match, iso, 0.U) })
     .reduce(_ | _)
 
-  val recv_wr_addr = Wire(UInt(sram_offset_decode_bits.W))
+  val recv_wr_addr = Wire(UInt(sram_addr_width_max.W))
   recv_wr_addr := decs.map(_.io.prim === SRAMInputTypes.SRAMWrAddr)
     .zip(ip_shift_offsets)
     .map({ case (prim_match, iso) => Mux(prim_match, iso, 0.U) })
     .reduce(_ | _)
 
-  val recv_wr_data = Wire(UInt(sram_offset_decode_bits.W))
+  val recv_wr_data = Wire(UInt(sram_addr_width_max.W))
   recv_wr_data := decs.map(_.io.prim === SRAMInputTypes.SRAMWrData)
     .zip(ip_shift_offsets)
     .map({ case (prim_match, iso) => Mux(prim_match, iso, 0.U) })
     .reduce(_ | _)
 
-  val recv_wr_mask = Wire(UInt(sram_offset_decode_bits.W))
+  val recv_wr_mask = Wire(UInt(sram_addr_width_max.W))
   recv_wr_mask := decs.map(_.io.prim === SRAMInputTypes.SRAMWrMask)
     .zip(ip_shift_offsets)
     .map({ case (prim_match, iso) => Mux(prim_match, iso, 0.U) })
