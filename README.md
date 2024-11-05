@@ -11,6 +11,8 @@ cd scripts
 conda-lock lock -p linux-64 -f env.yaml
 ```
 
+- This will generate a `conda-lock.yml` file
+
 ### Install conda env
 
 ```bash
