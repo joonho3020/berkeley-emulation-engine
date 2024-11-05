@@ -10,6 +10,7 @@ import mill.bsp._
 object emulator extends ScalaModule {
   def millSourcePath = os.pwd
   def scalaVersion = "2.13.12"
+
   def scalacOptions = Seq(
     "-language:reflectiveCalls",
     "-deprecation",
@@ -19,8 +20,17 @@ object emulator extends ScalaModule {
   )
   override def ivyDeps = Agg(
     ivy"org.chipsalliance::chisel:6.2.0",
+    ivy"edu.berkeley.cs::rocketchip:1.6.0-fcdfff6c7-SNAPSHOT"
   )
   override def scalacPluginIvyDeps = Agg(
     ivy"org.chipsalliance:::chisel-plugin:6.2.0",
   )
+
+  val sonatypeReleases = Seq(
+    coursier.maven.MavenRepository("https://oss.sonatype.org/content/repositories/snapshots/"),
+    coursier.maven.MavenRepository("https://oss.sonatype.org/content/repositories/releases/"),
+  )
+  def repositoriesTask = T.task {
+    super.repositoriesTask() ++ sonatypeReleases
+  }
 }
