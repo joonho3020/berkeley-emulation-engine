@@ -3,7 +3,6 @@ package emulator
 import chisel3._
 import chisel3.util._
 import scala.math.{min, max}
-import freechips.rocketchip.amba.axi4._
 import freechips.rocketchip.util.{DecoupledHelper, ParameterizedBundle, HellaPeekingArbiter}
 
 case class NastiParameters(dataBits: Int, addrBits: Int, idBits: Int) {
@@ -28,15 +27,15 @@ case class NastiParameters(dataBits: Int, addrBits: Int, idBits: Int) {
   val nastiXRegionBits = 4
   val nastiXRespBits   = 2
 
-  def bytesToXSize(bytes: UInt) = MuxLookup(bytes, UInt("b111"), Array(
-    UInt(1) -> UInt(0),
-    UInt(2) -> UInt(1),
-    UInt(4) -> UInt(2),
-    UInt(8) -> UInt(3),
-    UInt(16) -> UInt(4),
-    UInt(32) -> UInt(5),
-    UInt(64) -> UInt(6),
-    UInt(128) -> UInt(7)))
+// def bytesToXSize(bytes: UInt) = MuxLookup(bytes, 7.U(3.W), Array(
+// UInt(1) -> 0.U,
+// UInt(2) -> UInt(1),
+// UInt(4) -> UInt(2),
+// UInt(8) -> UInt(3),
+// UInt(16) -> UInt(4),
+// UInt(32) -> UInt(5),
+// UInt(64) -> UInt(6),
+// UInt(128) -> UInt(7)))
 }
 
 object NastiParameters {
@@ -44,25 +43,22 @@ object NastiParameters {
     NastiParameters(params.dataBits, params.addrBits, params.idBits)
 }
 
-abstract class NastiModule(val cfg: NastiParameters) extends Module
-abstract class NastiBundle(val cfg: NastiParameters) extends Bundle
+abstract class NastiChannel             (cfg: NastiParameters) extends Bundle
+abstract class NastiMasterToSlaveChannel(cfg: NastiParameters) extends NastiChannel(cfg)
+abstract class NastiSlaveToMasterChannel(cfg: NastiParameters) extends NastiChannel(cfg)
 
-abstract class NastiChannel             (val cfg: NastiParameters) extends NastiBundle (cfg)
-abstract class NastiMasterToSlaveChannel(val cfg: NastiParameters) extends NastiChannel(cfg)
-abstract class NastiSlaveToMasterChannel(val cfg: NastiParameters) extends NastiChannel(cfg)
-
-class NastiReadIO(val cfg: NastiParameters) extends NastiBundle(cfg) {
+class NastiReadIO(cfg: NastiParameters) extends Bundle {
   val ar =         Decoupled(new NastiReadAddressChannel(cfg))
   val r  = Flipped(Decoupled(new NastiReadDataChannel   (cfg)))
 }
 
-class NastiWriteIO(val cfg: NastiParameters) extends NastiBundle(cfg) {
+class NastiWriteIO(cfg: NastiParameters) extends Bundle {
   val aw =         Decoupled(new NastiWriteAddressChannel (cfg))
   val w  =         Decoupled(new NastiWriteDataChannel    (cfg))
   val b  = Flipped(Decoupled(new NastiWriteResponseChannel(cfg)))
 }
 
-class NastiIO(val cfg: NastiParameters) extends NastiBundle(cfg) {
+class NastiIO(cfg: NastiParameters) extends Bundle {
   val aw =         Decoupled(new NastiWriteAddressChannel (cfg))
   val w  =         Decoupled(new NastiWriteDataChannel    (cfg))
   val b  = Flipped(Decoupled(new NastiWriteResponseChannel(cfg)))
@@ -70,80 +66,80 @@ class NastiIO(val cfg: NastiParameters) extends NastiBundle(cfg) {
   val r  = Flipped(Decoupled(new NastiReadDataChannel     (cfg)))
 }
 
-class NastiAddressChannel(val cfg: NastiParameters) extends NastiMasterToSlaveChannel(cfg) {
+class NastiAddressChannel(cfg: NastiParameters) extends NastiMasterToSlaveChannel(cfg) {
   import cfg._
-  val addr   = UInt(width = nastiXAddrBits)
-  val len    = UInt(width = nastiXLenBits)
-  val size   = UInt(width = nastiXSizeBits)
-  val burst  = UInt(width = nastiXBurstBits)
+  val addr   = UInt(width = nastiXAddrBits.W)
+  val len    = UInt(width = nastiXLenBits.W)
+  val size   = UInt(width = nastiXSizeBits.W)
+  val burst  = UInt(width = nastiXBurstBits.W)
   val lock   = Bool()
-  val cache  = UInt(width = nastiXCacheBits)
-  val prot   = UInt(width = nastiXProtBits)
-  val qos    = UInt(width = nastiXQosBits)
-  val region = UInt(width = nastiXRegionBits)
+  val cache  = UInt(width = nastiXCacheBits.W)
+  val prot   = UInt(width = nastiXProtBits.W)
+  val qos    = UInt(width = nastiXQosBits.W)
+  val region = UInt(width = nastiXRegionBits.W)
 }
 
-class NastiResponseChannel(val cfg: NastiParameters) extends NastiSlaveToMasterChannel(cfg) {
-  val resp = UInt(width = nastiXRespBits)
+class NastiResponseChannel(cfg: NastiParameters) extends NastiSlaveToMasterChannel(cfg) {
+  val resp = UInt(width = cfg.nastiXRespBits.W)
 }
 
-class NastiWriteAddressChannel(val cfg: NastiParameters) extends NastiAddressChannel(cfg) {
-  val id   = UInt(width = nastiWIdBits)
-  val user = UInt(width = nastiAWUserBits)
+class NastiWriteAddressChannel(cfg: NastiParameters) extends NastiAddressChannel(cfg) {
+  val id   = UInt(width = cfg.nastiWIdBits.W)
+  val user = UInt(width = cfg.nastiAWUserBits.W)
 }
 
-class NastiWriteDataChannel(val cfg: NastiParameters) extends NastiMasterToSlaveChannel(cfg) {
-  val data = UInt(width = nastiXDataBits)
+class NastiWriteDataChannel(cfg: NastiParameters) extends NastiMasterToSlaveChannel(cfg) {
+  val data = UInt(width = cfg.nastiXDataBits.W)
   val last = Bool()
-  val id   = UInt(width = nastiWIdBits)
-  val strb = UInt(width = nastiWStrobeBits)
-  val user = UInt(width = nastiWUserBits)
+  val id   = UInt(width = cfg.nastiWIdBits.W)
+  val strb = UInt(width = cfg.nastiWStrobeBits.W)
+  val user = UInt(width = cfg.nastiWUserBits.W)
 }
 
-class NastiWriteResponseChannel(val cfg: NastiParameters) extends NastiResponseChannel(cfg) {
-  val id   = UInt(width = nastiWIdBits)
-  val user = UInt(width = nastiBUserBits)
+class NastiWriteResponseChannel(cfg: NastiParameters) extends NastiResponseChannel(cfg) {
+  val id   = UInt(width = cfg.nastiWIdBits.W)
+  val user = UInt(width = cfg.nastiBUserBits.W)
 }
 
-class NastiReadAddressChannel(val cfg: NastiParameters) extends NastiAddressChannel(cfg) {
-  val id   = UInt(width = nastiRIdBits)
-  val user = UInt(width = nastiARUserBits)
+class NastiReadAddressChannel(cfg: NastiParameters) extends NastiAddressChannel(cfg) {
+  val id   = UInt(width = cfg.nastiRIdBits.W)
+  val user = UInt(width = cfg.nastiARUserBits.W)
 }
 
-class NastiReadDataChannel(val cfg: NastiParameters) extends NastiResponseChannel(cfg) {
-  val data = UInt(width = nastiXDataBits)
+class NastiReadDataChannel(cfg: NastiParameters) extends NastiResponseChannel(cfg) {
+  val data = UInt(width = cfg.nastiXDataBits.W)
   val last = Bool()
-  val id   = UInt(width = nastiRIdBits)
-  val user = UInt(width = nastiRUserBits)
+  val id   = UInt(width = cfg.nastiRIdBits.W)
+  val user = UInt(width = cfg.nastiRUserBits.W)
 }
 
 object NastiConstants {
-  val BURST_FIXED = UInt("b00")
-  val BURST_INCR  = UInt("b01")
-  val BURST_WRAP  = UInt("b10")
+  val BURST_FIXED = 0.U(2.W)
+  val BURST_INCR  = 1.U(2.W)
+  val BURST_WRAP  = 2.U(2.W)
 
-  val RESP_OKAY = UInt("b00")
-  val RESP_EXOKAY = UInt("b01")
-  val RESP_SLVERR = UInt("b10")
-  val RESP_DECERR = UInt("b11")
+  val RESP_OKAY   = 0.U(2.W)
+  val RESP_EXOKAY = 1.U(2.W)
+  val RESP_SLVERR = 2.U(2.W)
+  val RESP_DECERR = 3.U(2.W)
 
-  val CACHE_DEVICE_NOBUF = UInt("b0000")
-  val CACHE_DEVICE_BUF   = UInt("b0001")
-  val CACHE_NORMAL_NOCACHE_NOBUF = UInt("b0010")
-  val CACHE_NORMAL_NOCACHE_BUF   = UInt("b0011")
+  val CACHE_DEVICE_NOBUF         = 0.U(4.W)
+  val CACHE_DEVICE_BUF           = 1.U(4.W)
+  val CACHE_NORMAL_NOCACHE_NOBUF = 2.U(4.W)
+  val CACHE_NORMAL_NOCACHE_BUF   = 3.U(4.W)
 
   def AXPROT(instruction: Bool, nonsecure: Bool, privileged: Bool): UInt =
     Cat(instruction, nonsecure, privileged)
 
   def AXPROT(instruction: Boolean, nonsecure: Boolean, privileged: Boolean): UInt =
-    AXPROT(Bool(instruction), Bool(nonsecure), Bool(privileged))
+    AXPROT(instruction.B, nonsecure.B, privileged.B)
 }
 
 import NastiConstants._
 
 object NastiWriteAddressChannel {
   def apply(id: UInt, addr: UInt, size: UInt,
-      len: UInt = UInt(0), burst: UInt = BURST_INCR)
+      len: UInt = 0.U, burst: UInt = BURST_INCR)
       (cfg: NastiParameters) = {
     val aw = Wire(new NastiWriteAddressChannel(cfg))
     aw.id := id
@@ -154,16 +150,16 @@ object NastiWriteAddressChannel {
     aw.lock := false.B
     aw.cache := CACHE_DEVICE_NOBUF
     aw.prot := AXPROT(false, false, false)
-    aw.qos := UInt("b0000")
-    aw.region := UInt("b0000")
-    aw.user := UInt(0)
+    aw.qos := 0.U(4.W)
+    aw.region := 0.U(4.W)
+    aw.user := 0.U
     aw
   }
 }
 
 object NastiReadAddressChannel {
   def apply(id: UInt, addr: UInt, size: UInt,
-      len: UInt = UInt(0), burst: UInt = BURST_INCR)
+      len: UInt = 0.U, burst: UInt = BURST_INCR)
       (cfg: NastiParameters) = {
     val ar = Wire(new NastiReadAddressChannel(cfg))
     ar.id := id
@@ -174,54 +170,54 @@ object NastiReadAddressChannel {
     ar.lock := false.B
     ar.cache := CACHE_DEVICE_NOBUF
     ar.prot := AXPROT(false, false, false)
-    ar.qos := UInt(0)
-    ar.region := UInt(0)
-    ar.user := UInt(0)
+    ar.qos := 0.U
+    ar.region := 0.U
+    ar.user := 0.U
     ar
   }
 }
 
 object NastiWriteDataChannel {
   def apply(data: UInt, strb: Option[UInt] = None,
-            last: Bool = true.B, id: UInt = UInt(0))
+            last: Bool = true.B, id: UInt = 0.U)
            (cfg: NastiParameters): NastiWriteDataChannel = {
     val w = Wire(new NastiWriteDataChannel(cfg))
-    w.strb := strb.getOrElse(Fill(w.nastiWStrobeBits, UInt(1, 1)))
+    w.strb := strb.getOrElse(Fill(cfg.nastiWStrobeBits, 1.U(1.W)))
     w.data := data
     w.last := last
     w.id   := id
-    w.user := UInt(0)
+    w.user := 0.U
     w
   }
 }
 
 object NastiReadDataChannel {
-  def apply(id: UInt, data: UInt, last: Bool = true.B, resp: UInt = UInt(0))(
+  def apply(id: UInt, data: UInt, last: Bool = true.B, resp: UInt = 0.U)(
       cfg: NastiParameters) = {
     val r = Wire(new NastiReadDataChannel(cfg))
     r.id := id
     r.data := data
     r.last := last
     r.resp := resp
-    r.user := UInt(0)
+    r.user := 0.U
     r
   }
 }
 
 object NastiWriteResponseChannel {
-  def apply(id: UInt, resp: UInt = UInt(0))(cfg: NastiParameters) = {
+  def apply(id: UInt, resp: UInt = 0.U)(cfg: NastiParameters) = {
     val b = Wire(new NastiWriteResponseChannel(cfg))
     b.id := id
     b.resp := resp
-    b.user := UInt(0)
+    b.user := 0.U
     b
   }
 }
 
 class NastiQueue(depth: Int)(val cfg: NastiParameters) extends Module {
   val io = new Bundle {
-    val in  = Flipped(new NastiIO)
-    val out =         new NastiIO
+    val in  = Flipped(new NastiIO(cfg))
+    val out =         new NastiIO(cfg)
   }
   io.out.ar <> Queue(io.in.ar, depth)
   io.out.aw <> Queue(io.in.aw, depth)
@@ -239,22 +235,22 @@ object NastiQueue {
 }
 
 class NastiArbiterIO(arbN: Int)(val cfg: NastiParameters) extends Bundle {
-  val master = Flipped(Vec(arbN, new NastiIO))
-  val slave  = new NastiIO
+  val master = Flipped(Vec(arbN, new NastiIO(cfg)))
+  val slave  = new NastiIO(cfg)
 }
 
 /** Arbitrate among arbN masters requesting to a single slave */
-class NastiArbiter(val arbN: Int)(val cfg: NastiParameters) extends NastiModule {
-  val io = new NastiArbiterIO(arbN)
+class NastiArbiter(val arbN: Int)(cfg: NastiParameters) extends Module {
+  val io = new NastiArbiterIO(arbN)(cfg)
 
   if (arbN > 1) {
     val arbIdBits = log2Up(arbN)
 
-    val ar_arb = Module(new RRArbiter(new NastiReadAddressChannel, arbN))
-    val aw_arb = Module(new RRArbiter(new NastiWriteAddressChannel, arbN))
+    val ar_arb = Module(new RRArbiter(new NastiReadAddressChannel(cfg), arbN))
+    val aw_arb = Module(new RRArbiter(new NastiWriteAddressChannel(cfg), arbN))
 
-    val w_chosen = Reg(UInt(width = arbIdBits))
-    val w_done = Reg(init = true.B)
+    val w_chosen = Reg(UInt(width = arbIdBits.W))
+    val w_done = RegInit(true.B)
 
     when (aw_arb.io.out.fire) {
       w_chosen := aw_arb.io.chosen
@@ -265,13 +261,13 @@ class NastiArbiter(val arbN: Int)(val cfg: NastiParameters) extends NastiModule 
       w_done := true.B
     }
 
-    val queueSize = min((1 << nastiXIdBits) * arbN, 64)
+    val queueSize = min((1 << cfg.nastiXIdBits) * arbN, 64)
 
     val rroq = Module(new ReorderQueue(
-      UInt(width = arbIdBits), nastiXIdBits, Some(queueSize)))
+      UInt(width = arbIdBits.W), cfg.nastiXIdBits, Some(queueSize)))
 
     val wroq = Module(new ReorderQueue(
-      UInt(width = arbIdBits), nastiXIdBits, Some(queueSize)))
+      UInt(width = arbIdBits.W), cfg.nastiXIdBits, Some(queueSize)))
 
     for (i <- 0 until arbN) {
       val m_ar = io.master(i).ar
@@ -285,27 +281,25 @@ class NastiArbiter(val arbN: Int)(val cfg: NastiParameters) extends NastiModule 
       a_ar <> m_ar
       a_aw <> m_aw
 
-      m_r.valid := io.slave.r.valid && rroq.io.deq.head.data === UInt(i)
+      m_r.valid := io.slave.r.valid && rroq.io.deq.head.data === i.U
       m_r.bits := io.slave.r.bits
 
-      m_b.valid := io.slave.b.valid && wroq.io.deq.head.data === UInt(i)
+      m_b.valid := io.slave.b.valid && wroq.io.deq.head.data === i.U
       m_b.bits := io.slave.b.bits
 
-      m_w.ready := io.slave.w.ready && w_chosen === UInt(i) && !w_done
+      m_w.ready := io.slave.w.ready && w_chosen === i.U && !w_done
     }
 
     io.slave.r.ready := io.master(rroq.io.deq.head.data).r.ready
     io.slave.b.ready := io.master(wroq.io.deq.head.data).b.ready
 
-    rroq.io.deq.head.tag := io.slave.r.bits.id
+    rroq.io.deq.head.tag   := io.slave.r.bits.id
     rroq.io.deq.head.valid := io.slave.r.fire && io.slave.r.bits.last
-    wroq.io.deq.head.tag := io.slave.b.bits.id
+    wroq.io.deq.head.tag   := io.slave.b.bits.id
     wroq.io.deq.head.valid := io.slave.b.fire
 
-    assert(!rroq.io.deq.head.valid || rroq.io.deq.head.matches,
-      "NastiArbiter: read response mismatch")
-    assert(!wroq.io.deq.head.valid || wroq.io.deq.head.matches,
-      "NastiArbiter: write response mismatch")
+    assert(!rroq.io.deq.head.valid || rroq.io.deq.head.matches, "NastiArbiter: read  response mismatch")
+    assert(!wroq.io.deq.head.valid || wroq.io.deq.head.matches, "NastiArbiter: write response mismatch")
 
     io.slave.w.bits := io.master(w_chosen).w.bits
     io.slave.w.valid := io.master(w_chosen).w.valid && !w_done
@@ -338,17 +332,17 @@ class NastiArbiter(val arbN: Int)(val cfg: NastiParameters) extends NastiModule 
 }
 
 /** A slave that send decode error for every request it receives */
-class NastiErrorSlave(val cfg: NastiParameters) extends NastiModule {
-  val io = Flipped(new NastiIO)
+class NastiErrorSlave(cfg: NastiParameters) extends Module {
+  val io = Flipped(new NastiIO(cfg))
 
   when (io.ar.fire) { printf("Invalid read address %x\n", io.ar.bits.addr) }
   when (io.aw.fire) { printf("Invalid write address %x\n", io.aw.bits.addr) }
 
-  val r_queue = Module(new Queue(new NastiReadAddressChannel, 1))
+  val r_queue = Module(new Queue(new NastiReadAddressChannel(cfg), 1))
   r_queue.io.enq <> io.ar
 
-  val responding = Reg(init = false.B)
-  val beats_left = Reg(init = UInt(0, nastiXLenBits))
+  val responding = RegInit(false.B)
+  val beats_left = RegInit(0.U(cfg.nastiXLenBits.W))
 
   when (!responding && r_queue.io.deq.valid) {
     responding := true.B
@@ -357,27 +351,27 @@ class NastiErrorSlave(val cfg: NastiParameters) extends NastiModule {
 
   io.r.valid := r_queue.io.deq.valid && responding
   io.r.bits.id := r_queue.io.deq.bits.id
-  io.r.bits.data := UInt(0)
+  io.r.bits.data := 0.U
   io.r.bits.resp := RESP_DECERR
-  io.r.bits.last := beats_left === UInt(0)
+  io.r.bits.last := beats_left === 0.U
 
   r_queue.io.deq.ready := io.r.fire && io.r.bits.last
 
   when (io.r.fire) {
-    when (beats_left === UInt(0)) {
+    when (beats_left === 0.U) {
       responding := false.B
     } .otherwise {
-      beats_left := beats_left - UInt(1)
+      beats_left := beats_left - 1.U
     }
   }
 
-  val draining = Reg(init = false.B)
+  val draining = RegInit(false.B)
   io.w.ready := draining
 
   when (io.aw.fire) { draining := true.B }
   when (io.w.fire && io.w.bits.last) { draining := false.B }
 
-  val b_queue = Module(new Queue(UInt(width = nastiWIdBits), 1))
+  val b_queue = Module(new Queue(UInt(cfg.nastiWIdBits.W), 1))
   b_queue.io.enq.valid := io.aw.valid && !draining
   b_queue.io.enq.bits := io.aw.bits.id
   io.aw.ready := b_queue.io.enq.ready && !draining
@@ -388,36 +382,36 @@ class NastiErrorSlave(val cfg: NastiParameters) extends NastiModule {
 }
 
 class NastiRouterIO(nSlaves: Int)(val cfg: NastiParameters) extends Bundle {
-  val master = Flipped(new NastiIO)
-  val slave = Vec(nSlaves, new NastiIO)
+  val master = Flipped(new NastiIO(cfg))
+  val slave = Vec(nSlaves, new NastiIO(cfg))
 }
 
 /** Take a single Nasti master and route its requests to various slaves
  *  @param nSlaves the number of slaves
  *  @param routeSel a function which takes an address and produces
  *  a one-hot encoded selection of the slave to write to */
-class NastiRouter(nSlaves: Int, routeSel: UInt => UInt)(val cfg: NastiParameters)
-    extends NastiModule {
+class NastiRouter(nSlaves: Int, routeSel: UInt => UInt)(cfg: NastiParameters)
+    extends Module {
 
-  val io = new NastiRouterIO(nSlaves)
+  val io = new NastiRouterIO(nSlaves)(cfg)
 
   val ar_route = routeSel(io.master.ar.bits.addr)
   val aw_route = routeSel(io.master.aw.bits.addr)
 
-  val ar_ready = Wire(init = false.B)
-  val aw_ready = Wire(init = false.B)
-  val w_ready = Wire(init = false.B)
+  val ar_ready = WireInit(false.B)
+  val aw_ready = WireInit(false.B)
+  val w_ready  = WireInit(false.B)
 
-  val queueSize = min((1 << nastiXIdBits) * nSlaves, 64)
+  val queueSize = min((1 << cfg.nastiXIdBits) * nSlaves, 64)
 
   // These reorder queues remember which slave ports requests were sent on
   // so that the responses can be sent back in-order on the master
   val ar_queue = Module(new ReorderQueue(
-    UInt(width = log2Up(nSlaves + 1)), nastiXIdBits,
-    Some(queueSize), nSlaves + 1))
+    UInt(log2Up(nSlaves + 1).W), cfg.nastiXIdBits,
+    Some(queueSize)))
   val aw_queue = Module(new ReorderQueue(
-    UInt(width = log2Up(nSlaves + 1)), nastiXIdBits,
-    Some(queueSize), nSlaves + 1))
+    UInt(log2Up(nSlaves + 1).W), cfg.nastiXIdBits,
+    Some(queueSize)))
   // This queue holds the accepted aw_routes so that we know how to route the
   val w_queue = Module(new Queue(aw_route, nSlaves))
 
@@ -437,7 +431,7 @@ class NastiRouter(nSlaves: Int, routeSel: UInt => UInt)(val cfg: NastiParameters
     w_queue.io.deq.valid,
     w_ready)
 
-  def routeEncode(oh: UInt): UInt = Mux(oh.orR, OHToUInt(oh), UInt(nSlaves))
+  def routeEncode(oh: UInt): UInt = Mux(oh.orR, OHToUInt(oh), UInt(nSlaves.W))
 
   ar_queue.io.enq.valid := ar_helper.fire(ar_queue.io.enq.ready)
   ar_queue.io.enq.bits.tag := io.master.ar.bits.id
@@ -478,7 +472,7 @@ class NastiRouter(nSlaves: Int, routeSel: UInt => UInt)(val cfg: NastiParameters
   val aw_noroute = !aw_route.orR
   val w_noroute  = !w_route.orR
 
-  val err_slave = Module(new NastiErrorSlave)
+  val err_slave = Module(new NastiErrorSlave(cfg))
   err_slave.io.ar.valid := ar_valid && ar_noroute
   err_slave.io.ar.bits := io.master.ar.bits
   err_slave.io.aw.valid := aw_valid && aw_noroute
@@ -490,9 +484,9 @@ class NastiRouter(nSlaves: Int, routeSel: UInt => UInt)(val cfg: NastiParameters
   when (aw_noroute) { aw_ready := err_slave.io.aw.ready }
   when (w_noroute)  { w_ready  := err_slave.io.w.ready }
 
-  val b_arb = Module(new RRArbiter(new NastiWriteResponseChannel, nSlaves + 1))
+  val b_arb = Module(new RRArbiter(new NastiWriteResponseChannel(cfg), nSlaves + 1))
   val r_arb = Module(new HellaPeekingArbiter(
-    new NastiReadDataChannel, nSlaves + 1,
+    new NastiReadDataChannel(cfg), nSlaves + 1,
     // we can unlock if it's the last beat
     (r: NastiReadDataChannel) => r.last, rr = true))
 
@@ -523,26 +517,28 @@ class NastiRouter(nSlaves: Int, routeSel: UInt => UInt)(val cfg: NastiParameters
  *  @param routeSel a function selecting the slave to route an address to */
 class NastiCrossbar(nMasters: Int, nSlaves: Int,
                     routeSel: UInt => UInt)
-                   (val cfg: NastiParameters) extends NastiModule {
+                   (cfg: NastiParameters) extends Module {
   val io = new Bundle {
-    val masters = Flipped(Vec(nMasters, new NastiIO))
-    val slaves = Vec(nSlaves, new NastiIO)
+    val masters = Flipped(Vec(nMasters, new NastiIO(cfg)))
+    val slaves = Vec(nSlaves, new NastiIO(cfg))
   }
 
   if (nMasters == 1) {
-    val router = Module(new NastiRouter(nSlaves, routeSel))
+    val router = Module(new NastiRouter(nSlaves, routeSel)(cfg))
     router.io.master <> io.masters.head
     io.slaves <> router.io.slave
   } else {
-    val routers = Vec.fill(nMasters) { Module(new NastiRouter(nSlaves, routeSel)).io }
-    val arbiters = Vec.fill(nSlaves) { Module(new NastiArbiter(nMasters)).io }
+    val routers = Seq.fill(nMasters) { Module(new NastiRouter(nSlaves, routeSel)(cfg)).io }
+    val arbiters = Seq.fill(nSlaves) { Module(new NastiArbiter(nMasters)(cfg)).io }
 
     for (i <- 0 until nMasters) {
       routers(i).master <> io.masters(i)
     }
 
     for (i <- 0 until nSlaves) {
-      arbiters(i).master <> Vec(routers.map(r => r.slave(i)))
+      for (j <- 0 until nMasters) {
+        arbiters(i).master(j) <> routers(j).slave(i)
+      }
       io.slaves(i) <> arbiters(i).slave
     }
   }
@@ -552,48 +548,19 @@ class NastiInterconnectIO(val nMasters: Int, val nSlaves: Int)
                          (val cfg: NastiParameters) extends Bundle {
   /* This is a bit confusing. The interconnect is a slave to the masters and
    * a master to the slaves. Hence why the declarations seem to be backwards. */
-  val masters = Flipped(Vec(nMasters, new NastiIO))
-  val slaves = Vec(nSlaves, new NastiIO)
+  val masters = Flipped(Vec(nMasters, new NastiIO(cfg)))
+  val slaves = Vec(nSlaves, new NastiIO(cfg))
 }
 
-abstract class NastiInterconnect(val cfg: NastiParameters) extends NastiModule(cfg) {
+abstract class NastiInterconnect(cfg: NastiParameters) extends Module {
   val nMasters: Int
   val nSlaves: Int
 
-  lazy val io = new NastiInterconnectIO(nMasters, nSlaves)
-}
-
-class NastiRecursiveInterconnect(
-    val nMasters: Int, addrMap: AddrMap)
-    (val cfg: NastiParameters) extends NastiInterconnect(cfg) {
-  def port(name: String) = io.slaves(addrMap.port(name))
-  val nSlaves = addrMap.numSlaves
-  val routeSel = (addr: UInt) =>
-    Cat(addrMap.entries.map(e => addrMap(e.name).containsAddress(addr)).reverse)
-
-  val xbar = Module(new NastiCrossbar(nMasters, addrMap.length, routeSel))
-  xbar.io.masters <> io.masters
-
-  io.slaves <> addrMap.entries.zip(xbar.io.slaves).flatMap {
-    case (entry, xbarSlave) => {
-      entry.region match {
-        case submap: AddrMap if submap.entries.isEmpty =>
-          val err_slave = Module(new NastiErrorSlave)
-          err_slave.io <> xbarSlave
-          None
-        case submap: AddrMap =>
-          val ic = Module(new NastiRecursiveInterconnect(1, submap))
-          ic.io.masters.head <> xbarSlave
-          ic.io.slaves
-        case r: MemRange =>
-          Some(xbarSlave)
-      }
-    }
-  }
+  lazy val io = new NastiInterconnectIO(nMasters, nSlaves)(cfg)
 }
 
 object AXI4NastiAssigner {
-  def toNasti(nasti: NastiIO, axi4: AXI4Bundle)(cfg: NastiParameters): Unit = {
+  def toNasti(nasti: NastiIO, axi4: AXI4Bundle): Unit = {
     // HACK: Nasti and Diplomatic have diverged to the point where it's no
     // longer safe to emit a partial connect leaf fields. Onus is on the
     // invoker to check widths.
