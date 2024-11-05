@@ -26,6 +26,7 @@ object emulator extends ScalaModule {
     ivy"org.chipsalliance:::chisel-plugin:6.2.0",
   )
 
+  // https://mill-build.org/mill/0.11.12/Scala_Module_Config.html
   val sonatypeReleases = Seq(
     coursier.maven.MavenRepository("https://oss.sonatype.org/content/repositories/snapshots/"),
     coursier.maven.MavenRepository("https://oss.sonatype.org/content/repositories/releases/"),
