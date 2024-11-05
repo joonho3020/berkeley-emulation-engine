@@ -1,0 +1,13 @@
+create_ip_project
+project_*
+scripts
+verilog-pcie
+vivado*
+xdma_pipeclean
+xdma_setup.tcl
+**/target
+.Xil
+**/ip_project
+design/project/*
+design/ip/*
+!design/ip/**.xci
