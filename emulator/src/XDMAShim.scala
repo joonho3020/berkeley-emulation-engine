@@ -74,10 +74,10 @@ class BoardDMAModule(
 
   val PAGE_BYTES = BigInt(0x1000)
 
-  val route_sel = (addr: UInt) => Cat((contains_addr(addr, PAGE_BYTES, PAGE_BYTES),
+  val route_sel = (addr: UInt) => Cat(Seq(contains_addr(addr, PAGE_BYTES, PAGE_BYTES),
                                        contains_addr(addr,          0, PAGE_BYTES)))
 
-  val router = Module(new NastiRouter(2, route_sel))
+  val router = Module(new NastiRouter(2, route_sel)(nasti_params))
   router.io.master <> io.m_nasti
 
   // TODO: ...
