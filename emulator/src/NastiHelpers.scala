@@ -84,6 +84,7 @@ class MCRFile(numRegs: Int)(cfg: NastiParameters) extends Module {
 
 object MCRFile {
   def bind_readonly_reg(reg: Data, mcr: MCRFile, idx: Int): Unit = {
+    assert(mcr.io.mcr.write(idx).valid === false.B)
     mcr.io.mcr.write(idx).ready := false.B
     mcr.io.mcr.read(idx).valid := true.B
     mcr.io.mcr.read(idx).bits  := reg

@@ -5,19 +5,6 @@ import chisel3.util._
 import chisel3.experimental.hierarchy.{Definition, Instance}
 
 
-// class BoardBundle(cfg: EmulatorConfig) extends Bundle {
-// import cfg._
-
-// val cfg_in = Vec(num_mods, Input(new EModuleConfigBundle(cfg))) -> MMIO
-// val init = Output(Bool()) -> MMIO
-// val insts = Vec(num_mods, Flipped(Decoupled(Instruction(cfg)))) -> DMA
-
-// val run = Input(Bool()) -> ...
-// val io = Vec(num_mods, new EModuleIOBitsBundle(cfg))  -> DMA
-// val dbg = if (cfg.debug) Some(new BoardDebugBundle(cfg)) else None
-// }
-
-
 class BoardMMIOModule(
   nasti_params: NastiParameters,
   emul_params: EmulatorConfig
@@ -28,9 +15,9 @@ class BoardMMIOModule(
     val m_nasti = Flipped(new NastiIO(nasti_params))
     val cfg_in = Vec(num_mods, Output(new EModuleConfigBundle(emul_params)))
     val init   = Input(Bool())
+    val host_steps = Output(UInt(num_bits.W))
   })
 
-  // TODO: Fill this in according to the AXI4 address
   val mcr = Module(new MCRFile(4 * num_mods + 2)(nasti_params))
   mcr.io.nasti <> io.m_nasti
 
@@ -50,14 +37,16 @@ class BoardMMIOModule(
   MCRFile.bind_writeonly_reg_array(single_port_ram, mcr, num_mods)
 
   val wmask_bits = Seq.fill(emul_params.num_mods)(RegInit(0.U(num_mods_log2.W)))
-  MCRFile.bind_writeonly_reg_array(wmask_bits, mcr, num_mods)
+  MCRFile.bind_writeonly_reg_array(wmask_bits, mcr, 2 * num_mods)
 
   val width_bits = Seq.fill(emul_params.num_mods)(RegInit(0.U(num_mods_log2.W)))
-  MCRFile.bind_writeonly_reg_array(width_bits, mcr, num_mods)
+  MCRFile.bind_writeonly_reg_array(width_bits, mcr,  3 * num_mods)
 
   val host_steps = RegInit(0.U(num_bits.W))
   val host_steps_w = Wire(host_steps.cloneType)
-  MCRFile.bind_writeonly_reg()
+  MCRFile.bind_writeonly_reg(host_steps_w, mcr, 4 * num_mods)
+
+  io.host_steps := host_steps
 
   // Read Only Register mapping
   // - init
@@ -78,6 +67,18 @@ class BoardDMAModule(
     val run        = Output(Bool())
     val io         = Vec(num_mods, Flipped(new EModuleIOBitsBundle(emul_params)))
   })
+
+  def contains_addr(addr: UInt, start: BigInt, size: BigInt): Bool = {
+    start.U <= addr && addr < (start + size).U
+  }
+
+  val PAGE_BYTES = BigInt(0x1000)
+
+  val route_sel = (addr: UInt) => Cat((contains_addr(addr, PAGE_BYTES, PAGE_BYTES),
+                                       contains_addr(addr,          0, PAGE_BYTES)))
+
+  val router = Module(new NastiRouter(2, route_sel))
+  router.io.master <> io.m_nasti
 
   // TODO: ...
 }
