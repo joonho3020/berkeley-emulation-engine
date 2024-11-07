@@ -1,13 +1,21 @@
 package emulator
 
-
 import chisel3._
 import _root_.circt.stage.ChiselStage
+import org.chipsalliance.cde.config.{Field, Parameters}
+import freechips.rocketchip.amba.axi4.AXI4BundleParameters
+import freechips.rocketchip.diplomacy._
 
 object Main extends App {
-  val config = new EmulatorConfig
+  implicit val p: Parameters = Parameters((site, here, up) => {
+    case FPGAConfigKey => FPGATopConfig(
+      AXI4BundleParameters(64, 512, 4),
+      AXI4BundleParameters(64, 32, 4))
+  })
+
+  val fpgatop = LazyModule(new FPGATop)
   ChiselStage.emitSystemVerilogFile(
-    new Board(config),
+    fpgatop.module,
     firtoolOpts = Array(
       "-disable-all-randomization",
       "-strip-debug-info",
