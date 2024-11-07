@@ -5,6 +5,7 @@ import chisel3.util._
 import freechips.rocketchip.amba.axi4._
 import org.chipsalliance.cde.config.{Field, Parameters}
 import freechips.rocketchip.diplomacy._
+import freechips.rocketchip.util.DecoupledHelper
 
 case class FPGATopAXI4DMAParams(
   addrBits:  Int,
@@ -178,6 +179,10 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
 
 
 
+  ////////////////////////////////////////////////////////////////////////////
+
+
+
   val board = Module(new Board(cfg.emul))
 
   // Read Only Register mapping
@@ -193,6 +198,7 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
     board.io.cfg_in(i).sram.width_bits      := width_bits(i)
   }
 
+  // TODO: make this into parallel streams to make the loading faster(?)
   val cur_inst_mod = RegInit(0.U(log2Ceil(cfg.emul.num_mods + 1).W))
   val cur_insts_pushed = RegInit(0.U(log2Ceil(cfg.emul.insts_per_mod + 1).W))
   for (i <- 0 until cfg.emul.num_mods) {
@@ -211,11 +217,25 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
 
   val cur_step = RegInit(0.U(cfg.emul.index_bits.W))
 
-// val cfg_in = Vec(num_mods, Input(new EModuleConfigBundle(cfg)))
-// val init = Output(Bool())
-// val insts = Vec(num_mods, Flipped(Decoupled(Instruction(cfg))))
+  // TODO: DRAM interface should go here
+  for (i <- 0 until cfg.emul.num_mods) {
+    for (j <- 0 until cfg.emul.num_procs) {
+      val idx = i * cfg.emul.num_procs + j
+      board.io.io(i).i(j) := target_io_stream.io.deq.bits >> idx
+      target_io_stream.io.enq.bits(idx) := board.io.io(i).o(j)
+    }
+  }
 
-// val run = Input(Bool())
-// val io = Vec(num_mods, new EModuleIOBitsBundle(cfg))
+  val board_run = DecoupledHelper(
+    target_io_stream.io.deq.valid,
+    target_io_stream.io.enq.ready)
 
+  val last_step = cur_step === host_steps - 1.U
+  board.io.run := board_run.fire()
+  target_io_stream.io.deq.ready := board_run.fire(target_io_stream.io.deq.valid, last_step)
+  target_io_stream.io.enq.valid := board_run.fire(target_io_stream.io.enq.ready, last_step)
+
+  when (board.io.run) {
+    cur_step := Mux(last_step, 0.U, cur_step + 1.U)
+  }
 }
