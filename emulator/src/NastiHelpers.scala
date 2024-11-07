@@ -8,7 +8,7 @@ import freechips.rocketchip.util.{DecoupledHelper, ParameterizedBundle, HellaPee
 class MCRIO(numCRs: Int)(cfg: NastiParameters) extends Bundle {
   val read  = Vec(numCRs, Flipped(Decoupled(UInt(cfg.nastiXDataBits.W))))
   val write = Vec(numCRs,         Decoupled(UInt(cfg.nastiXDataBits.W)))
-  val wstrb = Output(UInt(cfg.nastiWStrobeBits.W))
+// val wstrb = Output(UInt(cfg.nastiWStrobeBits.W))
 }
 
 class MCRFile(numRegs: Int)(cfg: NastiParameters) extends Module {
@@ -29,7 +29,7 @@ class MCRFile(numRegs: Int)(cfg: NastiParameters) extends Module {
   val wData     = Reg(UInt(cfg.nastiXDataBits.W))
   val wIndex    = Reg(UInt(log2Up(numRegs).W))
   val rIndex    = Reg(UInt(log2Up(numRegs).W))
-  val wStrb     = Reg(UInt(cfg.nastiWStrobeBits.W))
+// val wStrb     = Reg(UInt(cfg.nastiWStrobeBits.W))
 
   when(io.nasti.aw.fire) {
     awFired := true.B
@@ -41,7 +41,7 @@ class MCRFile(numRegs: Int)(cfg: NastiParameters) extends Module {
   when(io.nasti.w.fire) {
     wFired := true.B
     wData  := io.nasti.w.bits.data
-    wStrb  := io.nasti.w.bits.strb
+// wStrb  := io.nasti.w.bits.strb
   }
 
   when(io.nasti.ar.fire) {
@@ -83,6 +83,16 @@ class MCRFile(numRegs: Int)(cfg: NastiParameters) extends Module {
 }
 
 object MCRFile {
+  def tieoff(mcr: MCRFile): Unit = {
+    mcr.io.mcr.write.map(w => {
+      w.ready := false.B
+    })
+    mcr.io.mcr.read.map(r => {
+      r.valid := false.B
+      r.bits := 0.U
+    })
+  }
+
   def bind_readonly_reg(reg: Data, mcr: MCRFile, idx: Int): Unit = {
     assert(mcr.io.mcr.write(idx).valid === false.B)
     mcr.io.mcr.write(idx).ready := false.B
@@ -93,6 +103,7 @@ object MCRFile {
   def bind_writeonly_reg(reg: Data, mcr: MCRFile, idx: Int): Unit = {
     mcr.io.mcr.read(idx).valid := false.B
     mcr.io.mcr.write(idx).ready := true.B
+    reg := DontCare
     when (mcr.io.mcr.write(idx).valid) {
       reg := mcr.io.mcr.write(idx).bits
     }

@@ -4,6 +4,7 @@ import chisel3._
 import chisel3.util._
 import scala.math.{min, max}
 import freechips.rocketchip.util.{DecoupledHelper, ParameterizedBundle, HellaPeekingArbiter}
+import freechips.rocketchip.amba.axi4._
 
 case class NastiParameters(dataBits: Int, addrBits: Int, idBits: Int) {
   val nastiXDataBits   = dataBits

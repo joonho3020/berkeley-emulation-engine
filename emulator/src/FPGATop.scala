@@ -72,7 +72,7 @@ class FPGATop(implicit p: Parameters) extends LazyModule {
   val axiDMAInstSlaveNode = AXI4SlaveNode(Seq(
     AXI4SlavePortParameters(
       slaves = Seq(AXI4SlaveParameters(
-        address = Seq(AddressSet(targetIOAddrSize, (BigInt(1) << cfg.axi.addrBits) - 1)),
+        address = Seq(AddressSet(targetIOAddrSize, targetIOAddrSize - 1)),
         resources     = (new MemoryDevice).reg,
         regionType    = RegionType.UNCACHED,
         executable    = false,
@@ -81,11 +81,10 @@ class FPGATop(implicit p: Parameters) extends LazyModule {
         interleavedId = Some(0))),
       beatBytes = cfg.axi.dataBits / 8)))
 
-  val dmaXbarNode = AXIXbar()
+  val dmaXbarNode = AXI4Xbar()
   dmaXbarNode := AXI4Buffer() := axiDMAMasterNode
   axiDMATargetIOSlaveNode := dmaXbarNode
   axiDMAInstSlaveNode     := dmaXbarNode
-
 
    // AXI4-Lite Master Node with a single master port
   val axiMMIOMasterNode = AXI4MasterNode(Seq(
@@ -98,21 +97,33 @@ class FPGATop(implicit p: Parameters) extends LazyModule {
         maxFlight = cfg.axil.maxFlight)
       ))))
 
+  val axiMMIOSlaveNode = AXI4SlaveNode(Seq(
+    AXI4SlavePortParameters(
+      slaves = Seq(AXI4SlaveParameters(
+        address = Seq(AddressSet(0, (BigInt(1) << cfg.axil.addrBits) - 1)),
+        resources     = (new MemoryDevice).reg,
+        regionType    = RegionType.UNCACHED,
+        executable    = false,
+        supportsWrite = TransferSizes(cfg.axil.dataBits / 8, 4096),
+        supportsRead  = TransferSizes(cfg.axil.dataBits / 8, 4096),
+        interleavedId = Some(0))),
+      beatBytes = cfg.axi.dataBits / 8)))
+
+  axiMMIOSlaveNode := AXI4Buffer() := axiMMIOMasterNode
+
   lazy val module = new FPGATopImp(this)(cfg)
 }
 
 class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer) {
-
-
   println(cfg.axi)
 
   val io_dma_axi4_master = IO(Flipped(AXI4Bundle(cfg.axi.axi4BundleParams)))
   outer.axiDMAMasterNode.out.head._1 <> io_dma_axi4_master
 
-  val dma_axi4_target_io = Wire(Flipped(AXI4Bundle(cfg.axi.axi4BundleParams)))
+  val dma_axi4_target_io = Wire(AXI4Bundle(cfg.axi.axi4BundleParams))
   dma_axi4_target_io <> outer.axiDMATargetIOSlaveNode.in.head._1
 
-  val dma_axi4_inst = Wire(Flipped(AXI4Bundle(cfg.axi.axi4BundleParams)))
+  val dma_axi4_inst = Wire(AXI4Bundle(cfg.axi.axi4BundleParams))
   dma_axi4_inst <> outer.axiDMAInstSlaveNode.in.head._1
 
   dontTouch(io_dma_axi4_master)
@@ -120,20 +131,28 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
   dontTouch(dma_axi4_inst)
 
   val total_procs = cfg.emul.num_procs * cfg.emul.num_mods
-  val io_stream_width = (math.ceil(total_procs / cfg.axi.axi4BundleParams.dataBits) * cfg.axi.axi4BundleParams.dataBits).toInt
+  val dataBits = cfg.axi.axi4BundleParams.dataBits
+  val io_stream_width = (((total_procs + dataBits - 1) / dataBits) * dataBits).toInt
+  println(s"io_stream_width: ${io_stream_width}")
+  println(s"total_procs: ${total_procs}")
 
   val target_io_stream = Module(new AXI4DecoupledConverter(
     axiParams = cfg.axi.axi4BundleParams,
     widthBits = io_stream_width,
     bufferDepth = 4))
 
+  target_io_stream.io.axi <> dma_axi4_target_io
+
   val target_inst_stream = Module(new AXI4DecoupledConverter(
     axiParams = cfg.axi.axi4BundleParams,
     widthBits = cfg.axi.axi4BundleParams.dataBits,
     bufferDepth = 128))
 
+  target_inst_stream.io.axi <> dma_axi4_inst
+
   target_inst_stream.io.enq.valid := false.B
   target_inst_stream.io.enq.bits  := 0.U
+  target_inst_stream.io.deq.ready := false.B
 
   ////////////////////////////////////////////////////////////////////////////
   // MMIO
@@ -143,13 +162,17 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
   outer.axiMMIOMasterNode.out.head._1 <> io_mmio_axi4_master
   dontTouch(io_mmio_axi4_master)
 
+  val mmio_axi4_slave = Wire(AXI4Bundle(cfg.axil.axi4BundleParams))
+  mmio_axi4_slave <> outer.axiMMIOSlaveNode.in.head._1
+
   val axil_params = cfg.axil.axi4BundleParams
   val nasti_lite_params = NastiParameters(axil_params.dataBits, axil_params.addrBits, axil_params.idBits)
   val m_nasti_lite = Wire(new NastiIO(nasti_lite_params))
-  AXI4NastiAssigner.toNasti(m_nasti_lite, io_mmio_axi4_master)
+  AXI4NastiAssigner.toNasti(m_nasti_lite, mmio_axi4_slave)
 
   val mcr = Module(new MCRFile(4 * cfg.emul.num_mods + 2)(nasti_lite_params))
   mcr.io.nasti <> m_nasti_lite
+  MCRFile.tieoff(mcr)
 
   // Write Only Register mapping
   // - used_procs (0~num_mods-1)
@@ -174,6 +197,7 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
 
   val host_steps = RegInit(0.U(cfg.emul.index_bits.W))
   val host_steps_w = Wire(host_steps.cloneType)
+  host_steps := host_steps_w
   MCRFile.bind_writeonly_reg(host_steps_w, mcr, 4 * cfg.emul.num_mods)
 
 
@@ -187,7 +211,7 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
 
   // Read Only Register mapping
   // - init
-  val init = Reg(board.io.init)
+  val init = RegNext(board.io.init)
   MCRFile.bind_readonly_reg(init, mcr, 4 * cfg.emul.num_mods + 1)
 
   for (i <- 0 until cfg.emul.num_mods) {
@@ -201,9 +225,17 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
   // TODO: make this into parallel streams to make the loading faster(?)
   val cur_inst_mod = RegInit(0.U(log2Ceil(cfg.emul.num_mods + 1).W))
   val cur_insts_pushed = RegInit(0.U(log2Ceil(cfg.emul.insts_per_mod + 1).W))
+
+  for (i <- 0 until cfg.emul.num_mods) {
+    board.io.insts(i).valid := false.B
+    board.io.insts(i).bits  := DontCare
+  }
+
   for (i <- 0 until cfg.emul.num_mods) {
     when (i.U === cur_inst_mod) {
-      board.io.insts(i) <> target_inst_stream.io.deq.asTypeOf(Instruction(cfg.emul))
+      board.io.insts(i).valid := target_inst_stream.io.deq.valid
+      board.io.insts(i).bits  := target_inst_stream.io.deq.bits.asTypeOf(Instruction(cfg.emul))
+      target_inst_stream.io.deq.ready := board.io.insts(i).ready
       when (board.io.insts(i).fire) {
         when (cur_insts_pushed === host_steps * cfg.emul.num_procs.U - 1.U) {
           cur_insts_pushed := 0.U
@@ -221,10 +253,11 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
   for (i <- 0 until cfg.emul.num_mods) {
     for (j <- 0 until cfg.emul.num_procs) {
       val idx = i * cfg.emul.num_procs + j
-      board.io.io(i).i(j) := target_io_stream.io.deq.bits >> idx
-      target_io_stream.io.enq.bits(idx) := board.io.io(i).o(j)
+      board.io.io(i).i(j) := target_io_stream.io.deq.bits >> (idx * cfg.emul.num_bits)
     }
   }
+
+  target_io_stream.io.enq.bits := Cat(board.io.io.flatMap(io => io.o).reverse)
 
   val board_run = DecoupledHelper(
     target_io_stream.io.deq.valid,

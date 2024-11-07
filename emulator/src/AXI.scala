@@ -17,14 +17,14 @@ class StreamAdapterIO(val w: Int) extends Bundle {
 }
 
 class StreamWidthAdapter(narrowW: Int, wideW: Int) extends Module {
-  require(wideW >= narrowW)
+// require(wideW >= narrowW)
   require(wideW % narrowW == 0)
   val io = IO(new Bundle {
     val narrow = new StreamAdapterIO(narrowW)
     val wide   = new StreamAdapterIO(wideW)
   })
 
-  if (wideW == narrowW) {
+  if (wideW <= narrowW) {
     io.narrow.out <> io.wide.in
     io.wide.out   <> io.narrow.in
   } else {
