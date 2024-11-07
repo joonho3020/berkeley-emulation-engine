@@ -20,7 +20,7 @@ object emulator extends ScalaModule {
   )
   override def ivyDeps = Agg(
     ivy"org.chipsalliance::chisel:6.2.0",
-    ivy"edu.berkeley.cs::rocketchip:1.6.0-fcdfff6c7-SNAPSHOT"
+    ivy"edu.berkeley.cs::rocketchip-5.1.0:1.6-5.1.0-1b9f43352-SNAPSHOT"
   )
   override def scalacPluginIvyDeps = Agg(
     ivy"org.chipsalliance:::chisel-plugin:6.2.0",
