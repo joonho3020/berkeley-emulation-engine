@@ -47,6 +47,9 @@ case class EmulatorConfig(
   val dmem_bits   = max_steps * num_bits
   val fetch_decode_lat = imem_lat + dmem_rd_lat
 
+  // ...
+  val insts_per_mod = num_procs * max_steps
+
 
   // SRAM processor related parameters
   val sram_addr_bits = log2Ceil(sram_entries)

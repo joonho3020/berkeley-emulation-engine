@@ -56,8 +56,6 @@ class StreamWidthAdapter(narrowW: Int, wideW: Int) extends Module {
 
 class AXI4DecoupledConverter(
   axiParams: AXI4BundleParameters,
-  idx: Int,
-  addrSpaceBits: Int,
   widthBits: Int,
   bufferDepth: Int
 ) extends Module {
@@ -90,8 +88,6 @@ class AXI4DecoupledConverter(
   serdes_deq.io.wide.in.valid    := false.B
   serdes_deq.io.narrow.out.ready := false.B
 
-  val grant_deq = (io.axi.aw.bits.addr >> addrSpaceBits) === idx.U
-
   val incomingQueueIO = Module(new Queue(UInt(widthBits.W), bufferDepth)).io
 
   io.deq <> incomingQueueIO.deq
@@ -110,17 +106,15 @@ class AXI4DecoupledConverter(
   // TODO: Get rid of this magic number.
   val writeBeatCounter = RegInit(0.U(9.W))
   val lastWriteBeat    = writeBeatCounter === io.axi.aw.bits.len
-  when(grant_deq && io.axi.w.fire) {
+  when(io.axi.w.fire) {
     writeBeatCounter := Mux(lastWriteBeat, 0.U, writeBeatCounter + 1.U)
   }
 
-  when(grant_deq) {
-    io.axi.w.ready  := writeHelper.fire(io.axi.w.valid)
-    io.axi.aw.ready := writeHelper.fire(io.axi.aw.valid, lastWriteBeat)
-    io.axi.b.valid  := writeHelper.fire(io.axi.b.ready, lastWriteBeat)
-  }
+  io.axi.w.ready  := writeHelper.fire(io.axi.w.valid)
+  io.axi.aw.ready := writeHelper.fire(io.axi.aw.valid, lastWriteBeat)
+  io.axi.b.valid  := writeHelper.fire(io.axi.b.ready, lastWriteBeat)
 
-  serdes_deq.io.narrow.in.valid := grant_deq && writeHelper.fire(serdes_deq.io.narrow.in.ready)
+  serdes_deq.io.narrow.in.valid := writeHelper.fire(serdes_deq.io.narrow.in.ready)
   serdes_deq.io.narrow.in.bits  := io.axi.w.bits.data
 
   /////////////////////////////////////////////////////////////////////////////
@@ -137,8 +131,6 @@ class AXI4DecoupledConverter(
   serdes_enq.io.narrow.in.bits  := 0.U
   serdes_enq.io.narrow.in.valid := false.B
   serdes_enq.io.wide.out.ready  := false.B
-
-  val grant_enq = (io.axi.ar.bits.addr >> addrSpaceBits) === idx.U
 
   val outgoingQueueIO = Module(new Queue(UInt(widthBits.W), bufferDepth)).io
 
@@ -160,12 +152,10 @@ class AXI4DecoupledConverter(
     readBeatCounter := Mux(lastReadBeat, 0.U, readBeatCounter + 1.U)
   }
 
-  serdes_enq.io.narrow.out.ready := grant_enq && readHelper.fire(serdes_enq.io.narrow.out.valid)
+  serdes_enq.io.narrow.out.ready := readHelper.fire(serdes_enq.io.narrow.out.valid)
 
-  when(grant_enq) {
-    io.axi.r.valid     := readHelper.fire(io.axi.r.ready)
-    io.axi.r.bits.data := serdes_enq.io.narrow.out.bits
-    io.axi.r.bits.last := lastReadBeat
-    io.axi.ar.ready    := readHelper.fire(io.axi.ar.valid, lastReadBeat)
-  }
+  io.axi.r.valid     := readHelper.fire(io.axi.r.ready)
+  io.axi.r.bits.data := serdes_enq.io.narrow.out.bits
+  io.axi.r.bits.last := lastReadBeat
+  io.axi.ar.ready    := readHelper.fire(io.axi.ar.valid, lastReadBeat)
 }
