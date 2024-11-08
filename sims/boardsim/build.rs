@@ -194,7 +194,7 @@ fn main() -> std::io::Result<()> {
     // Unfortunately, there is no good way to pass command line arguments
     // to build.rs
     let args = Args {
-        sv_file_path: "../emulator/Board.sv".to_string(),
+        sv_file_path: "../../emulator/Board.sv".to_string(),
         build_dir: "build-dir".to_string(),
     };
 
