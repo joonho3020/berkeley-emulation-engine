@@ -1,0 +1,11 @@
+[group: 'clean']
+clean:
+  rm -f *.vcd
+  rm -f *.so
+  rm -rf blif-sim-dir-*
+  rm -rf build-dir
+  cargo clean
+
+[group: 'test']
+test:
+  cargo nextest run --release
