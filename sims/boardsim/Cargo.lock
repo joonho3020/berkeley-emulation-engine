@@ -158,6 +158,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "boardsim"
+version = "0.1.0"
+dependencies = [
+ "bee",
+ "cc",
+ "clap 4.5.20",
+ "indexmap 2.6.0",
+ "serial_test",
+ "test-case",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1133,18 +1145,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fd3f7eed9d3848f8b98834af67102b720745c4ec028fcd0aa0239277e7de374f"
 dependencies = [
  "libc",
-]
-
-[[package]]
-name = "metasim"
-version = "0.1.0"
-dependencies = [
- "bee",
- "cc",
- "clap 4.5.20",
- "indexmap 2.6.0",
- "serial_test",
- "test-case",
 ]
 
 [[package]]

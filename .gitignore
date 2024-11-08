@@ -22,8 +22,8 @@ emulator/results.xml
 emulator/sim_build
 emulator/test/*
 
-metasim/build-dir
-metasim/libVdut.so
+**/build-dir
+**/libVdut.so
 **/*.vcd
 
 # Added by cargo
