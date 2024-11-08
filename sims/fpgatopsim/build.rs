@@ -180,7 +180,6 @@ fn generate_rust_bindings(top: &str, signals: &Vec<Signal>, output_path: &str) -
     // Write the generated functions
     for signal in signals {
         if signal.bits > 64 {
-            let chunks = (signal.bits + 64 - 1) / 64;
             if signal.input {
                 writeln!(
                     writer,
