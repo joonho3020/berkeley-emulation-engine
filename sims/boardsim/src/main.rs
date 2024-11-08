@@ -1004,10 +1004,10 @@ pub mod emulator_rtl_test {
     pub fn test(top: &str) {
         assert_eq!(
             test_emulator_rtl(
-                &format!("../examples/{}.sv", top),
+                &format!("../../examples/{}.sv", top),
                 &top,
-                &format!("../examples/{}.input", top),
-                &format!("../examples/{}.lut.blif", top)),
+                &format!("../../examples/{}.input", top),
+                &format!("../../examples/{}.lut.blif", top)),
                 true
         );
     }
