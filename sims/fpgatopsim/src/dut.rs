@@ -83,8 +83,8 @@ extern "C" {
     pub fn peek_io_mmio_axi4_master_r_bits_id (dut: *mut VFPGATop) -> u64;
     pub fn peek_io_mmio_axi4_master_r_bits_resp (dut: *mut VFPGATop) -> u64;
     pub fn peek_io_mmio_axi4_master_r_bits_last (dut: *mut VFPGATop) -> u64;
-    pub fn poke_io_dma_axi4_master_w_bits_data (dut: *mut VFPGATop, io_dma_axi4_master_w_bits_data: *const u64);
-    pub fn peek_io_dma_axi4_master_r_bits_data (dut: *mut VFPGATop, io_dma_axi4_master_r_bits_data: *mut u64);
+    pub fn poke_io_dma_axi4_master_w_bits_data (dut: *mut VFPGATop, io_dma_axi4_master_w_bits_data: *const u8);
+    pub fn peek_io_dma_axi4_master_r_bits_data (dut: *mut VFPGATop, io_dma_axi4_master_r_bits_data: *mut u8);
     pub fn poke_io_mmio_axi4_master_w_bits_data (dut: *mut VFPGATop, io_mmio_axi4_master_w_bits_data: u64);
     pub fn peek_io_mmio_axi4_master_r_bits_data (dut: *mut VFPGATop) -> u64;
     pub fn poke_io_dma_axi4_master_aw_bits_addr (dut: *mut VFPGATop, io_dma_axi4_master_aw_bits_addr: u64);
