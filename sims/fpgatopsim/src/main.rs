@@ -390,8 +390,7 @@ unsafe fn dma_read_req(
 
     // Receive response
     let word_size = 1 << ar.size;
-    let mut i = 0;
-    while i <= ar.len {
+    for i in 0..(ar.len + 1) {
         // Wait until we get the response
         while peek_io_dma_axi4_master_r_valid(sim.dut) == 0 {
             sim.step();
@@ -484,16 +483,16 @@ unsafe fn dma_write(
     let mut len: i32 = ((size - 1) / beat_bytes) as i32;
     let mut remaining = size - (len as u32) * beat_bytes;
 
-    let mut strb: Vec<u32> = vec![];
+    let mut strb: Vec<u64> = vec![];
     for i in 0..len {
-        let x = if beat_bytes > 63 { u32::MAX } else { (1 << beat_bytes) - 1 };
+        let x = if beat_bytes > 63 { u64::MAX } else { (1u64 << beat_bytes) - 1 };
         strb.push(x);
     }
 
     if remaining == beat_bytes && len > 0 {
         strb.push(*strb.first().unwrap());
     } else if remaining == beat_bytes {
-        strb.push(u32::MAX);
+        strb.push(u64::MAX);
     } else {
         strb.push((1 << remaining) - 1);
     }
