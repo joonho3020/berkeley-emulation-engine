@@ -25,7 +25,7 @@ impl From<String> for RTLSimError {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 struct AXI4Config {
     id_bits:   u32,
     addr_bits: u32,
@@ -50,7 +50,7 @@ impl AXI4Config {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 struct FPGATopConfig {
     axi:  AXI4Config,
     axil: AXI4Config,
