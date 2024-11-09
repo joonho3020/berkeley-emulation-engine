@@ -183,7 +183,7 @@ fn generate_rust_bindings(top: &str, signals: &Vec<Signal>, output_path: &str) -
             if signal.input {
                 writeln!(
                     writer,
-                    "    pub fn poke_{} (dut: *mut {}, {}: *mut u64);",
+                    "    pub fn poke_{} (dut: *mut {}, {}: *const u64);",
                     signal.name, vtop, signal.name)?;
             } else {
                 writeln!(
