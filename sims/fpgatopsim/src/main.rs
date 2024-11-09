@@ -1,7 +1,7 @@
 pub mod dut;
 use bee::{
     common::{
-        circuit::Circuit, config::Args, hwgraph::NodeMapInfo, instruction::*, mapping::{SRAMMapping, SRAMPortType}, network::Coordinate, primitive::{Bit, Primitive}
+        circuit::Circuit, config::{Args, PlatformConfig}, hwgraph::NodeMapInfo, instruction::*, mapping::{SRAMMapping, SRAMPortType}, network::Coordinate, primitive::{Bit, Primitive}
     }, fsim::board::Board, rtlsim::rtlsim_utils::{get_input_stimuli_blasted, InputStimuliMap}, testing::try_new_circuit
 };
 use clap::Parser;
@@ -45,15 +45,16 @@ impl AXI4Config {
         (self.strb_bits() as f32).log2().ceil() as u32
     }
 
-    fn strb(self: &Self) -> u32 {
-        (1 << self.strb_bits()) - 1
+    fn strb(self: &Self) -> u64 {
+        ((1u64 << self.strb_bits()) - 1) as u64
     }
 }
 
 #[derive(Debug, Default)]
 struct FPGATopConfig {
     axi:  AXI4Config,
-    axil: AXI4Config
+    axil: AXI4Config,
+    emul: PlatformConfig
 }
 
 #[derive(Debug)]
@@ -67,14 +68,14 @@ struct Sim {
 impl Sim {
     pub const MAX_LEN: u32 = 255;
 
-    unsafe fn try_new(cfg: FPGATopConfig) -> Self {
+    unsafe fn try_new(cfg: &FPGATopConfig) -> Self {
         let dut = FPGATop_new();
         if dut.is_null() {
             panic!("Failed to create dut instance");
         }
         let vcd = enable_trace(dut);
         Self {
-            cfg: cfg,
+            cfg: cfg.clone(),
             dut: dut,
             vcd: vcd,
             cycle: 0
@@ -140,11 +141,11 @@ impl AXI4AW {
 pub struct AXI4W {
     last: bool,
     data: Vec<u8>,
-    strb: u32,
+    strb: u64,
 }
 
 impl AXI4W {
-    fn from_u32(data: u32, strb: u32) -> Self {
+    fn from_u32(data: u32, strb: u64) -> Self {
         Self {
             last: true,
             data: data.to_le_bytes().to_vec(),
@@ -152,7 +153,7 @@ impl AXI4W {
         }
     }
 
-    fn from_data_strb_last(data: &Vec<u8>, strb: u32, last: bool) -> Self {
+    fn from_data_strb_last(data: &Vec<u8>, strb: u64, last: bool) -> Self {
         Self {
             last: last,
             data: data.clone(),
@@ -306,7 +307,6 @@ unsafe fn peek_io_mmio_axi4_master_r(dut: *mut VFPGATop) -> AXI4R {
 unsafe fn mmio_read(
     sim: &mut Sim,
     addr: u32,
-    size: u32
 ) -> u32 {
     // Wait until the ready signal is high
     while peek_io_mmio_axi4_master_ar_ready(sim.dut) == 0 {
@@ -314,7 +314,7 @@ unsafe fn mmio_read(
     }
 
     // Submit AXI request through AR channel
-    let ar = AXI4AR::from_addr_size(addr, size);
+    let ar = AXI4AR::from_addr_size(addr, 2);
     poke_io_mmio_axi4_master_ar(sim.dut, &ar);
     poke_io_mmio_axi4_master_ar_valid(sim.dut, true.into());
 
@@ -336,7 +336,6 @@ unsafe fn mmio_read(
 unsafe fn mmio_write(
     sim: &mut Sim,
     addr: u32,
-    size: u32,
     data: u32
 ) {
     while peek_io_mmio_axi4_master_aw_ready(sim.dut) == 0 ||
@@ -344,7 +343,7 @@ unsafe fn mmio_write(
         sim.step();
     }
 
-    let aw = AXI4AW::from_addr_size(addr, size);
+    let aw = AXI4AW::from_addr_size(addr, 2);
     poke_io_mmio_axi4_master_aw(sim.dut, &aw);
     poke_io_mmio_axi4_master_aw_valid(sim.dut, true.into());
 
@@ -434,7 +433,7 @@ unsafe fn dma_write_req(
     size: u32,
     len: u32,
     data: &Vec<u8>,
-    strb: &Vec<u32>) {
+    strb: &Vec<u64>) {
     while peek_io_dma_axi4_master_aw_ready(sim.dut) == 0 {
         sim.step();
     }
@@ -522,12 +521,55 @@ fn main() {
     // TODO: Set proper configurations
     let fpga_top_cfg = FPGATopConfig::default();
 
+    let host_steps = 128;
+
     unsafe {
-        let mut sim = Sim::try_new(fpga_top_cfg);
+        let mut sim = Sim::try_new(&fpga_top_cfg);
         poke_reset(sim.dut, 1);
-        for _ in 0..100 {
+        for _ in 0..5 {
             sim.step();
         }
+        poke_reset(sim.dut, 0);
+        for _ in 0..5 {
+            sim.step();
+        }
+
+        let num_mods = fpga_top_cfg.emul.num_mods;
+
+        for m in 0..fpga_top_cfg.emul.num_mods {
+            let used_procs = 8;
+            mmio_write(&mut sim, m * 4,              used_procs);
+
+            let single_port_ram = 0;
+            mmio_write(&mut sim, (m + num_mods) * 4, single_port_ram);
+
+            let wmask_bits = 0;
+            mmio_write(&mut sim, (m + 2 * num_mods) * 4, wmask_bits);
+
+            let width_bits = 0;
+            mmio_write(&mut sim, (m + 3 * num_mods) * 4, width_bits);
+        }
+
+        mmio_write(&mut sim, (4 * num_mods) * 4, host_steps);
+
+        // TODO: FOR ALL INSTS
+        dma_write(&mut sim, 4096, 8, &vec![0u8; 8]);
+
+        while mmio_read(&mut sim, (4 * num_mods + 1) * 4)  == 0 {
+            sim.step();
+        }
+
+
+        // for target cycles {
+        //    dma_write()
+        //    while mmio_read(&mut sim, (4 * num_mods + 2) * 4) == 0 {
+        //        sim.step();
+        //    }
+        //
+        //    dma_read()
+        // }
+
+
         sim.finish();
     }
     println!("Hello, world!");

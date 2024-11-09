@@ -170,7 +170,7 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
   val m_nasti_lite = Wire(new NastiIO(nasti_lite_params))
   AXI4NastiAssigner.toNasti(m_nasti_lite, mmio_axi4_slave)
 
-  val mcr = Module(new MCRFile(4 * cfg.emul.num_mods + 2)(nasti_lite_params))
+  val mcr = Module(new MCRFile(4 * cfg.emul.num_mods + 3)(nasti_lite_params))
   mcr.io.nasti <> m_nasti_lite
   MCRFile.tieoff(mcr)
 
@@ -271,4 +271,6 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
   when (board.io.run) {
     cur_step := Mux(last_step, 0.U, cur_step + 1.U)
   }
+
+  MCRFile.bind_readonly_reg(target_io_stream.io.enq_cnt, mcr, 4 * cfg.emul.num_mods + 2)
 }
