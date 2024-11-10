@@ -196,9 +196,7 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
   MCRFile.bind_writeonly_reg_array(width_bits, mcr,  3 * cfg.emul.num_mods)
 
   val host_steps = RegInit(0.U(cfg.emul.index_bits.W))
-  val host_steps_w = Wire(host_steps.cloneType)
-  host_steps := host_steps_w
-  MCRFile.bind_writeonly_reg(host_steps_w, mcr, 4 * cfg.emul.num_mods)
+  MCRFile.bind_writeonly_reg(host_steps, mcr, 4 * cfg.emul.num_mods)
 
 
 

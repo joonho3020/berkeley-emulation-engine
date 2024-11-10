@@ -17,6 +17,8 @@ class MCRFile(numRegs: Int)(cfg: NastiParameters) extends Module {
     val mcr   = new MCRIO(numRegs)(cfg)
   })
 
+  dontTouch(io)
+
   //TODO: Just use a damn state machine.
   val rValid    = RegInit(false.B)
   val arFired   = RegInit(false.B)
@@ -103,15 +105,12 @@ object MCRFile {
   def bind_writeonly_reg(reg: Data, mcr: MCRFile, idx: Int): Unit = {
     mcr.io.mcr.read(idx).valid := false.B
     mcr.io.mcr.write(idx).ready := true.B
-    reg := DontCare
     when (mcr.io.mcr.write(idx).valid) {
       reg := mcr.io.mcr.write(idx).bits
     }
   }
 
   def bind_writeonly_reg_array(regs: Seq[Data], mcr: MCRFile, offset: Int): Unit = {
-    val wires = Seq.fill(regs.length)(Wire(regs.head.cloneType))
-    regs.zip(wires)   .foreach({ case (r, w) => r := w })
-    wires.zipWithIndex.foreach({ case (w, i) => MCRFile.bind_writeonly_reg(w, mcr, i + offset) })
+    regs.zipWithIndex.foreach({ case (r, i) => MCRFile.bind_writeonly_reg(r, mcr, i + offset) })
   }
 }

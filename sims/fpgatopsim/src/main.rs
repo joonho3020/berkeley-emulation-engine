@@ -123,11 +123,20 @@ fn main() -> Result<(), RTLSimError> {
             sim.step();
         }
 
+        println!("Reset done");
+
         let num_mods = fpga_top_cfg.emul.num_mods;
 
         for m in 0..fpga_top_cfg.emul.num_mods {
             let used_procs = circuit.platform_cfg.num_procs;
             mmio_write(&mut sim, m * 4, used_procs);
+
+            // NOTE: seems like the MCR file is designed under the
+            // assumption that MMIO AXI requests arrive with more than
+            // 1 cycle in between
+            for _ in 0..5 {
+                sim.step();
+            }
         }
 
         for (m, sram_cfg) in sram_cfgs.iter() {
@@ -136,8 +145,17 @@ fn main() -> Result<(), RTLSimError> {
                 SRAMPortType::OneRdOneWrPortSRAM => { false }
             };
             mmio_write(&mut sim, (m + 1 * num_mods) * 4, single_port_sram as u32);
+            for _ in 0..5 {
+                sim.step();
+            }
             mmio_write(&mut sim, (m + 2 * num_mods) * 4, sram_cfg.wmask_bits);
+            for _ in 0..5 {
+                sim.step();
+            }
             mmio_write(&mut sim, (m + 3 * num_mods) * 4, sram_cfg.width_bits);
+            for _ in 0..5 {
+                sim.step();
+            }
         }
 
         mmio_write(&mut sim, (4 * num_mods) * 4, host_steps);

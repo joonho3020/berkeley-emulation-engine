@@ -185,6 +185,7 @@ pub struct AXI4R {
 }
 
 pub unsafe fn poke_io_dma_axi4_master_aw(dut: *mut VFPGATop, aw: &AXI4AW) {
+    poke_io_dma_axi4_master_aw_bits_addr (dut, aw.addr.into());
     poke_io_dma_axi4_master_aw_bits_id   (dut, aw.id.into());
     poke_io_dma_axi4_master_aw_bits_len  (dut, aw.len.into());
     poke_io_dma_axi4_master_aw_bits_size (dut, aw.size.into());
@@ -209,6 +210,7 @@ pub unsafe fn peek_io_dma_axi4_master_b(dut: *mut VFPGATop) -> AXI4B {
 }
 
 pub unsafe fn poke_io_dma_axi4_master_ar(dut: *mut VFPGATop, ar: &AXI4AR) {
+    poke_io_dma_axi4_master_ar_bits_addr (dut, ar.addr.into());
     poke_io_dma_axi4_master_ar_bits_id   (dut, ar.id.into());
     poke_io_dma_axi4_master_ar_bits_len  (dut, ar.len.into());
     poke_io_dma_axi4_master_ar_bits_size (dut, ar.size.into());
@@ -233,6 +235,7 @@ pub unsafe fn peek_io_dma_axi4_master_r(dut: *mut VFPGATop) -> AXI4R {
 }
 
 pub unsafe fn poke_io_mmio_axi4_master_aw(dut: *mut VFPGATop, aw: &AXI4AW) {
+    poke_io_mmio_axi4_master_aw_bits_addr (dut, aw.addr.into());
     poke_io_mmio_axi4_master_aw_bits_id   (dut, aw.id.into());
     poke_io_mmio_axi4_master_aw_bits_len  (dut, aw.len.into());
     poke_io_mmio_axi4_master_aw_bits_size (dut, aw.size.into());
@@ -261,6 +264,7 @@ pub unsafe fn peek_io_mmio_axi4_master_b(dut: *mut VFPGATop) -> AXI4B {
 }
 
 pub unsafe fn poke_io_mmio_axi4_master_ar(dut: *mut VFPGATop, ar: &AXI4AR) {
+    poke_io_mmio_axi4_master_ar_bits_addr (dut, ar.addr.into());
     poke_io_mmio_axi4_master_ar_bits_id   (dut, ar.id.into());
     poke_io_mmio_axi4_master_ar_bits_len  (dut, ar.len.into());
     poke_io_mmio_axi4_master_ar_bits_size (dut, ar.size.into());
@@ -314,6 +318,8 @@ pub unsafe fn mmio_write(
     addr: u32,
     data: u32
 ) {
+    println!("mmio write addr: {} data {}", addr, data);
+    println!("mmio write waiting for aw/w ready");
     while peek_io_mmio_axi4_master_aw_ready(sim.dut) == 0 ||
           peek_io_mmio_axi4_master_w_ready (sim.dut) == 0 {
         sim.step();
@@ -332,7 +338,9 @@ pub unsafe fn mmio_write(
     poke_io_mmio_axi4_master_aw_valid(sim.dut, false.into());
     poke_io_mmio_axi4_master_w_valid(sim.dut, false.into());
     poke_io_mmio_axi4_master_b_ready(sim.dut, true.into());
+    sim.step();
 
+    println!("mmio write waiting for b valid");
     // Wait until we get the response
     while peek_io_mmio_axi4_master_b_valid(sim.dut) == 0 {
         sim.step();
@@ -340,6 +348,7 @@ pub unsafe fn mmio_write(
 
     poke_io_mmio_axi4_master_b_ready(sim.dut, false.into());
     let _b = peek_io_mmio_axi4_master_b(sim.dut);
+    println!("mmio write done");
     sim.step();
 }
 
