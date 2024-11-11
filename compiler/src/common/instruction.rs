@@ -73,7 +73,7 @@ impl Instruction {
 
         let opcode = self.opcode as u32;
         for i in 0..cfg.opcode_bits() {
-            let sl = cfg.opcode_bits - i - 1;
+            let sl = cfg.opcode_bits() - i - 1;
             bit_vec.push((opcode >> sl) & 1 == 1);
         }
 
