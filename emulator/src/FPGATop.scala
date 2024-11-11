@@ -237,9 +237,9 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
       when (board.io.insts(i).fire) {
         when (cur_insts_pushed === host_steps * cfg.emul.num_procs.U - 1.U) {
           cur_insts_pushed := 0.U
+          cur_inst_mod := cur_inst_mod + 1.U
         } .otherwise {
           cur_insts_pushed := cur_insts_pushed + 1.U
-          cur_inst_mod := cur_inst_mod + 1.U
         }
       }
     }
