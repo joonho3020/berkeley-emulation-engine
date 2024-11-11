@@ -102,6 +102,7 @@ checksum = "ace50bade8e6234aa140d9a2f552bbee1db4d353f69b8217bc503490fc1a9f26"
 name = "bee"
 version = "0.1.0"
 dependencies = [
+ "bit-vec",
  "blif-parser",
  "bv",
  "bytesize",
@@ -129,6 +130,12 @@ dependencies = [
  "wellen",
  "yansi 1.0.1",
 ]
+
+[[package]]
+name = "bit-vec"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5e764a1d40d510daf35e07be9eb06e75770908c27d411ee6c92109c9840eaaf7"
 
 [[package]]
 name = "bitflags"
@@ -1755,7 +1762,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
 dependencies = [
  "cfg-if",
- "rand 0.3.23",
+ "rand 0.8.5",
  "static_assertions",
 ]
 

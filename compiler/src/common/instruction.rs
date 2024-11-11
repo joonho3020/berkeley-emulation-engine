@@ -1,8 +1,8 @@
 use crate::common::primitive::*;
 use crate::common::config::PlatformConfig;
-use crate::common::bitbuf::BitBuf;
 use serde::{Serialize, Deserialize};
 use std::fmt::Debug;
+use bit_vec::BitVec;
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct Operand {
@@ -68,23 +68,39 @@ impl Instruction {
         }
     }
 
-    pub fn to_bytes(self: &Self, cfg: &PlatformConfig) -> BitBuf {
-        let mut ret = BitBuf::default();
-        ret.push_bits(self.opcode as u64, cfg.opcode_bits());
-        ret.push_bits(self.lut as u64, cfg.lut_bits());
+    pub fn to_bits(self: &Self, cfg: &PlatformConfig) -> BitVec {
+        let mut bit_vec = BitVec::new();
+
+        let opcode = self.opcode as u32;
+        for i in 0..cfg.opcode_bits() {
+            bit_vec.push((opcode >> i) & 1 == 1);
+        }
+
+        for i in 0..cfg.lut_bits() {
+            bit_vec.push((self.lut >> i) & 1 == 1);
+        }
+
         for opidx in 0..cfg.lut_inputs {
-            match self.operands.get(opidx as usize) {
+            let (rs, local) = match self.operands.get(opidx as usize) {
                 Some(op) => {
-                    ret.push_bits(op.rs as u64, cfg.index_bits());
-                    ret.push_bits(op.local as u64, 1); // local
+                    (op.rs, op.local)
                 }
                 None => {
-                    ret.push_bits(0, cfg.index_bits()); // rs
-                    ret.push_bits(0, 1); // local
+                    (0, false)
                 }
+            };
+            for i in 0..cfg.index_bits() {
+                bit_vec.push((rs >> i) & 1 == 1);
             }
+            bit_vec.push(local);
         }
-        ret.push_bits(self.sinfo.idx as u64, cfg.switch_bits());
-        return ret;
+
+        for i in 0..cfg.switch_bits() {
+            bit_vec.push((self.sinfo.idx >> i) & 1 == 1);
+        }
+        bit_vec.push(self.sinfo.local);
+        bit_vec.push(self.sinfo.fwd  );
+        bit_vec.push(self.mem        );
+        return bit_vec;
     }
 }

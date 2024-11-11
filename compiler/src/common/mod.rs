@@ -1,4 +1,3 @@
-pub mod bitbuf;
 pub mod circuit;
 pub mod config;
 pub mod hwgraph;
