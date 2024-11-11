@@ -83,8 +83,8 @@ class FPGATop(implicit p: Parameters) extends LazyModule {
 
   val dmaXbarNode = AXI4Xbar()
   dmaXbarNode := AXI4Buffer() := axiDMAMasterNode
-  axiDMATargetIOSlaveNode := dmaXbarNode
-  axiDMAInstSlaveNode     := dmaXbarNode
+  axiDMATargetIOSlaveNode := AXI4Buffer() := dmaXbarNode
+  axiDMAInstSlaveNode     := AXI4Buffer() := dmaXbarNode
 
    // AXI4-Lite Master Node with a single master port
   val axiMMIOMasterNode = AXI4MasterNode(Seq(
