@@ -1,11 +1,48 @@
+top := "Adder"
+dir := "../../examples/"
+svfile     := dir + "/" + top + ".sv"
+input_file := dir + "/" + top + ".input"
+lut_file   := dir + "/" + top + ".lut.blif"
+sim_dir    := "sim-dir-" + top
+
+num_mods := "9"
+num_procs := "8"
+sram_width := "16"
+sram_entries := "16"
+
+imem_lat := "1"
+inter_mod_nw_lat := "0"
+inter_proc_nw_lat := "0"
+dmem_rd_lat := "0"
+
+
 [group: 'clean']
 clean:
   rm -f *.vcd
   rm -f *.so
   rm -rf blif-sim-dir-*
   rm -rf build-dir
+  rm DEBUG
   cargo clean
 
 [group: 'test']
 test:
   cargo nextest run --release
+
+[group: 'run']
+fpgatopsim:
+  cargo run --release \
+    --bin fpgatopsim \
+    -- -s {{svfile}} \
+       -t {{top}} \
+       -i {{input_file}} \
+       -b {{lut_file}} \
+       --num-mods {{num_mods}} \
+       --num-procs {{num_procs}} \
+       --sram-width {{sram_width}} \
+       --sram-entries {{sram_entries}} \
+       --imem-lat {{imem_lat}} \
+       --dmem-rd-lat {{dmem_rd_lat}} \
+       --inter-proc-nw-lat {{inter_proc_nw_lat}} \
+       --inter-mod-nw-lat {{inter_mod_nw_lat}} \
+       --max-steps 128 | tee DEBUG
