@@ -2,7 +2,7 @@ use crate::common::primitive::*;
 use crate::common::config::PlatformConfig;
 use serde::{Serialize, Deserialize};
 use std::fmt::Debug;
-use bit_vec::BitVec;
+use bitvec::vec::BitVec;
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct Operand {

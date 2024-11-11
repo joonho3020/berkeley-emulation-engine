@@ -32,7 +32,7 @@ blif-parser = "0.1.7"
 rng = "0.1.0"
 rand = "0.8.5"
 twox-hash = "1.6.3"
-bit-vec = "0.8.0"
+bitvec = "1.0.1"
 
 [profile.release]
 debug=true
