@@ -98,11 +98,11 @@ fn generate_c_bindings(top: &str, signals: &Vec<Signal>, output_path: &str) -> i
     // Write the generated functions
     for signal in signals {
         if signal.bits > 64 {
-            let chunks = (signal.bits + 8 - 1) / 8;
+            let chunks = (signal.bits + 32 - 1) / 32;
             if signal.input {
                 writeln!(
                     writer,
-                    "    void poke_{} ({}* dut, uint8_t* {}) {{",
+                    "    void poke_{} ({}* dut, uint32_t* {}) {{",
                     signal.name, vtop, signal.name
                 )?;
                 writeln!(writer, "        for (int i = 0; i < {}; i++) {{", chunks)?;
@@ -112,7 +112,7 @@ fn generate_c_bindings(top: &str, signals: &Vec<Signal>, output_path: &str) -> i
             } else {
                 writeln!(
                     writer,
-                    "    void peek_{} ({}* dut, uint8_t* value) {{",
+                    "    void peek_{} ({}* dut, uint32_t* value) {{",
                     signal.name, vtop
                 )?;
                 writeln!(writer, "        for (int i = 0; i < {}; i++) {{", chunks)?;
@@ -183,12 +183,12 @@ fn generate_rust_bindings(top: &str, signals: &Vec<Signal>, output_path: &str) -
             if signal.input {
                 writeln!(
                     writer,
-                    "    pub fn poke_{} (dut: *mut {}, {}: *const u8);",
+                    "    pub fn poke_{} (dut: *mut {}, {}: *const u32);",
                     signal.name, vtop, signal.name)?;
             } else {
                 writeln!(
                     writer,
-                    "    pub fn peek_{} (dut: *mut {}, {}: *mut u8);",
+                    "    pub fn peek_{} (dut: *mut {}, {}: *mut u32);",
                     signal.name, vtop, signal.name)?;
             }
         } else {

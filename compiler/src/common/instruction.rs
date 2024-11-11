@@ -73,11 +73,13 @@ impl Instruction {
 
         let opcode = self.opcode as u32;
         for i in 0..cfg.opcode_bits() {
-            bit_vec.push((opcode >> i) & 1 == 1);
+            let sl = cfg.opcode_bits - i - 1;
+            bit_vec.push((opcode >> sl) & 1 == 1);
         }
 
         for i in 0..cfg.lut_bits() {
-            bit_vec.push((self.lut >> i) & 1 == 1);
+            let sl = cfg.lut_bits() - i - 1;
+            bit_vec.push((self.lut >> sl) & 1 == 1);
         }
 
         for opidx in 0..cfg.lut_inputs {
@@ -90,13 +92,15 @@ impl Instruction {
                 }
             };
             for i in 0..cfg.index_bits() {
-                bit_vec.push((rs >> i) & 1 == 1);
+                let sl = cfg.index_bits() - i - 1;
+                bit_vec.push((rs >> sl) & 1 == 1);
             }
             bit_vec.push(local);
         }
 
         for i in 0..cfg.switch_bits() {
-            bit_vec.push((self.sinfo.idx >> i) & 1 == 1);
+            let sl = cfg.switch_bits() - i - 1;
+            bit_vec.push((self.sinfo.idx >> sl) & 1 == 1);
         }
         bit_vec.push(self.sinfo.local);
         bit_vec.push(self.sinfo.fwd  );

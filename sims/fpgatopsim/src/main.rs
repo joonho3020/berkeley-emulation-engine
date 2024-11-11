@@ -170,13 +170,24 @@ fn main() -> Result<(), RTLSimError> {
                 bitbuf.reverse();
                 assert!(bitbuf.len() < 8 * 8, "Instruction bits {} > 64", bitbuf.len());
 
+                println!("bitbuf: {:?}", bitbuf);
+
                 let mut bytebuf: Vec<u8> = bitbuf
                                             .into_vec()
                                             .iter()
                                             .flat_map(|&x| x.to_le_bytes())
+                                            .rev()
                                             .collect();
+                println!("bytebuf: {:?}", bytebuf);
+
+                bytebuf.reverse();
+
+                println!("bytebuf reverse: {:?}", bytebuf);
 
                 bytebuf.resize(fpga_top_cfg.axi.beat_bytes() as usize, 0);
+                println!("bytebuf resized: {:?}", bytebuf);
+// bytebuf.reverse();
+// println!("bytebuf resized reverse: {:?}", bytebuf);
                 dma_write(&mut sim, 4096, bytebuf.len() as u32, &bytebuf);
             }
         }

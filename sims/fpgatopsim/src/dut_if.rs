@@ -136,6 +136,17 @@ impl AXI4W {
             strb: strb
         }
     }
+
+    pub fn data_vec_u32(self: &Self) -> Vec<u32> {
+        let vec_u32: Vec<u32> = self.data
+            .chunks(4)
+            .map(|chunk| {
+                let bytes = <[u8; 4]>::try_from(chunk).expect("Chunk must be 4 bytes");
+                u32::from_le_bytes(bytes)
+            })
+            .collect();
+        return vec_u32;
+    }
 }
 
 #[derive(Default, Debug)]
@@ -198,7 +209,7 @@ pub unsafe fn poke_io_dma_axi4_master_aw(dut: *mut VFPGATop, aw: &AXI4AW) {
 
 pub unsafe fn poke_io_dma_axi4_master_w(dut: *mut VFPGATop, w: &AXI4W) {
     poke_io_dma_axi4_master_w_bits_last(dut, w.last.into());
-    poke_io_dma_axi4_master_w_bits_data(dut, w.data.as_ptr());
+    poke_io_dma_axi4_master_w_bits_data(dut, w.data_vec_u32().as_ptr());
     poke_io_dma_axi4_master_w_bits_strb(dut, w.strb.into());
 }
 
@@ -224,13 +235,17 @@ pub unsafe fn poke_io_dma_axi4_master_ar(dut: *mut VFPGATop, ar: &AXI4AR) {
 pub unsafe fn peek_io_dma_axi4_master_r(dut: *mut VFPGATop) -> AXI4R {
     // This is fine as we already know the length of the AXI transaction
     // We can make this a bit more general later
-    let mut rbuf = vec![0u8; 64];
+    let mut rbuf = vec![0u32; 16];
     peek_io_dma_axi4_master_r_bits_data(dut, rbuf.as_mut_ptr());
+    let rbuf_u8 = rbuf.iter()
+        .flat_map(|&num| num.to_le_bytes())
+        .collect();
+
     AXI4R {
         id:   peek_io_dma_axi4_master_r_bits_id  (dut) as u32,
         resp: peek_io_dma_axi4_master_r_bits_resp(dut) as u32,
         last: peek_io_dma_axi4_master_r_bits_last(dut) != 0,
-        data: rbuf
+        data: rbuf_u8
     }
 }
 
@@ -420,8 +435,8 @@ pub unsafe fn dma_write_req(
     data: &Vec<u8>,
     strb: &Vec<u64>) {
 
-// println!("dma_write_req addr: {:x} size: {} len: {} data: {:?} strb: {:X?}",
-// addr, size, len, data, strb);
+    println!("dma_write_req addr: {:x} size: {} len: {} data: {:?} strb: {:X?}",
+        addr, size, len, data, strb);
 
 // println!("waiting for aw ready");
     while peek_io_dma_axi4_master_aw_ready(sim.dut) == 0 {
