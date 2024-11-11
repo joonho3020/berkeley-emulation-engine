@@ -318,6 +318,8 @@ pub unsafe fn mmio_read(
     poke_io_mmio_axi4_master_ar_valid(sim.dut, false.into());
     poke_io_mmio_axi4_master_r_ready(sim.dut, true.into());
 
+    sim.step();
+
     // Wait until we get the response
     while peek_io_mmio_axi4_master_r_valid(sim.dut) == 0 {
         sim.step();
@@ -325,6 +327,7 @@ pub unsafe fn mmio_read(
 
     poke_io_mmio_axi4_master_r_ready(sim.dut, false.into());
     let r = peek_io_mmio_axi4_master_r(sim.dut);
+    sim.step();
     return *r.data.first().unwrap() as u32;
 }
 

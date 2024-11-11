@@ -101,7 +101,7 @@ checksum = "ace50bade8e6234aa140d9a2f552bbee1db4d353f69b8217bc503490fc1a9f26"
 [[package]]
 name = "bee"
 version = "0.1.0"
-source = "git+ssh://git@github.com/joonho3020/berkeley-emulation-engine.git?branch=main#ac4cda2e4dedfa7518031459a53d56d8f2856f7f"
+source = "git+ssh://git@github.com/joonho3020/berkeley-emulation-engine.git?branch=main#ab7c2853cd2c64775374552bf149b8434d27e405"
 dependencies = [
  "bitvec",
  "blif-parser",
@@ -1583,9 +1583,9 @@ dependencies = [
 
 [[package]]
 name = "regex-automata"
-version = "0.4.8"
+version = "0.4.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "368758f23274712b504848e9d5a6f010445cc8b87a7cdb4d7cbee666c1288da3"
+checksum = "809e8dc61f6de73b46c85f4c96486310fe304c434cfa43669d7b40f711150908"
 dependencies = [
  "aho-corasick",
  "memchr",
