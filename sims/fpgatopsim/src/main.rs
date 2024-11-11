@@ -2,14 +2,18 @@ pub mod dut;
 pub mod dut_if;
 use bee::{
     common::{
+        circuit::Circuit,
         config::Args,
         hwgraph::NodeMapInfo, instruction::*,
         mapping::{SRAMMapping, SRAMPortType},
         network::Coordinate,
-        primitive::Primitive
+        primitive::{Primitive, Bit}
     },
     fsim::board::Board,
-    rtlsim::rtlsim_utils::get_input_stimuli_blasted,
+    rtlsim::rtlsim_utils::{
+        get_input_stimuli_blasted,
+        InputStimuliMap
+    },
     testing::try_new_circuit
 };
 use indexmap::IndexMap;
@@ -40,8 +44,44 @@ impl From<String> for RTLSimError {
     }
 }
 
-fn main() -> Result<(), RTLSimError> {
-    let args = Args::parse();
+pub fn get_input_stimuli_by_step<'a>(
+    circuit: &'a Circuit,
+    input_stimuli_blasted: &'a InputStimuliMap,
+    signal_map: &IndexMap<String, NodeMapInfo>,
+    cycle: u32
+) -> IndexMap<u32, Vec<(&'a str, Bit)>> {
+    // Collect input stimuli for the current cycle by name
+    let mut input_stimuli_by_name: IndexMap<&str, Bit> = IndexMap::new();
+    for key in input_stimuli_blasted.keys() {
+        let val = input_stimuli_blasted[key].get(cycle as usize);
+        match val {
+            Some(b) => input_stimuli_by_name.insert(key, *b as Bit),
+            None => None
+        };
+    }
+
+    // Find the step at which the input has to be poked
+    // Save that in the input_stimuli_by_step
+    let mut input_stimuli_by_step: IndexMap<u32, Vec<(&str, Bit)>> = IndexMap::new();
+    for (sig, bit) in input_stimuli_by_name.iter() {
+        match signal_map.get(*sig) {
+            Some(nmap) => {
+                let pc = circuit.graph.node_weight(nmap.idx).unwrap().info().pc;
+                let step = pc + circuit.platform_cfg.fetch_decode_lat();
+                if input_stimuli_by_step.get(&step) == None {
+                    input_stimuli_by_step.insert(step, vec![]);
+                }
+                input_stimuli_by_step.get_mut(&step).unwrap().push((sig, *bit));
+            }
+            None => {
+            }
+        }
+    }
+    return input_stimuli_by_step;
+}
+
+
+fn start_test(args: &Args) -> Result<(), RTLSimError> {
     let circuit = try_new_circuit(&args)?;
     let mut funct_sim = Board::from(&circuit);
 
@@ -107,6 +147,7 @@ fn main() -> Result<(), RTLSimError> {
     };
 
     let host_steps = circuit.emul.host_steps;
+    let mut mismatch_string: Option<String> = None;
 
     unsafe {
         let mut sim = Sim::try_new(&fpga_top_cfg);
@@ -185,7 +226,7 @@ fn main() -> Result<(), RTLSimError> {
 
         println!("Start simulation");
 
-        for tc in 0..target_cycles {
+        'emulation_loop: for tcycle in 0..target_cycles {
             let tot_procs = circuit.platform_cfg.total_procs();
             let mut bit_vec: BitVec<usize, Lsb0> = BitVec::new();
             for _ in 0..tot_procs {
@@ -203,8 +244,6 @@ fn main() -> Result<(), RTLSimError> {
                 .iter()
                 .flat_map(|x| x.to_le_bytes())
                 .collect();
-            println!("ivec: {:X?}", ivec);
-
             ivec.resize(fpga_top_cfg.axi.beat_bytes() as usize, 0);
 
             dma_write(&mut sim, 0, ivec.len() as u32, &ivec);
@@ -215,11 +254,55 @@ fn main() -> Result<(), RTLSimError> {
             }
 
             let ovec: Vec<u8> = dma_read(&mut sim, 0, fpga_top_cfg.axi.beat_bytes());
-            println!("ovec: {:?}", ovec);
-        }
 
+            // Run functional simulator
+            let input_stimuli_by_step = get_input_stimuli_by_step(
+                &circuit,
+                &input_stimuli_blasted,
+                &all_signal_map,
+                tcycle as u32);
+            funct_sim.run_cycle(&input_stimuli_by_step);
+
+            // Collect functional simulation outputs
+            let mut obit_ref: BitVec<usize, Lsb0> = BitVec::new();
+            for _ in 0..tot_procs {
+                obit_ref.push(false);
+            }
+
+            for (os, coord) in output_signals.iter() {
+                let fsim_bit = funct_sim.peek(os).unwrap_or(0);
+                let id = coord.id(&circuit.platform_cfg);
+                obit_ref.set(id as usize, fsim_bit != 0);
+            }
+            let mut ovec_ref: Vec<u8> = obit_ref
+                .into_vec()
+                .iter()
+                .flat_map(|x| x.to_le_bytes())
+                .collect();
+            ovec_ref.resize(fpga_top_cfg.axi.beat_bytes() as usize, 0);
+
+            if ovec != ovec_ref {
+                println!("MISMATCH");
+                println!("ovec: {:?}", ovec);
+                println!("ovec_ref: {:?}", ovec_ref);
+                mismatch_string = Some(format!(
+                        "Target cycle {} mismatch got {:?} expect {:?}",
+                        tcycle, ovec, ovec_ref));
+                break 'emulation_loop;
+            }
+        }
         sim.finish();
     }
-    println!("Hello, world!");
-    return Ok(());
+    match mismatch_string {
+        Some(emsg) => Err(RTLSimError::from(emsg)),
+        None       => Ok(())
+    }
+}
+
+fn main() {
+    let args = Args::parse();
+    match start_test(&args) {
+        Ok(_) => { println!("Test Success!"); }
+        Err(emsg) => { println!("Test Failed {:?}", emsg); }
+    }
 }
