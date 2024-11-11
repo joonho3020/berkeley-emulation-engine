@@ -160,16 +160,24 @@ fn main() -> Result<(), RTLSimError> {
 
         mmio_write(&mut sim, (4 * num_mods) * 4, host_steps);
 
+        sim.step();
+
         println!("configuration registers set finished");
 
         for (_m, insts) in module_insts.iter() {
             for inst in insts {
-                let mut bitbuf = inst.to_bytes(&circuit.platform_cfg);
-                assert!(bitbuf.size < 8 * 8, "Instruction bits {} > 64", bitbuf.size);
-                while bitbuf.bytes.len() < 8 {
-                    bitbuf.bytes.push(0u8);
-                }
-                dma_write(&mut sim, 4096, 8, &bitbuf.bytes);
+                let mut bitbuf = inst.to_bits(&circuit.platform_cfg);
+                bitbuf.reverse();
+                assert!(bitbuf.len() < 8 * 8, "Instruction bits {} > 64", bitbuf.len());
+
+                let mut bytebuf: Vec<u8> = bitbuf
+                                            .into_vec()
+                                            .iter()
+                                            .flat_map(|&x| x.to_le_bytes())
+                                            .collect();
+
+                bytebuf.resize(fpga_top_cfg.axi.beat_bytes() as usize, 0);
+                dma_write(&mut sim, 4096, bytebuf.len() as u32, &bytebuf);
             }
         }
 
