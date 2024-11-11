@@ -82,7 +82,7 @@ impl Instruction {
             bit_vec.push((self.lut >> sl) & 1 == 1);
         }
 
-        for opidx in 0..cfg.lut_inputs {
+        for opidx in (0..cfg.lut_inputs).rev() {
             let (rs, local) = match self.operands.get(opidx as usize) {
                 Some(op) => {
                     (op.rs, op.local)
