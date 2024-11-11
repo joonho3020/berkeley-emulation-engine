@@ -435,10 +435,6 @@ pub unsafe fn dma_write_req(
     data: &Vec<u8>,
     strb: &Vec<u64>) {
 
-    println!("dma_write_req addr: {:x} size: {} len: {} data: {:?} strb: {:X?}",
-        addr, size, len, data, strb);
-
-// println!("waiting for aw ready");
     while peek_io_dma_axi4_master_aw_ready(sim.dut) == 0 {
         sim.step();
     }
@@ -448,14 +444,11 @@ pub unsafe fn dma_write_req(
     poke_io_dma_axi4_master_aw_valid(sim.dut, true.into());
     sim.step();
 
-// println!("send aw request aw: {:?}", aw);
-
     poke_io_dma_axi4_master_aw_valid(sim.dut, false.into());
     sim.step();
 
     let nbytes = 1 << size;
     for i in 0..(len + 1) {
-// println!("Wait for w ready");
         while peek_io_dma_axi4_master_w_ready(sim.dut) == 0 {
             sim.step();
         }
@@ -467,8 +460,6 @@ pub unsafe fn dma_write_req(
         poke_io_dma_axi4_master_w_valid(sim.dut, true.into());
         sim.step();
 
-// println!("Send w request w: {:?}", w);
-
         poke_io_dma_axi4_master_w_valid(sim.dut, false.into());
         poke_io_dma_axi4_master_b_ready(sim.dut, true.into());
         sim.step();
@@ -477,11 +468,9 @@ pub unsafe fn dma_write_req(
         while peek_io_dma_axi4_master_b_valid(sim.dut) == 0 {
             sim.step();
         }
-// println!("b validl set high");
         sim.step();
         poke_io_dma_axi4_master_b_ready(sim.dut, false.into());
         let b = peek_io_dma_axi4_master_b(sim.dut);
-// println!("Received b response {:?}", b);
         sim.step();
     }
 }
@@ -492,7 +481,6 @@ pub unsafe fn dma_write(
     size: u32,
     data: &Vec<u8>) {
 
-// println!("dma_write: addr: {:x} size: {} data: {:X?}", addr, size, data);
     let beat_bytes = sim.cfg.axi.beat_bytes();
     let beat_bytes_log2 = (beat_bytes as f32).log2() as u32;
     let mut len: i32 = ((size - 1) / beat_bytes) as i32;
@@ -512,9 +500,6 @@ pub unsafe fn dma_write(
         strb.push((1 << remaining) - 1);
     }
 
-// println!("beat_bytes: {} len: {} remaining: {} strb: {:X?}",
-// beat_bytes, len, remaining, strb);
-
     let mut addr_ = addr;
     let mut idx: usize = 0;
     while len >= 0 {
@@ -533,5 +518,4 @@ pub unsafe fn dma_write(
         addr_ += (part_len + 1) * beat_bytes;
         len -= (part_len + 1) as i32;
     }
-// println!("DMA write done");
 }

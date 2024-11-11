@@ -41,5 +41,6 @@ class Board(cfg: EmulatorConfig) extends Module {
   io.init := mods.map(_.io.init).reduce(_ && _)
   io.dbg.map(_.bdbg.zipWithIndex.map { case(dbg, i) => {
     dbg := mods(i).io.dbg.get
+    dontTouch(dbg)
   }})
 }

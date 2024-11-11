@@ -2,18 +2,14 @@ pub mod dut;
 pub mod dut_if;
 use bee::{
     common::{
-        circuit::Circuit,
-        config::{Args, PlatformConfig},
+        config::Args,
         hwgraph::NodeMapInfo, instruction::*,
         mapping::{SRAMMapping, SRAMPortType},
         network::Coordinate,
-        primitive::{Bit, Primitive}
+        primitive::Primitive
     },
     fsim::board::Board,
-    rtlsim::rtlsim_utils::{
-        get_input_stimuli_blasted,
-        InputStimuliMap
-    },
+    rtlsim::rtlsim_utils::get_input_stimuli_blasted,
     testing::try_new_circuit
 };
 use indexmap::IndexMap;
@@ -22,7 +18,7 @@ use std::{
     cmp::max
 };
 use clap::Parser;
-use bit_vec::BitVec;
+use bitvec::{order::{Lsb0, Msb0}, vec::BitVec};
 use dut::*;
 use dut_if::*;
 
@@ -124,6 +120,7 @@ fn main() -> Result<(), RTLSimError> {
         }
 
         println!("Reset done");
+        println!("Start configuration register setup");
 
         let num_mods = fpga_top_cfg.emul.num_mods;
 
@@ -162,59 +159,54 @@ fn main() -> Result<(), RTLSimError> {
 
         sim.step();
 
-        println!("configuration registers set finished");
+        println!("Start pushing instructions");
 
         for (_m, insts) in module_insts.iter() {
             for inst in insts {
                 let mut bitbuf = inst.to_bits(&circuit.platform_cfg);
                 bitbuf.reverse();
                 assert!(bitbuf.len() < 8 * 8, "Instruction bits {} > 64", bitbuf.len());
-
-                println!("bitbuf: {:?}", bitbuf);
-
                 let mut bytebuf: Vec<u8> = bitbuf
                                             .into_vec()
                                             .iter()
                                             .flat_map(|&x| x.to_le_bytes())
                                             .rev()
                                             .collect();
-                println!("bytebuf: {:?}", bytebuf);
-
                 bytebuf.reverse();
-
-                println!("bytebuf reverse: {:?}", bytebuf);
-
                 bytebuf.resize(fpga_top_cfg.axi.beat_bytes() as usize, 0);
-                println!("bytebuf resized: {:?}", bytebuf);
-// bytebuf.reverse();
-// println!("bytebuf resized reverse: {:?}", bytebuf);
                 dma_write(&mut sim, 4096, bytebuf.len() as u32, &bytebuf);
             }
         }
-
-        println!("Start loading instructions");
 
         // Wait until initialization is finished
         while mmio_read(&mut sim, (4 * num_mods + 1) * 4)  == 0 {
             sim.step();
         }
 
-        println!("Instructions loaded");
+        println!("Start simulation");
 
         for tc in 0..target_cycles {
             let tot_procs = circuit.platform_cfg.total_procs();
-            let mut bit_vec = BitVec::new();
+            let mut bit_vec: BitVec<usize, Lsb0> = BitVec::new();
             for _ in 0..tot_procs {
                 bit_vec.push(false);
             }
+
             for (coord, stim) in mapped_input_stimulti_blasted.iter_mut() {
                 let bit = stim.pop_front().unwrap();
                 let id = coord.id(&circuit.platform_cfg);
                 bit_vec.set(id as usize, bit != 0);
             }
 
-            let ivec: Vec<u8> = bit_vec.to_bytes();
-            println!("ivec: {:?}", ivec);
+            let mut ivec: Vec<u8> = bit_vec
+                .into_vec()
+                .iter()
+                .flat_map(|x| x.to_le_bytes())
+                .collect();
+            println!("ivec: {:X?}", ivec);
+
+            ivec.resize(fpga_top_cfg.axi.beat_bytes() as usize, 0);
+
             dma_write(&mut sim, 0, ivec.len() as u32, &ivec);
 
             // FIXME: properly compute the number of buffer entries
@@ -222,7 +214,7 @@ fn main() -> Result<(), RTLSimError> {
                 sim.step();
             }
 
-            let ovec: Vec<u8> = dma_read(&mut sim, 0, 64);
+            let ovec: Vec<u8> = dma_read(&mut sim, 0, fpga_top_cfg.axi.beat_bytes());
             println!("ovec: {:?}", ovec);
         }
 
