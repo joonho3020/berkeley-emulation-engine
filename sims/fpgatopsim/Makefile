@@ -57,7 +57,7 @@ $(VERILATOR_LIB): $(MILL_BUILD_ARTIFACTS)
 	fi
 	cargo clean
 	cargo update
-	cargo build --release
+	cargo build --release -vvv
 
 # Run single example
 run: $(VERILATOR_LIB)

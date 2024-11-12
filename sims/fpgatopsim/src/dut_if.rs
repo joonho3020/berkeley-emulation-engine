@@ -433,7 +433,6 @@ pub unsafe fn dma_write_req(
     len: u32,
     data: &Vec<u8>,
     strb: &Vec<u64>) {
-
     while peek_io_dma_axi4_master_aw_ready(sim.dut) == 0 {
         sim.step();
     }
@@ -462,16 +461,15 @@ pub unsafe fn dma_write_req(
         poke_io_dma_axi4_master_w_valid(sim.dut, false.into());
         poke_io_dma_axi4_master_b_ready(sim.dut, true.into());
         sim.step();
+    }
 
-        // Wait until we get the response
-        while peek_io_dma_axi4_master_b_valid(sim.dut) == 0 {
-            sim.step();
-        }
-        sim.step();
-        poke_io_dma_axi4_master_b_ready(sim.dut, false.into());
-        let b = peek_io_dma_axi4_master_b(sim.dut);
+    // Wait until we get the response
+    while peek_io_dma_axi4_master_b_valid(sim.dut) == 0 {
         sim.step();
     }
+    sim.step();
+    poke_io_dma_axi4_master_b_ready(sim.dut, false.into());
+    let b = peek_io_dma_axi4_master_b(sim.dut);
 }
 
 pub unsafe fn dma_write(
@@ -505,6 +503,8 @@ pub unsafe fn dma_write(
         let part_len = len as u32 % (sim.max_len() + 1);
         let start = idx * beat_bytes as usize;
         let end = start + ((part_len + 1) * beat_bytes) as usize;
+// println!("len: {} part_len: {} start: {} end: {}",
+// len, part_len, start, end);
 
         dma_write_req(sim,
             addr_,

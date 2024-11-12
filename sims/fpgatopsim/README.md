@@ -10,10 +10,17 @@ The AXI4-lite ports are used for control registers such as `host_steps` and to s
 
 - Requires a `conda env` with `Verilator` installed
 - Since we require the verilated shared library, we can't run the tests in a single process. We can use the `cargo-nextest` program to solve this issue
+- Run this command to run the existing tests
 
 ```bash
-cargo nextest run --release
+make test
 ```
+
+- This will:
+    - Compile the Chisel RTL into SV
+    - Verilate the SV
+    - Generate C and Rust bindings for the verilated file
+    - Compile the testbench (`lib.rs`) and run the tests
 
 ---
 

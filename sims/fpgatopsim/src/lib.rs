@@ -21,6 +21,7 @@ use std::{
     collections::VecDeque,
     cmp::max
 };
+use indicatif::ProgressBar;
 use bitvec::{order::Lsb0, vec::BitVec};
 use dut::*;
 use dut_if::*;
@@ -148,6 +149,14 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
     let host_steps = circuit.emul.host_steps;
     let mut mismatch_string: Option<String> = None;
 
+    let total_procs = fpga_top_cfg.emul.total_procs();
+    let data_bits = fpga_top_cfg.axi.data_bits;
+    let io_stream_bits = ((total_procs + data_bits - 1) / data_bits) * data_bits;
+    let io_stream_bytes = io_stream_bits / 8;
+
+    println!("total_procs: {}, axi data bits: {}, io_stream_bits: {}",
+        total_procs, data_bits, io_stream_bits);
+
     unsafe {
         let mut sim = Sim::try_new(&fpga_top_cfg);
         poke_reset(sim.dut, 1);
@@ -186,10 +195,10 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
 
         let pattern: Vec<u8> = vec![0xd, 0xe, 0xa, 0xd, 0xc, 0xa, 0xf, 0xe];
         let mut data: Vec<u8> = vec![];
-        data.extend(pattern.iter().cycle().take(fpga_top_cfg.axi.beat_bytes() as usize));
-        dma_write(&mut sim, 0x2000, fpga_top_cfg.axi.beat_bytes(), &data);
+        data.extend(pattern.iter().cycle().take(io_stream_bytes as usize));
+        dma_write(&mut sim, 0x2000, data.len() as u32, &data);
 
-        let rdata = dma_read(&mut sim, 0x2000, fpga_top_cfg.axi.beat_bytes());
+        let rdata = dma_read(&mut sim, 0x2000, data.len() as u32);
         assert!(data == rdata, "DMA read {:?} expect {:?}", rdata, data);
 
         println!("Start configuration register setup");
@@ -221,7 +230,9 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
 
         println!("Start pushing instructions");
 
+        let inst_bar = ProgressBar::new(module_insts.len() as u64);
         for (_m, insts) in module_insts.iter() {
+            inst_bar.inc(1);
             for inst in insts {
                 let mut bitbuf = inst.to_bits(&circuit.platform_cfg);
                 bitbuf.reverse();
@@ -237,6 +248,7 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
                 dma_write(&mut sim, 4096, bytebuf.len() as u32, &bytebuf);
             }
         }
+        inst_bar.finish();
 
         // Wait until initialization is finished
         while mmio_read(&mut sim, (3 * num_mods + 1) * 4)  == 0 {
@@ -245,7 +257,9 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
 
         println!("Start simulation");
 
+        let sim_bar = ProgressBar::new(target_cycles as u64);
         'emulation_loop: for tcycle in 0..target_cycles {
+            sim_bar.inc(1);
             let tot_procs = circuit.platform_cfg.total_procs();
             let mut bit_vec: BitVec<usize, Lsb0> = BitVec::new();
             for _ in 0..tot_procs {
@@ -263,16 +277,15 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
                 .iter()
                 .flat_map(|x| x.to_le_bytes())
                 .collect();
-            ivec.resize(fpga_top_cfg.axi.beat_bytes() as usize, 0);
+            ivec.resize(io_stream_bytes as usize, 0);
 
             dma_write(&mut sim, 0, ivec.len() as u32, &ivec);
 
-            // FIXME: properly compute the number of buffer entries
-            while mmio_read(&mut sim, (3 * num_mods + 2) * 4) < 1 {
+            while mmio_read(&mut sim, (3 * num_mods + 3) * 4) < 1 {
                 sim.step();
             }
 
-            let ovec: Vec<u8> = dma_read(&mut sim, 0, fpga_top_cfg.axi.beat_bytes());
+            let ovec: Vec<u8> = dma_read(&mut sim, 0, io_stream_bytes);
 
             // Run functional simulator
             let input_stimuli_by_step = get_input_stimuli_by_step(
@@ -298,7 +311,7 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
                 .iter()
                 .flat_map(|x| x.to_le_bytes())
                 .collect();
-            ovec_ref.resize(fpga_top_cfg.axi.beat_bytes() as usize, 0);
+            ovec_ref.resize(io_stream_bytes as usize, 0);
 
             if ovec != ovec_ref {
                 println!("MISMATCH");
@@ -311,6 +324,7 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
             }
         }
         sim.finish();
+        sim_bar.finish();
     }
     match mismatch_string {
         Some(emsg) => Err(RTLSimError::from(emsg)),
