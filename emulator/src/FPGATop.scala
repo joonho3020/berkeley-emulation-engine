@@ -44,7 +44,9 @@ case object FPGATopConfigKey extends Field[FPGATopParams]
 class FPGATop(implicit p: Parameters) extends LazyModule {
   val cfg = p(FPGATopConfigKey)
 
+  println("================= Emulator configuration =======================");
   println(cfg)
+  println("================================================================");
 
    // AXI4 Master Node with a single master port
   val axiDMAMasterNode = AXI4MasterNode(Seq(

@@ -1,13 +1,25 @@
-# Rust based testbench library
+# RTL simulation of FPGATop
+
+`FPGATop` exposes AXI4 and AXI4-lite ports which should be connected to the XDMA IP.
+Internally, it converts the AXI4 transactions into multiple decoupled interfaces which has two use cases.
+First of all, it is used to push the compiled instruction stream into the emulator.
+Next, it is used to push/pull IO signals to/from the emulator.
+The AXI4-lite ports are used for control registers such as `host_steps` and to setup SRAM processor configurations.
 
 ## Usage
 
-- Requires a conda env with Verilator installed
+- Requires a `conda env` with `Verilator` installed
 - Since we require the verilated shared library, we can't run the tests in a single process. We can use the `cargo-nextest` program to solve this issue
 
 ```bash
 cargo nextest run --release
 ```
+
+---
+
+# Rust based testbench library
+
+This directory can be cleaned up to become a more generic Rust based testbench library.
 
 ## Flow
 
