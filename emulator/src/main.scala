@@ -35,7 +35,7 @@ object Main {
     var sram_width:   Int = 16
     var sram_entries: Int = 16
 
-    args.sliding(9, 9).toList.collect {
+    args.sliding(2, 2).toList.collect {
       case Array("--debug",                x) => debug     = x.toBoolean
       case Array("--max-steps",            x) => max_steps = x.toInt
       case Array("--num-mods",             x) => num_mods  = x.toInt
@@ -50,7 +50,7 @@ object Main {
     implicit val p: Parameters = Parameters((site, here, up) => {
       case FPGATopConfigKey =>
         FPGATopParams(
-          debug = true,
+          debug = debug,
           FPGATopAXI4DMAParams (64, 512, 4, None),
           FPGATopAXI4MMIOParams(64,  32, 4, None),
           EmulatorConfig(

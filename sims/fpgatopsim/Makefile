@@ -9,6 +9,7 @@ input_file := $(dir)/$(top)".input"
 lut_file   := $(dir)/$(top)".lut.blif"
 sim_dir    := "sim-dir-"$(top)
 
+debug             ?= "true"
 max_steps         ?= 128
 num_mods          ?= 9
 num_procs         ?= 8
@@ -34,7 +35,16 @@ chisel_elaborate: $(MILL_BUILD_ARTIFACTS)
 # Mill rebuild rule
 $(MILL_BUILD_ARTIFACTS): $(SCALA_FILES)
 	@echo "Changes detected in Scala files. Rebuilding with Mill..."
-	cd $(EMULATOR_DIR) && mill emulator.run
+	cd $(EMULATOR_DIR) &&                        \
+		mill emulator.run  --debug $(debug)        \
+			--max-steps $(max_steps)                 \
+			--num-mods $(num_mods)                   \
+			--num-procs $(num_procs)                 \
+			--imem-lat $(imem_lat)                   \
+			--inter-mod-nw-lat $(inter_mod_nw_lat)   \
+			--inter-proc-nw-lat $(inter_proc_nw_lat) \
+			--sram-width $(sram_width)               \
+			--sram-entries $(sram_entries)
 	@touch $(MILL_BUILD) # Update mill lock file timestamp
 
 # Build verilator shared library w/ c-bindings
@@ -65,7 +75,6 @@ run: $(VERILATOR_LIB)
 			 --inter-proc-nw-lat $(inter_proc_nw_lat) \
 			 --inter-mod-nw-lat $(inter_mod_nw_lat) \
 			 --max-steps $(max_steps) | tee DEBUG
-
 
 # Run existing tests
 test: $(VERILATOR_LIB)
