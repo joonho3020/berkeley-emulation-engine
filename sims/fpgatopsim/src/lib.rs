@@ -160,42 +160,62 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
         }
 
         println!("Reset done");
+
+
+        println!("Testing MMIO fingerprint");
+
+        let fgpr_addr = (3 * fpga_top_cfg.emul.num_mods + 6) * 4;
+        let fgr_init = mmio_read(&mut sim, fgpr_addr);
+        assert!(fgr_init == 0,
+            "mmio fingerprint mismatch, expect {} got {}",
+            0,
+            fgr_init);
+
+        mmio_write(&mut sim, fgpr_addr, 0xdeadcafe);
+        for _ in 0..5 {
+            sim.step();
+        }
+        let fgr_read = mmio_read(&mut sim, fgpr_addr);
+
+        assert!(fgr_read == 0xdeadcafe,
+            "mmio fingerprint mismatch, expect {:x} got {:x}",
+            0xdeadcafeu32,
+            fgr_read);
+
+        println!("Testing DMA");
+
+        let pattern: Vec<u8> = vec![0xd, 0xe, 0xa, 0xd, 0xc, 0xa, 0xf, 0xe];
+        let mut data: Vec<u8> = vec![];
+        data.extend(pattern.iter().cycle().take(fpga_top_cfg.axi.beat_bytes() as usize));
+        dma_write(&mut sim, 0x2000, fpga_top_cfg.axi.beat_bytes(), &data);
+
+        let rdata = dma_read(&mut sim, 0x2000, fpga_top_cfg.axi.beat_bytes());
+        assert!(data == rdata, "DMA read {:?} expect {:?}", rdata, data);
+
         println!("Start configuration register setup");
 
         let num_mods = fpga_top_cfg.emul.num_mods;
-
-        for m in 0..fpga_top_cfg.emul.num_mods {
-            let used_procs = circuit.platform_cfg.num_procs;
-            mmio_write(&mut sim, m * 4, used_procs);
-
-            // NOTE: seems like the MCR file is designed under the
-            // assumption that MMIO AXI requests arrive with more than
-            // 1 cycle in between
-            for _ in 0..5 {
-                sim.step();
-            }
-        }
 
         for (m, sram_cfg) in sram_cfgs.iter() {
             let single_port_sram = match sram_cfg.port_type {
                 SRAMPortType::SinglePortSRAM     => { true }
                 SRAMPortType::OneRdOneWrPortSRAM => { false }
             };
-            mmio_write(&mut sim, (m + 1 * num_mods) * 4, single_port_sram as u32);
+            mmio_write(&mut sim, (m + 0 * num_mods) * 4, single_port_sram as u32);
             for _ in 0..5 {
                 sim.step();
             }
-            mmio_write(&mut sim, (m + 2 * num_mods) * 4, sram_cfg.wmask_bits);
+            mmio_write(&mut sim, (m + 1 * num_mods) * 4, sram_cfg.wmask_bits);
             for _ in 0..5 {
                 sim.step();
             }
-            mmio_write(&mut sim, (m + 3 * num_mods) * 4, sram_cfg.width_bits);
+            mmio_write(&mut sim, (m + 2 * num_mods) * 4, sram_cfg.width_bits);
             for _ in 0..5 {
                 sim.step();
             }
         }
 
-        mmio_write(&mut sim, (4 * num_mods) * 4, host_steps);
+        mmio_write(&mut sim, (3 * num_mods) * 4, host_steps);
 
         sim.step();
 
@@ -219,7 +239,7 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
         }
 
         // Wait until initialization is finished
-        while mmio_read(&mut sim, (4 * num_mods + 1) * 4)  == 0 {
+        while mmio_read(&mut sim, (3 * num_mods + 1) * 4)  == 0 {
             sim.step();
         }
 
@@ -248,7 +268,7 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
             dma_write(&mut sim, 0, ivec.len() as u32, &ivec);
 
             // FIXME: properly compute the number of buffer entries
-            while mmio_read(&mut sim, (4 * num_mods + 1) * 4) < 1 {
+            while mmio_read(&mut sim, (3 * num_mods + 2) * 4) < 1 {
                 sim.step();
             }
 

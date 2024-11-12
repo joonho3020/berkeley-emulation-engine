@@ -328,7 +328,7 @@ pub unsafe fn mmio_read(
     poke_io_mmio_axi4_master_r_ready(sim.dut, false.into());
     let r = peek_io_mmio_axi4_master_r(sim.dut);
     sim.step();
-    return *r.data.first().unwrap() as u32;
+    return u32::from_le_bytes([r.data[0], r.data[1], r.data[2], r.data[3]]);
 }
 
 pub unsafe fn mmio_write(
@@ -336,8 +336,6 @@ pub unsafe fn mmio_write(
     addr: u32,
     data: u32
 ) {
-    println!("mmio write addr: {} data {}", addr, data);
-    println!("mmio write waiting for aw/w ready");
     while peek_io_mmio_axi4_master_aw_ready(sim.dut) == 0 ||
           peek_io_mmio_axi4_master_w_ready (sim.dut) == 0 {
         sim.step();
@@ -358,7 +356,6 @@ pub unsafe fn mmio_write(
     poke_io_mmio_axi4_master_b_ready(sim.dut, true.into());
     sim.step();
 
-    println!("mmio write waiting for b valid");
     // Wait until we get the response
     while peek_io_mmio_axi4_master_b_valid(sim.dut) == 0 {
         sim.step();
@@ -366,7 +363,6 @@ pub unsafe fn mmio_write(
 
     poke_io_mmio_axi4_master_b_ready(sim.dut, false.into());
     let _b = peek_io_mmio_axi4_master_b(sim.dut);
-    println!("mmio write done");
     sim.step();
 }
 

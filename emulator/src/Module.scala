@@ -7,7 +7,6 @@ import chisel3.experimental.hierarchy._
 
 class EModuleConfigBundle(cfg: EmulatorConfig) extends Bundle {
   val host_steps  = UInt(cfg.index_bits.W)
-  val used_procs  = UInt(cfg.index_bits.W)
   val sram        = new SRAMProcessorConfigBundle(cfg)
 }
 
@@ -78,8 +77,8 @@ class EModule(cfg: EmulatorConfig) extends Module {
   procs(0).io.isc.inst_o.ready := false.B
   procs(num_procs-1).io.isc.inst_i <> io.inst
 
-  val procs_init = procs.zipWithIndex.map { case(p, i) => {
-    Mux(i.U < io.cfg_in.used_procs, p.io.isc.init_o, true.B)
+  val procs_init = procs.map { p => {
+    p.io.isc.init_o
   }}.reduce(_ && _)
 
   io.init := procs_init &&  sram_proc.io.init

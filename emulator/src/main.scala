@@ -10,10 +10,11 @@ object Main extends App {
   implicit val p: Parameters = Parameters((site, here, up) => {
     case FPGATopConfigKey =>
       FPGATopParams(
+        debug = true,
         FPGATopAXI4DMAParams (64, 512, 4, None),
         FPGATopAXI4MMIOParams(64,  32, 4, None),
         EmulatorConfig(
-          debug = true
+          debug = false
         )
       )
   })

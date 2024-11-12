@@ -113,4 +113,14 @@ object MCRFile {
   def bind_writeonly_reg_array(regs: Seq[Data], mcr: MCRFile, offset: Int): Unit = {
     regs.zipWithIndex.foreach({ case (r, i) => MCRFile.bind_writeonly_reg(r, mcr, i + offset) })
   }
+
+  def bind_readwrite_reg(reg: Data, mcr: MCRFile, idx: Int): Unit = {
+    mcr.io.mcr.read(idx).valid := true.B
+    mcr.io.mcr.read(idx).bits := reg
+
+    mcr.io.mcr.write(idx).ready := true.B
+    when (mcr.io.mcr.write(idx).valid) {
+      reg := mcr.io.mcr.write(idx).bits
+    }
+  }
 }

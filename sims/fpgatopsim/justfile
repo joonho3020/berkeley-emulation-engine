@@ -18,12 +18,13 @@ dmem_rd_lat := "0"
 
 [group: 'clean']
 clean:
+  cargo clean
   rm -f *.vcd
   rm -f *.so
   rm -rf blif-sim-dir-*
   rm -rf build-dir
+  rm -rf sim-dir
   rm DEBUG
-  cargo clean
 
 [group: 'test']
 test:
