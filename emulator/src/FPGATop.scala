@@ -34,9 +34,16 @@ case class FPGATopAXI4MMIOParams(
 }
 
 case class FPGATopParams(
+  // Adds a extra DMA stream engine to check for XDMA DMA transactions
   debug: Boolean,
+
+  // XDMA AXI4 parameters for DMA
   axi:  FPGATopAXI4DMAParams,
+
+  // XDMA AXI4-lite parameters for MMIO
   axil: FPGATopAXI4MMIOParams,
+
+  // Emulation platform configuration
   emul: EmulatorConfig)
 
 case object FPGATopConfigKey extends Field[FPGATopParams]
