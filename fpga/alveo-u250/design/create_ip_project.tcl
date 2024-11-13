@@ -14,12 +14,14 @@ if {![file exists $ip_directory]} {
     puts "Directory already exists: $ip_directory"
 }
 
-create_ip -name xdma          -vendor xilinx.com -library ip -version 4.1 -module_name xdma_0                   -dir $ip_directory
-create_ip -name axi_bram_ctrl -vendor xilinx.com -library ip -version 4.1 -module_name axi_lite_bram_ctrl_0_32  -dir $ip_directory
-create_ip -name axi_bram_ctrl -vendor xilinx.com -library ip -version 4.1 -module_name axi_bram_ctrl_0_512      -dir $ip_directory
-create_ip -name blk_mem_gen   -vendor xilinx.com -library ip -version 8.4 -module_name bram_0_512               -dir $ip_directory
-create_ip -name blk_mem_gen   -vendor xilinx.com -library ip -version 8.4 -module_name bram_0_32                -dir $ip_directory
-create_ip -name ila           -vendor xilinx.com -library ip -version 6.2 -module_name ila_0                    -dir $ip_directory
+create_ip -name xdma                 -vendor xilinx.com -library ip -version 4.1 -module_name xdma_0                   -dir $ip_directory
+create_ip -name axi_bram_ctrl        -vendor xilinx.com -library ip -version 4.1 -module_name axi_lite_bram_ctrl_0_32  -dir $ip_directory
+create_ip -name axi_bram_ctrl        -vendor xilinx.com -library ip -version 4.1 -module_name axi_bram_ctrl_0_512      -dir $ip_directory
+create_ip -name blk_mem_gen          -vendor xilinx.com -library ip -version 8.4 -module_name bram_0_512               -dir $ip_directory
+create_ip -name blk_mem_gen          -vendor xilinx.com -library ip -version 8.4 -module_name bram_0_32                -dir $ip_directory
+create_ip -name ila                  -vendor xilinx.com -library ip -version 6.2 -module_name ila_0                    -dir $ip_directory
+create_ip -name axi_clock_converter  -vendor xilinx.com -library ip -version 2.1 -module_name axi_cdc                  -dir $ip_directory
+create_ip -name axi_clock_converter  -vendor xilinx.com -library ip -version 2.1 -module_name axi_lite_cdc             -dir $ip_directory
 
 set xdma_ip_path "./ip/xdma_0/xdma_0.xci"
 add_files -norecurse $xdma_ip_path
@@ -77,6 +79,27 @@ set_property -dict [list \
   CONFIG.C_DATA_DEPTH {1024} \
   CONFIG.C_MONITOR_TYPE {AXI} \
 ] [get_ips ila_0]
+
+set axi_cdc "./ip/axi_cdc/axi_cdc.xci"
+add_files -norecurse $axi_cdc
+set_property -dict [list \
+  CONFIG.ADDR_WIDTH {64} \
+  CONFIG.DATA_WIDTH {512} \
+  CONFIG.ID_WIDTH {4} \
+] [get_ips axi_cdc]
+
+set axi_lite_cdc "./ip/axi_lite_cdc/axi_lite_cdc.xci"
+add_files -norecurse $axi_lite_cdc
+set_property -dict [list \
+  CONFIG.ARUSER_WIDTH {0} \
+  CONFIG.AWUSER_WIDTH {0} \
+  CONFIG.BUSER_WIDTH {0} \
+  CONFIG.DATA_WIDTH {32} \
+  CONFIG.ID_WIDTH {0} \
+  CONFIG.PROTOCOL {AXI4LITE} \
+  CONFIG.RUSER_WIDTH {0} \
+  CONFIG.WUSER_WIDTH {0} \
+] [get_ips axi_lite_cdc]
 
 generate_target all [get_ips]
 close_project
