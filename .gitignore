@@ -26,6 +26,8 @@ emulator/test/*
 **/libVdut.so
 **/*.vcd
 
+**/ip_user_files
+
 # Added by cargo
 
 **/target

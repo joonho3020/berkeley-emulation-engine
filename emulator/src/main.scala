@@ -51,8 +51,8 @@ object Main {
       case FPGATopConfigKey =>
         FPGATopParams(
           debug = debug,
-          FPGATopAXI4DMAParams (64, 512, 4, None),
-          FPGATopAXI4MMIOParams(64,  32, 4, None),
+          FPGATopAXI4DMAParams (64, 512,  4, None),
+          FPGATopAXI4MMIOParams(25,  32, 12, None),
           EmulatorConfig(
             max_steps = max_steps,
             num_procs = num_procs,
