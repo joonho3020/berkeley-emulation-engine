@@ -400,7 +400,7 @@ axi_lite_cdc axi4_lite_master_cdc (
   .m_axi_rresp(io_mmio_axi4_master_rresp),      // input wire [1 : 0] m_axi_rresp
   .m_axi_rvalid(io_mmio_axi4_master_rvalid),    // input wire m_axi_rvalid
   .m_axi_rready(io_mmio_axi4_master_rready)     // output wire m_axi_rready
-)
+);
 
 FPGATop fpgatop(
   .clock(fpga_top_clock),
