@@ -183,11 +183,12 @@ clk_wiz_0 clk_wizard
       );
 
 
+// https://docs.amd.com/v/u/en-US/pg164-proc-sys-reset
 proc_sys_reset_0 reset_synchronizer (
   .slowest_sync_clk(fpga_top_clock),          // input wire slowest_sync_clk
-  .ext_reset_in(axi_aclk),                  // input wire ext_reset_in
-  .aux_reset_in(),                  // input wire aux_reset_in
-  .mb_debug_sys_rst(),          // input wire mb_debug_sys_rst
+  .ext_reset_in(!axi_aresetn),                  // input wire ext_reset_in
+  .aux_reset_in(1'b0),                  // input wire aux_reset_in
+  .mb_debug_sys_rst(1'b1),          // input wire mb_debug_sys_rst
   .dcm_locked(),                      // input wire dcm_locked
   .mb_reset(),                          // output wire mb_reset
   .bus_struct_reset(),          // output wire [0 : 0] bus_struct_reset
