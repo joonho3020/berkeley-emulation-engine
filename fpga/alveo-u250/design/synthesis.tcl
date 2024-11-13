@@ -4,6 +4,9 @@ source $TOP_DIR/au250.tcl
 if {[string trim ${VLOG_SOURCES}] ne ""} {
   read_verilog -v ${VLOG_SOURCES}
 }
+if {[string trim ${SVLOG_SOURCES}] ne ""} {
+  read_verilog -v ${SVLOG_SOURCES}
+}
 if {[string trim ${CONSTRAINTS}] ne ""} {
   read_xdc ${CONSTRAINTS}
 }

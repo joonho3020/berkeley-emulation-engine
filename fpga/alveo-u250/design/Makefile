@@ -8,6 +8,7 @@ VIVADO_OPTS ?= -nolog -nojournal -mode batch
 
 BOARD_PART_TCL   = $(TOP_DIR)/au250.tcl
 VLOG_SOURCES     += $(shell find $(TOP_DIR)/rtl         -type f -name "*.v")
+SVLOG_SOURCES    += $(shell find $(TOP_DIR)/../../../emulator         -type f -name "*.sv")
 CONSTRAINTS      += $(shell find $(TOP_DIR)/constraints -type f -name "*.xdc")
 IP               += $(shell find $(TOP_DIR)/ip -maxdepth 2 -type f -name "*.xci")
 TOP_MODULE = XilinxU250Board
@@ -23,6 +24,9 @@ $(PROJECT_DIR)/target.tcl: $(VLOG_SOURCES) $(CONSTRAINTS) $(IP)
 	@echo "set_param general.maxBackupLogs    0"    >> $@
 	@echo -n "set VLOG_SOURCES { " >> $@
 	@FLIST="$(VLOG_SOURCES)"; for f in $$FLIST; do echo -n "$$f " ; done >> $@
+	@echo "}" >> $@
+	@echo -n "set SVLOG_SOURCES { " >> $@
+	@FLIST="$(SVLOG_SOURCES)"; for f in $$FLIST; do echo -n "$$f " ; done >> $@
 	@echo "}" >> $@
 	@echo -n "set CONSTRAINTS { " >> $@
 	@FLIST="$(CONSTRAINTS)"; for f in $$FLIST; do echo -n "$$f " ; done >> $@
