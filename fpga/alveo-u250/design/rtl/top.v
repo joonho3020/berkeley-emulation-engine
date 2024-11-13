@@ -53,7 +53,6 @@ wire m_axi_rlast;
 wire m_axi_rvalid;
 wire m_axi_rready;
 
-
 wire [31:0] m_axil_awaddr;
 wire [2:0] m_axil_awprot;
 wire m_axil_awvalid;
@@ -170,6 +169,37 @@ xdma_0 xdma_0 (
   .cfg_mgmt_read_write_done()                           // output wire cfg_mgmt_read_write_done
 );
 
+wire fpga_top_clock;
+wire fpga_top_resetn;
+
+clk_wiz_0 clk_wizard
+(
+  // Clock out ports
+  .clk_out1(fpga_top_clock),     // output clk_out1
+    // Status and control signals
+    .reset(axi_aresetn), // input reset
+      // Clock in ports
+      .clk_in1(axi_aclk)      // input clk_in1
+      );
+
+
+proc_sys_reset_0 reset_synchronizer (
+  .slowest_sync_clk(fpga_top_clock),          // input wire slowest_sync_clk
+  .ext_reset_in(axi_aclk),                  // input wire ext_reset_in
+  .aux_reset_in(),                  // input wire aux_reset_in
+  .mb_debug_sys_rst(),          // input wire mb_debug_sys_rst
+  .dcm_locked(),                      // input wire dcm_locked
+  .mb_reset(),                          // output wire mb_reset
+  .bus_struct_reset(),          // output wire [0 : 0] bus_struct_reset
+  .peripheral_reset(),          // output wire [0 : 0] peripheral_reset
+  .interconnect_aresetn(fpga_top_resetn),  // output wire [0 : 0] interconnect_aresetn
+  .peripheral_aresetn()      // output wire [0 : 0] peripheral_aresetn
+);
+
+
+
+
+
 wire [3 : 0] io_dma_axi4_master_awid;
 wire [63 : 0] io_dma_axi4_master_awaddr;
 wire [7 : 0] io_dma_axi4_master_awlen;
@@ -250,8 +280,8 @@ axi_cdc axi4_master_cdc (
   .s_axi_rvalid(m_axi_rvalid),      // output wire s_axi_rvalid
   .s_axi_rready(m_axi_rready),      // input wire s_axi_rready
 
-  .m_axi_aclk(),          // input wire m_axi_aclk
-  .m_axi_aresetn(),    // input wire m_axi_aresetn
+  .m_axi_aclk(fpga_top_clock),          // input wire m_axi_aclk
+  .m_axi_aresetn(fpga_top_resetn),    // input wire m_axi_aresetn
 
   .m_axi_awid(io_dma_axi4_master_awid),          // output wire [3 : 0] m_axi_awid
   .m_axi_awaddr(io_dma_axi4_master_awaddr),      // output wire [63 : 0] m_axi_awaddr
@@ -344,8 +374,8 @@ axi_lite_cdc axi4_lite_master_cdc (
   .s_axi_rvalid(m_axil_rvalid),    // output wire s_axi_rvalid
   .s_axi_rready(m_axil_rready),    // input wire s_axi_rready
 
-  .m_axi_aclk(),        // input wire m_axi_aclk
-  .m_axi_aresetn(),  // input wire m_axi_aresetn
+  .m_axi_aclk(fpga_top_clock),        // input wire m_axi_aclk
+  .m_axi_aresetn(fpga_top_resetn),  // input wire m_axi_aresetn
 
   .m_axi_awaddr(io_mmio_axi4_master_awaddr),    // output wire [31 : 0] m_axi_awaddr
   .m_axi_awprot(),                              // output wire [2 : 0] m_axi_awprot
@@ -373,8 +403,8 @@ axi_lite_cdc axi4_lite_master_cdc (
 )
 
 FPGATop fpgatop(
-  .clock(),
-  .reset(),
+  .clock(fpga_top_clock),
+  .reset(!fpga_top_resetn),
 
   .io_dma_axi4_master_aw_ready(io_dma_axi4_master_awready),
   .io_dma_axi4_master_aw_valid(io_dma_axi4_master_awvalid),

@@ -14,6 +14,8 @@ if {![file exists $ip_directory]} {
     puts "Directory already exists: $ip_directory"
 }
 
+set fpga_freq_mhz 100
+
 create_ip -name xdma                 -vendor xilinx.com -library ip -version 4.1 -module_name xdma_0                   -dir $ip_directory
 create_ip -name axi_bram_ctrl        -vendor xilinx.com -library ip -version 4.1 -module_name axi_lite_bram_ctrl_0_32  -dir $ip_directory
 create_ip -name axi_bram_ctrl        -vendor xilinx.com -library ip -version 4.1 -module_name axi_bram_ctrl_0_512      -dir $ip_directory
@@ -22,6 +24,8 @@ create_ip -name blk_mem_gen          -vendor xilinx.com -library ip -version 8.4
 create_ip -name ila                  -vendor xilinx.com -library ip -version 6.2 -module_name ila_0                    -dir $ip_directory
 create_ip -name axi_clock_converter  -vendor xilinx.com -library ip -version 2.1 -module_name axi_cdc                  -dir $ip_directory
 create_ip -name axi_clock_converter  -vendor xilinx.com -library ip -version 2.1 -module_name axi_lite_cdc             -dir $ip_directory
+create_ip -name clk_wiz              -vendor xilinx.com -library ip -version 6.0 -module_name clk_wiz_0                -dir $ip_directory
+create_ip -name proc_sys_reset       -vendor xilinx.com -library ip -version 5.0 -module_name proc_sys_reset_0         -dir $ip_directory
 
 set xdma_ip_path "./ip/xdma_0/xdma_0.xci"
 add_files -norecurse $xdma_ip_path
@@ -100,6 +104,17 @@ set_property -dict [list \
   CONFIG.RUSER_WIDTH {0} \
   CONFIG.WUSER_WIDTH {0} \
 ] [get_ips axi_lite_cdc]
+
+set clk_wiz_0 "./ip/clk_wiz_0/clk_wiz_0.xci"
+add_files -norecurse $clk_wiz_0
+set_property -dict [list \
+   CONFIG.CLKOUT1_REQUESTED_OUT_FREQ $fpga_freq_mhz \
+   CONFIG.USE_LOCKED {false} \
+] [get_ips clk_wiz_0]
+
+
+set proc_sys_reset_0 "./ip/proc_sys_reset_0/proc_sys_reset_0.xci"
+add_files -norecurse $proc_sys_reset_0
 
 generate_target all [get_ips]
 close_project
