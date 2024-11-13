@@ -189,7 +189,7 @@ proc_sys_reset_0 reset_synchronizer (
   .ext_reset_in(!axi_aresetn),                  // input wire ext_reset_in
   .aux_reset_in(1'b0),                  // input wire aux_reset_in
   .mb_debug_sys_rst(1'b1),          // input wire mb_debug_sys_rst
-  .dcm_locked(),                      // input wire dcm_locked
+  .dcm_locked(1'b1),                      // input wire dcm_locked
   .mb_reset(),                          // output wire mb_reset
   .bus_struct_reset(),          // output wire [0 : 0] bus_struct_reset
   .peripheral_reset(),          // output wire [0 : 0] peripheral_reset
