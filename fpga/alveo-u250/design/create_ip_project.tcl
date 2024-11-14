@@ -32,8 +32,6 @@ add_files -norecurse $xdma_ip_path
 set_property -dict [list \
    CONFIG.axilite_master_en {true} \
    CONFIG.axilite_master_size {32} \
-   CONFIG.en_gt_selection {true} \
-   CONFIG.mode_selection {Advanced} \
    CONFIG.pl_link_cap_max_link_speed {8.0_GT/s} \
    CONFIG.pl_link_cap_max_link_width {X16} \
    CONFIG.xdma_axi_intf_mm {AXI_Memory_Mapped} \
