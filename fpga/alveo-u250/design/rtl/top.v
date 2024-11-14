@@ -177,7 +177,7 @@ clk_wiz_0 clk_wizard
   // Clock out ports
   .clk_out1(fpga_top_clock),     // output clk_out1
     // Status and control signals
-    .reset(axi_aresetn), // input reset
+    .reset(!axi_aresetn), // input reset
       // Clock in ports
       .clk_in1(axi_aclk)      // input clk_in1
       );
