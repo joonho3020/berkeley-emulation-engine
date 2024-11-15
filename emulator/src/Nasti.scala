@@ -355,6 +355,7 @@ class NastiErrorSlave(cfg: NastiParameters) extends Module {
   io.r.bits.data := 0.U
   io.r.bits.resp := RESP_DECERR
   io.r.bits.last := beats_left === 0.U
+  io.r.bits.user := 0.U
 
   r_queue.io.deq.ready := io.r.fire && io.r.bits.last
 
@@ -379,6 +380,7 @@ class NastiErrorSlave(cfg: NastiParameters) extends Module {
   io.b.valid := b_queue.io.deq.valid && !draining
   io.b.bits.id := b_queue.io.deq.bits
   io.b.bits.resp := RESP_DECERR
+  io.b.bits.user := 0.U
   b_queue.io.deq.ready := io.b.ready && !draining
 }
 
@@ -409,10 +411,10 @@ class NastiRouter(nSlaves: Int, routeSel: UInt => UInt)(cfg: NastiParameters)
   // so that the responses can be sent back in-order on the master
   val ar_queue = Module(new ReorderQueue(
     UInt(log2Up(nSlaves + 1).W), cfg.nastiXIdBits,
-    Some(queueSize)))
+    Some(queueSize), nSlaves + 1))
   val aw_queue = Module(new ReorderQueue(
     UInt(log2Up(nSlaves + 1).W), cfg.nastiXIdBits,
-    Some(queueSize)))
+    Some(queueSize), nSlaves + 1))
   // This queue holds the accepted aw_routes so that we know how to route the
   val w_queue = Module(new Queue(aw_route.cloneType, nSlaves))
 
@@ -493,7 +495,10 @@ class NastiRouter(nSlaves: Int, routeSel: UInt => UInt)(cfg: NastiParameters)
 
   val all_slaves = io.slave :+ err_slave.io
 
+  println(s"nSlaves ${nSlaves} allSlaves: ${all_slaves}")
+
   for (i <- 0 to nSlaves) {
+    println(s"i ${i} b_arb.io.in ${b_arb.io.in}")
     b_arb.io.in(i) <> all_slaves(i).b
     aw_queue.io.deq(i).valid := all_slaves(i).b.fire
     aw_queue.io.deq(i).tag := all_slaves(i).b.bits.id

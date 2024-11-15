@@ -142,7 +142,7 @@ class AXI4DecoupledConverter(
 
   connect_axiw(io.deq_1, io.deq_cnt_1, widthBits_1, bufferDepth_1, 0)
   connect_axiw(io.deq_2, io.deq_cnt_2, widthBits_2, bufferDepth_2, 1)
-  connect_axiw(io.deq_3, io.deq_cnt_2, widthBits_2, bufferDepth_2, 2)
+  connect_axiw(io.deq_3, io.deq_cnt_3, widthBits_3, bufferDepth_3, 2)
 
   /////////////////////////////////////////////////////////////////////////////
 
@@ -152,6 +152,8 @@ class AXI4DecoupledConverter(
   io.axi.r.bits.user := io.axi.ar.bits.user
   io.axi.r.valid     := false.B
   io.axi.ar.ready    := false.B
+  io.axi.r.bits.data := DontCare
+  io.axi.r.bits.last := DontCare
 
   def connect_axir(enq: DecoupledIO[UInt], enq_cnt: UInt, widthBits: Int, bufferDepth: Int, idx: Int) = {
     val serdes_enq = Module(new StreamWidthAdapter(axiParams.dataBits, widthBits))

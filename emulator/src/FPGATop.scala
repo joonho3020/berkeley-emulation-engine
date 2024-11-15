@@ -184,6 +184,8 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
     bufferDepth_3 = 4,
     addressSpaceBits = 12))
 
+  stream_converter.io.axi <> io_dma_axi4_slave
+
   stream_converter.io.enq_2.valid := false.B
   stream_converter.io.enq_2.bits  := 0.U
   stream_converter.io.deq_2.ready := false.B
@@ -204,8 +206,15 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
   val m_nasti_lite = Wire(new NastiIO(nasti_lite_params))
   AXI4NastiAssigner.toNasti(m_nasti_lite, mmio_axi4_slave)
 
-  val mcr = Module(new MCRFile(3 * cfg.emul.num_mods + 7)(nasti_lite_params))
-  mcr.io.nasti <> m_nasti_lite
+  val num_regs = 3 * cfg.emul.num_mods + 8
+  val mcr = Module(new MCRFile(num_regs)(nasti_lite_params))
+
+  val routeSel: UInt => UInt = (addr: UInt) => {
+    (addr >= 0.U && addr < (num_regs << 2).U).asUInt
+  }
+  val nasti_router = Module(new NastiRouter(1, routeSel)(nasti_lite_params))
+  nasti_router.io.master <> m_nasti_lite
+  mcr.io.nasti <> nasti_router.io.slave(0)
   MCRFile.tieoff(mcr)
 
   // Write Only Register mapping

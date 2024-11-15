@@ -29,6 +29,7 @@ class ReorderQueue[T <: Data](dType: T, tagWidth: Int,
 
   val tagSpaceSize = 1 << tagWidth
   val actualSize = size.getOrElse(tagSpaceSize)
+  println(s"tagSpaceSize: ${tagSpaceSize} actualSize: ${actualSize}")
 
   if (tagSpaceSize > actualSize) {
     require(tagSpaceSize % actualSize == 0)
@@ -37,25 +38,42 @@ class ReorderQueue[T <: Data](dType: T, tagWidth: Int,
 
     val roq_data = Reg(Vec(actualSize, dType))
     val roq_tags = Reg(Vec(actualSize, UInt((tagWidth - smallTagSize).W)))
-    val roq_free = VecInit(Seq.fill(actualSize)(RegInit(true.B)))
+    val roq_free = Seq.fill(actualSize)(RegInit(true.B))
     val roq_enq_addr = io.enq.bits.tag(smallTagSize-1, 0)
 
-    io.enq.ready := roq_free(roq_enq_addr)
+    io.enq.ready := false.B
+    for (i <- 0 until actualSize) {
+      when (i.U === roq_enq_addr) {
+        io.enq.ready := roq_free(i)
+      }
+    }
 
     when (io.enq.valid && io.enq.ready) {
       roq_data(roq_enq_addr) := io.enq.bits.data
       roq_tags(roq_enq_addr) := io.enq.bits.tag >> smallTagSize.U
-      roq_free(roq_enq_addr) := false.B
+      for (i <- 0 until actualSize) {
+        when (i.U === roq_enq_addr) {
+          roq_free(i) := false.B
+        }
+      }
     }
 
     io.deq.foreach { deq =>
       val roq_deq_addr = deq.tag(smallTagSize-1, 0)
 
+      val cur_roq_free = roq_free.zipWithIndex.map({ case (free, i) => {
+        Mux(i.U === roq_deq_addr, free, false.B)
+      }}).reduce(_ || _)
+
       deq.data := roq_data(roq_deq_addr)
-      deq.matches := !roq_free(roq_deq_addr) && roq_tags(roq_deq_addr) === (deq.tag >> smallTagSize.U)
+      deq.matches := !cur_roq_free && roq_tags(roq_deq_addr) === (deq.tag >> smallTagSize.U)
 
       when (deq.valid) {
-        roq_free(roq_deq_addr) := true.B
+        for (i <- 0 until actualSize) {
+          when (i.U === roq_deq_addr) {
+            roq_free(i) := true.B
+          }
+        }
       }
     }
   } else if (tagSpaceSize == actualSize) {
