@@ -52,7 +52,6 @@ extern "C" {
     pub fn peek_io_dma_axi4_master_r_bits_last (dut: *mut VFPGATop) -> u64;
     pub fn peek_io_mmio_axi4_master_aw_ready (dut: *mut VFPGATop) -> u64;
     pub fn poke_io_mmio_axi4_master_aw_valid (dut: *mut VFPGATop, io_mmio_axi4_master_aw_valid: u64);
-    pub fn poke_io_mmio_axi4_master_aw_bits_id (dut: *mut VFPGATop, io_mmio_axi4_master_aw_bits_id: u64);
     pub fn poke_io_mmio_axi4_master_aw_bits_len (dut: *mut VFPGATop, io_mmio_axi4_master_aw_bits_len: u64);
     pub fn poke_io_mmio_axi4_master_aw_bits_size (dut: *mut VFPGATop, io_mmio_axi4_master_aw_bits_size: u64);
     pub fn poke_io_mmio_axi4_master_aw_bits_burst (dut: *mut VFPGATop, io_mmio_axi4_master_aw_bits_burst: u64);
@@ -66,11 +65,9 @@ extern "C" {
     pub fn poke_io_mmio_axi4_master_w_bits_last (dut: *mut VFPGATop, io_mmio_axi4_master_w_bits_last: u64);
     pub fn poke_io_mmio_axi4_master_b_ready (dut: *mut VFPGATop, io_mmio_axi4_master_b_ready: u64);
     pub fn peek_io_mmio_axi4_master_b_valid (dut: *mut VFPGATop) -> u64;
-    pub fn peek_io_mmio_axi4_master_b_bits_id (dut: *mut VFPGATop) -> u64;
     pub fn peek_io_mmio_axi4_master_b_bits_resp (dut: *mut VFPGATop) -> u64;
     pub fn peek_io_mmio_axi4_master_ar_ready (dut: *mut VFPGATop) -> u64;
     pub fn poke_io_mmio_axi4_master_ar_valid (dut: *mut VFPGATop, io_mmio_axi4_master_ar_valid: u64);
-    pub fn poke_io_mmio_axi4_master_ar_bits_id (dut: *mut VFPGATop, io_mmio_axi4_master_ar_bits_id: u64);
     pub fn poke_io_mmio_axi4_master_ar_bits_len (dut: *mut VFPGATop, io_mmio_axi4_master_ar_bits_len: u64);
     pub fn poke_io_mmio_axi4_master_ar_bits_size (dut: *mut VFPGATop, io_mmio_axi4_master_ar_bits_size: u64);
     pub fn poke_io_mmio_axi4_master_ar_bits_burst (dut: *mut VFPGATop, io_mmio_axi4_master_ar_bits_burst: u64);
@@ -80,17 +77,20 @@ extern "C" {
     pub fn poke_io_mmio_axi4_master_ar_bits_qos (dut: *mut VFPGATop, io_mmio_axi4_master_ar_bits_qos: u64);
     pub fn poke_io_mmio_axi4_master_r_ready (dut: *mut VFPGATop, io_mmio_axi4_master_r_ready: u64);
     pub fn peek_io_mmio_axi4_master_r_valid (dut: *mut VFPGATop) -> u64;
-    pub fn peek_io_mmio_axi4_master_r_bits_id (dut: *mut VFPGATop) -> u64;
     pub fn peek_io_mmio_axi4_master_r_bits_resp (dut: *mut VFPGATop) -> u64;
     pub fn peek_io_mmio_axi4_master_r_bits_last (dut: *mut VFPGATop) -> u64;
+    pub fn poke_io_mmio_axi4_master_aw_bits_id (dut: *mut VFPGATop, io_mmio_axi4_master_aw_bits_id: u64);
+    pub fn peek_io_mmio_axi4_master_b_bits_id (dut: *mut VFPGATop) -> u64;
+    pub fn poke_io_mmio_axi4_master_ar_bits_id (dut: *mut VFPGATop, io_mmio_axi4_master_ar_bits_id: u64);
+    pub fn peek_io_mmio_axi4_master_r_bits_id (dut: *mut VFPGATop) -> u64;
     pub fn poke_io_dma_axi4_master_w_bits_data (dut: *mut VFPGATop, io_dma_axi4_master_w_bits_data: *const u32);
     pub fn peek_io_dma_axi4_master_r_bits_data (dut: *mut VFPGATop, io_dma_axi4_master_r_bits_data: *mut u32);
+    pub fn poke_io_mmio_axi4_master_aw_bits_addr (dut: *mut VFPGATop, io_mmio_axi4_master_aw_bits_addr: u64);
     pub fn poke_io_mmio_axi4_master_w_bits_data (dut: *mut VFPGATop, io_mmio_axi4_master_w_bits_data: u64);
+    pub fn poke_io_mmio_axi4_master_ar_bits_addr (dut: *mut VFPGATop, io_mmio_axi4_master_ar_bits_addr: u64);
     pub fn peek_io_mmio_axi4_master_r_bits_data (dut: *mut VFPGATop) -> u64;
     pub fn poke_io_dma_axi4_master_aw_bits_addr (dut: *mut VFPGATop, io_dma_axi4_master_aw_bits_addr: u64);
     pub fn poke_io_dma_axi4_master_w_bits_strb (dut: *mut VFPGATop, io_dma_axi4_master_w_bits_strb: u64);
     pub fn poke_io_dma_axi4_master_ar_bits_addr (dut: *mut VFPGATop, io_dma_axi4_master_ar_bits_addr: u64);
-    pub fn poke_io_mmio_axi4_master_aw_bits_addr (dut: *mut VFPGATop, io_mmio_axi4_master_aw_bits_addr: u64);
-    pub fn poke_io_mmio_axi4_master_ar_bits_addr (dut: *mut VFPGATop, io_mmio_axi4_master_ar_bits_addr: u64);
 } // extern "C"
 

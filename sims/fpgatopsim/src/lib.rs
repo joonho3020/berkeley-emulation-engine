@@ -201,6 +201,14 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
         let rdata = dma_read(&mut sim, 0x2000, data.len() as u32);
         assert!(data == rdata, "DMA read {:?} expect {:?}", rdata, data);
 
+
+        println!("Poke invalid memory address");
+        mmio_write(&mut sim, 0x1000, 0xdeadcafe);
+        mmio_read(&mut sim,  0x1000);
+
+        mmio_write(&mut sim, 0x2000, 0xdeadcafe);
+        mmio_read(&mut sim,  0x2000);
+
         println!("Start configuration register setup");
 
         let num_mods = fpga_top_cfg.emul.num_mods;
@@ -312,6 +320,9 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
                 .flat_map(|x| x.to_le_bytes())
                 .collect();
             ovec_ref.resize(io_stream_bytes as usize, 0);
+
+            println!("ovec: {:?}", ovec);
+            println!("ovec_ref: {:?}", ovec_ref);
 
             if ovec != ovec_ref {
                 println!("MISMATCH");
