@@ -184,7 +184,24 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
     bufferDepth_3 = 4,
     addressSpaceBits = 12))
 
-  stream_converter.io.axi <> io_dma_axi4_slave
+  stream_converter.io.axi.aw.valid := false.B
+  stream_converter.io.axi.aw.bits  := DontCare
+  stream_converter.io.axi. w.valid := false.B
+  stream_converter.io.axi. w.bits  := DontCare
+  stream_converter.io.axi.ar.valid := false.B
+  stream_converter.io.axi.ar.bits  := DontCare
+  stream_converter.io.axi.b.ready  := false.B
+  stream_converter.io.axi.r.ready  := false.B
+
+  io_dma_axi4_slave.aw.ready := false.B
+  io_dma_axi4_slave. w.ready := false.B
+  io_dma_axi4_slave.ar.ready := false.B
+  io_dma_axi4_slave.b.valid  := false.B
+  io_dma_axi4_slave.b.bits   := DontCare
+  io_dma_axi4_slave.r.valid  := false.B
+  io_dma_axi4_slave.r.bits   := DontCare
+
+  // stream_converter.io.axi <> io_dma_axi4_slave
 
   stream_converter.io.enq_2.valid := false.B
   stream_converter.io.enq_2.bits  := 0.U
