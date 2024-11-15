@@ -334,7 +334,7 @@ class NastiArbiter(val arbN: Int)(cfg: NastiParameters) extends Module {
 
 /** A slave that send decode error for every request it receives */
 class NastiErrorSlave(cfg: NastiParameters) extends Module {
-  val io = Flipped(new NastiIO(cfg))
+  val io = IO(Flipped(new NastiIO(cfg)))
 
   when (io.ar.fire) { printf("Invalid read address %x\n", io.ar.bits.addr) }
   when (io.aw.fire) { printf("Invalid write address %x\n", io.aw.bits.addr) }
@@ -394,7 +394,7 @@ class NastiRouterIO(nSlaves: Int)(val cfg: NastiParameters) extends Bundle {
 class NastiRouter(nSlaves: Int, routeSel: UInt => UInt)(cfg: NastiParameters)
     extends Module {
 
-  val io = new NastiRouterIO(nSlaves)(cfg)
+  val io = IO(new NastiRouterIO(nSlaves)(cfg))
 
   val ar_route = routeSel(io.master.ar.bits.addr)
   val aw_route = routeSel(io.master.aw.bits.addr)
@@ -414,7 +414,7 @@ class NastiRouter(nSlaves: Int, routeSel: UInt => UInt)(cfg: NastiParameters)
     UInt(log2Up(nSlaves + 1).W), cfg.nastiXIdBits,
     Some(queueSize)))
   // This queue holds the accepted aw_routes so that we know how to route the
-  val w_queue = Module(new Queue(aw_route, nSlaves))
+  val w_queue = Module(new Queue(aw_route.cloneType, nSlaves))
 
   val ar_helper = DecoupledHelper(
     io.master.ar.valid,
@@ -432,7 +432,7 @@ class NastiRouter(nSlaves: Int, routeSel: UInt => UInt)(cfg: NastiParameters)
     w_queue.io.deq.valid,
     w_ready)
 
-  def routeEncode(oh: UInt): UInt = Mux(oh.orR, OHToUInt(oh), UInt(nSlaves.W))
+  def routeEncode(oh: UInt): UInt = Mux(oh.orR, OHToUInt(oh), nSlaves.U)
 
   ar_queue.io.enq.valid := ar_helper.fire(ar_queue.io.enq.ready)
   ar_queue.io.enq.bits.tag := io.master.ar.bits.id
@@ -519,10 +519,10 @@ class NastiRouter(nSlaves: Int, routeSel: UInt => UInt)(cfg: NastiParameters)
 class NastiCrossbar(nMasters: Int, nSlaves: Int,
                     routeSel: UInt => UInt)
                    (cfg: NastiParameters) extends Module {
-  val io = new Bundle {
+  val io = IO(new Bundle {
     val masters = Flipped(Vec(nMasters, new NastiIO(cfg)))
     val slaves = Vec(nSlaves, new NastiIO(cfg))
-  }
+  })
 
   if (nMasters == 1) {
     val router = Module(new NastiRouter(nSlaves, routeSel)(cfg))

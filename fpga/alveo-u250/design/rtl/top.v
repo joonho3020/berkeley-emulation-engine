@@ -198,9 +198,6 @@ proc_sys_reset_0 reset_synchronizer (
 );
 
 
-
-
-
 wire [3 : 0] io_dma_axi4_master_awid;
 wire [63 : 0] io_dma_axi4_master_awaddr;
 wire [7 : 0] io_dma_axi4_master_awlen;

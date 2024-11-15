@@ -54,17 +54,34 @@ class StreamWidthAdapter(narrowW: Int, wideW: Int) extends Module {
   }
 }
 
+// TODO: CLeanup...
 class AXI4DecoupledConverter(
   axiParams: AXI4BundleParameters,
-  widthBits: Int,
-  bufferDepth: Int
+  widthBits_1: Int,
+  bufferDepth_1: Int,
+  widthBits_2: Int,
+  bufferDepth_2: Int,
+  widthBits_3: Int,
+  bufferDepth_3: Int,
+  addressSpaceBits: Int
 ) extends Module {
   val io = IO(new Bundle {
     val axi = Flipped(AXI4Bundle(axiParams))
-    val deq = Decoupled(UInt(widthBits.W))
-    val deq_cnt = Output(UInt(log2Ceil(bufferDepth + 1).W))
-    val enq = Flipped(Decoupled(UInt(widthBits.W)))
-    val enq_cnt = Output(UInt(log2Ceil(bufferDepth + 1).W))
+
+    val deq_1 = Decoupled(UInt(widthBits_1.W))
+    val deq_cnt_1 = Output(UInt(log2Ceil(bufferDepth_1 + 1).W))
+    val enq_1 = Flipped(Decoupled(UInt(widthBits_1.W)))
+    val enq_cnt_1 = Output(UInt(log2Ceil(bufferDepth_1 + 1).W))
+
+    val deq_2 = Decoupled(UInt(widthBits_2.W))
+    val deq_cnt_2 = Output(UInt(log2Ceil(bufferDepth_2 + 1).W))
+    val enq_2 = Flipped(Decoupled(UInt(widthBits_2.W)))
+    val enq_cnt_2 = Output(UInt(log2Ceil(bufferDepth_2 + 1).W))
+
+    val deq_3 = Decoupled(UInt(widthBits_3.W))
+    val deq_cnt_3 = Output(UInt(log2Ceil(bufferDepth_3 + 1).W))
+    val enq_3 = Flipped(Decoupled(UInt(widthBits_3.W)))
+    val enq_cnt_3 = Output(UInt(log2Ceil(bufferDepth_3 + 1).W))
   })
 
   val axiBeatBytes = axiParams.dataBits / 8
@@ -82,40 +99,50 @@ class AXI4DecoupledConverter(
   io.axi.aw.ready    := false.B
   io.axi.w.ready     := false.B
 
-  val serdes_deq = Module(new StreamWidthAdapter(axiParams.dataBits, widthBits))
 
-  serdes_deq.io.wide.in.bits     := 0.U
-  serdes_deq.io.wide.in.valid    := false.B
-  serdes_deq.io.narrow.out.ready := false.B
+  def connect_axiw(deq: DecoupledIO[UInt], deq_cnt: UInt, widthBits: Int, bufferDepth: Int, idx: Int) = {
+    val serdes_deq = Module(new StreamWidthAdapter(axiParams.dataBits, widthBits))
+    serdes_deq.io.wide.in.bits     := 0.U
+    serdes_deq.io.wide.in.valid    := false.B
+    serdes_deq.io.narrow.out.ready := false.B
 
-  val incomingQueueIO = Module(new Queue(UInt(widthBits.W), bufferDepth)).io
+    val incomingQueueIO = Module(new Queue(UInt(widthBits.W), bufferDepth)).io
+    deq <> incomingQueueIO.deq
+    incomingQueueIO.enq <> serdes_deq.io.wide.out
 
-  io.deq <> incomingQueueIO.deq
-  incomingQueueIO.enq <> serdes_deq.io.wide.out
+    // check to see if axi4 is ready to accept data instead of forcing writes
+    deq_cnt := incomingQueueIO.count
 
-  // check to see if axi4 is ready to accept data instead of forcing writes
-  io.deq_cnt := incomingQueueIO.count
+    val grant = (io.axi.aw.bits.addr >> addressSpaceBits) === idx.U
 
-  val writeHelper = DecoupledHelper(
-    io.axi.aw.valid,
-    io.axi.w.valid,
-    io.axi.b.ready,
-    serdes_deq.io.narrow.in.ready,
-  )
+    val writeHelper = DecoupledHelper(
+      io.axi.aw.valid,
+      io.axi.w.valid,
+      io.axi.b.ready,
+      serdes_deq.io.narrow.in.ready,
+      grant
+    )
 
-  // TODO: Get rid of this magic number.
-  val writeBeatCounter = RegInit(0.U(9.W))
-  val lastWriteBeat    = writeBeatCounter === io.axi.aw.bits.len
-  when(io.axi.w.fire) {
-    writeBeatCounter := Mux(lastWriteBeat, 0.U, writeBeatCounter + 1.U)
+    // TODO: Get rid of this magic number.
+    val writeBeatCounter = RegInit(0.U(9.W))
+    val lastWriteBeat    = writeBeatCounter === io.axi.aw.bits.len
+    when(io.axi.w.fire && grant) {
+      writeBeatCounter := Mux(lastWriteBeat, 0.U, writeBeatCounter + 1.U)
+    }
+
+    when (grant) {
+      io.axi.w.ready  := writeHelper.fire(io.axi.w.valid)
+      io.axi.aw.ready := writeHelper.fire(io.axi.aw.valid, lastWriteBeat)
+      io.axi.b.valid  := writeHelper.fire(io.axi.b.ready, lastWriteBeat)
+    }
+
+    serdes_deq.io.narrow.in.valid := writeHelper.fire(serdes_deq.io.narrow.in.ready, grant)
+    serdes_deq.io.narrow.in.bits  := io.axi.w.bits.data
   }
 
-  io.axi.w.ready  := writeHelper.fire(io.axi.w.valid)
-  io.axi.aw.ready := writeHelper.fire(io.axi.aw.valid, lastWriteBeat)
-  io.axi.b.valid  := writeHelper.fire(io.axi.b.ready, lastWriteBeat)
-
-  serdes_deq.io.narrow.in.valid := writeHelper.fire(serdes_deq.io.narrow.in.ready)
-  serdes_deq.io.narrow.in.bits  := io.axi.w.bits.data
+  connect_axiw(io.deq_1, io.deq_cnt_1, widthBits_1, bufferDepth_1, 0)
+  connect_axiw(io.deq_2, io.deq_cnt_2, widthBits_2, bufferDepth_2, 1)
+  connect_axiw(io.deq_3, io.deq_cnt_2, widthBits_2, bufferDepth_2, 2)
 
   /////////////////////////////////////////////////////////////////////////////
 
@@ -126,36 +153,46 @@ class AXI4DecoupledConverter(
   io.axi.r.valid     := false.B
   io.axi.ar.ready    := false.B
 
-  val serdes_enq = Module(new StreamWidthAdapter(axiParams.dataBits, widthBits))
-  // unused
-  serdes_enq.io.narrow.in.bits  := 0.U
-  serdes_enq.io.narrow.in.valid := false.B
-  serdes_enq.io.wide.out.ready  := false.B
+  def connect_axir(enq: DecoupledIO[UInt], enq_cnt: UInt, widthBits: Int, bufferDepth: Int, idx: Int) = {
+    val serdes_enq = Module(new StreamWidthAdapter(axiParams.dataBits, widthBits))
+    // unused
+    serdes_enq.io.narrow.in.bits  := 0.U
+    serdes_enq.io.narrow.in.valid := false.B
+    serdes_enq.io.wide.out.ready  := false.B
 
-  val outgoingQueueIO = Module(new Queue(UInt(widthBits.W), bufferDepth)).io
+    val outgoingQueueIO = Module(new Queue(UInt(widthBits.W), bufferDepth)).io
 
-  outgoingQueueIO.enq <> io.enq
-  serdes_enq.io.wide.in <> outgoingQueueIO.deq
+    outgoingQueueIO.enq <> enq
+    serdes_enq.io.wide.in <> outgoingQueueIO.deq
 
-  // check to see if io.axi has valid output instead of waiting for timeouts
-  io.enq_cnt := outgoingQueueIO.count
+    // check to see if io.axi has valid output instead of waiting for timeouts
+    enq_cnt := outgoingQueueIO.count
 
-  val readHelper = DecoupledHelper(
-    io.axi.ar.valid,
-    io.axi.r.ready,
-    serdes_enq.io.narrow.out.valid,
-  )
+    val grant = (io.axi.ar.bits.addr >> addressSpaceBits) === idx.U
 
-  val readBeatCounter = RegInit(0.U(9.W))
-  val lastReadBeat    = readBeatCounter === io.axi.ar.bits.len
-  when(io.axi.r.fire) {
-    readBeatCounter := Mux(lastReadBeat, 0.U, readBeatCounter + 1.U)
+    val readHelper = DecoupledHelper(
+      io.axi.ar.valid,
+      io.axi.r.ready,
+      serdes_enq.io.narrow.out.valid,
+    )
+
+    val readBeatCounter = RegInit(0.U(9.W))
+    val lastReadBeat    = readBeatCounter === io.axi.ar.bits.len
+    when(io.axi.r.fire && grant) {
+      readBeatCounter := Mux(lastReadBeat, 0.U, readBeatCounter + 1.U)
+    }
+
+    serdes_enq.io.narrow.out.ready := readHelper.fire(serdes_enq.io.narrow.out.valid, grant)
+
+    when (grant) {
+      io.axi.r.valid     := readHelper.fire(io.axi.r.ready)
+      io.axi.r.bits.data := serdes_enq.io.narrow.out.bits
+      io.axi.r.bits.last := lastReadBeat
+      io.axi.ar.ready    := readHelper.fire(io.axi.ar.valid, lastReadBeat)
+    }
   }
 
-  serdes_enq.io.narrow.out.ready := readHelper.fire(serdes_enq.io.narrow.out.valid)
-
-  io.axi.r.valid     := readHelper.fire(io.axi.r.ready)
-  io.axi.r.bits.data := serdes_enq.io.narrow.out.bits
-  io.axi.r.bits.last := lastReadBeat
-  io.axi.ar.ready    := readHelper.fire(io.axi.ar.valid, lastReadBeat)
+  connect_axir(io.enq_1, io.enq_cnt_1, widthBits_1, bufferDepth_1, 0)
+  connect_axir(io.enq_2, io.enq_cnt_2, widthBits_2, bufferDepth_2, 1)
+  connect_axir(io.enq_3, io.enq_cnt_3, widthBits_3, bufferDepth_3, 2)
 }

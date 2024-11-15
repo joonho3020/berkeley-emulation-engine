@@ -22,10 +22,10 @@ class ReorderDequeueIO[T <: Data](dType: T, tagWidth: Int) extends Bundle {
 class ReorderQueue[T <: Data](dType: T, tagWidth: Int,
     size: Option[Int] = None, nDeq: Int = 1)
     extends Module {
-  val io = new Bundle {
+  val io = IO(new Bundle {
     val enq = Flipped(new ReorderEnqueueIO(dType, tagWidth))
     val deq = Vec(nDeq, new ReorderDequeueIO(dType, tagWidth))
-  }
+  })
 
   val tagSpaceSize = 1 << tagWidth
   val actualSize = size.getOrElse(tagSpaceSize)

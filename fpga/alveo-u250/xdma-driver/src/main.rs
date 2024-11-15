@@ -37,8 +37,8 @@ fn main() -> Result<(), XDMAError> {
     let num_mods = 9;
     let fingerprint_addr = (3 * num_mods + 6) * 4;
     println!("reading from fingerprint addr: {:x}", simif.read(fingerprint_addr)?);
-    simif.write(fingerprint_addr, 0xdeadcafe)?;
-    println!("reading from fingerprint addr: {:x}", simif.read(fingerprint_addr)?);
+// simif.write(fingerprint_addr, 0xdeadcafe)?;
+// println!("reading from fingerprint addr: {:x}", simif.read(fingerprint_addr)?);
 
 // for i in 0..64 {
 // let addr = i * 4;
