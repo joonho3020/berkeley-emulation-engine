@@ -146,8 +146,8 @@ class FPGATop(implicit p: Parameters) extends LazyModule {
         resources     = (new MemoryDevice).reg,
         regionType    = RegionType.UNCACHED,
         executable    = false,
-        supportsWrite = TransferSizes(cfg.axil.dataBits / 8, cfg.axil.dataBits / 8),
-        supportsRead  = TransferSizes(cfg.axil.dataBits / 8, cfg.axil.dataBits / 8),
+        supportsWrite = TransferSizes(cfg.axil.dataBits / 8, 4096),
+        supportsRead  = TransferSizes(cfg.axil.dataBits / 8, 4096),
         interleavedId = Some(0))),
       beatBytes = cfg.axi.dataBits / 8)))
 
