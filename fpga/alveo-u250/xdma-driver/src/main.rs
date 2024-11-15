@@ -34,19 +34,19 @@ fn main() -> Result<(), XDMAError> {
         args.func,
     )?;
 
-    let num_mods = 9;
-    let fingerprint_addr = (3 * num_mods + 6) * 4;
-    println!("reading from fingerprint addr: {:x}", simif.read(fingerprint_addr)?);
+// let num_mods = 9;
+// let fingerprint_addr = (3 * num_mods + 6) * 4;
+// println!("reading from fingerprint addr: {:x}", simif.read(fingerprint_addr)?);
 // simif.write(fingerprint_addr, 0xdeadcafe)?;
 // println!("reading from fingerprint addr: {:x}", simif.read(fingerprint_addr)?);
 
-// for i in 0..64 {
-// let addr = i * 4;
-// simif.write(addr, 0xbabebabe)?;
-// simif.write(addr, 0xcafecafe)?;
-// simif.write(addr, 0xdeaddead)?;
-// println!("read from {:x}: {:x}", addr, simif.read(addr)?);
-// }
+    for i in 0..64 {
+        let addr = i * 4;
+        simif.write(addr, 0xbabebabe)?;
+        simif.write(addr, 0xcafecafe)?;
+        simif.write(addr, 0xdeaddead)?;
+        println!("read from {:x}: {:x}", addr, simif.read(addr)?);
+    }
 
 // for i in 0..16 {
 // let addr = i * 4096;
@@ -62,6 +62,22 @@ fn main() -> Result<(), XDMAError> {
 // }
 // }
 
+
+    let addr =  0x0000;
+    let dma_bytes = 64;
+    let pattern: Vec<u8> = vec![0xd, 0xe, 0xa, 0xd, 0xc, 0xa, 0xf, 0xe];
+    let mut data: Vec<u8> = vec![];
+    data.extend(pattern.iter().cycle().take(dma_bytes as usize));
+// simif.push(addr, &data)?;
+
+    let rbuf = simif.pull(addr, dma_bytes)?;
+    if data != rbuf {
+        println!("dma mismatch :(");
+        println!("wbuf: {:?}", data);
+        println!("rbuf: {:?}", rbuf);
+    } else {
+        println!("dma match :)");
+    }
 
     return Ok(());
 }

@@ -175,12 +175,12 @@ wire fpga_top_resetn;
 clk_wiz_0 clk_wizard
 (
   // Clock out ports
-  .clk_out1(fpga_top_clock),     // output clk_out1
-    // Status and control signals
-    .reset(!axi_aresetn), // input reset
-      // Clock in ports
-      .clk_in1(axi_aclk)      // input clk_in1
-      );
+  .clk_out1(fpga_top_clock),
+  // Status and control signals
+  .reset(!axi_aresetn),
+  // Clock in ports
+  .clk_in1(axi_aclk)
+);
 
 
 // https://docs.amd.com/v/u/en-US/pg164-proc-sys-reset
@@ -417,8 +417,8 @@ axi_lite_cdc axi4_lite_master_cdc (
 );
 
 axi_lite_bram_ctrl_0_32 axi_lite_bram_ctrl_0_32 (
-  .s_axi_aclk(axi_aclk),            // input wire s_axi_aclk
-  .s_axi_aresetn(axi_aresetn),      // input wire s_axi_aresetn
+  .s_axi_aclk(fpga_top_clock),            // input wire s_axi_aclk
+  .s_axi_aresetn(fpga_top_resetn),      // input wire s_axi_aresetn
   .s_axi_awaddr(io_mmio_axi4_master_awaddr),     // input wire [14 : 0] s_axi_awaddr
   .s_axi_awprot(3'h0),     // input wire [2 : 0] s_axi_awprot
   .s_axi_awvalid(io_mmio_axi4_master_awvalid),   // input wire s_axi_awvalid
