@@ -188,7 +188,7 @@ proc_sys_reset_0 reset_synchronizer (
   .slowest_sync_clk(fpga_top_clock),          // input wire slowest_sync_clk
   .ext_reset_in(!axi_aresetn),                  // input wire ext_reset_in
   .aux_reset_in(1'b0),                  // input wire aux_reset_in
-  .mb_debug_sys_rst(1'b1),          // input wire mb_debug_sys_rst
+  .mb_debug_sys_rst(1'b0),          // input wire mb_debug_sys_rst
   .dcm_locked(1'b1),                      // input wire dcm_locked
   .mb_reset(),                          // output wire mb_reset
   .bus_struct_reset(),          // output wire [0 : 0] bus_struct_reset
@@ -345,6 +345,7 @@ wire [31:0] bram_rddata_b_0;
 wire [31 : 0] io_mmio_axi4_master_awaddr;
 wire io_mmio_axi4_master_awvalid;
 wire io_mmio_axi4_master_awready;
+wire [2:0] io_mmio_axi4_master_awprot;
 
 wire [31 : 0] io_mmio_axi4_master_wdata;
 wire [3 : 0] io_mmio_axi4_master_wstrb;
@@ -358,6 +359,7 @@ wire io_mmio_axi4_master_bready;
 wire [31 : 0] io_mmio_axi4_master_araddr;
 wire io_mmio_axi4_master_arvalid;
 wire io_mmio_axi4_master_arready;
+wire [2:0] io_mmio_axi4_master_arprot;
 
 wire [31 : 0] io_mmio_axi4_master_rdata;
 wire [1 : 0] io_mmio_axi4_master_rresp;
@@ -392,7 +394,7 @@ axi_lite_cdc axi4_lite_master_cdc (
   .m_axi_aresetn(fpga_top_resetn),  // input wire m_axi_aresetn
 
   .m_axi_awaddr(io_mmio_axi4_master_awaddr),    // output wire [31 : 0] m_axi_awaddr
-  .m_axi_awprot(),                              // output wire [2 : 0] m_axi_awprot
+  .m_axi_awprot(io_mmio_axi4_master_awprot),    // output wire [2 : 0] m_axi_awprot
   .m_axi_awvalid(io_mmio_axi4_master_awvalid),  // output wire m_axi_awvalid
   .m_axi_awready(io_mmio_axi4_master_awready),  // input wire m_axi_awready
 
@@ -406,7 +408,7 @@ axi_lite_cdc axi4_lite_master_cdc (
   .m_axi_bready(io_mmio_axi4_master_bready),    // output wire m_axi_bready
 
   .m_axi_araddr(io_mmio_axi4_master_araddr),    // output wire [31 : 0] m_axi_araddr
-  .m_axi_arprot(),    // output wire [2 : 0] m_axi_arprot
+  .m_axi_arprot(io_mmio_axi4_master_arprot),    // output wire [2 : 0] m_axi_arprot
   .m_axi_arvalid(io_mmio_axi4_master_arvalid),  // output wire m_axi_arvalid
   .m_axi_arready(io_mmio_axi4_master_arready),  // input wire m_axi_arready
 
@@ -420,7 +422,7 @@ axi_lite_bram_ctrl_0_32 axi_lite_bram_ctrl_0_32 (
   .s_axi_aclk(fpga_top_clock),            // input wire s_axi_aclk
   .s_axi_aresetn(fpga_top_resetn),      // input wire s_axi_aresetn
   .s_axi_awaddr(io_mmio_axi4_master_awaddr),     // input wire [14 : 0] s_axi_awaddr
-  .s_axi_awprot(3'h0),     // input wire [2 : 0] s_axi_awprot
+  .s_axi_awprot(io_mmio_axi4_master_awprot),     // input wire [2 : 0] s_axi_awprot
   .s_axi_awvalid(io_mmio_axi4_master_awvalid),   // input wire s_axi_awvalid
   .s_axi_awready(io_mmio_axi4_master_awready),   // output wire s_axi_awready
   .s_axi_wdata(io_mmio_axi4_master_wdata),       // input wire [31 : 0] s_axi_wdata
@@ -431,7 +433,7 @@ axi_lite_bram_ctrl_0_32 axi_lite_bram_ctrl_0_32 (
   .s_axi_bvalid(io_mmio_axi4_master_bvalid),     // output wire s_axi_bvalid
   .s_axi_bready(io_mmio_axi4_master_bready),     // input wire s_axi_bready
   .s_axi_araddr(io_mmio_axi4_master_araddr),     // input wire [14 : 0] s_axi_araddr
-  .s_axi_arprot(3'h0),     // input wire [2 : 0] s_axi_arprot
+  .s_axi_arprot(io_mmio_axi4_master_arprot),     // input wire [2 : 0] s_axi_arprot
   .s_axi_arvalid(io_mmio_axi4_master_arvalid),   // input wire s_axi_arvalid
   .s_axi_arready(io_mmio_axi4_master_arready),   // output wire s_axi_arready
   .s_axi_rdata(io_mmio_axi4_master_rdata),       // output wire [31 : 0] s_axi_rdata
