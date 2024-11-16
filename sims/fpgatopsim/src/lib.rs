@@ -173,7 +173,7 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
 
         println!("Testing MMIO fingerprint");
 
-        let fgpr_addr = (3 * fpga_top_cfg.emul.num_mods + 6) * 4;
+        let fgpr_addr = (3 * fpga_top_cfg.emul.num_mods + 1) * 4;
         let fgr_init = mmio_read(&mut sim, fgpr_addr);
         assert!(fgr_init == 0,
             "mmio fingerprint mismatch, expect {} got {}",
@@ -259,7 +259,7 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
         inst_bar.finish();
 
         // Wait until initialization is finished
-        while mmio_read(&mut sim, (3 * num_mods + 1) * 4)  == 0 {
+        while mmio_read(&mut sim, (3 * num_mods + 2) * 4)  == 0 {
             sim.step();
         }
 

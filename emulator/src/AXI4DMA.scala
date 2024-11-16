@@ -54,34 +54,34 @@ class StreamWidthAdapter(narrowW: Int, wideW: Int) extends Module {
   }
 }
 
+case class StreamParam(
+  widthBits: Int,
+  bufferDepth: Int
+)
+
+class Stream(val sp: StreamParam, val axiDataBits: Int) extends Bundle {
+  val widthBytes   = axiDataBits / 8
+  val maxBytes     = sp.bufferDepth * widthBytes
+  val capacityBits = log2Ceil(maxBytes + 1)
+
+  val enq = Flipped(Decoupled(UInt(sp.widthBits.W)))
+  val filled_bytes = UInt(capacityBits.W)
+  val deq = Decoupled(UInt(sp.widthBits.W))
+  val empty_bytes = UInt(capacityBits.W)
+}
+
 // TODO: CLeanup...
 class AXI4DecoupledConverter(
   axiParams: AXI4BundleParameters,
-  widthBits_1: Int,
-  bufferDepth_1: Int,
-  widthBits_2: Int,
-  bufferDepth_2: Int,
-  widthBits_3: Int,
-  bufferDepth_3: Int,
+  streamParams: Seq[StreamParam],
   addressSpaceBits: Int
 ) extends Module {
+
+  val num_stream = streamParams.length
+
   val io = IO(new Bundle {
     val axi = Flipped(AXI4Bundle(axiParams))
-
-    val deq_1 = Decoupled(UInt(widthBits_1.W))
-    val deq_cnt_1 = Output(UInt(log2Ceil(bufferDepth_1 + 1).W))
-    val enq_1 = Flipped(Decoupled(UInt(widthBits_1.W)))
-    val enq_cnt_1 = Output(UInt(log2Ceil(bufferDepth_1 + 1).W))
-
-    val deq_2 = Decoupled(UInt(widthBits_2.W))
-    val deq_cnt_2 = Output(UInt(log2Ceil(bufferDepth_2 + 1).W))
-    val enq_2 = Flipped(Decoupled(UInt(widthBits_2.W)))
-    val enq_cnt_2 = Output(UInt(log2Ceil(bufferDepth_2 + 1).W))
-
-    val deq_3 = Decoupled(UInt(widthBits_3.W))
-    val deq_cnt_3 = Output(UInt(log2Ceil(bufferDepth_3 + 1).W))
-    val enq_3 = Flipped(Decoupled(UInt(widthBits_3.W)))
-    val enq_cnt_3 = Output(UInt(log2Ceil(bufferDepth_3 + 1).W))
+    val streams = MixedVec(streamParams.map(new Stream(_, axiParams.dataBits)))
   })
 
   val axiBeatBytes = axiParams.dataBits / 8
@@ -94,32 +94,36 @@ class AXI4DecoupledConverter(
   io.axi.b.bits.resp := 0.U(2.W)
   io.axi.b.bits.id   := io.axi.aw.bits.id
   io.axi.b.bits.user := io.axi.aw.bits.user
+
   // This will be set by the channel given the grant using last connect semantics
   io.axi.b.valid     := false.B
   io.axi.aw.ready    := false.B
   io.axi.w.ready     := false.B
 
-
-  def connect_axiw(deq: DecoupledIO[UInt], deq_cnt: UInt, widthBits: Int, bufferDepth: Int, idx: Int) = {
-    val serdes_deq = Module(new StreamWidthAdapter(axiParams.dataBits, widthBits))
+  def connect_axiw(
+    deq: DecoupledIO[UInt],
+    empty_bytes: UInt,
+    sp: StreamParam,
+    idx: Int
+  ) = {
+    val serdes_deq = Module(new StreamWidthAdapter(axiParams.dataBits, sp.widthBits))
     serdes_deq.io.wide.in.bits     := 0.U
     serdes_deq.io.wide.in.valid    := false.B
     serdes_deq.io.narrow.out.ready := false.B
 
-    val incomingQueueIO = Module(new Queue(UInt(widthBits.W), bufferDepth)).io
+    val incomingQueueIO = Module(new Queue(UInt(sp.widthBits.W), 4)).io
     deq <> incomingQueueIO.deq
     incomingQueueIO.enq <> serdes_deq.io.wide.out
 
-    // check to see if axi4 is ready to accept data instead of forcing writes
-    deq_cnt := incomingQueueIO.count
-
     val grant = (io.axi.aw.bits.addr >> addressSpaceBits) === idx.U
+
+    val axiWriteDataQueueIO = Module(new Queue(UInt(axiParams.dataBits.W), sp.bufferDepth)).io
 
     val writeHelper = DecoupledHelper(
       io.axi.aw.valid,
       io.axi.w.valid,
       io.axi.b.ready,
-      serdes_deq.io.narrow.in.ready,
+      axiWriteDataQueueIO.enq.ready,
       grant
     )
 
@@ -135,14 +139,18 @@ class AXI4DecoupledConverter(
       io.axi.aw.ready := writeHelper.fire(io.axi.aw.valid, lastWriteBeat)
       io.axi.b.valid  := writeHelper.fire(io.axi.b.ready, lastWriteBeat)
     }
+    serdes_deq.io.narrow.in <> axiWriteDataQueueIO.deq
 
-    serdes_deq.io.narrow.in.valid := writeHelper.fire(serdes_deq.io.narrow.in.ready, grant)
-    serdes_deq.io.narrow.in.bits  := io.axi.w.bits.data
+    axiWriteDataQueueIO.enq.valid := writeHelper.fire(axiWriteDataQueueIO.enq.ready, grant)
+    axiWriteDataQueueIO.enq.bits := io.axi.w.bits.data
+
+    // check to see if axi4 is ready to accept data instead of forcing writes
+    empty_bytes := (sp.bufferDepth.U - axiWriteDataQueueIO.count) * axiBeatBytes.U
   }
 
-  connect_axiw(io.deq_1, io.deq_cnt_1, widthBits_1, bufferDepth_1, 0)
-  connect_axiw(io.deq_2, io.deq_cnt_2, widthBits_2, bufferDepth_2, 1)
-  connect_axiw(io.deq_3, io.deq_cnt_3, widthBits_3, bufferDepth_3, 2)
+  io.streams.zipWithIndex.foreach({ case (s, i) => {
+    connect_axiw(s.deq, s.empty_bytes, s.sp, i)
+  }})
 
   /////////////////////////////////////////////////////////////////////////////
 
@@ -155,27 +163,31 @@ class AXI4DecoupledConverter(
   io.axi.r.bits.data := DontCare
   io.axi.r.bits.last := DontCare
 
-  def connect_axir(enq: DecoupledIO[UInt], enq_cnt: UInt, widthBits: Int, bufferDepth: Int, idx: Int) = {
-    val serdes_enq = Module(new StreamWidthAdapter(axiParams.dataBits, widthBits))
+  def connect_axir(
+    enq: DecoupledIO[UInt],
+    filled_bytes: UInt,
+    sp: StreamParam,
+    idx: Int
+  ) = {
+    val serdes_enq = Module(new StreamWidthAdapter(axiParams.dataBits, sp.widthBits))
     // unused
     serdes_enq.io.narrow.in.bits  := 0.U
     serdes_enq.io.narrow.in.valid := false.B
     serdes_enq.io.wide.out.ready  := false.B
 
-    val outgoingQueueIO = Module(new Queue(UInt(widthBits.W), bufferDepth)).io
+    val outgoingQueueIO = Module(new Queue(UInt(sp.widthBits.W), 4)).io
 
     outgoingQueueIO.enq <> enq
     serdes_enq.io.wide.in <> outgoingQueueIO.deq
 
-    // check to see if io.axi has valid output instead of waiting for timeouts
-    enq_cnt := outgoingQueueIO.count
-
     val grant = (io.axi.ar.bits.addr >> addressSpaceBits) === idx.U
+
+    val axiReadDataQueueIO = Module(new Queue(UInt(axiParams.dataBits.W), sp.bufferDepth)).io
 
     val readHelper = DecoupledHelper(
       io.axi.ar.valid,
       io.axi.r.ready,
-      serdes_enq.io.narrow.out.valid,
+      axiReadDataQueueIO.deq.valid,
     )
 
     val readBeatCounter = RegInit(0.U(9.W))
@@ -184,17 +196,21 @@ class AXI4DecoupledConverter(
       readBeatCounter := Mux(lastReadBeat, 0.U, readBeatCounter + 1.U)
     }
 
-    serdes_enq.io.narrow.out.ready := readHelper.fire(serdes_enq.io.narrow.out.valid, grant)
+    axiReadDataQueueIO.enq <> serdes_enq.io.narrow.out
+    axiReadDataQueueIO.deq.ready := readHelper.fire(axiReadDataQueueIO.deq.valid, grant)
 
     when (grant) {
       io.axi.r.valid     := readHelper.fire(io.axi.r.ready)
-      io.axi.r.bits.data := serdes_enq.io.narrow.out.bits
+      io.axi.r.bits.data := axiReadDataQueueIO.deq.bits
       io.axi.r.bits.last := lastReadBeat
       io.axi.ar.ready    := readHelper.fire(io.axi.ar.valid, lastReadBeat)
     }
+
+    // check to see if io.axi has valid output instead of waiting for timeouts
+    filled_bytes := axiReadDataQueueIO.count * axiBeatBytes.U
   }
 
-  connect_axir(io.enq_1, io.enq_cnt_1, widthBits_1, bufferDepth_1, 0)
-  connect_axir(io.enq_2, io.enq_cnt_2, widthBits_2, bufferDepth_2, 1)
-  connect_axir(io.enq_3, io.enq_cnt_3, widthBits_3, bufferDepth_3, 2)
+  io.streams.zipWithIndex.foreach({ case (s, i) => {
+    connect_axir(s.enq, s.filled_bytes, s.sp, i)
+  }})
 }

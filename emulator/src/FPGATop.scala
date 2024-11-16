@@ -127,38 +127,20 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
   println(s"io_stream_width: ${io_stream_width}")
   println(s"total_procs: ${total_procs}")
 
+  // TODO : Change streamParams to Map for better indexing?
   val stream_converter = Module(new AXI4DecoupledConverter(
     axiParams = cfg.axi.axi4BundleParams,
-    widthBits_1   = io_stream_width,
-    bufferDepth_1 = 4,
-    widthBits_2   = cfg.axi.axi4BundleParams.dataBits,
-    bufferDepth_2 = 128,
-    widthBits_3   = io_stream_width,
-    bufferDepth_3 = 4,
+    streamParams = Seq(
+      StreamParam(io_stream_width, io_stream_width / dataBits * 2),
+      StreamParam(cfg.axi.axi4BundleParams.dataBits, 128),
+      StreamParam(io_stream_width, io_stream_width / dataBits * 2)),
     addressSpaceBits = 12))
-
-// stream_converter.io.axi.aw.valid := false.B
-// stream_converter.io.axi.aw.bits  := DontCare
-// stream_converter.io.axi. w.valid := false.B
-// stream_converter.io.axi. w.bits  := DontCare
-// stream_converter.io.axi.ar.valid := false.B
-// stream_converter.io.axi.ar.bits  := DontCare
-// stream_converter.io.axi.b.ready  := false.B
-// stream_converter.io.axi.r.ready  := false.B
-
-// io_dma_axi4_slave.aw.ready := false.B
-// io_dma_axi4_slave. w.ready := false.B
-// io_dma_axi4_slave.ar.ready := false.B
-// io_dma_axi4_slave.b.valid  := false.B
-// io_dma_axi4_slave.b.bits   := DontCare
-// io_dma_axi4_slave.r.valid  := false.B
-// io_dma_axi4_slave.r.bits   := DontCare
 
   stream_converter.io.axi <> io_dma_axi4_slave
 
-  stream_converter.io.enq_2.valid := false.B
-  stream_converter.io.enq_2.bits  := 0.U
-  stream_converter.io.deq_2.ready := false.B
+  stream_converter.io.streams(1).enq.valid := false.B
+  stream_converter.io.streams(1).enq.bits  := 0.U
+  stream_converter.io.streams(1).deq.ready := false.B
 
   ////////////////////////////////////////////////////////////////////////////
   // MMIO
@@ -171,15 +153,12 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
   val mmio_axi4_slave = Wire(AXI4Bundle(cfg.axil.axi4BundleParams))
   mmio_axi4_slave <> outer.axiMMIOSlaveNode.in.head._1
 
-  // Write Only Register mapping
-  // - used_procs (0~num_mods-1)
-  // - single_port_ram (0~num_mods-1)
-  // - wmask_bits (0~num_mods-1)
-  // - width_bits (0~num_mods-1)
-  // - host_steps
-  val num_regs = 3 * cfg.emul.num_mods + 8
+  val axil_addr_range = 1 << cfg.axil.axi4BundleParams.addrBits
+  val axil_data_byts  = cfg.axil.axi4BundleParams.dataBits / 8
 
-  val mmio = Module(new AXI4MMIOModule(num_regs, cfg.axil.axi4BundleParams))
+  val max_mmio_regs = 3 * cfg.emul.num_mods + 11
+
+  val mmio = Module(new AXI4MMIOModule(max_mmio_regs, cfg.axil.axi4BundleParams))
   AXI4MMIOModule.tieoff(mmio)
   dontTouch(mmio.io.axi)
 
@@ -188,28 +167,28 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
   val num_mods_log2 = log2Ceil(cfg.emul.num_mods + 1)
 
   val single_port_ram = Seq.fill(cfg.emul.num_mods)(RegInit(0.U(num_mods_log2.W)))
-  AXI4MMIOModule.bind_writeonly_reg_array(single_port_ram, mmio, 0)
+  AXI4MMIOModule.bind_readwrite_reg_array(single_port_ram, mmio)
 
   val wmask_bits = Seq.fill(cfg.emul.num_mods)(RegInit(0.U(num_mods_log2.W)))
-  AXI4MMIOModule.bind_writeonly_reg_array(wmask_bits, mmio, 1 * cfg.emul.num_mods)
+  AXI4MMIOModule.bind_readwrite_reg_array(wmask_bits, mmio)
 
   val width_bits = Seq.fill(cfg.emul.num_mods)(RegInit(0.U(num_mods_log2.W)))
-  AXI4MMIOModule.bind_writeonly_reg_array(width_bits, mmio,  2 * cfg.emul.num_mods)
+  AXI4MMIOModule.bind_readwrite_reg_array(width_bits, mmio)
 
   val host_steps = RegInit(0.U(cfg.emul.index_bits.W))
-  AXI4MMIOModule.bind_writeonly_reg(host_steps, mmio, 3 * cfg.emul.num_mods)
+  AXI4MMIOModule.bind_readwrite_reg(host_steps, mmio)
 
+  val fingerprint_reg = RegInit(0.U(32.W))
+  AXI4MMIOModule.bind_readwrite_reg(fingerprint_reg, mmio)
 
   ////////////////////////////////////////////////////////////////////////////
-
-
 
   val board = Module(new Board(cfg.emul))
 
   // Read Only Register mapping
   // - init
   val init = RegNext(board.io.init)
-  AXI4MMIOModule.bind_readonly_reg(init, mmio, 3 * cfg.emul.num_mods + 1)
+  AXI4MMIOModule.bind_readonly_reg(init, mmio)
 
   for (i <- 0 until cfg.emul.num_mods) {
     board.io.cfg_in(i).host_steps := host_steps
@@ -229,9 +208,9 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
 
   for (i <- 0 until cfg.emul.num_mods) {
     when (i.U === cur_inst_mod) {
-      board.io.insts(i).valid := stream_converter.io.deq_2.valid
-      board.io.insts(i).bits  := stream_converter.io.deq_2.bits.asTypeOf(Instruction(cfg.emul))
-      stream_converter.io.deq_2.ready := board.io.insts(i).ready
+      board.io.insts(i).valid := stream_converter.io.streams(1).deq.valid
+      board.io.insts(i).bits  := stream_converter.io.streams(1).deq.bits.asTypeOf(Instruction(cfg.emul))
+      stream_converter.io.streams(1).deq.ready := board.io.insts(i).ready
       when (board.io.insts(i).fire) {
         when (cur_insts_pushed === host_steps * cfg.emul.num_procs.U - 1.U) {
           cur_insts_pushed := 0.U
@@ -250,39 +229,38 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
   for (i <- 0 until cfg.emul.num_mods) {
     for (j <- 0 until cfg.emul.num_procs) {
       val idx = i * cfg.emul.num_procs + j
-      board.io.io(i).i(j) := stream_converter.io.deq_1.bits >> (idx * cfg.emul.num_bits)
+      board.io.io(i).i(j) := stream_converter.io.streams(0).deq.bits >> (idx * cfg.emul.num_bits)
     }
   }
 
-  stream_converter.io.enq_1.bits := Cat(board.io.io.flatMap(io => io.o).reverse)
+  stream_converter.io.streams(0).enq.bits := Cat(board.io.io.flatMap(io => io.o).reverse)
 
   val board_run = DecoupledHelper(
-    stream_converter.io.deq_1.valid,
-    stream_converter.io.enq_1.ready)
+    stream_converter.io.streams(0).deq.valid,
+    stream_converter.io.streams(0).enq.ready)
 
   val last_step = cur_step === host_steps - 1.U
   board.io.run := board_run.fire()
-  stream_converter.io.deq_1.ready := board_run.fire(stream_converter.io.deq_1.valid, last_step)
-  stream_converter.io.enq_1.valid := board_run.fire(stream_converter.io.enq_1.ready, last_step)
+  stream_converter.io.streams(0).deq.ready := board_run.fire(stream_converter.io.streams(0).deq.valid, last_step)
+  stream_converter.io.streams(0).enq.valid := board_run.fire(stream_converter.io.streams(0).enq.ready, last_step)
 
   when (board.io.run) {
     cur_step := Mux(last_step, 0.U, cur_step + 1.U)
   }
 
-  when (stream_converter.io.enq_1.fire) {
+  when (stream_converter.io.streams(0).enq.fire) {
     target_cycle := target_cycle + 1.U
   }
 
-  AXI4MMIOModule.bind_readonly_reg(stream_converter.io.deq_cnt_1,            mmio, 3 * cfg.emul.num_mods + 2)
-  AXI4MMIOModule.bind_readonly_reg(stream_converter.io.enq_cnt_1,            mmio, 3 * cfg.emul.num_mods + 3)
-  AXI4MMIOModule.bind_readonly_reg(target_cycle & ((BigInt(1) << 32) - 1).U, mmio, 3 * cfg.emul.num_mods + 4)
-  AXI4MMIOModule.bind_readonly_reg(target_cycle >> 32,                       mmio, 3 * cfg.emul.num_mods + 5)
+  stream_converter.io.streams.foreach(s => {
+    AXI4MMIOModule.bind_readonly_reg(s.filled_bytes, mmio)
+    AXI4MMIOModule.bind_readonly_reg(s .empty_bytes, mmio)
+  })
 
-  val fingerprint_reg = RegInit(0.U(32.W))
-  AXI4MMIOModule.bind_readwrite_reg(fingerprint_reg, mmio, 3 * cfg.emul.num_mods + 6)
+  AXI4MMIOModule.bind_readonly_reg(target_cycle & ((BigInt(1) << 32) - 1).U, mmio)
+  AXI4MMIOModule.bind_readonly_reg(target_cycle >> 32,                       mmio)
 
   val dma_test_q = Module(new Queue(UInt(io_stream_width.W), 4))
-  dma_test_q.io.enq <> stream_converter.io.deq_3
-  stream_converter.io.enq_3 <> dma_test_q.io.deq
-  AXI4MMIOModule.bind_readonly_reg(dma_test_q.io.count, mmio, 3 * cfg.emul.num_mods + 7)
+  dma_test_q.io.enq <> stream_converter.io.streams(2).deq
+  stream_converter.io.streams(2).enq <> dma_test_q.io.deq
 }

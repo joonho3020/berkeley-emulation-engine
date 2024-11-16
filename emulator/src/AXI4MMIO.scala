@@ -90,6 +90,8 @@ class AXI4MMIOModule(numRegs: Int, cfg: AXI4BundleParameters) extends Module {
 }
 
 object AXI4MMIOModule {
+  var idx = 0;
+
   def tieoff(mmio: AXI4MMIOModule): Unit = {
     mmio.io.ctrl.map(rw => {
       rw.wr.ready := false.B
@@ -98,26 +100,28 @@ object AXI4MMIOModule {
     })
   }
 
-  def bind_readonly_reg(reg: Data, mmio: AXI4MMIOModule, idx: Int): Unit = {
+  def bind_readonly_reg(reg: Data, mmio: AXI4MMIOModule): Unit = {
     assert(mmio.io.ctrl(idx).wr.valid === false.B)
     mmio.io.ctrl(idx).wr.ready := false.B
     mmio.io.ctrl(idx).rd.valid := true.B
     mmio.io.ctrl(idx).rd.bits  := reg
+    idx += 1;
   }
 
-  def bind_writeonly_reg(reg: Data, mmio: AXI4MMIOModule, idx: Int): Unit = {
+  def bind_writeonly_reg(reg: Data, mmio: AXI4MMIOModule): Unit = {
     mmio.io.ctrl(idx).rd.valid := false.B
     mmio.io.ctrl(idx).wr.ready := true.B
     when (mmio.io.ctrl(idx).wr.valid) {
       reg := mmio.io.ctrl(idx).wr.bits
     }
+    idx += 1;
   }
 
-  def bind_writeonly_reg_array(regs: Seq[Data], mmio: AXI4MMIOModule, offset: Int): Unit = {
-    regs.zipWithIndex.foreach({ case (r, i) => AXI4MMIOModule.bind_writeonly_reg(r, mmio, i + offset) })
+  def bind_writeonly_reg_array(regs: Seq[Data], mmio: AXI4MMIOModule): Unit = {
+    regs.foreach(r => AXI4MMIOModule.bind_writeonly_reg(r, mmio))
   }
 
-  def bind_readwrite_reg(reg: Data, mmio: AXI4MMIOModule, idx: Int): Unit = {
+  def bind_readwrite_reg(reg: Data, mmio: AXI4MMIOModule): Unit = {
     mmio.io.ctrl(idx).rd.valid := true.B
     mmio.io.ctrl(idx).rd.bits := reg
 
@@ -125,5 +129,10 @@ object AXI4MMIOModule {
     when (mmio.io.ctrl(idx).wr.valid) {
       reg := mmio.io.ctrl(idx).wr.bits
     }
+    idx += 1
+  }
+
+  def bind_readwrite_reg_array(regs: Seq[Data], mmio: AXI4MMIOModule): Unit = {
+    regs.foreach(r => AXI4MMIOModule.bind_readwrite_reg(r, mmio))
   }
 }
