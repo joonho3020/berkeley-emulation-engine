@@ -63,21 +63,21 @@ fn main() -> Result<(), XDMAError> {
 // }
 
 
-    let addr =  0x0000;
-    let dma_bytes = 64;
-    let pattern: Vec<u8> = vec![0xd, 0xe, 0xa, 0xd, 0xc, 0xa, 0xf, 0xe];
-    let mut data: Vec<u8> = vec![];
-    data.extend(pattern.iter().cycle().take(dma_bytes as usize));
+// let addr =  0x0000;
+// let dma_bytes = 64;
+// let pattern: Vec<u8> = vec![0xd, 0xe, 0xa, 0xd, 0xc, 0xa, 0xf, 0xe];
+// let mut data: Vec<u8> = vec![];
+// data.extend(pattern.iter().cycle().take(dma_bytes as usize));
 // simif.push(addr, &data)?;
 
-    let rbuf = simif.pull(addr, dma_bytes)?;
-    if data != rbuf {
-        println!("dma mismatch :(");
-        println!("wbuf: {:?}", data);
-        println!("rbuf: {:?}", rbuf);
-    } else {
-        println!("dma match :)");
-    }
+// let rbuf = simif.pull(addr, dma_bytes)?;
+// if data != rbuf {
+// println!("dma mismatch :(");
+// println!("wbuf: {:?}", data);
+// println!("rbuf: {:?}", rbuf);
+// } else {
+// println!("dma match :)");
+// }
 
     return Ok(());
 }
