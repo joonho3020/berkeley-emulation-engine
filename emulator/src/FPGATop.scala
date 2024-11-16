@@ -81,53 +81,6 @@ class FPGATop(implicit p: Parameters) extends LazyModule {
 
   axiDMASlaveNode := AXI4Buffer() := axiDMAMasterNode
 
-// val targetIOAddrSize = BigInt(1) << 12
-// val axiDMATargetIOSlaveNode = AXI4SlaveNode(Seq(
-// AXI4SlavePortParameters(
-// slaves = Seq(AXI4SlaveParameters(
-// address = Seq(AddressSet(0, targetIOAddrSize - 1)),
-// resources     = (new MemoryDevice).reg,
-// regionType    = RegionType.UNCACHED,
-// executable    = false,
-// supportsWrite = TransferSizes(cfg.axi.dataBits / 8, 4096),
-// supportsRead  = TransferSizes(cfg.axi.dataBits / 8, 4096),
-// interleavedId = Some(0))),
-// beatBytes = cfg.axi.dataBits / 8)))
-
-// val axiDMAInstSlaveNode = AXI4SlaveNode(Seq(
-// AXI4SlavePortParameters(
-// slaves = Seq(AXI4SlaveParameters(
-// address = Seq(AddressSet(targetIOAddrSize, targetIOAddrSize - 1)),
-// resources     = (new MemoryDevice).reg,
-// regionType    = RegionType.UNCACHED,
-// executable    = false,
-// supportsWrite = TransferSizes(cfg.axi.dataBits / 8, 4096),
-// supportsRead  = TransferSizes(cfg.axi.dataBits / 8, 4096),
-// interleavedId = Some(0))),
-// beatBytes = cfg.axi.dataBits / 8)))
-
-// val axiDMATestSlaveNode = if (cfg.debug) {
-// Some(AXI4SlaveNode(Seq(
-// AXI4SlavePortParameters(
-// slaves = Seq(AXI4SlaveParameters(
-// address = Seq(AddressSet(2 * targetIOAddrSize, targetIOAddrSize - 1)),
-// resources     = (new MemoryDevice).reg,
-// regionType    = RegionType.UNCACHED,
-// executable    = false,
-// supportsWrite = TransferSizes(cfg.axi.dataBits / 8, 4096),
-// supportsRead  = TransferSizes(cfg.axi.dataBits / 8, 4096),
-// interleavedId = Some(0))),
-// beatBytes = cfg.axi.dataBits / 8))))
-// } else {
-// None
-// }
-
-// val dmaXbarNode = AXI4Xbar()
-// dmaXbarNode := AXI4Buffer() := axiDMAMasterNode
-// axiDMATargetIOSlaveNode := AXI4Buffer() := dmaXbarNode
-// axiDMAInstSlaveNode     := AXI4Buffer() := dmaXbarNode
-// axiDMATestSlaveNode.map(_ := AXI4Buffer() := dmaXbarNode)
-
    // AXI4-Lite Master Node with a single master port
   val axiMMIOMasterNode = AXI4MasterNode(Seq(
     AXI4MasterPortParameters(
@@ -218,43 +171,33 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
   val mmio_axi4_slave = Wire(AXI4Bundle(cfg.axil.axi4BundleParams))
   mmio_axi4_slave <> outer.axiMMIOSlaveNode.in.head._1
 
-  val axil_params = cfg.axil.axi4BundleParams
-  val nasti_lite_params = NastiParameters(axil_params.dataBits, axil_params.addrBits, axil_params.idBits)
-  val m_nasti_lite = Wire(new NastiIO(nasti_lite_params))
-  AXI4NastiAssigner.toNasti(m_nasti_lite, mmio_axi4_slave)
-
-  val num_regs = 3 * cfg.emul.num_mods + 8
-  val mcr = Module(new MCRFile(num_regs)(nasti_lite_params))
-
-// val routeSel: UInt => UInt = (addr: UInt) => {
-// (addr >= 0.U && addr < (num_regs << 2).U).asUInt
-// }
-// val nasti_router = Module(new NastiRouter(1, routeSel)(nasti_lite_params))
-// nasti_router.io.master <> m_nasti_lite
-// mcr.io.nasti <> nasti_router.io.slave(0)
-  mcr.io.nasti <> mmio_axi4_slave
-  MCRFile.tieoff(mcr)
-
   // Write Only Register mapping
   // - used_procs (0~num_mods-1)
   // - single_port_ram (0~num_mods-1)
   // - wmask_bits (0~num_mods-1)
   // - width_bits (0~num_mods-1)
   // - host_steps
+  val num_regs = 3 * cfg.emul.num_mods + 8
+
+  val mmio = Module(new AXI4MMIOModule(num_regs, cfg.axil.axi4BundleParams))
+  AXI4MMIOModule.tieoff(mmio)
+  dontTouch(mmio.io.axi)
+
+  mmio.io.axi <> mmio_axi4_slave
 
   val num_mods_log2 = log2Ceil(cfg.emul.num_mods + 1)
 
   val single_port_ram = Seq.fill(cfg.emul.num_mods)(RegInit(0.U(num_mods_log2.W)))
-  MCRFile.bind_writeonly_reg_array(single_port_ram, mcr, 0)
+  AXI4MMIOModule.bind_writeonly_reg_array(single_port_ram, mmio, 0)
 
   val wmask_bits = Seq.fill(cfg.emul.num_mods)(RegInit(0.U(num_mods_log2.W)))
-  MCRFile.bind_writeonly_reg_array(wmask_bits, mcr, 1 * cfg.emul.num_mods)
+  AXI4MMIOModule.bind_writeonly_reg_array(wmask_bits, mmio, 1 * cfg.emul.num_mods)
 
   val width_bits = Seq.fill(cfg.emul.num_mods)(RegInit(0.U(num_mods_log2.W)))
-  MCRFile.bind_writeonly_reg_array(width_bits, mcr,  2 * cfg.emul.num_mods)
+  AXI4MMIOModule.bind_writeonly_reg_array(width_bits, mmio,  2 * cfg.emul.num_mods)
 
   val host_steps = RegInit(0.U(cfg.emul.index_bits.W))
-  MCRFile.bind_writeonly_reg(host_steps, mcr, 3 * cfg.emul.num_mods)
+  AXI4MMIOModule.bind_writeonly_reg(host_steps, mmio, 3 * cfg.emul.num_mods)
 
 
   ////////////////////////////////////////////////////////////////////////////
@@ -266,7 +209,7 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
   // Read Only Register mapping
   // - init
   val init = RegNext(board.io.init)
-  MCRFile.bind_readonly_reg(init, mcr, 3 * cfg.emul.num_mods + 1)
+  AXI4MMIOModule.bind_readonly_reg(init, mmio, 3 * cfg.emul.num_mods + 1)
 
   for (i <- 0 until cfg.emul.num_mods) {
     board.io.cfg_in(i).host_steps := host_steps
@@ -330,16 +273,16 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
     target_cycle := target_cycle + 1.U
   }
 
-  MCRFile.bind_readonly_reg(stream_converter.io.deq_cnt_1, mcr,            3 * cfg.emul.num_mods + 2)
-  MCRFile.bind_readonly_reg(stream_converter.io.enq_cnt_1, mcr,            3 * cfg.emul.num_mods + 3)
-  MCRFile.bind_readonly_reg(target_cycle & ((BigInt(1) << 32) - 1).U, mcr, 3 * cfg.emul.num_mods + 4)
-  MCRFile.bind_readonly_reg(target_cycle >> 32,                       mcr, 3 * cfg.emul.num_mods + 5)
+  AXI4MMIOModule.bind_readonly_reg(stream_converter.io.deq_cnt_1,            mmio, 3 * cfg.emul.num_mods + 2)
+  AXI4MMIOModule.bind_readonly_reg(stream_converter.io.enq_cnt_1,            mmio, 3 * cfg.emul.num_mods + 3)
+  AXI4MMIOModule.bind_readonly_reg(target_cycle & ((BigInt(1) << 32) - 1).U, mmio, 3 * cfg.emul.num_mods + 4)
+  AXI4MMIOModule.bind_readonly_reg(target_cycle >> 32,                       mmio, 3 * cfg.emul.num_mods + 5)
 
   val fingerprint_reg = RegInit(0.U(32.W))
-  MCRFile.bind_readwrite_reg(fingerprint_reg, mcr, 3 * cfg.emul.num_mods + 6)
+  AXI4MMIOModule.bind_readwrite_reg(fingerprint_reg, mmio, 3 * cfg.emul.num_mods + 6)
 
   val dma_test_q = Module(new Queue(UInt(io_stream_width.W), 4))
   dma_test_q.io.enq <> stream_converter.io.deq_3
   stream_converter.io.enq_3 <> dma_test_q.io.deq
-  MCRFile.bind_readonly_reg(dma_test_q.io.count, mcr, 3 * cfg.emul.num_mods + 7)
+  AXI4MMIOModule.bind_readonly_reg(dma_test_q.io.count, mmio, 3 * cfg.emul.num_mods + 7)
 }

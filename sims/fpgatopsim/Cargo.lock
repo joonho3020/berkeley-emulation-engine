@@ -101,7 +101,7 @@ checksum = "ace50bade8e6234aa140d9a2f552bbee1db4d353f69b8217bc503490fc1a9f26"
 [[package]]
 name = "bee"
 version = "0.1.0"
-source = "git+ssh://git@github.com/joonho3020/berkeley-emulation-engine.git?branch=main#25902dba33728e4bcc23b1de21b94c6b8ade7279"
+source = "git+ssh://git@github.com/joonho3020/berkeley-emulation-engine.git?branch=main#bb36c045bdd7b9d93d8b8c524a3c92321589bde3"
 dependencies = [
  "bitvec",
  "blif-parser",
@@ -1644,9 +1644,9 @@ dependencies = [
 
 [[package]]
 name = "scc"
-version = "2.2.4"
+version = "2.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d8d25269dd3a12467afe2e510f69fb0b46b698e5afb296b59f2145259deaf8e8"
+checksum = "66b202022bb57c049555430e11fc22fea12909276a80a4c3d368da36ac1d88ed"
 dependencies = [
  "sdd",
 ]
