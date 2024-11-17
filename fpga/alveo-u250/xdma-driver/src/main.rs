@@ -1,5 +1,9 @@
 use clap::Parser;
 use xdma_driver::*;
+use std::thread::sleep;
+use std::time;
+use rand::Rng;
+use indicatif::ProgressBar;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about=None)]
@@ -34,19 +38,19 @@ fn main() -> Result<(), XDMAError> {
         args.func,
     )?;
 
-// let num_mods = 9;
-// let fingerprint_addr = (3 * num_mods + 6) * 4;
-// println!("reading from fingerprint addr: {:x}", simif.read(fingerprint_addr)?);
-// simif.write(fingerprint_addr, 0xdeadcafe)?;
-// println!("reading from fingerprint addr: {:x}", simif.read(fingerprint_addr)?);
+    let num_mods = 9;
+    let fingerprint_addr = (3 * num_mods + 1) * 4;
+    println!("reading from fingerprint addr: {:x}", simif.read(fingerprint_addr)?);
+    simif.write(fingerprint_addr, 0xdeadbeaf)?;
+    println!("reading from fingerprint addr: {:x}", simif.read(fingerprint_addr)?);
 
-    for i in 0..64 {
-        let addr = i * 4;
-        simif.write(addr, 0xbabebabe)?;
-        simif.write(addr, 0xcafecafe)?;
-        simif.write(addr, 0xdeaddead)?;
-        println!("read from {:x}: {:x}", addr, simif.read(addr)?);
-    }
+// for i in 0..64 {
+// let addr = i * 4;
+// simif.write(addr, 0xbabebabe)?;
+// simif.write(addr, 0xcafecafe)?;
+// simif.write(addr, 0xdeaddead)?;
+// println!("read from {:x}: {:x}", addr, simif.read(addr)?);
+// }
 
 // for i in 0..16 {
 // let addr = i * 4096;
@@ -62,22 +66,42 @@ fn main() -> Result<(), XDMAError> {
 // }
 // }
 
+    fn is_aligned<T>(ptr: *const T, alignment: usize) -> bool {
+        (ptr as usize) % alignment == 0
+    }
 
-// let addr =  0x0000;
-// let dma_bytes = 64;
-// let pattern: Vec<u8> = vec![0xd, 0xe, 0xa, 0xd, 0xc, 0xa, 0xf, 0xe];
-// let mut data: Vec<u8> = vec![];
-// data.extend(pattern.iter().cycle().take(dma_bytes as usize));
-// simif.push(addr, &data)?;
+    let addr =  0x2000;
+    let dma_bytes = 64;
 
-// let rbuf = simif.pull(addr, dma_bytes)?;
-// if data != rbuf {
-// println!("dma mismatch :(");
-// println!("wbuf: {:?}", data);
-// println!("rbuf: {:?}", rbuf);
-// } else {
-// println!("dma match :)");
-// }
+    let mut rng = rand::thread_rng();
+
+    let dbg_filled = (3 * num_mods + 7) * 4;
+    let dbg_empty  = (3 * num_mods + 8) * 4;
+    let wbuf: Vec<u8> = (0..dma_bytes).map(|_| rng.gen_range(10..16)).collect();
+// assert_eq!(is_aligned(wbuf.as_ptr(), 64), true);
+
+    let empty_bytes = simif.read(dbg_empty)?;
+    println!("empty_bytes: {}", empty_bytes);
+    assert!(empty_bytes >= wbuf.len() as u32,
+        "Not enough empty space: {} for write len {}", empty_bytes, wbuf.len());
+
+    let written_bytes = simif.push(addr, &wbuf)?;
+    assert!(written_bytes == wbuf.len() as u32,
+        "Wbuf len: {}, written bytes: {}", wbuf.len(), written_bytes);
+
+    let filled_bytes = simif.read(dbg_filled)?;
+    println!("filled_bytes: {}", filled_bytes);
+    // while true {
+    //     let filled_bytes = simif.read(dbg_filled)?;
+    //     if filled_bytes >= wbuf.len() as u32 {
+    //         break;
+    //     }
+    // }
+
+    let rbuf = simif.pull(addr, dma_bytes)?;
+    assert_eq!(is_aligned(rbuf.as_ptr(), dma_bytes as usize), true);
+    assert!(wbuf == rbuf, "wbuf: {:X?}\nrbuf: {:X?}", wbuf, rbuf);
+    println!("Test Finished");
 
     return Ok(());
 }

@@ -2,6 +2,7 @@ use std::fs::*;
 use std::io::{BufRead, BufReader, Write};
 use std::os::unix::fs::FileExt;
 use std::os::unix::io::AsRawFd;
+use std::alloc::{self, Layout};
 
 pub type XDMAError = Box<dyn std::error::Error>;
 pub type Addr = u64;
@@ -127,6 +128,24 @@ impl XDMAInterface {
         return Ok(bytes_written as u32);
     }
 
+    pub fn aligned_vec(capacity: u32, len: u32) -> Vec<u8> {
+        let bytes_ = capacity as usize;
+        let entries_ = len as usize;
+
+        // Create a layout for the requested size, ensuring alignment to the page size.
+        let layout = Layout::from_size_align(bytes_, bytes_).expect("Invalid layout");
+
+        // Allocate the memory using the layout.
+        let ptr = unsafe { alloc::alloc(layout) };
+
+        if ptr.is_null() {
+            panic!("Failed to allocate memory");
+        }
+
+        // Turn the raw pointer into a Vec<u8>.
+        unsafe { Vec::from_raw_parts(ptr, entries_, bytes_) }
+    }
+
     fn fpga_axi_write(self: &mut Self, addr: Addr, data: &Vec<u8>) -> Result<u32, XDMAError> {
         let bytes_written = unsafe {
             libc::pwrite(
@@ -143,7 +162,8 @@ impl XDMAInterface {
     }
 
     fn fpga_axi_read(self: &Self, addr: Addr, len: u32) -> Result<Vec<u8>, XDMAError> {
-        let read_buf = vec![0u8; len as usize];
+        let read_buf = Self::aligned_vec(4096, len);
+// println!("read_buf ptr: {:X?}, len: {} off: {:?}", read_buf.as_ptr(), read_buf.len(), addr as libc::off_t);
         let _ = unsafe {
             libc::pread(
                 self.read_fd.as_raw_fd(),
@@ -166,12 +186,10 @@ impl XDMAInterface {
     }
 
     pub fn pull(self: &Self, addr: Addr, len: u32) -> Result<Vec<u8>, XDMAError> {
-        let res = self.fpga_axi_read(addr, len)?;
-        return Ok(res);
+        return self.fpga_axi_read(addr, len);
     }
 
-    pub fn push(self: &mut Self, addr: Addr, data: &Vec<u8>) -> Result<(), XDMAError> {
-        self.fpga_axi_write(addr, data)?;
-        return Ok(());
+    pub fn push(self: &mut Self, addr: Addr, data: &Vec<u8>) -> Result<u32, XDMAError> {
+        return self.fpga_axi_write(addr, data);
     }
 }

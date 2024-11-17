@@ -5,5 +5,7 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4.5.20", features = ["derive"] }
+indicatif = "0.17.9"
 libc = "0.2.161"
 memmap2 = "0.9.5"
+rand = "0.8.5"
