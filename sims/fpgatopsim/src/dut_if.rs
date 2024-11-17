@@ -227,9 +227,14 @@ pub unsafe fn dma_read(
         let mut partial_read: Vec<u8> = vec![];
         dma_read_req(sim, addr_, beat_bytes_log2, part_len, &mut partial_read);
 
+        let start = addr_ - addr;
+        let end = start + partial_read.len() as u32;
+        for i in start..end {
+            data[i as usize] = partial_read[(i - start) as usize];
+        }
+
         len   -= (part_len + 1) as i32;
         addr_ += (part_len + 1) * beat_bytes;
-        data.extend(partial_read);
     }
 }
 
