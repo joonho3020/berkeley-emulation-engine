@@ -235,8 +235,8 @@ fn main() -> std::io::Result<()> {
     // Unfortunately, there is no good way to pass command line arguments
     // to build.rs
     let args = Args {
-        sv_file_path: "../../emulator/FPGATop.sv".to_string(),
-        sim_mmap_file_path: "../../emulator/FPGATop.mmap".to_string(),
+        sv_file_path: "./build-dir/FPGATop.sv".to_string(),
+        sim_mmap_file_path: "./build-dir/FPGATop.mmap".to_string(),
         build_dir: "build-dir".to_string(),
     };
 

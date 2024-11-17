@@ -3,11 +3,11 @@ VERILATOR_LIB=libVdut.so
 
 # Variables for emulator platform
 top        ?= "Adder"
-dir        := "../../examples/"
+dir        := "../examples/"
 svfile     := $(dir)/$(top)".sv"
 input_file := $(dir)/$(top)".input"
 lut_file   := $(dir)/$(top)".lut.blif"
-sim_dir    := "sim-dir-"$(top)
+sim_dir    := "../sim-dir/metasim-"$(top)
 
 debug             ?= "true"
 max_steps         ?= 128
@@ -20,13 +20,13 @@ sram_width        ?= 16
 sram_entries      ?= 16
 
 # Chisel directories and files
-EMULATOR_DIR  := ../../emulator
+EMULATOR_DIR  := ../emulator
 SCALA_SRC_DIR := $(EMULATOR_DIR)/src
 SCALA_FILES   := $(shell find $(SCALA_SRC_DIR) -name '*.scala')
 
 MILL_BUILD           := $(EMULATOR_DIR)/out/mill.lock
-FPGATOP              := $(EMULATOR_DIR)/FPGATop.sv
-MMAP                 := $(EMULATOR_DIR)/FPGATop.mmap
+FPGATOP              := $(BUILDDIR)/FPGATop.sv
+MMAP                 := $(BUILDDIR)/FPGATop.mmap
 MILL_BUILD_ARTIFACTS := $(MILL_BUILD) $(FPGATOP) $(MMAP)
 
 # Build target
@@ -45,7 +45,9 @@ $(MILL_BUILD_ARTIFACTS): $(SCALA_FILES)
 			--inter-mod-nw-lat $(inter_mod_nw_lat)   \
 			--inter-proc-nw-lat $(inter_proc_nw_lat) \
 			--sram-width $(sram_width)               \
-			--sram-entries $(sram_entries)
+			--sram-entries $(sram_entries) &&
+		cp $(EMULATOR_DIR)/FPGATop.sv   $(BUILDDIR) &&
+		cp $(EMULATOR_DIR)/FPGATop.mmap $(BUILDDIR)
 	@touch $(MILL_BUILD) # Update mill lock file timestamp
 
 # Build verilator shared library w/ c-bindings
