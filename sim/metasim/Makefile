@@ -1,9 +1,9 @@
-BUILDDIR="build-dir"
+BUILDDIR=build-dir
 VERILATOR_LIB=libVdut.so
 
 # Variables for emulator platform
 top        ?= "Adder"
-dir        := "../examples/"
+dir        := "../../examples/"
 svfile     := $(dir)/$(top)".sv"
 input_file := $(dir)/$(top)".input"
 lut_file   := $(dir)/$(top)".lut.blif"
@@ -20,7 +20,7 @@ sram_width        ?= 16
 sram_entries      ?= 16
 
 # Chisel directories and files
-EMULATOR_DIR  := ../emulator
+EMULATOR_DIR  := ../../emulator
 SCALA_SRC_DIR := $(EMULATOR_DIR)/src
 SCALA_FILES   := $(shell find $(SCALA_SRC_DIR) -name '*.scala')
 
@@ -29,12 +29,25 @@ FPGATOP              := $(BUILDDIR)/FPGATop.sv
 MMAP                 := $(BUILDDIR)/FPGATop.mmap
 MILL_BUILD_ARTIFACTS := $(MILL_BUILD) $(FPGATOP) $(MMAP)
 
+# Chisel generated driver stuff
+SIMIF_DIR := src/simif
+SIMIF_SRC_DIR := ../simif
+SIMIF_FILES := $(shell find $(SIMIF_SRC_DIR) -type f -name '*.rs' -printf "%f\n")
+SIMIF_SRCS  := $(shell find $(SIMIF_SRC_DIR) -name '*.rs')
+DRIVER_GENERATED := driver_generated.rs
+DRIVER_SRCS := $(SIMIF_DIR)/$(SIMIF_FILES) $(SIMIF_DIR)/$(DRIVER_GENERATED)
+SIMULATION_SRCS := $(VERILATOR_LIB) $(DRIVER_SRCS)
+
+.DEFAULT_GOAL := test
+
 # Build target
-.PHONY: chisel_elaborate
 chisel_elaborate: $(MILL_BUILD_ARTIFACTS)
 
+$(BUILDDIR):
+	mkdir -p $(BUILDDIR)
+
 # Mill rebuild rule
-$(MILL_BUILD_ARTIFACTS): $(SCALA_FILES)
+$(MILL_BUILD_ARTIFACTS): $(SCALA_FILES) | $(BUILDDIR)
 	@echo "Changes detected in Scala files. Rebuilding with Mill..."
 	cd $(EMULATOR_DIR) &&                        \
 		mill emulator.run  --debug $(debug)        \
@@ -45,25 +58,22 @@ $(MILL_BUILD_ARTIFACTS): $(SCALA_FILES)
 			--inter-mod-nw-lat $(inter_mod_nw_lat)   \
 			--inter-proc-nw-lat $(inter_proc_nw_lat) \
 			--sram-width $(sram_width)               \
-			--sram-entries $(sram_entries) &&
-		cp $(EMULATOR_DIR)/FPGATop.sv   $(BUILDDIR) &&
-		cp $(EMULATOR_DIR)/FPGATop.mmap $(BUILDDIR)
+			--sram-entries $(sram_entries)
 	@touch $(MILL_BUILD) # Update mill lock file timestamp
+	cp $(EMULATOR_DIR)/FPGATop.sv   $(BUILDDIR)/
+	cp $(EMULATOR_DIR)/FPGATop.mmap $(BUILDDIR)/
 
 # Build verilator shared library w/ c-bindings
-$(VERILATOR_LIB): $(MILL_BUILD_ARTIFACTS)
-	@if [ -d "$(BUILDDIR)" ]; then \
-		echo "Directory $(BUILDDIR) exists. Deleting..."; \
-		rm -rf $(BUILDDIR); \
-	else \
-		echo "Directory $(BUILDDIR) does not exist. Skipping deletion."; \
+$(SIMULATION_SRCS): $(MILL_BUILD_ARTIFACTS) $(SIMIF_SRCS)
+	@if [ -d "$(BUILDDIR)/obj-dir" ]; then \
+		echo "Directory $(BUILDDIR)/obj-dir exists. Deleting..."; \
+		rm -rf $(BUILDDIR)/obj-dir; \
 	fi
-	cargo clean
-	cargo update
+	cp $(SIMIF_SRCS) $(SIMIF_DIR)
 	cargo build --release -vvv
 
 # Run single example
-run: $(VERILATOR_LIB)
+run: $(SIMULATION_SRCS)
 	cargo run --release \
 		--bin fpgatopsim \
 		-- -s $(svfile) \
@@ -77,10 +87,11 @@ run: $(VERILATOR_LIB)
 			 --imem-lat $(imem_lat) \
 			 --inter-proc-nw-lat $(inter_proc_nw_lat) \
 			 --inter-mod-nw-lat $(inter_mod_nw_lat) \
-			 --max-steps $(max_steps) | tee DEBUG
+			 --max-steps $(max_steps) \
+			 --sim-dir $(sim_dir) | tee DEBUG
 
 # Run existing tests
-test: $(VERILATOR_LIB)
+test: $(SIMULATION_SRCS)
 	cargo nextest run --release
 
 clean:
@@ -99,9 +110,9 @@ clean:
 	-rm -rf sim-dir
 	-rm DEBUG
 	-rm $(MILL_BUILD_ARTIFACTS)
-	-rm src/driver_generated.rs
+	-rm $(DRIVER_GENERATED)
 
-all:
-	test
+all: test
 
-.PHONY: run, clean, test, all
+
+.PHONY: run, clean, test, all, chisel_elaborate

@@ -1,7 +1,7 @@
 use crate::dut::*;
-use crate::dut_if::*;
-use crate::sim_if::*;
 use crate::axi::*;
+use crate::dut_if::*;
+use crate::simif::simif::*;
 use bee::common::config::PlatformConfig;
 
 #[derive(Debug, Default, Clone)]

@@ -215,11 +215,11 @@ fn generate_rust_bindings(top: &str, signals: &Vec<Signal>, output_path: &str) -
 fn generate_driver_impl(mmap_path: String) -> std::io::Result<()> {
     let macro_str = std::fs::read_to_string(mmap_path)?;
 
-    let dst_path = format!("{}/src/driver_generated.rs", env::current_dir()?.to_str().unwrap());
+    let dst_path = format!("{}/src/simif/driver_generated.rs", env::current_dir()?.to_str().unwrap());
     let macro_code = format!(r#"
-    use crate::sim_if::*;
-    use crate::mmio_if::*;
-    use crate::dma_if::*;
+    use crate::simif::simif::*;
+    use crate::simif::mmioif::*;
+    use crate::simif::dmaif::*;
 
     {}
     "#, macro_str);
@@ -243,11 +243,6 @@ fn main() -> std::io::Result<()> {
     let mut cwd = env::current_dir()?;
     cwd.push(args.build_dir.to_string());
     fs::create_dir_all(cwd.to_path_buf())?;
-
-    Command::new("cp")
-        .arg(&args.sv_file_path)
-        .arg(cwd.to_str().unwrap())
-        .status()?;
 
     Command::new("which")
         .arg("verilator")

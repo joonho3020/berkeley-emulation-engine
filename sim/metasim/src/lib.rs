@@ -2,10 +2,7 @@ pub mod dut;
 pub mod dut_if;
 pub mod sim;
 pub mod axi;
-pub mod sim_if;
-pub mod mmio_if;
-pub mod dma_if;
-pub mod driver_generated;
+pub mod simif;
 use bee::{
     common::{
         circuit::Circuit,
@@ -33,10 +30,9 @@ use dut::*;
 use dut_if::*;
 use axi::*;
 use sim::*;
-use sim_if::*;
-use mmio_if::*;
-use dma_if::*;
-use driver_generated::*;
+use simif::simif::*;
+use simif::mmioif::*;
+use simif::dmaif::*;
 
 #[derive(Debug)]
 pub enum RTLSimError {
@@ -196,23 +192,6 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
         mmio_write(&mut sim, 0x2000, 0xdeadcafe);
         mmio_read(&mut sim,  0x2000);
 
-
-        let num_mods = fpga_top_cfg.emul.num_mods;
-
-        let io_bridge_filled   = (3 * num_mods + 5) * 4;
-        let io_bridge_empty    = (3 * num_mods + 6) * 4;
-        let inst_bridge_filled = (3 * num_mods + 7) * 4;
-        let inst_bridge_empty  = (3 * num_mods + 8) * 4;
-        let dbg_bridge_filled  = (3 * num_mods + 9) * 4;
-        let dbg_bridge_empty   = (3 * num_mods + 10) * 4;
-
-        let mut sram_cfg_vec = vec![];
-        for i in 0..num_mods {
-            sram_cfg_vec.push(SRAMConfig::new(
-                    i * 4,
-                    (num_mods + i) * 4,
-                    (2 * num_mods + i) * 4));
-        }
 
         let mut driver = Driver::try_from_simif(Box::new(sim));
 

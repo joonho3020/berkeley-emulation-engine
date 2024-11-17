@@ -1,7 +1,7 @@
 use crate::dut::*;
 use crate::axi::*;
-use crate::sim_if::*;
 use crate::sim::*;
+use crate::simif::simif::*;
 
 pub unsafe fn poke_io_dma_axi4_master_aw(dut: *mut VFPGATop, aw: &AXI4AW) {
     poke_io_dma_axi4_master_aw_bits_addr (dut, aw.addr.into());
