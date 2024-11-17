@@ -1,6 +1,5 @@
 use clap::Parser;
 use xdma_driver::*;
-use std::thread::sleep;
 use std::time;
 use rand::Rng;
 use indicatif::ProgressBar;
@@ -72,22 +71,37 @@ fn main() -> Result<(), XDMAError> {
 
     let addr =  0x2000;
     let dma_bytes = 64;
+    let dbg_filled = (3 * num_mods + 9) * 4;
+    let dbg_empty  = (3 * num_mods + 10) * 4;
 
-    let mut rng = rand::thread_rng();
-
-    let dbg_filled = (3 * num_mods + 7) * 4;
-    let dbg_empty  = (3 * num_mods + 8) * 4;
-    let wbuf: Vec<u8> = (0..dma_bytes).map(|_| rng.gen_range(10..16)).collect();
+// let mut rng = rand::thread_rng();
+// let wbuf: Vec<u8> = (0..dma_bytes).map(|_| rng.gen_range(10..16)).collect();
 // assert_eq!(is_aligned(wbuf.as_ptr(), 64), true);
+
+    let base_vec: Vec<u8> = vec![0xDE, 0xAD, 0xBE, 0xAF];
+    let wbuf: Vec<u8> = base_vec.iter().cloned().cycle().take(dma_bytes as usize).collect();
 
     let empty_bytes = simif.read(dbg_empty)?;
     println!("empty_bytes: {}", empty_bytes);
     assert!(empty_bytes >= wbuf.len() as u32,
         "Not enough empty space: {} for write len {}", empty_bytes, wbuf.len());
 
+
+    let pre_read_filled_bytes = simif.read(dbg_filled)?;
+    println!("pre_read_filled_bytes: {}", pre_read_filled_bytes);
+    if pre_read_filled_bytes != 0 {
+        println!("buffer filled before a write happend");
+    }
+
     let written_bytes = simif.push(addr, &wbuf)?;
+    println!("written_bytes: {}", written_bytes);
     assert!(written_bytes == wbuf.len() as u32,
         "Wbuf len: {}, written bytes: {}", wbuf.len(), written_bytes);
+
+    println!("sleep");
+    let dur = time::Duration::from_millis(100);
+    std::thread::sleep(dur);
+    println!("wake");
 
     let filled_bytes = simif.read(dbg_filled)?;
     println!("filled_bytes: {}", filled_bytes);
@@ -98,9 +112,15 @@ fn main() -> Result<(), XDMAError> {
     //     }
     // }
 
+    if filled_bytes != dma_bytes {
+        println!("WTF, filled_bytes: {}, dma_bytes: {}", filled_bytes, dma_bytes);
+    }
     let rbuf = simif.pull(addr, dma_bytes)?;
+    println!("read bytes: {}", rbuf.len());
+
     assert_eq!(is_aligned(rbuf.as_ptr(), dma_bytes as usize), true);
     assert!(wbuf == rbuf, "wbuf: {:X?}\nrbuf: {:X?}", wbuf, rbuf);
+
     println!("Test Finished");
 
     return Ok(());

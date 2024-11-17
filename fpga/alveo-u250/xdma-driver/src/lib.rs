@@ -1,8 +1,10 @@
 use std::fs::*;
 use std::io::{BufRead, BufReader, Write};
-use std::os::unix::fs::FileExt;
+use std::os::unix::fs::{FileExt, OpenOptionsExt};
 use std::os::unix::io::AsRawFd;
 use std::alloc::{self, Layout};
+
+use libc::{O_RDONLY, O_WRONLY};
 
 pub type XDMAError = Box<dyn std::error::Error>;
 pub type Addr = u64;
@@ -105,13 +107,19 @@ impl XDMAInterface {
 
     fn extract_xdma_write_fd(xdma_id: &u32) -> Result<File, XDMAError> {
         let file_path = format!("/dev/xdma{}_h2c_0", xdma_id);
-        let file = OpenOptions::new().write(true).open(file_path)?;
+        let file = OpenOptions::new()
+            .write(true)
+            .custom_flags(O_WRONLY)
+            .open(file_path)?;
         return Ok(file);
     }
 
     fn extract_xdma_read_fd(xdma_id: &u32) -> Result<File, XDMAError> {
         let file_path = format!("/dev/xdma{}_c2h_0", xdma_id);
-        let file = OpenOptions::new().read(true).open(file_path)?;
+        let file = OpenOptions::new()
+            .read(true)
+            .custom_flags(O_RDONLY)
+            .open(file_path)?;
         return Ok(file);
     }
 
@@ -146,6 +154,7 @@ impl XDMAInterface {
         unsafe { Vec::from_raw_parts(ptr, entries_, bytes_) }
     }
 
+    #[inline(never)]
     fn fpga_axi_write(self: &mut Self, addr: Addr, data: &Vec<u8>) -> Result<u32, XDMAError> {
         let bytes_written = unsafe {
             libc::pwrite(
@@ -161,6 +170,7 @@ impl XDMAInterface {
         return Ok(bytes_written as u32);
     }
 
+    #[inline(never)]
     fn fpga_axi_read(self: &Self, addr: Addr, len: u32) -> Result<Vec<u8>, XDMAError> {
         let read_buf = Self::aligned_vec(4096, len);
 // println!("read_buf ptr: {:X?}, len: {} off: {:?}", read_buf.as_ptr(), read_buf.len(), addr as libc::off_t);
