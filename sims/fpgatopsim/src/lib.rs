@@ -273,7 +273,7 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
                 driver.simif.step();
             }
 
-            sram_mmios.mask.write(&mut driver.simif, sram_cfg.width_bits as u32)?;
+            sram_mmios.width.write(&mut driver.simif, sram_cfg.width_bits as u32)?;
             for _ in 0..5 {
                 driver.simif.step();
             }

@@ -32,7 +32,6 @@ pub trait DMAOps: DMAAddrs {
 
     unsafe fn pull(self: &Self, sim: &mut Box<dyn SimIf>, data: &mut Vec<u8>) -> Result<u32, SimIfErr> {
         let filled_bytes = sim.read(self.filled_addr())?;
-        println!("pull filled bytes: {}", filled_bytes);
         let pulled_bytes = if filled_bytes >= data.len() as u32 {
             sim.pull(self.deq_addr(), data)?
         } else {
@@ -140,7 +139,7 @@ pub struct SRAMConfig {
 }
 
 impl SRAMConfig {
-    pub fn new(waddr: u32, paddr: u32, maddr: u32) -> Self {
+    pub fn new(paddr: u32, maddr: u32, waddr: u32) -> Self {
         Self {
             ptype: MMIOIf::new(paddr),
             mask: MMIOIf::new(maddr),
