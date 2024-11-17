@@ -17,10 +17,14 @@ emulator/out
 emulator/.bloop
 emulator/.metals
 emulator/*.sv
+emulator/*.mmap
 emulator/__pycache__
 emulator/results.xml
 emulator/sim_build
 emulator/test/*
+
+
+**/driver_generated.rs
 
 **/build-dir
 **/libVdut.so
