@@ -3,6 +3,7 @@ pub mod fsim;
 pub mod passes;
 pub mod rtlsim;
 pub mod testing;
+pub mod simif;
 
 #[cfg(test)]
 pub mod blif_sim_test {
