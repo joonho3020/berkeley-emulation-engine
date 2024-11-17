@@ -252,13 +252,13 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
     target_cycle := target_cycle + 1.U
   }
 
+  AXI4MMIOModule.bind_readonly_reg(target_cycle & ((BigInt(1) << 32) - 1).U, mmio)
+  AXI4MMIOModule.bind_readonly_reg(target_cycle >> 32,                       mmio)
+
   stream_converter.io.streams.foreach(s => {
     AXI4MMIOModule.bind_readonly_reg(s.filled_bytes, mmio)
     AXI4MMIOModule.bind_readonly_reg(s .empty_bytes, mmio)
   })
-
-  AXI4MMIOModule.bind_readonly_reg(target_cycle & ((BigInt(1) << 32) - 1).U, mmio)
-  AXI4MMIOModule.bind_readonly_reg(target_cycle >> 32,                       mmio)
 
   val dma_test_q = Module(new Queue(UInt(io_stream_width.W), 4))
   dma_test_q.io.enq <> stream_converter.io.streams(2).deq

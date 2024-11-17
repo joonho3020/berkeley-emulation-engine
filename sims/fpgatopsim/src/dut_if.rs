@@ -1,199 +1,7 @@
 use crate::dut::*;
-use bee::common::config::PlatformConfig;
-
-#[derive(Debug, Default, Clone)]
-pub struct AXI4Config {
-    pub id_bits:   u32,
-    pub addr_bits: u32,
-    pub data_bits: u32,
-}
-
-impl AXI4Config {
-    pub fn strb_bits(self: &Self) -> u32 {
-        self.data_bits / 8
-    }
-
-    pub fn beat_bytes(self: &Self) -> u32 {
-        self.strb_bits()
-    }
-
-    pub fn size(self: &Self) -> u32 {
-        (self.strb_bits() as f32).log2().ceil() as u32
-    }
-
-    pub fn strb(self: &Self) -> u64 {
-        ((1u64 << self.strb_bits()) - 1) as u64
-    }
-}
-
-#[derive(Debug, Default, Clone)]
-pub struct FPGATopConfig {
-    pub axi:  AXI4Config,
-    pub axil: AXI4Config,
-    pub emul: PlatformConfig
-}
-
-#[derive(Debug)]
-pub struct Sim {
-    pub cfg: FPGATopConfig,
-    pub dut: *mut VFPGATop,
-    vcd: *mut VerilatedVcdC,
-    cycle: u32
-}
-
-impl Sim {
-    pub const MAX_LEN: u32 = 255;
-
-    pub unsafe fn try_new(cfg: &FPGATopConfig) -> Self {
-        let dut = FPGATop_new();
-        if dut.is_null() {
-            panic!("Failed to create dut instance");
-        }
-        let vcd = enable_trace(dut);
-        Self {
-            cfg: cfg.clone(),
-            dut: dut,
-            vcd: vcd,
-            cycle: 0
-        }
-    }
-
-    pub unsafe fn step(self: &mut Self) {
-        let time = self.cycle * 2;
-        FPGATop_eval(self.dut);
-        dump_vcd(self.vcd, time);
-
-        poke_clock(self.dut, 1);
-        FPGATop_eval(self.dut);
-        dump_vcd(self.vcd, time + 1);
-
-        poke_clock(self.dut, 0);
-        self.cycle += 1;
-    }
-
-    pub unsafe fn finish(self: &mut Self) {
-        close_trace(self.vcd);
-        FPGATop_delete(self.dut);
-    }
-
-    pub fn max_len(self: &Self) -> u32 {
-        Self::MAX_LEN
-    }
-}
-
-#[derive(Default, Debug)]
-pub struct AXI4AW {
-    addr:  u32,
-    id:    u32,
-    len:   u32,
-    size:  u32,
-    burst: u32,
-    lock:  bool,
-    cache: bool,
-    prot:  u32,
-    qos:   u32
-}
-
-impl AXI4AW {
-    pub fn from_addr_size(addr: u32, size: u32) -> Self {
-        Self {
-            addr: addr,
-            size: size,
-            ..Self::default()
-        }
-    }
-
-    pub fn from_addr_size_len(addr: u32, size: u32, len: u32) -> Self {
-        Self {
-            addr: addr,
-            size: size,
-            len: len,
-            ..Self::default()
-        }
-    }
-}
-
-#[derive(Default, Debug)]
-pub struct AXI4W {
-    last: bool,
-    data: Vec<u8>,
-    strb: u64,
-}
-
-impl AXI4W {
-    pub fn from_u32(data: u32, strb: u64) -> Self {
-        Self {
-            last: true,
-            data: data.to_le_bytes().to_vec(),
-            strb: strb
-        }
-    }
-
-    pub fn from_data_strb_last(data: &Vec<u8>, strb: u64, last: bool) -> Self {
-        Self {
-            last: last,
-            data: data.clone(),
-            strb: strb
-        }
-    }
-
-    pub fn data_vec_u32(self: &Self) -> Vec<u32> {
-        let vec_u32: Vec<u32> = self.data
-            .chunks(4)
-            .map(|chunk| {
-                let bytes = <[u8; 4]>::try_from(chunk).expect("Chunk must be 4 bytes");
-                u32::from_le_bytes(bytes)
-            })
-            .collect();
-        return vec_u32;
-    }
-}
-
-#[derive(Default, Debug)]
-pub struct AXI4B {
-    id:   u32,
-    resp: u32
-}
-
-#[derive(Default, Debug)]
-pub struct AXI4AR {
-    addr:  u32,
-    id:    u32,
-    len:   u32,
-    size:  u32,
-    burst: u32,
-    lock:  u32,
-    cache: u32,
-    prot:  u32,
-    qos:   u32
-}
-
-impl AXI4AR {
-    pub fn from_addr_size(addr: u32, size: u32) -> Self {
-        Self {
-            addr: addr,
-            size: size,
-            ..Self::default()
-        }
-    }
-
-    pub fn from_addr_size_len(addr: u32, size: u32, len: u32) -> Self {
-        Self {
-            addr: addr,
-            size: size,
-            len: len,
-            ..Self::default()
-        }
-    }
-}
-
-#[derive(Default, Debug)]
-pub struct AXI4R {
-    id: u32,
-    resp: u32,
-    last: bool,
-    data: Vec<u8>
-}
+use crate::axi::*;
+use crate::sim_if::*;
+use crate::sim::*;
 
 pub unsafe fn poke_io_dma_axi4_master_aw(dut: *mut VFPGATop, aw: &AXI4AW) {
     poke_io_dma_axi4_master_aw_bits_addr (dut, aw.addr.into());
@@ -407,23 +215,22 @@ pub unsafe fn dma_read_req(
 pub unsafe fn dma_read(
     sim: &mut Sim,
     addr: u32,
-    size: u32) -> Vec<u8> {
+    data: &mut Vec<u8>,
+    size: u32) {
     let beat_bytes = sim.cfg.axi.beat_bytes();
     let mut len: i32 = ((size - 1) / beat_bytes) as i32;
     let mut addr_ = addr;
     let beat_bytes_log2 = (beat_bytes as f32).log2() as u32;
 
-    let mut ret = vec![];
     while len >= 0 {
         let part_len = len as u32 % (sim.max_len() + 1);
-        let mut data: Vec<u8> = vec![];
-        dma_read_req(sim, addr_, beat_bytes_log2, part_len, &mut data);
+        let mut partial_read: Vec<u8> = vec![];
+        dma_read_req(sim, addr_, beat_bytes_log2, part_len, &mut partial_read);
 
         len   -= (part_len + 1) as i32;
         addr_ += (part_len + 1) * beat_bytes;
-        ret.extend(data);
+        data.extend(partial_read);
     }
-    return ret;
 }
 
 pub unsafe fn dma_write_req(
@@ -469,7 +276,7 @@ pub unsafe fn dma_write_req(
     }
     sim.step();
     poke_io_dma_axi4_master_b_ready(sim.dut, false.into());
-    let b = peek_io_dma_axi4_master_b(sim.dut);
+    let _b = peek_io_dma_axi4_master_b(sim.dut);
 }
 
 pub unsafe fn dma_write(

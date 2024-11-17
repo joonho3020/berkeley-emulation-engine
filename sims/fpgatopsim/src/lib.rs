@@ -1,5 +1,8 @@
 pub mod dut;
 pub mod dut_if;
+pub mod sim_if;
+pub mod sim;
+pub mod axi;
 use bee::{
     common::{
         circuit::Circuit,
@@ -25,15 +28,24 @@ use indicatif::ProgressBar;
 use bitvec::{order::Lsb0, vec::BitVec};
 use dut::*;
 use dut_if::*;
+use sim_if::*;
+use axi::*;
+use sim::*;
 
 #[derive(Debug)]
 pub enum RTLSimError {
-    IOError(std::io::Error),
+    IOError(Box<dyn std::error::Error>),
     SimError(String)
 }
 
 impl From<std::io::Error> for RTLSimError {
     fn from(err: std::io::Error) -> RTLSimError {
+        RTLSimError::IOError(Box::new(err))
+    }
+}
+
+impl From<Box<dyn std::error::Error>> for RTLSimError {
+    fn from(err: Box<dyn std::error::Error>) -> RTLSimError {
         RTLSimError::IOError(err)
     }
 }
@@ -159,6 +171,7 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
 
     unsafe {
         let mut sim = Sim::try_new(&fpga_top_cfg);
+
         poke_reset(sim.dut, 1);
         for _ in 0..5 {
             sim.step();
@@ -170,71 +183,105 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
 
         println!("Reset done");
 
-
-        println!("Testing MMIO fingerprint");
-
-        let fgpr_addr = (3 * fpga_top_cfg.emul.num_mods + 1) * 4;
-        let fgr_init = mmio_read(&mut sim, fgpr_addr);
-        assert!(fgr_init == 0,
-            "mmio fingerprint mismatch, expect {} got {}",
-            0,
-            fgr_init);
-
-        mmio_write(&mut sim, fgpr_addr, 0xdeadcafe);
-        for _ in 0..5 {
-            sim.step();
-        }
-        let fgr_read = mmio_read(&mut sim, fgpr_addr);
-
-        assert!(fgr_read == 0xdeadcafe,
-            "mmio fingerprint mismatch, expect {:x} got {:x}",
-            0xdeadcafeu32,
-            fgr_read);
-
-        println!("Testing DMA");
-
-        let pattern: Vec<u8> = vec![0xd, 0xe, 0xa, 0xd, 0xc, 0xa, 0xf, 0xe];
-        let mut data: Vec<u8> = vec![];
-        data.extend(pattern.iter().cycle().take(io_stream_bytes as usize));
-        dma_write(&mut sim, 0x2000, data.len() as u32, &data);
-
-        let rdata = dma_read(&mut sim, 0x2000, data.len() as u32);
-        assert!(data == rdata, "DMA read {:?} expect {:?}", rdata, data);
-
-
-        println!("Poke invalid memory address");
+        println!("Poke invalid memory address: this should not hang the simulation");
         mmio_write(&mut sim, 0x1000, 0xdeadcafe);
         mmio_read(&mut sim,  0x1000);
 
         mmio_write(&mut sim, 0x2000, 0xdeadcafe);
         mmio_read(&mut sim,  0x2000);
 
-        println!("Start configuration register setup");
 
         let num_mods = fpga_top_cfg.emul.num_mods;
+
+        let io_bridge_filled   = (3 * num_mods + 5) * 4;
+        let io_bridge_empty    = (3 * num_mods + 6) * 4;
+        let inst_bridge_filled = (3 * num_mods + 7) * 4;
+        let inst_bridge_empty  = (3 * num_mods + 8) * 4;
+        let dbg_bridge_filled  = (3 * num_mods + 9) * 4;
+        let dbg_bridge_empty   = (3 * num_mods + 10) * 4;
+
+        let mut sram_cfg_vec = vec![];
+        for i in 0..num_mods {
+            sram_cfg_vec.push(SRAMConfig::new(
+                    i * 4,
+                    (num_mods + i) * 4,
+                    (2 * num_mods + i) * 4));
+        }
+        let mut driver = Driver {
+            simif: Box::new(sim),
+            io_bridge:   DMAIf::new(DMAAddrRegs::new(0x0000, io_bridge_filled, io_bridge_empty)),
+            inst_bridge: DMAIf::new(DMAAddrRegs::new(0x1000, inst_bridge_filled, inst_bridge_empty)),
+            dbg_bridge:  DMAIf::new(DMAAddrRegs::new(0x2000, dbg_bridge_filled, dbg_bridge_empty)),
+            ctrl_bridge: ControlIf {
+                sram: sram_cfg_vec,
+                host_steps:      MMIOIf::new((3 * num_mods    ) * 4),
+                fingerprint:     MMIOIf::new((3 * num_mods + 1) * 4),
+                init_done:       MMIOIf::new((3 * num_mods + 2) * 4),
+                target_cycle_lo: MMIOIf::new((3 * num_mods + 3) * 4),
+                target_cycle_hi: MMIOIf::new((3 * num_mods + 4) * 4),
+            }
+        };
+
+        println!("Testing MMIO fingerprint");
+
+        let fgr_init = driver.ctrl_bridge.fingerprint.read(&mut driver.simif)?;
+        assert!(fgr_init == 0,
+            "mmio fingerprint mismatch, expect {} got {}", 0, fgr_init);
+
+        driver.ctrl_bridge.fingerprint.write(&mut driver.simif, 0xdeadcafe)?;
+        let fgr_read = driver.ctrl_bridge.fingerprint.read(&mut driver.simif)?;
+
+        assert!(fgr_read == 0xdeadcafe,
+            "mmio fingerprint mismatch, expect {:x} got {:x}", 0xdeadcafeu32, fgr_read);
+
+        println!("Testing DMA");
+
+        let pattern: Vec<u8> = vec![0xd, 0xe, 0xa, 0xd, 0xc, 0xa, 0xf, 0xe];
+        let mut data: Vec<u8> = vec![];
+        data.extend(pattern.iter().cycle().take(io_stream_bytes as usize));
+
+        let wbytes = driver.dbg_bridge.push(&mut driver.simif, &data)?;
+        assert!(wbytes == data.len() as u32, "write failed");
+
+        for _ in 0..20 {
+            driver.simif.step();
+        }
+
+        let mut rdata: Vec<u8> = vec![0u8; data.len()];
+        let rbytes = driver.dbg_bridge.pull(&mut driver.simif, &mut rdata)?;
+
+        assert!(rbytes == data.len() as u32, "read failed, rbytes: {}, expected: {}", rbytes, data.len());
+        assert!(data == rdata, "DMA read {:X?}\nexpect   {:X?}", rdata, data);
+
+
+        println!("Start configuration register setup");
 
         for (m, sram_cfg) in sram_cfgs.iter() {
             let single_port_sram = match sram_cfg.port_type {
                 SRAMPortType::SinglePortSRAM     => { true }
                 SRAMPortType::OneRdOneWrPortSRAM => { false }
             };
-            mmio_write(&mut sim, (m + 0 * num_mods) * 4, single_port_sram as u32);
+            let sram_mmios: &SRAMConfig = driver.ctrl_bridge.sram.get(*m as usize).unwrap();
+
+            sram_mmios.ptype.write(&mut driver.simif, single_port_sram as u32)?;
             for _ in 0..5 {
-                sim.step();
+                driver.simif.step();
             }
-            mmio_write(&mut sim, (m + 1 * num_mods) * 4, sram_cfg.wmask_bits);
+
+            sram_mmios.mask.write(&mut driver.simif, sram_cfg.wmask_bits as u32)?;
             for _ in 0..5 {
-                sim.step();
+                driver.simif.step();
             }
-            mmio_write(&mut sim, (m + 2 * num_mods) * 4, sram_cfg.width_bits);
+
+            sram_mmios.mask.write(&mut driver.simif, sram_cfg.width_bits as u32)?;
             for _ in 0..5 {
-                sim.step();
+                driver.simif.step();
             }
         }
 
-        mmio_write(&mut sim, (3 * num_mods) * 4, host_steps);
+        driver.ctrl_bridge.host_steps.write(&mut driver.simif, host_steps)?;
 
-        sim.step();
+        driver.simif.step();
 
         println!("Start pushing instructions");
 
@@ -253,14 +300,14 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
                                             .collect();
                 bytebuf.reverse();
                 bytebuf.resize(fpga_top_cfg.axi.beat_bytes() as usize, 0);
-                dma_write(&mut sim, 4096, bytebuf.len() as u32, &bytebuf);
+                driver.inst_bridge.push(&mut driver.simif, &bytebuf)?;
             }
         }
         inst_bar.finish();
 
         // Wait until initialization is finished
-        while mmio_read(&mut sim, (3 * num_mods + 2) * 4)  == 0 {
-            sim.step();
+        while driver.ctrl_bridge.init_done.read(&mut driver.simif)? == 0 {
+            driver.simif.step();
         }
 
         println!("Start simulation");
@@ -287,13 +334,17 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
                 .collect();
             ivec.resize(io_stream_bytes as usize, 0);
 
-            dma_write(&mut sim, 0, ivec.len() as u32, &ivec);
+            driver.io_bridge.push(&mut driver.simif, &ivec)?;
 
-            while mmio_read(&mut sim, (3 * num_mods + 3) * 4) < 1 {
-                sim.step();
+            let mut ovec = vec![0u8; ivec.len()];
+            while true {
+                let read_bytes = driver.io_bridge.pull(&mut driver.simif, &mut ovec)?;
+                if read_bytes == 0 {
+                    driver.simif.step();
+                } else {
+                    break;
+                }
             }
-
-            let ovec: Vec<u8> = dma_read(&mut sim, 0, io_stream_bytes);
 
             // Run functional simulator
             let input_stimuli_by_step = get_input_stimuli_by_step(
@@ -334,7 +385,7 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
                 break 'emulation_loop;
             }
         }
-        sim.finish();
+        driver.simif.finish();
         sim_bar.finish();
     }
     match mismatch_string {
