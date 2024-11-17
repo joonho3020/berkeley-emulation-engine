@@ -1,8 +1,10 @@
 pub mod dut;
 pub mod dut_if;
-pub mod sim_if;
 pub mod sim;
 pub mod axi;
+pub mod sim_if;
+pub mod mmio_if;
+pub mod dma_if;
 use bee::{
     common::{
         circuit::Circuit,
@@ -28,9 +30,11 @@ use indicatif::ProgressBar;
 use bitvec::{order::Lsb0, vec::BitVec};
 use dut::*;
 use dut_if::*;
-use sim_if::*;
 use axi::*;
 use sim::*;
+use sim_if::*;
+use mmio_if::*;
+use dma_if::*;
 
 #[derive(Debug)]
 pub enum RTLSimError {
@@ -209,16 +213,16 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
         }
         let mut driver = Driver {
             simif: Box::new(sim),
-            io_bridge:   DMAIf::new(DMAAddrRegs::new(0x0000, io_bridge_filled, io_bridge_empty)),
-            inst_bridge: DMAIf::new(DMAAddrRegs::new(0x1000, inst_bridge_filled, inst_bridge_empty)),
-            dbg_bridge:  DMAIf::new(DMAAddrRegs::new(0x2000, dbg_bridge_filled, dbg_bridge_empty)),
+            io_bridge:   PushPullDMAIf::new(0x0000, io_bridge_filled, io_bridge_empty),
+            inst_bridge: PushDMAIf::new(0x1000, inst_bridge_empty),
+            dbg_bridge:  PushPullDMAIf::new(0x2000, dbg_bridge_filled, dbg_bridge_empty),
             ctrl_bridge: ControlIf {
                 sram: sram_cfg_vec,
-                host_steps:      MMIOIf::new((3 * num_mods    ) * 4),
-                fingerprint:     MMIOIf::new((3 * num_mods + 1) * 4),
-                init_done:       MMIOIf::new((3 * num_mods + 2) * 4),
-                target_cycle_lo: MMIOIf::new((3 * num_mods + 3) * 4),
-                target_cycle_hi: MMIOIf::new((3 * num_mods + 4) * 4),
+                host_steps:      WrMMIOIf::new((3 * num_mods    ) * 4),
+                fingerprint:     RdWrMMIOIf::new((3 * num_mods + 1) * 4),
+                init_done:       RdMMIOIf::new((3 * num_mods + 2) * 4),
+                target_cycle_lo: RdMMIOIf::new((3 * num_mods + 3) * 4),
+                target_cycle_hi: RdMMIOIf::new((3 * num_mods + 4) * 4),
             }
         };
 
