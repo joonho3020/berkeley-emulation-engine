@@ -50,5 +50,3 @@ pub struct Driver
     pub dbg_bridge:  PushPullDMAIf,
     pub ctrl_bridge: ControlIf
 }
-
-// TODO: Use macros

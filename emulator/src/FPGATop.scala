@@ -112,6 +112,8 @@ class FPGATop(implicit p: Parameters) extends LazyModule {
 class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer) {
   println(cfg.axi)
 
+  var mmap = new DriverMemoryMap
+
   val io_dma_axi4_master = IO(Flipped(AXI4Bundle(cfg.axi.axi4BundleParams)))
   outer.axiDMAMasterNode.out.head._1 <> io_dma_axi4_master
 
@@ -167,19 +169,31 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
   val num_mods_log2 = log2Ceil(cfg.emul.num_mods + 1)
 
   val single_port_ram = Seq.fill(cfg.emul.num_mods)(RegInit(0.U(num_mods_log2.W)))
-  AXI4MMIOModule.bind_readwrite_reg_array(single_port_ram, mmio)
+  val wmask_bits      = Seq.fill(cfg.emul.num_mods)(RegInit(0.U(num_mods_log2.W)))
+  val width_bits      = Seq.fill(cfg.emul.num_mods)(RegInit(0.U(num_mods_log2.W)))
 
-  val wmask_bits = Seq.fill(cfg.emul.num_mods)(RegInit(0.U(num_mods_log2.W)))
-  AXI4MMIOModule.bind_readwrite_reg_array(wmask_bits, mmio)
+  val ptype_idxs = AXI4MMIOModule.bind_readwrite_reg_array(single_port_ram, mmio)
+  val mask_idxs  = AXI4MMIOModule.bind_readwrite_reg_array(wmask_bits,      mmio)
+  val width_idxs = AXI4MMIOModule.bind_readwrite_reg_array(width_bits,      mmio)
 
-  val width_bits = Seq.fill(cfg.emul.num_mods)(RegInit(0.U(num_mods_log2.W)))
-  AXI4MMIOModule.bind_readwrite_reg_array(width_bits, mmio)
+  ptype_idxs.zip(mask_idxs).zip(width_idxs).foreach({ case((p, m), w) => {
+    mmap.ctrl.add_sram(SRAMConfigAddr(p << 2, m << 2, w << 2))
+  }})
+
 
   val host_steps = RegInit(0.U(cfg.emul.index_bits.W))
-  AXI4MMIOModule.bind_readwrite_reg(host_steps, mmio)
+  mmap.ctrl.add_reg(new MMIOIf(
+    AXI4MMIOModule.bind_readwrite_reg(host_steps, mmio) << 2,
+    false,
+    true,
+    "host_steps"))
 
-  val fingerprint_reg = RegInit(0.U(32.W))
-  AXI4MMIOModule.bind_readwrite_reg(fingerprint_reg, mmio)
+  val fingerprint_reg = RegInit(BigInt("F00DCAFE", 16).U(32.W))
+  mmap.ctrl.add_reg(new MMIOIf(
+    AXI4MMIOModule.bind_readwrite_reg(fingerprint_reg, mmio) << 2,
+    true,
+    true,
+    "fingerprint"))
 
   ////////////////////////////////////////////////////////////////////////////
 
@@ -188,7 +202,11 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
   // Read Only Register mapping
   // - init
   val init = RegNext(board.io.init)
-  AXI4MMIOModule.bind_readonly_reg(init, mmio)
+  mmap.ctrl.add_reg(new MMIOIf(
+    AXI4MMIOModule.bind_readonly_reg(init, mmio) << 2,
+    true,
+    false,
+    "init_done"))
 
   for (i <- 0 until cfg.emul.num_mods) {
     board.io.cfg_in(i).host_steps := host_steps
@@ -252,15 +270,45 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
     target_cycle := target_cycle + 1.U
   }
 
-  AXI4MMIOModule.bind_readonly_reg(target_cycle & ((BigInt(1) << 32) - 1).U, mmio)
-  AXI4MMIOModule.bind_readonly_reg(target_cycle >> 32,                       mmio)
+  mmap.ctrl.add_reg(new MMIOIf(
+    AXI4MMIOModule.bind_readonly_reg(target_cycle & ((BigInt(1) << 32) - 1).U, mmio) << 2,
+    true,
+    false,
+    "target_cycle_lo"))
+  mmap.ctrl.add_reg(new MMIOIf(
+    AXI4MMIOModule.bind_readonly_reg(target_cycle >> 32, mmio) << 2,
+    true,
+    false,
+    "target_cycle_hi"))
 
-  stream_converter.io.streams.foreach(s => {
-    AXI4MMIOModule.bind_readonly_reg(s.filled_bytes, mmio)
-    AXI4MMIOModule.bind_readonly_reg(s .empty_bytes, mmio)
-  })
+  mmap.dmas.append(new DMAIf(
+    0x0000,
+    Some(AXI4MMIOModule.bind_readonly_reg(stream_converter.io.streams(0).filled_bytes, mmio) << 2),
+    Some(AXI4MMIOModule.bind_readonly_reg(stream_converter.io.streams(0) .empty_bytes, mmio) << 2),
+    "io_bridge"))
+
+  // TODO: remove later, just to keep consistency for now
+  AXI4MMIOModule.bind_readonly_reg(stream_converter.io.streams(1).filled_bytes, mmio)
+
+  mmap.dmas.append(new DMAIf(
+    0x1000,
+    None,
+    Some(AXI4MMIOModule.bind_readonly_reg(stream_converter.io.streams(1) .empty_bytes, mmio) << 2),
+    "inst_bridge"))
+
+  mmap.dmas.append(new DMAIf(
+    0x2000,
+    Some(AXI4MMIOModule.bind_readonly_reg(stream_converter.io.streams(2).filled_bytes, mmio) << 2),
+    Some(AXI4MMIOModule.bind_readonly_reg(stream_converter.io.streams(2) .empty_bytes, mmio) << 2),
+    "dbg_bridge"))
 
   val dma_test_q = Module(new Queue(UInt(io_stream_width.W), 4))
   dma_test_q.io.enq <> stream_converter.io.streams(2).deq
   stream_converter.io.streams(2).enq <> dma_test_q.io.deq
+
+
+  println(s"""=================== Simulator Memory Map =========================
+    ${mmap.str}
+  """)
+  mmap.write_to_file("FPGATop.mmap")
 }

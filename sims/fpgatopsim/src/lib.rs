@@ -5,6 +5,7 @@ pub mod axi;
 pub mod sim_if;
 pub mod mmio_if;
 pub mod dma_if;
+pub mod driver_generated;
 use bee::{
     common::{
         circuit::Circuit,
@@ -35,6 +36,7 @@ use sim::*;
 use sim_if::*;
 use mmio_if::*;
 use dma_if::*;
+use driver_generated::*;
 
 #[derive(Debug)]
 pub enum RTLSimError {
@@ -211,25 +213,13 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
                     (num_mods + i) * 4,
                     (2 * num_mods + i) * 4));
         }
-        let mut driver = Driver {
-            simif: Box::new(sim),
-            io_bridge:   PushPullDMAIf::new(0x0000, io_bridge_filled, io_bridge_empty),
-            inst_bridge: PushDMAIf::new(0x1000, inst_bridge_empty),
-            dbg_bridge:  PushPullDMAIf::new(0x2000, dbg_bridge_filled, dbg_bridge_empty),
-            ctrl_bridge: ControlIf {
-                sram: sram_cfg_vec,
-                host_steps:      WrMMIOIf::new((3 * num_mods    ) * 4),
-                fingerprint:     RdWrMMIOIf::new((3 * num_mods + 1) * 4),
-                init_done:       RdMMIOIf::new((3 * num_mods + 2) * 4),
-                target_cycle_lo: RdMMIOIf::new((3 * num_mods + 3) * 4),
-                target_cycle_hi: RdMMIOIf::new((3 * num_mods + 4) * 4),
-            }
-        };
+
+        let mut driver = Driver::try_from_simif(Box::new(sim));
 
         println!("Testing MMIO fingerprint");
 
         let fgr_init = driver.ctrl_bridge.fingerprint.read(&mut driver.simif)?;
-        assert!(fgr_init == 0,
+        assert!(fgr_init == 0xf00dcafe,
             "mmio fingerprint mismatch, expect {} got {}", 0, fgr_init);
 
         driver.ctrl_bridge.fingerprint.write(&mut driver.simif, 0xdeadcafe)?;

@@ -26,7 +26,8 @@ SCALA_FILES   := $(shell find $(SCALA_SRC_DIR) -name '*.scala')
 
 MILL_BUILD           := $(EMULATOR_DIR)/out/mill.lock
 FPGATOP              := $(EMULATOR_DIR)/FPGATop.sv
-MILL_BUILD_ARTIFACTS := $(MILL_BUILD) $(FPGATOP)
+MMAP                 := $(EMULATOR_DIR)/FPGATop.mmap
+MILL_BUILD_ARTIFACTS := $(MILL_BUILD) $(FPGATOP) $(MMAP)
 
 # Build target
 .PHONY: chisel_elaborate
@@ -96,6 +97,7 @@ clean:
 	-rm -rf sim-dir
 	-rm DEBUG
 	-rm $(MILL_BUILD_ARTIFACTS)
+	-rm src/driver_generated.rs
 
 all:
 	test

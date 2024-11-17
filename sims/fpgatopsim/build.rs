@@ -7,6 +7,7 @@ use std::process::Command;
 
 pub struct Args {
     pub sv_file_path: String,
+    pub sim_mmap_file_path: String,
     pub build_dir: String,
 }
 
@@ -211,6 +212,23 @@ fn generate_rust_bindings(top: &str, signals: &Vec<Signal>, output_path: &str) -
     Ok(())
 }
 
+fn generate_driver_impl(mmap_path: String) -> std::io::Result<()> {
+    let macro_str = std::fs::read_to_string(mmap_path)?;
+
+    let dst_path = format!("{}/src/driver_generated.rs", env::current_dir()?.to_str().unwrap());
+    let macro_code = format!(r#"
+    use crate::sim_if::*;
+    use crate::mmio_if::*;
+    use crate::dma_if::*;
+
+    {}
+    "#, macro_str);
+
+    // Write the macro code to the file.
+    fs::write(&dst_path, macro_code).unwrap();
+    return Ok(());
+}
+
 fn main() -> std::io::Result<()> {
     println!("cargo:rerun-if-changed=build.rs");
 
@@ -218,6 +236,7 @@ fn main() -> std::io::Result<()> {
     // to build.rs
     let args = Args {
         sv_file_path: "../../emulator/FPGATop.sv".to_string(),
+        sim_mmap_file_path: "../../emulator/FPGATop.mmap".to_string(),
         build_dir: "build-dir".to_string(),
     };
 
@@ -318,6 +337,8 @@ fn main() -> std::io::Result<()> {
         conda_prefix, "./"
     );
     println!("cargo:rustc-link-lib=dylib=Vdut");
+
+    generate_driver_impl(args.sim_mmap_file_path)?;
 
     return Ok(());
 }
