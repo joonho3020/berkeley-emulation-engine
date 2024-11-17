@@ -101,7 +101,7 @@ checksum = "ace50bade8e6234aa140d9a2f552bbee1db4d353f69b8217bc503490fc1a9f26"
 [[package]]
 name = "bee"
 version = "0.1.0"
-source = "git+ssh://git@github.com/joonho3020/berkeley-emulation-engine.git?branch=main#3ce5dc389c3673d452dd55c8442a1b4d31ea23cd"
+source = "git+ssh://git@github.com/joonho3020/berkeley-emulation-engine.git?branch=main#23d9b320d60aa241d265ecfebd4bcec6dc68a947"
 dependencies = [
  "bitvec",
  "blif-parser",

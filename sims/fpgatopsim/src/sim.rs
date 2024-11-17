@@ -38,40 +38,42 @@ impl Sim {
 }
 
 impl SimIf for Sim {
-    unsafe fn finish(self: &mut Self) {
-        self.finish();
+    fn finish(self: &mut Self) {
+        unsafe { self.finish(); }
     }
 
-    unsafe fn step(self: &mut Self) {
+    fn step(self: &mut Self) {
         let time = self.cycle * 2;
-        FPGATop_eval(self.dut);
-        dump_vcd(self.vcd, time);
+        unsafe {
+            FPGATop_eval(self.dut);
+            dump_vcd(self.vcd, time);
 
-        poke_clock(self.dut, 1);
-        FPGATop_eval(self.dut);
-        dump_vcd(self.vcd, time + 1);
+            poke_clock(self.dut, 1);
+            FPGATop_eval(self.dut);
+            dump_vcd(self.vcd, time + 1);
 
-        poke_clock(self.dut, 0);
+            poke_clock(self.dut, 0);
+        }
         self.cycle += 1;
     }
 
-    unsafe fn push(self:  &mut Self, addr: u32, data: &Vec<u8>) -> Result<u32, SimIfErr> {
-        dma_write(self, addr, data.len() as u32, data);
+    fn push(self:  &mut Self, addr: u32, data: &Vec<u8>) -> Result<u32, SimIfErr> {
+        unsafe { dma_write(self, addr, data.len() as u32, data); }
         return Ok(data.len() as u32);
     }
 
-    unsafe fn pull(self:  &mut Self, addr: u32, data: &mut Vec<u8>) -> Result<u32, SimIfErr> {
+    fn pull(self:  &mut Self, addr: u32, data: &mut Vec<u8>) -> Result<u32, SimIfErr> {
         let size = data.len() as u32;
-        dma_read(self, addr, data, size);
+        unsafe { dma_read(self, addr, data, size); }
         return Ok(size);
     }
 
-    unsafe fn read(self:  &mut Self, addr: u32) -> Result<u32, SimIfErr> {
-        return Ok(mmio_read(self, addr));
+    fn read(self:  &mut Self, addr: u32) -> Result<u32, SimIfErr> {
+        return Ok(unsafe { mmio_read(self, addr) });
     }
 
-    unsafe fn write(self: &mut Self, addr: u32, data: u32) -> Result<(), SimIfErr> {
-        mmio_write(self, addr, data);
+    fn write(self: &mut Self, addr: u32, data: u32) -> Result<(), SimIfErr> {
+        unsafe { mmio_write(self, addr, data) };
         return Ok(());
     }
 }

@@ -12,16 +12,16 @@ pub struct FPGATopConfig {
 }
 
 pub trait SimIf: Debug {
-    unsafe fn finish(self: &mut Self);
-    unsafe fn step(self: &mut Self);
-    unsafe fn push(self:  &mut Self, addr: u32, data: &Vec<u8>) -> Result<u32, SimIfErr>;
-    unsafe fn pull(self:  &mut Self, addr: u32, data: &mut Vec<u8>) -> Result<u32, SimIfErr>;
-    unsafe fn read(self:  &mut Self, addr: u32) -> Result<u32, SimIfErr>;
-    unsafe fn write(self: &mut Self, addr: u32, data: u32) -> Result<(), SimIfErr>;
+    fn finish(self: &mut Self);
+    fn step(self: &mut Self);
+    fn push(self:  &mut Self, addr: u32, data: &Vec<u8>) -> Result<u32, SimIfErr>;
+    fn pull(self:  &mut Self, addr: u32, data: &mut Vec<u8>) -> Result<u32, SimIfErr>;
+    fn read(self:  &mut Self, addr: u32) -> Result<u32, SimIfErr>;
+    fn write(self: &mut Self, addr: u32, data: u32) -> Result<(), SimIfErr>;
 }
 
 pub trait DMAOps: DMAAddrs {
-    unsafe fn push(self: &Self, sim: &mut Box<dyn SimIf>, data: &Vec<u8>) -> Result<u32, SimIfErr> {
+    fn push(self: &Self, sim: &mut Box<dyn SimIf>, data: &Vec<u8>) -> Result<u32, SimIfErr> {
         let empty_bytes = sim.read(self.empty_addr())?;
         let pushed_bytes = if empty_bytes >= data.len() as u32 {
             sim.push(self.enq_addr(), data)?
@@ -30,7 +30,7 @@ pub trait DMAOps: DMAAddrs {
         }; Ok(pushed_bytes)
     }
 
-    unsafe fn pull(self: &Self, sim: &mut Box<dyn SimIf>, data: &mut Vec<u8>) -> Result<u32, SimIfErr> {
+    fn pull(self: &Self, sim: &mut Box<dyn SimIf>, data: &mut Vec<u8>) -> Result<u32, SimIfErr> {
         let filled_bytes = sim.read(self.filled_addr())?;
         let pulled_bytes = if filled_bytes >= data.len() as u32 {
             sim.pull(self.deq_addr(), data)?
@@ -97,10 +97,10 @@ impl DMAIf {
 }
 
 pub trait MMIOOps: MMIOAddr {
-    unsafe fn read(self: &Self, sim:  &mut Box<dyn SimIf>) -> Result<u32, SimIfErr> {
+    fn read(self: &Self, sim:  &mut Box<dyn SimIf>) -> Result<u32, SimIfErr> {
         sim.read(self.addr())
     }
-    unsafe fn write(self: &Self, sim: &mut Box<dyn SimIf>, data: u32) -> Result<(), SimIfErr> {
+    fn write(self: &Self, sim: &mut Box<dyn SimIf>, data: u32) -> Result<(), SimIfErr> {
         sim.write(self.addr(), data)
     }
 }
