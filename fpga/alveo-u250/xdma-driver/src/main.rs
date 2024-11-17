@@ -43,28 +43,6 @@ fn main() -> Result<(), XDMAError> {
     simif.write(fingerprint_addr, 0xdeadbeaf)?;
     println!("reading from fingerprint addr: {:x}", simif.read(fingerprint_addr)?);
 
-// for i in 0..64 {
-// let addr = i * 4;
-// simif.write(addr, 0xbabebabe)?;
-// simif.write(addr, 0xcafecafe)?;
-// simif.write(addr, 0xdeaddead)?;
-// println!("read from {:x}: {:x}", addr, simif.read(addr)?);
-// }
-
-// for i in 0..16 {
-// let addr = i * 4096;
-// let wbuf = vec![0xdu8; 128];
-// simif.push(addr, &wbuf)?;
-// let rbuf = simif.pull(addr, 128)?;
-// if wbuf != rbuf {
-// println!("dma mismatch :(");
-// println!("wbuf: {:?}", wbuf);
-// println!("rbuf: {:?}", rbuf);
-// } else {
-// println!("dma match :)");
-// }
-// }
-
     fn is_aligned<T>(ptr: *const T, alignment: usize) -> bool {
         (ptr as usize) % alignment == 0
     }
@@ -74,52 +52,65 @@ fn main() -> Result<(), XDMAError> {
     let dbg_filled = (3 * num_mods + 9) * 4;
     let dbg_empty  = (3 * num_mods + 10) * 4;
 
-// let mut rng = rand::thread_rng();
+// let base_vec: Vec<u8> = vec![0xAA, 0xBB, 0xCC, 0xDD];
+// let mut wbuf: Vec<u8> = XDMAInterface::aligned_vec(0x1000, 0);
+// wbuf.extend(base_vec.iter().cloned().cycle().take(dma_bytes as usize));
+    let mut rng = rand::thread_rng();
 // let wbuf: Vec<u8> = (0..dma_bytes).map(|_| rng.gen_range(10..16)).collect();
 // assert_eq!(is_aligned(wbuf.as_ptr(), 64), true);
 
-    let base_vec: Vec<u8> = vec![0xDE, 0xAD, 0xBE, 0xAF];
-    let wbuf: Vec<u8> = base_vec.iter().cloned().cycle().take(dma_bytes as usize).collect();
+    let iterations = 10000;
+    let bar = ProgressBar::new(iterations);
+    for i in 0..iterations {
+        bar.inc(1);
+        let mut wbuf: Vec<u8> = XDMAInterface::aligned_vec(0x1000, 0);
+        wbuf.extend((0..dma_bytes).map(|_| rng.gen_range(10..16)));
 
-    let empty_bytes = simif.read(dbg_empty)?;
-    println!("empty_bytes: {}", empty_bytes);
-    assert!(empty_bytes >= wbuf.len() as u32,
-        "Not enough empty space: {} for write len {}", empty_bytes, wbuf.len());
+        // println!("wbuf: {:X?}, wbuf.len: {}", wbuf, wbuf.len());
+
+        let empty_bytes = simif.read(dbg_empty)?;
+        // println!("empty_bytes: {}", empty_bytes);
+        assert!(empty_bytes >= wbuf.len() as u32,
+            "Not enough empty space: {} for write len {}", empty_bytes, wbuf.len());
 
 
-    let pre_read_filled_bytes = simif.read(dbg_filled)?;
-    println!("pre_read_filled_bytes: {}", pre_read_filled_bytes);
-    if pre_read_filled_bytes != 0 {
-        println!("buffer filled before a write happend");
+        let pre_read_filled_bytes = simif.read(dbg_filled)?;
+        assert!(pre_read_filled_bytes == 0, "Buffer filled before a write happend: {}", pre_read_filled_bytes);
+// println!("pre_read_filled_bytes: {}", pre_read_filled_bytes);
+// if pre_read_filled_bytes != 0 {
+// println!("buffer filled before a write happend");
+// }
+
+        let written_bytes = simif.push(addr, &wbuf)?;
+// println!("written_bytes: {}", written_bytes);
+        assert!(written_bytes == wbuf.len() as u32,
+            "Wbuf len: {}, written bytes: {}", wbuf.len(), written_bytes);
+
+// println!("sleep");
+// let dur = time::Duration::from_millis(100);
+// std::thread::sleep(dur);
+// println!("wake");
+
+        let filled_bytes = simif.read(dbg_filled)?;
+        assert!(filled_bytes == dma_bytes, "Read side didn't receive data yet, filled_bytes: {}", filled_bytes);
+// println!("filled_bytes: {}", filled_bytes);
+        // while true {
+        //     let filled_bytes = simif.read(dbg_filled)?;
+        //     if filled_bytes >= wbuf.len() as u32 {
+        //         break;
+        //     }
+        // }
+
+// if filled_bytes != dma_bytes {
+// println!("WTF, filled_bytes: {}, dma_bytes: {}", filled_bytes, dma_bytes);
+// }
+        let rbuf = simif.pull(addr, dma_bytes)?;
+// println!("read bytes: {}", rbuf.len());
+
+        assert_eq!(is_aligned(rbuf.as_ptr(), dma_bytes as usize), true);
+        assert!(wbuf == rbuf, "wbuf: {:X?}\nrbuf: {:X?}", wbuf, rbuf);
     }
-
-    let written_bytes = simif.push(addr, &wbuf)?;
-    println!("written_bytes: {}", written_bytes);
-    assert!(written_bytes == wbuf.len() as u32,
-        "Wbuf len: {}, written bytes: {}", wbuf.len(), written_bytes);
-
-    println!("sleep");
-    let dur = time::Duration::from_millis(100);
-    std::thread::sleep(dur);
-    println!("wake");
-
-    let filled_bytes = simif.read(dbg_filled)?;
-    println!("filled_bytes: {}", filled_bytes);
-    // while true {
-    //     let filled_bytes = simif.read(dbg_filled)?;
-    //     if filled_bytes >= wbuf.len() as u32 {
-    //         break;
-    //     }
-    // }
-
-    if filled_bytes != dma_bytes {
-        println!("WTF, filled_bytes: {}, dma_bytes: {}", filled_bytes, dma_bytes);
-    }
-    let rbuf = simif.pull(addr, dma_bytes)?;
-    println!("read bytes: {}", rbuf.len());
-
-    assert_eq!(is_aligned(rbuf.as_ptr(), dma_bytes as usize), true);
-    assert!(wbuf == rbuf, "wbuf: {:X?}\nrbuf: {:X?}", wbuf, rbuf);
+    bar.finish();
 
     println!("Test Finished");
 

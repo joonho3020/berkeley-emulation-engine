@@ -63,6 +63,7 @@ class Stream(val sp: StreamParam, val axiDataBits: Int) extends Bundle {
   val widthBytes   = axiDataBits / 8
   val maxBytes     = sp.bufferDepth * widthBytes
   val capacityBits = log2Ceil(maxBytes + 1)
+  require(capacityBits <= 32)
 
   val enq = Flipped(Decoupled(UInt(sp.widthBits.W)))
   val filled_bytes = UInt(capacityBits.W)
