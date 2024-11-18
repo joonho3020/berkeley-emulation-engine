@@ -23,6 +23,8 @@ emulator/results.xml
 emulator/sim_build
 emulator/test/*
 
+sim/metasim/src/simif/*
+
 
 **/driver_generated.rs
 
