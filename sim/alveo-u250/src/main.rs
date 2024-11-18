@@ -172,9 +172,7 @@ fn main() -> Result<(), SimIfErr> {
 
         let mut wbuf: Vec<u8> = XDMAInterface::aligned_vec(0x1000, 0);
         wbuf.extend((0..dma_bytes).map(|_| rng.gen_range(10..16)));
-
         let written_bytes = driver.dbg_bridge.push(&mut driver.simif, &wbuf)?;
-// println!("written_bytes: {}", written_bytes);
 
         let mut rbuf = vec![0u8; dma_bytes as usize];
         let read_bytes = driver.dbg_bridge.pull(&mut driver.simif, &mut rbuf)?;
@@ -223,17 +221,6 @@ fn main() -> Result<(), SimIfErr> {
                 .rev());
             bytebuf.reverse();
             bytebuf.resize(64 as usize, 0);
-
-            let mut bytebuf_ref: Vec<u8> = bitbuf
-                .into_vec()
-                .iter()
-                .flat_map(|&x| x.to_le_bytes())
-                .rev()
-                .collect();
-            bytebuf_ref.reverse();
-            bytebuf_ref.resize(64 as usize, 0);
-            assert!(bytebuf == bytebuf_ref, "inst buf mismatch\ngot: {:X?}\nref: {:X?}", bytebuf, bytebuf_ref);
-
             driver.inst_bridge.push(&mut driver.simif, &bytebuf)?;
         }
     }

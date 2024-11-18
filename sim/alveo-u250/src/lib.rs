@@ -176,7 +176,6 @@ impl XDMAInterface {
     #[inline(never)]
     fn fpga_axi_read(self: &Self, addr: Addr, len: u32) -> Result<Vec<u8>, SimIfErr> {
         let read_buf = Self::aligned_vec(4096, len);
-// println!("read_buf ptr: {:X?}, len: {} off: {:?}", read_buf.as_ptr(), read_buf.len(), addr as libc::off_t);
         let _ = unsafe {
             libc::pread(
                 self.read_fd.as_raw_fd(),
@@ -188,7 +187,6 @@ impl XDMAInterface {
         return Ok(read_buf);
     }
 }
-
 
 impl SimIf for XDMAInterface {
     fn finish(self: &mut Self) {
@@ -220,22 +218,3 @@ impl SimIf for XDMAInterface {
         return Ok(());
     }
 }
-
-// pub fn read(self: &Self, addr: Addr) -> Result<u32, SimIfErr> {
-// let num = self.fpga_axil_read(addr)?;
-// return Ok(num & 0xffffffff);
-// }
-
-// pub fn write(self: &mut Self, addr: Addr, value: u32) -> Result<(), SimIfErr> {
-// self.fpga_axil_write(addr, value)?;
-// return Ok(());
-// }
-
-// pub fn pull(self: &Self, addr: Addr, len: u32) -> Result<Vec<u8>, SimIfErr> {
-// return self.fpga_axi_read(addr, len);
-// }
-
-// pub fn push(self: &mut Self, addr: Addr, data: &Vec<u8>) -> Result<u32, SimIfErr> {
-// return self.fpga_axi_write(addr, data);
-// }
-// }
