@@ -2,6 +2,9 @@ use clap::Parser;
 use xdma_driver::*;
 use rand::Rng;
 use indicatif::ProgressBar;
+use simif::simif::*;
+use simif::mmioif::*;
+use simif::dmaif::*;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about=None)]
@@ -25,7 +28,7 @@ struct Args {
     pub pci_device: u16,
 }
 
-fn main() -> Result<(), XDMAError> {
+fn main() -> Result<(), SimIfErr> {
     let args = Args::parse();
     let mut simif = XDMAInterface::try_new(
         args.pci_vendor,
@@ -36,47 +39,34 @@ fn main() -> Result<(), XDMAError> {
         args.func,
     )?;
 
-    let num_mods = 9;
-    let fingerprint_addr = (3 * num_mods + 1) * 4;
-    println!("reading from fingerprint addr: {:x}", simif.read(fingerprint_addr)?);
-    simif.write(fingerprint_addr, 0xdeadbeaf)?;
-    println!("reading from fingerprint addr: {:x}", simif.read(fingerprint_addr)?);
+    let mut driver = Driver::try_from_simif(Box::new(simif));
 
-    fn is_aligned<T>(ptr: *const T, alignment: usize) -> bool {
-        (ptr as usize) % alignment == 0
-    }
+    println!("Testing MMIO fingerprint");
+    let fgr_init = driver.ctrl_bridge.fingerprint.read(&mut driver.simif)?;
+    println!("fgr_init: {:x}", fgr_init);
 
-    let addr =  0x2000;
+    driver.ctrl_bridge.fingerprint.write(&mut driver.simif, 0xdeadbeaf)?;
+    println!("reading from fingerprint addr: {:x}", driver.ctrl_bridge.fingerprint.read(&mut driver.simif)?);
+
     let dma_bytes = 64;
-    let dbg_filled = (3 * num_mods + 9) * 4;
-    let dbg_empty  = (3 * num_mods + 10) * 4;
-
     let mut rng = rand::thread_rng();
+
+    println!("Testing Debug DMA Bridge");
     let iterations = 10000;
     let bar = ProgressBar::new(iterations);
     for i in 0..iterations {
         bar.inc(1);
+
         let mut wbuf: Vec<u8> = XDMAInterface::aligned_vec(0x1000, 0);
         wbuf.extend((0..dma_bytes).map(|_| rng.gen_range(10..16)));
 
+        let written_bytes = driver.dbg_bridge.push(&mut driver.simif, &wbuf)?;
+// println!("written_bytes: {}", written_bytes);
 
-        let empty_bytes = simif.read(dbg_empty)?;
-        assert!(empty_bytes >= wbuf.len() as u32,
-            "Not enough empty space: {} for write len {}", empty_bytes, wbuf.len());
+        let mut rbuf = vec![0u8; dma_bytes as usize];
+        let read_bytes = driver.dbg_bridge.pull(&mut driver.simif, &mut rbuf)?;
 
-
-        let pre_read_filled_bytes = simif.read(dbg_filled)?;
-        assert!(pre_read_filled_bytes == 0, "Buffer filled before a write happend: {}", pre_read_filled_bytes);
-
-        let written_bytes = simif.push(addr, &wbuf)?;
-        assert!(written_bytes == wbuf.len() as u32,
-            "Wbuf len: {}, written bytes: {}", wbuf.len(), written_bytes);
-
-        let filled_bytes = simif.read(dbg_filled)?;
-        assert!(filled_bytes == dma_bytes, "Read side didn't receive data yet, filled_bytes: {}", filled_bytes);
-
-        let rbuf = simif.pull(addr, dma_bytes)?;
-        assert_eq!(is_aligned(rbuf.as_ptr(), dma_bytes as usize), true);
+        assert!(read_bytes == dma_bytes, "Read {} bytes, expected read {}", read_bytes, dma_bytes);
         assert!(wbuf == rbuf, "wbuf: {:X?}\nrbuf: {:X?}", wbuf, rbuf);
     }
     bar.finish();

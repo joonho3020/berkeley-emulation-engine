@@ -1,14 +1,17 @@
+pub mod simif;
+
 use std::fs::*;
 use std::io::{BufRead, BufReader, Write};
 use std::os::unix::fs::{FileExt, OpenOptionsExt};
 use std::os::unix::io::AsRawFd;
 use std::alloc::{self, Layout};
+use crate::simif::simif::*;
 
 use libc::{O_RDONLY, O_WRONLY};
 
-pub type XDMAError = Box<dyn std::error::Error>;
 pub type Addr = u64;
 
+#[derive(Debug)]
 pub struct XDMAInterface {
     bar0_base: File,
     write_fd: File,
@@ -23,7 +26,7 @@ impl XDMAInterface {
         bus: u8,
         dev: u8,
         func: u8,
-    ) -> Result<Self, XDMAError> {
+    ) -> Result<Self, SimIfErr> {
         let pci_dev = Self::pci_dev_fmt(domain, bus, dev, func);
         Self::fpga_pci_check_file_id(
             &format!("/sys/bus/pci/devices/{}/vendor", pci_dev),
@@ -49,7 +52,7 @@ impl XDMAInterface {
         format!("{:04x}:{:02x}:{:02x}.{:x}", domain, bus, device, function)
     }
 
-    fn fpga_pci_check_file_id(path: &str, id: u16) -> Result<(), XDMAError> {
+    fn fpga_pci_check_file_id(path: &str, id: u16) -> Result<(), SimIfErr> {
         if !path.is_empty() {
             println!("Opening {}", path);
         } else {
@@ -68,7 +71,7 @@ impl XDMAInterface {
         Ok(())
     }
 
-    fn extract_xdma_id(path: &str) -> Result<u32, XDMAError> {
+    fn extract_xdma_id(path: &str) -> Result<u32, SimIfErr> {
         if let Ok(entries) = read_dir(path) {
             for entry in entries {
                 let entry = entry?;
@@ -96,7 +99,7 @@ impl XDMAInterface {
         return Err("XDMA ID not found".into());
     }
 
-    fn extract_bar0_base(xdma_id: &u32) -> Result<File, XDMAError> {
+    fn extract_bar0_base(xdma_id: &u32) -> Result<File, SimIfErr> {
         let user_file_name = format!("/dev/xdma{}_user", xdma_id);
         let file = OpenOptions::new()
             .read(true)
@@ -105,7 +108,7 @@ impl XDMAInterface {
         Ok(file)
     }
 
-    fn extract_xdma_write_fd(xdma_id: &u32) -> Result<File, XDMAError> {
+    fn extract_xdma_write_fd(xdma_id: &u32) -> Result<File, SimIfErr> {
         let file_path = format!("/dev/xdma{}_h2c_0", xdma_id);
         let file = OpenOptions::new()
             .write(true)
@@ -114,7 +117,7 @@ impl XDMAInterface {
         return Ok(file);
     }
 
-    fn extract_xdma_read_fd(xdma_id: &u32) -> Result<File, XDMAError> {
+    fn extract_xdma_read_fd(xdma_id: &u32) -> Result<File, SimIfErr> {
         let file_path = format!("/dev/xdma{}_c2h_0", xdma_id);
         let file = OpenOptions::new()
             .read(true)
@@ -123,14 +126,14 @@ impl XDMAInterface {
         return Ok(file);
     }
 
-    fn fpga_axil_read(self: &Self, addr: Addr) -> Result<u32, XDMAError> {
+    fn fpga_axil_read(self: &Self, addr: Addr) -> Result<u32, SimIfErr> {
         let mut read_buf = [0u8; 4];
         let _ = self.bar0_base.read_at(&mut read_buf, addr)?;
         let number = u32::from_le_bytes(read_buf);
         return Ok(number);
     }
 
-    fn fpga_axil_write(self: &mut Self, addr: Addr, value: u32) -> Result<u32, XDMAError> {
+    fn fpga_axil_write(self: &mut Self, addr: Addr, value: u32) -> Result<u32, SimIfErr> {
         let bytes_written = self.bar0_base.write_at(&value.to_le_bytes(), addr)?;
         self.bar0_base.flush()?;
         return Ok(bytes_written as u32);
@@ -155,7 +158,7 @@ impl XDMAInterface {
     }
 
     #[inline(never)]
-    fn fpga_axi_write(self: &mut Self, addr: Addr, data: &Vec<u8>) -> Result<u32, XDMAError> {
+    fn fpga_axi_write(self: &mut Self, addr: Addr, data: &Vec<u8>) -> Result<u32, SimIfErr> {
         let bytes_written = unsafe {
             libc::pwrite(
                 self.write_fd.as_raw_fd(),
@@ -171,7 +174,7 @@ impl XDMAInterface {
     }
 
     #[inline(never)]
-    fn fpga_axi_read(self: &Self, addr: Addr, len: u32) -> Result<Vec<u8>, XDMAError> {
+    fn fpga_axi_read(self: &Self, addr: Addr, len: u32) -> Result<Vec<u8>, SimIfErr> {
         let read_buf = Self::aligned_vec(4096, len);
 // println!("read_buf ptr: {:X?}, len: {} off: {:?}", read_buf.as_ptr(), read_buf.len(), addr as libc::off_t);
         let _ = unsafe {
@@ -184,22 +187,55 @@ impl XDMAInterface {
         };
         return Ok(read_buf);
     }
+}
 
-    pub fn read(self: &Self, addr: Addr) -> Result<u32, XDMAError> {
-        let num = self.fpga_axil_read(addr)?;
+
+impl SimIf for XDMAInterface {
+    fn finish(self: &mut Self) {
+    }
+
+    fn step(self: &mut Self) {
+    }
+
+    fn push(self:  &mut Self, addr: u32, data: &Vec<u8>) -> Result<u32, SimIfErr> {
+        return self.fpga_axi_write(addr as Addr, data);
+    }
+    fn pull(self:  &mut Self, addr: u32, data: &mut Vec<u8>) -> Result<u32, SimIfErr> {
+        let ret = self.fpga_axi_read(addr as Addr, data.len() as u32)?;
+        assert!(ret.len() == data.len(),
+            "Read byte cnt mismatch, got {} expect {}", ret.len(), data.len());
+
+        // TODO: remove memcpy for performance?
+        for i in 0..data.len() {
+            data[i] = ret[i];
+        }
+        return Ok(ret.len() as u32);
+    }
+    fn read(self:  &mut Self, addr: u32) -> Result<u32, SimIfErr> {
+        let num = self.fpga_axil_read(addr as Addr)?;
         return Ok(num & 0xffffffff);
     }
-
-    pub fn write(self: &mut Self, addr: Addr, value: u32) -> Result<(), XDMAError> {
-        self.fpga_axil_write(addr, value)?;
+    fn write(self: &mut Self, addr: u32, data: u32) -> Result<(), SimIfErr> {
+        self.fpga_axil_write(addr as Addr, data)?;
         return Ok(());
     }
-
-    pub fn pull(self: &Self, addr: Addr, len: u32) -> Result<Vec<u8>, XDMAError> {
-        return self.fpga_axi_read(addr, len);
-    }
-
-    pub fn push(self: &mut Self, addr: Addr, data: &Vec<u8>) -> Result<u32, XDMAError> {
-        return self.fpga_axi_write(addr, data);
-    }
 }
+
+// pub fn read(self: &Self, addr: Addr) -> Result<u32, SimIfErr> {
+// let num = self.fpga_axil_read(addr)?;
+// return Ok(num & 0xffffffff);
+// }
+
+// pub fn write(self: &mut Self, addr: Addr, value: u32) -> Result<(), SimIfErr> {
+// self.fpga_axil_write(addr, value)?;
+// return Ok(());
+// }
+
+// pub fn pull(self: &Self, addr: Addr, len: u32) -> Result<Vec<u8>, SimIfErr> {
+// return self.fpga_axi_read(addr, len);
+// }
+
+// pub fn push(self: &mut Self, addr: Addr, data: &Vec<u8>) -> Result<u32, SimIfErr> {
+// return self.fpga_axi_write(addr, data);
+// }
+// }

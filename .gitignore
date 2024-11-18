@@ -24,6 +24,7 @@ emulator/sim_build
 emulator/test/*
 
 sim/metasim/src/simif/*
+sim/alveo-u250/src/simif/*
 
 
 **/driver_generated.rs

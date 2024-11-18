@@ -25,7 +25,8 @@ SCALA_FILES   := $(shell find $(SCALA_SRC_DIR) -name '*.scala')
 
 MILL_BUILD           := $(EMULATOR_DIR)/out/mill.lock
 MMAP                 := $(BUILDDIR)/FPGATop.mmap
-MILL_BUILD_ARTIFACTS := $(MILL_BUILD) $(MMAP)
+FPGATOP              := $(BUILDDIR)/FPGATop.sv
+MILL_BUILD_ARTIFACTS := $(MILL_BUILD) $(MMAP) $(FPGATop)
 
 # Chisel generated driver stuff
 SIMIF_DIR := src/simif
@@ -36,7 +37,7 @@ DRIVER_GENERATED := driver_generated.rs
 DRIVER_SRCS := $(SIMIF_DIR)/$(SIMIF_FILES) $(SIMIF_DIR)/$(DRIVER_GENERATED)
 SIMULATION_SRCS := $(DRIVER_SRCS)
 
-.DEFAULT_GOAL := test
+.DEFAULT_GOAL := build
 
 # Build target
 chisel_elaborate: $(MILL_BUILD_ARTIFACTS)
@@ -59,33 +60,32 @@ $(MILL_BUILD_ARTIFACTS): $(SCALA_FILES) | $(BUILDDIR)
 			--sram-entries $(sram_entries)
 	@touch $(MILL_BUILD) # Update mill lock file timestamp
 	cp $(EMULATOR_DIR)/FPGATop.mmap $(BUILDDIR)/
+	cp $(EMULATOR_DIR)/FPGATop.sv   $(BUILDDIR)/
 
 # Build verilator shared library w/ c-bindings
 $(SIMULATION_SRCS): $(MILL_BUILD_ARTIFACTS) $(SIMIF_SRCS)
 	cp $(SIMIF_SRCS) $(SIMIF_DIR)
 	cargo build --release -vvv
 
-# Run single example
-run: $(SIMULATION_SRCS)
-	cargo run --release \
-		--bin fpgatopsim \
-		-- -s $(svfile) \
-			 -t $(top) \
-			 -i $(input_file) \
-			 -b $(lut_file) \
-			 --num-mods $(num_mods) \
-			 --num-procs $(num_procs) \
-			 --sram-width $(sram_width) \
-			 --sram-entries $(sram_entries) \
-			 --imem-lat $(imem_lat) \
-			 --inter-proc-nw-lat $(inter_proc_nw_lat) \
-			 --inter-mod-nw-lat $(inter_mod_nw_lat) \
-			 --max-steps $(max_steps) \
-			 --sim-dir $(sim_dir) | tee DEBUG
+build: $(SIMULATION_SRCS)
 
-# Run existing tests
-test: $(SIMULATION_SRCS)
-	cargo nextest run --release
+# Run single example
+# run: $(SIMULATION_SRCS)
+# cargo run --release \
+# --bin xdma_driver \
+# -- -s $(svfile) \
+# -t $(top) \
+# -i $(input_file) \
+# -b $(lut_file) \
+# --num-mods $(num_mods) \
+# --num-procs $(num_procs) \
+# --sram-width $(sram_width) \
+# --sram-entries $(sram_entries) \
+# --imem-lat $(imem_lat) \
+# --inter-proc-nw-lat $(inter_proc_nw_lat) \
+# --inter-mod-nw-lat $(inter_mod_nw_lat) \
+# --max-steps $(max_steps) \
+# --sim-dir $(sim_dir) | tee DEBUG
 
 clean:
 	@if [ -d "$(BUILDDIR)" ]; then \
@@ -95,17 +95,11 @@ clean:
 		echo "Directory $(BUILDDIR) does not exist. Skipping deletion."; \
 	fi
 	cargo clean
-	-rm libVdut.so
-	-rm -f *.vcd
-	-rm -f *.so
-	-rm -rf blif-sim-dir-*
 	-rm -rf build-dir
-	-rm -rf sim-dir
 	-rm DEBUG
 	-rm $(MILL_BUILD_ARTIFACTS)
 	-rm $(DRIVER_GENERATED)
 
-all: test
+all: run
 
-
-.PHONY: run, clean, test, all, chisel_elaborate
+.PHONY: chisel_elaborate, build, run, clean, all
