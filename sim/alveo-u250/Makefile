@@ -70,22 +70,22 @@ $(SIMULATION_SRCS): $(MILL_BUILD_ARTIFACTS) $(SIMIF_SRCS)
 build: $(SIMULATION_SRCS)
 
 # Run single example
-# run: $(SIMULATION_SRCS)
-# cargo run --release \
-# --bin xdma_driver \
-# -- -s $(svfile) \
-# -t $(top) \
-# -i $(input_file) \
-# -b $(lut_file) \
-# --num-mods $(num_mods) \
-# --num-procs $(num_procs) \
-# --sram-width $(sram_width) \
-# --sram-entries $(sram_entries) \
-# --imem-lat $(imem_lat) \
-# --inter-proc-nw-lat $(inter_proc_nw_lat) \
-# --inter-mod-nw-lat $(inter_mod_nw_lat) \
-# --max-steps $(max_steps) \
-# --sim-dir $(sim_dir) | tee DEBUG
+run: $(SIMULATION_SRCS)
+	cargo run --release \
+		--bin xdma-driver \
+		-- -s $(svfile) \
+		-t $(top) \
+		-i $(input_file) \
+		-b $(lut_file) \
+		--num-mods $(num_mods) \
+		--num-procs $(num_procs) \
+		--sram-width $(sram_width) \
+		--sram-entries $(sram_entries) \
+		--imem-lat $(imem_lat) \
+		--inter-proc-nw-lat $(inter_proc_nw_lat) \
+		--inter-mod-nw-lat $(inter_mod_nw_lat) \
+		--max-steps $(max_steps) \
+		--sim-dir $(sim_dir) | tee DEBUG
 
 clean:
 	@if [ -d "$(BUILDDIR)" ]; then \
