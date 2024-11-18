@@ -19,6 +19,8 @@ pub struct XDMAInterface {
 }
 
 impl XDMAInterface {
+    /// Given a pci information and the BDF of the FPGA, get the XDMA file handles
+    /// for MMIO & DMA transactions
     pub fn try_new(
         pci_vendor: u16,
         pci_device: u16,
@@ -52,6 +54,7 @@ impl XDMAInterface {
         format!("{:04x}:{:02x}:{:02x}.{:x}", domain, bus, device, function)
     }
 
+    /// In case there are multiple FPGAs
     fn fpga_pci_check_file_id(path: &str, id: u16) -> Result<(), SimIfErr> {
         if !path.is_empty() {
             println!("Opening {}", path);
@@ -139,6 +142,8 @@ impl XDMAInterface {
         return Ok(bytes_written as u32);
     }
 
+    /// Returns a Vec<u8> that is aligned by `capacity` bytes with `len` bytes
+    /// filled with zeros
     pub fn aligned_vec(capacity: u32, len: u32) -> Vec<u8> {
         let bytes_ = capacity as usize;
         let entries_ = len as usize;

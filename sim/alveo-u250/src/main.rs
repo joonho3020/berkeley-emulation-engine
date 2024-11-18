@@ -90,7 +90,7 @@ pub fn get_input_stimuli_by_step<'a>(
 
 fn main() -> Result<(), SimIfErr> {
     let args = SimArgs::parse();
-    let mut simif = XDMAInterface::try_new(
+    let simif = XDMAInterface::try_new(
         args.pci_vendor,
         args.pci_device,
         args.domain,
@@ -167,12 +167,15 @@ fn main() -> Result<(), SimIfErr> {
     println!("Testing Debug DMA Bridge");
     let iterations = 10000;
     let bar = ProgressBar::new(iterations);
-    for i in 0..iterations {
+    for _i in 0..iterations {
         bar.inc(1);
 
         let mut wbuf: Vec<u8> = XDMAInterface::aligned_vec(0x1000, 0);
         wbuf.extend((0..dma_bytes).map(|_| rng.gen_range(10..16)));
         let written_bytes = driver.dbg_bridge.push(&mut driver.simif, &wbuf)?;
+        assert!(written_bytes == dma_bytes,
+            "DMA write didn't write expected amount. Wrote: {} out of {} bytes",
+            written_bytes, dma_bytes);
 
         let mut rbuf = vec![0u8; dma_bytes as usize];
         let read_bytes = driver.dbg_bridge.pull(&mut driver.simif, &mut rbuf)?;
@@ -232,7 +235,10 @@ fn main() -> Result<(), SimIfErr> {
 
     println!("Init done!!!");
     println!("Start Simulation");
-    let io_stream_bytes = 64;
+    let total_procs = circuit.platform_cfg.total_procs();
+    let axi4_data_bits = 512;
+    let io_stream_bits = ((total_procs + axi4_data_bits - 1) / axi4_data_bits) * axi4_data_bits;
+    let io_stream_bytes = io_stream_bits / 8;
 
     let mut mismatch = false;
 
@@ -296,8 +302,8 @@ fn main() -> Result<(), SimIfErr> {
             .collect();
         ovec_ref.resize(io_stream_bytes as usize, 0);
 
-        println!("ovec: {:?}", ovec);
-        println!("ovec_ref: {:?}", ovec_ref);
+// println!("ovec: {:?}", ovec);
+// println!("ovec_ref: {:?}", ovec_ref);
 
         if ovec != ovec_ref {
             println!("MISMATCH");
