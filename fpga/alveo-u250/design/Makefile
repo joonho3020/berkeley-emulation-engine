@@ -8,9 +8,9 @@ VIVADO_OPTS ?= -nolog -nojournal -mode batch
 
 # Variables for emulator platform
 debug             ?= "true"
-max_steps         ?= 128
-num_mods          ?= 9
-num_procs         ?= 8
+max_steps         ?= 1024
+num_mods          ?= 33
+num_procs         ?= 64
 imem_lat          ?= 1
 inter_mod_nw_lat  ?= 0
 inter_proc_nw_lat ?= 0
