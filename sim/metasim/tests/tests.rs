@@ -14,7 +14,7 @@ pub mod fpgatop_test {
     ) -> bool {
         let args = Args {
             verbose:             false,
-            sim_dir:             format!("blif-sim-dir-{}", top_mod),
+            sim_dir:             format!("../sim-dir/metasim-{}", top_mod),
             sv_file_path:        sv_file_path.to_string(),
             top_mod:             top_mod.to_string(),
             input_stimuli_path:  input_stimuli_path.to_string(),
