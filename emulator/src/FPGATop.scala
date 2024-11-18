@@ -6,6 +6,7 @@ import freechips.rocketchip.amba.axi4._
 import org.chipsalliance.cde.config.{Field, Parameters}
 import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.util.DecoupledHelper
+import java.io._
 
 case class FPGATopAXI4DMAParams(
   addrBits:  Int,
@@ -311,4 +312,8 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
     ${mmap.str}
   """)
   mmap.write_to_file("FPGATop.mmap")
+
+  val out = new ObjectOutputStream(new FileOutputStream("FPGATop.config"))
+  out.writeObject(cfg)
+  out.close()
 }

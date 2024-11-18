@@ -6,16 +6,70 @@ NUM_THREADS ?= 8
 VIVADO_PATH ?= $(shell which vivado)
 VIVADO_OPTS ?= -nolog -nojournal -mode batch
 
-BOARD_PART_TCL   = $(TOP_DIR)/au250.tcl
-VLOG_SOURCES     += $(shell find $(TOP_DIR)/rtl         -type f -name "*.v")
-SVLOG_SOURCES    += $(shell find $(TOP_DIR)/../../../emulator         -type f -name "*.sv")
-CONSTRAINTS      += $(shell find $(TOP_DIR)/constraints -type f -name "*.xdc")
-IP               += $(shell find $(TOP_DIR)/ip -maxdepth 2 -type f -name "*.xci")
-TOP_MODULE = XilinxU250Board
+# Variables for emulator platform
+debug             ?= "true"
+max_steps         ?= 128
+num_mods          ?= 9
+num_procs         ?= 8
+imem_lat          ?= 1
+inter_mod_nw_lat  ?= 0
+inter_proc_nw_lat ?= 0
+sram_width        ?= 16
+sram_entries      ?= 16
+
 PROJECT_DIR = $(TOP_DIR)/project
 
-$(PROJECT_DIR)/target.tcl: $(VLOG_SOURCES) $(CONSTRAINTS) $(IP)
-	@echo "source                             $(BOARD_PART_TCL)"    >> $@
+# Chisel directories and files
+EMULATOR_DIR  := ../../../emulator
+SCALA_SRC_DIR := $(EMULATOR_DIR)/src
+SCALA_FILES   := $(shell find $(SCALA_SRC_DIR) -name '*.scala')
+
+EMULATOR_SRC_DIR     := $(PROJECT_DIR)/srcs/$(BUILD_SUFFIX)
+MILL_BUILD           := $(EMULATOR_DIR)/out/mill.lock
+FPGATOP_MMAP         := $(EMULATOR_SRC_DIR)/FPGATop.mmap
+FPGATOP_SV           := $(EMULATOR_SRC_DIR)/FPGATop.sv
+FPGATOP_CONFIG       := $(EMULATOR_SRC_DIR)/FPGATop.config
+MILL_BUILD_ARTIFACTS := $(MILL_BUILD) $(FPGATOP_MMAP) $(FPGATOP_SV) $(FPGATOP_CONFIG)
+
+
+
+
+BOARD_PART_TCL   = $(TOP_DIR)/au250.tcl
+VLOG_SOURCES     += $(shell find $(TOP_DIR)/rtl            -type f -name "*.v")
+SVLOG_SOURCES    += $(shell find $(EMULATOR_SRC_DIR)       -type f -name "*.sv")
+CONSTRAINTS      += $(shell find $(TOP_DIR)/constraints    -type f -name "*.xdc")
+IP               += $(shell find $(TOP_DIR)/ip -maxdepth 2 -type f -name "*.xci")
+TOP_MODULE = XilinxU250Board
+
+
+.DEFAULT_GOAL := all
+
+# Build target
+chisel_elaborate: $(MILL_BUILD_ARTIFACTS)
+
+$(EMULATOR_SRC_DIR):
+	mkdir -p $(EMULATOR_SRC_DIR)
+
+# Mill rebuild rule
+$(MILL_BUILD_ARTIFACTS): $(SCALA_FILES) | $(EMULATOR_SRC_DIR)
+	@echo "Changes detected in Scala files. Rebuilding with Mill..."
+	cd $(EMULATOR_DIR) &&                        \
+		mill emulator.run  --debug $(debug)        \
+			--max-steps $(max_steps)                 \
+			--num-mods $(num_mods)                   \
+			--num-procs $(num_procs)                 \
+			--imem-lat $(imem_lat)                   \
+			--inter-mod-nw-lat $(inter_mod_nw_lat)   \
+			--inter-proc-nw-lat $(inter_proc_nw_lat) \
+			--sram-width $(sram_width)               \
+			--sram-entries $(sram_entries)
+	@touch $(MILL_BUILD) # Update mill lock file timestamp
+	cp $(EMULATOR_DIR)/FPGATop.mmap   $(EMULATOR_SRC_DIR)/
+	cp $(EMULATOR_DIR)/FPGATop.sv     $(EMULATOR_SRC_DIR)/
+	cp $(EMULATOR_DIR)/FPGATop.config $(EMULATOR_SRC_DIR)/
+
+$(PROJECT_DIR)/target.tcl: $(VLOG_SOURCES) $(CONSTRAINTS) $(IP) $(MILL_BUILD_ARTIFACTS)
+	@echo "source                             $(BOARD_PART_TCL)"    > $@
 	@echo "set TOP_MODULE                     $(TOP_MODULE)"    >> $@
 	@echo "set TOP_DIR                        $(TOP_DIR)"    >> $@
 	@echo "set PROJECT_DIR                    $(PROJECT_DIR)"    >> $@
@@ -44,14 +98,15 @@ $(PROJECT_DIR)/synth/latest/$(TOP_MODULE).dcp $(PROJECT_DIR)/synth/latest/$(TOP_
 
 syn: $(PROJECT_DIR)/synth/latest/$(TOP_MODULE).dcp
 
-$(PROJECT_DIR)/impl/latest/$(TOP_MODULE).bit: $(PROJECT_DIR)/target.tcl impl.tcl $(PROJECT_DIR)/synth/latest/$(TOP_MODULE).dcp $(PROJECT_DIR)/synth/latest/$(TOP_MODULE).xdc
+$(EMULATOR_SRC_DIR)/$(TOP_MODULE).bit: $(PROJECT_DIR)/target.tcl impl.tcl $(PROJECT_DIR)/synth/latest/$(TOP_MODULE).dcp $(PROJECT_DIR)/synth/latest/$(TOP_MODULE).xdc
 	mkdir -p $(PROJECT_DIR)/impl/$(BUILD_SUFFIX)
 	cd $(PROJECT_DIR)/impl/$(BUILD_SUFFIX) && \
 	$(VIVADO_PATH) $(VIVADO_OPTS) -source $(TOP_DIR)/impl.tcl |& tee impl.log
+	cp $(PROJECT_DIR)/impl/latest/$(TOP_MODULE).bit $@
 
-impl: $(PROJECT_DIR)/impl/latest/$(TOP_MODULE).bit
+impl: $(EMULATOR_SRC_DIR)/$(TOP_MODULE).bit
 
-all: $(PROJECT_DIR)/impl/latest/$(TOP_MODULE).bit
+all: $(EMULATOR_SRC_DIR)/$(TOP_MODULE).bit
 
 ip_project:
 	$(VIVADO_PATH) $(VIVADO_OPTS) -source $(TOP_DIR)/create_ip_project.tcl
