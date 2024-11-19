@@ -29,6 +29,9 @@ fn set_rank_alap(graph: &mut HWGraph, nidx: NodeIndex, rank: u32) {
 pub fn find_rank_order(circuit: &mut Circuit) {
     find_asap_rank_order(circuit);
     find_alap_rank_order(circuit);
+    print_stacked_bar_chart(&per_mod_rank_indeg_cnt(circuit), circuit, "before");
+// redistribute_asap_ranks(circuit);
+// print_stacked_bar_chart(&per_mod_rank_indeg_cnt(circuit), circuit, "after");
     print_rank_stats(circuit);
 }
 
@@ -283,6 +286,127 @@ fn find_alap_rank_order(circuit: &mut Circuit) {
         vis_map.len());
 }
 
+type RankIndegCnt = IndexMap<u32, u32>;
+
+/// Number of edge in-degree for each rank for each module
+fn per_mod_rank_indeg_cnt(circuit: &Circuit) -> IndexMap<u32, RankIndegCnt> {
+    let mut ret: IndexMap<u32, RankIndegCnt> = IndexMap::new();
+    for m in 0..circuit.platform_cfg.num_mods {
+        ret.insert(m, RankIndegCnt::new());
+        for r in 0..(circuit.emul.max_rank + 1) {
+            ret.get_mut(&m).unwrap().insert(r, 0);
+        }
+    }
+
+    for nidx in circuit.graph.node_indices() {
+        let node = circuit.graph.node_weight(nidx).unwrap();
+        let parents = circuit.graph.neighbors_directed(nidx, Incoming);
+        for pidx in parents {
+            let par = circuit.graph.node_weight(pidx).unwrap();
+            if node.info().coord.module != par.info().coord.module {
+                *ret
+                    .get_mut(&node.info().coord.module)
+                    .unwrap()
+                    .get_mut(&node.info().rank.asap)
+                    .unwrap() += 1;
+            }
+        }
+    }
+    return ret;
+}
+
+fn stddev(numbers: &Vec<u32>) -> f32 {
+    if numbers.is_empty() {
+        return 0f32;
+    }
+
+    let sum = numbers.iter().map(|&x| x as f32).sum::<f32>();
+    let mean = sum / numbers.len() as f32;
+
+    let variance = numbers.iter().map(|&x| {
+        let diff = x as f32 - mean;
+        diff * diff
+    }).sum::<f32>() / numbers.len() as f32;
+
+    return variance.sqrt();
+}
+
+/// Redistribute nodes so that each partition has a uniform set of indeg per rank
+fn redistribute_asap_ranks(circuit: &mut Circuit) {
+    type ModRank = (u32, u32);
+    type ModRankVec = Vec<ModRank>;
+
+    let per_mod = per_mod_rank_indeg_cnt(circuit);
+    let mut ranks_to_redistribute: IndexMap<u32, ModRankVec> = IndexMap::new();
+    for rank in 0..(circuit.emul.max_rank + 1) {
+        let mut per_mod_cur_rank: ModRankVec = vec![];
+        for (m, ric) in per_mod.iter() {
+            match ric.get(&rank) {
+                Some(cnt) => {
+                    per_mod_cur_rank.push((*m, *cnt));
+                }
+                None => {
+                    per_mod_cur_rank.push((*m, 0));
+                }
+            }
+        }
+        let stddev = stddev(&per_mod_cur_rank.iter().map(|&x| x.1).collect());
+        println!("stddev of rank {}: {}",
+            rank,
+            stddev);
+        if stddev > 100.0 {
+            ranks_to_redistribute.insert(rank, per_mod_cur_rank);
+        }
+    }
+    println!("Ranks to redistribute: {:?}",
+        ranks_to_redistribute.iter().map(|(k, _)| k).collect_vec());
+
+    for (r, _mrv) in ranks_to_redistribute.iter() {
+        let mut per_mod_nodes: IndexMap<u32, Vec<NodeIndex>> = IndexMap::new();
+        for nidx in circuit.graph.node_indices() {
+            let node = circuit.graph.node_weight(nidx).unwrap();
+            let m = node.info().coord.module;
+            if per_mod_nodes.get(&m) == None {
+                per_mod_nodes.insert(m, vec![]);
+            }
+            if node.info().rank.asap == *r {
+                per_mod_nodes.get_mut(&m).unwrap().push(nidx);
+            }
+        }
+        'shuffle_nodes: while stddev(&per_mod_nodes
+                                    .iter()
+                                    .map(|(_, v)| v.len() as u32)
+                                    .collect()) > 10.0
+        {
+            let max_mod = *per_mod_nodes
+                .iter()
+                .map(|(k, v)| (k, v.len() as u32))
+                .reduce(|a, b| if a.1 > b.1 { a } else { b })
+                .unwrap()
+                .0;
+            let min_mod = *per_mod_nodes
+                .iter()
+                .map(|(k, v)| (k, v.len() as u32))
+                .reduce(|a, b| if a.1 > b.1 { b } else { a })
+                .unwrap()
+                .0;
+            let popped = per_mod_nodes.get_mut(&max_mod).unwrap().pop();
+            match popped {
+                Some(nidx) => {
+                    per_mod_nodes.get_mut(&min_mod).unwrap().push(nidx);
+                    circuit.graph.node_weight_mut(nidx)
+                        .unwrap()
+                        .info_mut()
+                        .coord.module = min_mod;
+                }
+                None => {
+                    break 'shuffle_nodes;
+                }
+            }
+        }
+    }
+}
+
 fn print_dist(name: &str, dist_map: &IndexMap<u32, u32>) {
     let dist_vec = dist_map.values().map(|x| *x as f64).collect_vec();
     let dist_plot = lowcharts::plot::XyPlot::new(dist_vec.as_slice(),  80, 30, None);
@@ -292,17 +416,24 @@ fn print_dist(name: &str, dist_map: &IndexMap<u32, u32>) {
 
 /// Print a graph where the x-axis is the processor id, and the y-axis is
 /// the number of nodes with a particular rank mapped to that processor.
-fn print_stacked_bar_chart(data: &IndexMap<u32, IndexMap<u32, u32>>, circuit: &Circuit) {
+fn print_stacked_bar_chart(
+    data: &IndexMap<u32, RankIndegCnt>,
+    circuit: &Circuit,
+    tag: &str
+) {
     let max_height: u32 = data.values().map(|imap| imap.values().sum()).max().unwrap();
 
-    let title = format!("{}/rank-indeg-distribution.png", circuit.compiler_cfg.output_dir);
+    let title = format!("{}/rank-indeg-distribution-{}.png",
+        circuit.compiler_cfg.output_dir,
+        tag);
+
     let root = BitMapBackend::new(&title, (2560, 1920)).into_drawing_area();
     let _ = root.fill(&WHITE);
     let mut chart = ChartBuilder::on(&root)
         .caption("Rank indegree distribution", ("sans-serif", 50).into_font())
-        .margin(5)
-        .x_label_area_size(30)
-        .y_label_area_size(30)
+        .margin(20)
+        .x_label_area_size(50)
+        .y_label_area_size(50)
         .build_cartesian_2d(0f32..circuit.platform_cfg.num_mods as f32,
                             0f32..max_height as f32).unwrap();
 
@@ -348,13 +479,6 @@ fn print_rank_stats(circuit: &Circuit) {
     let mut cns = 0;
     let mut ff_cnt = 0;
 
-    let mut per_rank_indeg: IndexMap<u32, IndexMap<u32, u32>> = IndexMap::new();
-    for m in 0..circuit.platform_cfg.num_mods {
-        per_rank_indeg.insert(m, IndexMap::new());
-        for r in 0..(circuit.emul.max_rank + 1) {
-            per_rank_indeg.get_mut(&m).unwrap().insert(r, 0);
-        }
-    }
 
     for nidx in circuit.graph.node_indices() {
         let node = circuit.graph.node_weight(nidx).unwrap();
@@ -384,18 +508,6 @@ fn print_rank_stats(circuit: &Circuit) {
             mob_map.insert(mob, 0);
         }
         *mob_map.get_mut(&mob).unwrap() += 1;
-
-        let parents = circuit.graph.neighbors_directed(nidx, Incoming);
-        for pidx in parents {
-            let par = circuit.graph.node_weight(pidx).unwrap();
-            if node.info().coord.module != par.info().coord.module {
-                *per_rank_indeg
-                    .get_mut(&node.info().coord.module)
-                    .unwrap()
-                    .get_mut(&node.info().rank.asap)
-                    .unwrap() += 1;
-            }
-        }
     }
 
     println!("Number of ff nodes: {} critical nodes: {} ({:.2} %), non-ff critical nodes: {} ({:.2} %) total nodes: {}",
@@ -413,5 +525,4 @@ fn print_rank_stats(circuit: &Circuit) {
     print_dist("ASAP distribution", &asap_map);
     print_dist("ALAP distribution", &alap_map);
     print_dist("MOB distribution",  &mob_map);
-    print_stacked_bar_chart(&per_rank_indeg, circuit);
 }

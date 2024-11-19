@@ -9,10 +9,10 @@ use inst_schedule::schedule_instructions;
 use set_rank::find_rank_order;
 use partition::partition;
 use check_rank::check_rank_order;
-use check_connectivity::check_connectivity;
 use distribute_io::distribute_io;
 use print_stats::print_stats;
 use std::time::Instant;
+// use check_connectivity::check_connectivity;
 
 pub fn run_compiler_passes(c: &mut Circuit) {
     let dce_start = Instant::now();
