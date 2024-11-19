@@ -7,6 +7,7 @@ inter_mod_nw_lat  ?= 0
 inter_proc_nw_lat ?= 0
 sram_width        ?= 16
 sram_entries      ?= 16
+blackbox_dmem     ?= "false"
 
 # Chisel directories and files
 SCALA_SRC_DIR := $(EMULATOR_DIR)/src
@@ -32,8 +33,10 @@ $(MILL_BUILD_ARTIFACTS): $(SCALA_FILES) | $(BUILDDIR)
 			--inter-mod-nw-lat $(inter_mod_nw_lat)   \
 			--inter-proc-nw-lat $(inter_proc_nw_lat) \
 			--sram-width $(sram_width)               \
-			--sram-entries $(sram_entries)
+			--sram-entries $(sram_entries)           \
+			--blackbox-dmem $(blackbox_dmem)
 	@touch $(MILL_BUILD) # Update mill lock file timestamp
+	sed -i '/.*\.v$$/d' $(EMULATOR_DIR)/FPGATop.sv # Remove last line if blackbox was used
 	cp $(EMULATOR_DIR)/FPGATop.sv   $(BUILDDIR)/
 	cp $(EMULATOR_DIR)/FPGATop.mmap $(BUILDDIR)/
 

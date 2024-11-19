@@ -22,6 +22,7 @@ case class EmulatorConfig(
   sram_entries: Int = 16,        // Number of SRAM entries
   sram_wr_lat: Int  = 1,         // Number of cycles to perform SRAM write
   sram_rd_lat: Int  = 1,         // Number of cycles to perform SRAM reads
+  blackbox_dmem: Boolean = false, // Use blackbox datamemory (for FPGA lutram mapping)
   debug:      Boolean = false    // Insert debug bundles
 ) {
   require(num_bits  == 1)

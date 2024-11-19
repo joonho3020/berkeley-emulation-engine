@@ -36,6 +36,7 @@ $(SIMULATION_SRCS): $(MILL_BUILD_ARTIFACTS) $(SIMIF_SRCS)
 		rm -rf $(BUILDDIR)/obj-dir; \
 	fi
 	cp $(SIMIF_SRCS) $(SIMIF_DIR)
+	cargo clean
 	cargo build --release -vvv
 
 # Run single example
