@@ -28,6 +28,7 @@ include $(EMULATOR_DIR)/chisel.mk
 $(DRIVER_SRCS): $(MILL_BUILD_ARTIFACTS) $(SIMIF_SRCS)
 	@echo "Building $@ because of changes in $?"
 	cp $(SIMIF_SRCS) $(SIMIF_DIR)
+	cargo clean
 	cargo build --release
 
 build: $(DRIVER_SRCS)
