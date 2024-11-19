@@ -22,22 +22,29 @@ class DataMemory(cfg: EmulatorConfig) extends Module {
     val dbg = if (cfg.debug) Some(Output(UInt(dmem_bits.W))) else None
   })
 
-  require(num_bits == 1)
+  val mem = RegInit(VecInit(Seq.fill(max_steps)(0.U(num_bits.W))))
 
-  val mem = RegInit(0.U(dmem_bits.W))
   if (cfg.debug) {
-    io.dbg.map(_ := mem)
+    val dbg = Cat(mem.reverse)
+    io.dbg.map(x => x := dbg)
   }
 
   // Write
-  when (io.wr.en) {
-    val woh = 1.U << io.wr.idx
-    val wmask = ~woh
-    mem := (mem & wmask) | (woh & (io.wr.bit << io.wr.idx))
+  for (i <- 0 until max_steps) {
+    when (i.U === io.wr.idx && io.wr.en) {
+      mem(i) := io.wr.bit
+    }
   }
 
   // Read
   for (i <- 0 until lut_inputs) {
-    io.rd(i).bit := mem >> io.rd(i).idx
+    io.rd(i).bit := 0.U
+  }
+  for (i <- 0 until lut_inputs) {
+    for (j <- 0 until max_steps) {
+      when (io.rd(i).idx === j.U) {
+        io.rd(i).bit := mem(j)
+      }
+    }
   }
 }
