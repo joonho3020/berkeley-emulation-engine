@@ -1,7 +1,5 @@
 use crate::common::{
-    circuit::Circuit,
-    primitive::*,
-    hwgraph::*
+    circuit::Circuit, hwgraph::*, network::Coordinate, primitive::*
 };
 use indexmap::IndexMap;
 use itertools::Itertools;
@@ -29,9 +27,10 @@ fn set_rank_alap(graph: &mut HWGraph, nidx: NodeIndex, rank: u32) {
 pub fn find_rank_order(circuit: &mut Circuit) {
     find_asap_rank_order(circuit);
     find_alap_rank_order(circuit);
-    print_stacked_bar_chart(&per_mod_rank_indeg_cnt(circuit), circuit, "before");
+    print_stacked_bar_chart(&per_mod_rank_indeg_cnt(circuit), circuit, "rank-in-deg");
+    print_stacked_bar_chart(&per_mod_rank_cnt(circuit), circuit, "rank-cnt");
 // redistribute_asap_ranks(circuit);
-// print_stacked_bar_chart(&per_mod_rank_indeg_cnt(circuit), circuit, "after");
+// redistribute_rank_zero(circuit);
     print_rank_stats(circuit);
 }
 
@@ -315,6 +314,27 @@ fn per_mod_rank_indeg_cnt(circuit: &Circuit) -> IndexMap<u32, RankIndegCnt> {
     return ret;
 }
 
+/// Number of nodes with a particular rank for each module
+fn per_mod_rank_cnt(circuit: &Circuit) -> IndexMap<u32, RankIndegCnt> {
+    let mut ret: IndexMap<u32, RankIndegCnt> = IndexMap::new();
+    for m in 0..circuit.platform_cfg.num_mods {
+        ret.insert(m, RankIndegCnt::new());
+        for r in 0..(circuit.emul.max_rank + 1) {
+            ret.get_mut(&m).unwrap().insert(r, 0);
+        }
+    }
+
+    for nidx in circuit.graph.node_indices() {
+        let node = circuit.graph.node_weight(nidx).unwrap();
+        *ret
+            .get_mut(&node.info().coord.module)
+            .unwrap()
+            .get_mut(&node.info().rank.asap)
+            .unwrap() += 1;
+    }
+    return ret;
+}
+
 fn stddev(numbers: &Vec<u32>) -> f32 {
     if numbers.is_empty() {
         return 0f32;
@@ -329,6 +349,52 @@ fn stddev(numbers: &Vec<u32>) -> f32 {
     }).sum::<f32>() / numbers.len() as f32;
 
     return variance.sqrt();
+}
+
+fn redistribute_rank_zero(circuit: &mut Circuit) {
+    let zero = 0;
+    let mut per_coord_nodes: IndexMap<Coordinate, Vec<NodeIndex>> = IndexMap::new();
+    for nidx in circuit.graph.node_indices() {
+        let node = circuit.graph.node_weight(nidx).unwrap();
+        let c = node.info().coord;
+        if per_coord_nodes.get(&c) == None {
+            per_coord_nodes.insert(c, vec![]);
+        }
+        if node.info().rank.asap == zero {
+            per_coord_nodes.get_mut(&c).unwrap().push(nidx);
+        }
+    }
+    'shuffle_nodes: while stddev(&per_coord_nodes
+                                .iter()
+                                .map(|(_, v)| v.len() as u32)
+                                .collect()) > 1.0
+    {
+        let max_coord = *per_coord_nodes
+            .iter()
+            .map(|(k, v)| (k, v.len() as u32))
+            .reduce(|a, b| if a.1 > b.1 { a } else { b })
+            .unwrap()
+            .0;
+        let min_coord = *per_coord_nodes
+            .iter()
+            .map(|(k, v)| (k, v.len() as u32))
+            .reduce(|a, b| if a.1 > b.1 { b } else { a })
+            .unwrap()
+            .0;
+        let popped = per_coord_nodes.get_mut(&max_coord).unwrap().pop();
+        match popped {
+            Some(nidx) => {
+                per_coord_nodes.get_mut(&min_coord).unwrap().push(nidx);
+                circuit.graph.node_weight_mut(nidx)
+                    .unwrap()
+                    .info_mut()
+                    .coord = min_coord;
+            }
+            None => {
+                break 'shuffle_nodes;
+            }
+        }
+    }
 }
 
 /// Redistribute nodes so that each partition has a uniform set of indeg per rank
