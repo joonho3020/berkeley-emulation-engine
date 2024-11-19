@@ -57,6 +57,12 @@ class Processor(cfg: EmulatorConfig) extends Module {
   io.isc.inst_o.bits  := DontCare
   io.isc.inst_i.ready := false.B
 
+
+
+  val ldm = Module(new DataMemory(cfg))
+  val sdm = Module(new DataMemory(cfg))
+
+
   when (!init) {
     when (!io.isc.init_i) {
       io.isc.inst_o <> io.isc.inst_i
@@ -70,6 +76,14 @@ class Processor(cfg: EmulatorConfig) extends Module {
           pc := pc + 1.U
         }
         imem.io.wen := true.B
+
+        ldm.io.wr.en  := true.B
+        ldm.io.wr.idx := pc
+        ldm.io.wr.bit := 0.U
+
+        sdm.io.wr.en  := true.B
+        sdm.io.wr.idx := pc
+        sdm.io.wr.bit := 0.U
       }
     }
   } .otherwise {
@@ -84,9 +98,6 @@ class Processor(cfg: EmulatorConfig) extends Module {
   // -------------------------- Decode -----------------------------------
   val fd_inst = imem.io.rinst
   dontTouch(fd_inst)
-
-  val ldm = Module(new DataMemory(cfg))
-  val sdm = Module(new DataMemory(cfg))
 
   for (i <- 0 until cfg.lut_inputs) {
     ldm.io.rd(i).idx := fd_inst.ops(i).rs
