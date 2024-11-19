@@ -20,7 +20,7 @@ synth_design -top $TOP_MODULE -part $part
 write_checkpoint -force $PROJECT_DIR/synth/latest/${TOP_MODULE}.dcp
 
 report_drc            -file $PROJECT_DIR/synth/$BUILD_SUFFIX/post_synth_drc.rpt
-report_utilization    -file $PROJECT_DIR/synth/$BUILD_SUFFIX/synth_utilization.rpt
+report_utilization     -hierarchical -hierarchical_percentages -file $PROJECT_DIR/synth/$BUILD_SUFFIX/synth_utilization.rpt
 report_timing_summary -file $PROJECT_DIR/synth/$BUILD_SUFFIX/synth_timing.rpt
 
 write_xdc -force $PROJECT_DIR/synth/latest/${TOP_MODULE}.xdc

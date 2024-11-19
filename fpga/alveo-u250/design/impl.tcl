@@ -23,5 +23,5 @@ write_bitstream -force $PROJECT_DIR/impl/latest/$TOP_MODULE.bit
 
 report_drc -file $PROJECT_DIR/impl/$BUILD_SUFFIX/post_route_drc.rpt
 report_route_status -file   $PROJECT_DIR/impl/$BUILD_SUFFIX/post_route_route_status.rpt
-report_utilization -file    $PROJECT_DIR/impl/$BUILD_SUFFIX/impl_utilization.rpt
+report_utilization  -hierarchical -hierarchical_percentages  -file    $PROJECT_DIR/impl/$BUILD_SUFFIX/impl_utilization.rpt
 report_timing_summary -file $PROJECT_DIR/impl/$BUILD_SUFFIX/impl_timing.rpt
