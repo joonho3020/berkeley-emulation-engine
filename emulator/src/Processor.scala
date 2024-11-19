@@ -76,14 +76,6 @@ class Processor(cfg: EmulatorConfig) extends Module {
           pc := pc + 1.U
         }
         imem.io.wen := true.B
-
-        ldm.io.wr.en  := true.B
-        ldm.io.wr.idx := pc
-        ldm.io.wr.bit := 0.U
-
-        sdm.io.wr.en  := true.B
-        sdm.io.wr.idx := pc
-        sdm.io.wr.bit := 0.U
       }
     }
   } .otherwise {
@@ -178,5 +170,15 @@ class Processor(cfg: EmulatorConfig) extends Module {
     io.dbg.map(x => x.ldm := ldm.io.dbg.get)
     io.dbg.map(x => x.sdm := sdm.io.dbg.get)
     io.dbg.map(x => x.ops := ops)
+  }
+
+  when (!init && io.isc.init_i) {
+    ldm.io.wr.en  := true.B
+    ldm.io.wr.idx := pc
+    ldm.io.wr.bit := 0.U
+
+    sdm.io.wr.en  := true.B
+    sdm.io.wr.idx := pc
+    sdm.io.wr.bit := 0.U
   }
 }
