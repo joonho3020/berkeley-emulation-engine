@@ -16,6 +16,7 @@ use petgraph::{
 };
 use fixedbitset::FixedBitSet;
 use plotters::prelude::*;
+use yansi::Paint;
 use std::collections::BTreeSet;
 use std::cmp::Ordering;
 use std::cmp::max;
@@ -217,58 +218,66 @@ fn print_scheduling_stats(
 
     let mut chart = ChartBuilder::on(&root)
         .caption("Scheduling Progress", ("sans-serif", 50).into_font())
-        .margin(5)
-        .x_label_area_size(30)
-        .y_label_area_size(30)
+        .margin(30)
+        .x_label_area_size(200)
+        .y_label_area_size(200)
         .build_cartesian_2d(0f32..circuit.emul.host_steps as f32,
                             0f32..circuit.platform_cfg.total_procs() as f32).unwrap();
 
-    let _ = chart.configure_mesh().draw();
+    let _ = chart
+        .configure_mesh()
+        .x_label_style(("sans-serif", 60))
+        .y_label_style(("sans-serif", 60))
+        .draw();
 
     chart
         .draw_series(LineSeries::new(
             (0..).zip(must_scheduled_data.iter()).map(|(a, b)| (a as f32, *b as f32)),
-            &RED
+            RED.stroke_width(3)
         )).unwrap()
         .label("must-scheduled".to_string())
         .legend(move |(x, y)| {
-            Rectangle::new([(x - 5, y - 5), (x + 5, y + 5)], &RED)
+            Rectangle::new([(x - 10, y - 10), (x + 10, y + 10)], RED.filled())
         });
 
     chart
         .draw_series(LineSeries::new(
             (0..).zip(be_scheduled_data.iter()).map(|(a, b)| (a as f32, *b as f32)),
-            &BLUE
+            BLUE.stroke_width(3)
         )).unwrap()
         .label("be-scheduled".to_string())
         .legend(move |(x, y)| {
-            Rectangle::new([(x - 5, y - 5), (x + 5, y + 5)], &BLUE)
+            Rectangle::new([(x - 10, y - 10), (x + 10, y + 10)], BLUE.filled())
         });
 
     chart
         .draw_series(LineSeries::new(
             (0..).zip(ex_scheduled_data.iter()).map(|(a, b)| (a as f32, *b as f32)),
-            &ORANGE
+            ORANGE.stroke_width(3)
         )).unwrap()
         .label("ex-scheduled".to_string())
         .legend(move |(x, y)| {
-            Rectangle::new([(x - 5, y - 5), (x + 5, y + 5)], &ORANGE)
+            Rectangle::new([(x - 10, y - 10), (x + 10, y + 10)], ORANGE.filled())
         });
 
     chart
         .draw_series(LineSeries::new(
             (0..).zip(nw_utilization.iter()).map(|(a, b)| (a as f32, *b as f32)),
-            &GREEN
+            GREEN.stroke_width(3)
         )).unwrap()
         .label("nw-utilization".to_string())
         .legend(move |(x, y)| {
-            Rectangle::new([(x - 5, y - 5), (x + 5, y + 5)], &GREEN)
+            Rectangle::new([(x - 10, y - 10), (x + 10, y + 10)], GREEN.filled())
         });
 
     let _ = chart
         .configure_series_labels()
         .background_style(&WHITE.mix(0.8))
-        .border_style(&BLACK)
+        .border_style(BLACK.stroke_width(4))
+        .label_font(("sans-serif", 60))
+        .position(SeriesLabelPosition::UpperRight)
+        .margin(20)
+        .legend_area_size(40)
         .draw();
     let _ = root.present();
 }
