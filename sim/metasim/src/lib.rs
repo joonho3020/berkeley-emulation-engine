@@ -10,7 +10,7 @@ use bee::{
         hwgraph::NodeMapInfo, instruction::*,
         mapping::{SRAMMapping, SRAMPortType},
         network::Coordinate,
-        primitive::{Primitive, Bit}
+        primitive::{Bit, Primitive}, utils::save_graph_pdf
     },
     fsim::board::Board,
     rtlsim::rtlsim_utils::{

@@ -25,13 +25,13 @@ class LocalSwitch(cfg: EmulatorConfig) extends Module {
     io.ports(i).ip := DontCare
   }
 
-  val pipelined_id = io.ports.map(x => ShiftRegister(x.id, cfg.inter_proc_nw_lat))
+// val pipelined_id = io.ports.map(x => ShiftRegister(x.id, cfg.inter_proc_nw_lat))
   val pipelined_op = io.ports.map(x => ShiftRegister(x.op, cfg.inter_proc_nw_lat))
 
   // Xbar
   for (i <- 0 until num_procs) {
     for (j <- 0 until num_procs) {
-      when (j.U === pipelined_id(i)) {
+      when (j.U === io.ports(i).id) {
         io.ports(i).ip := pipelined_op(j)
       }
     }

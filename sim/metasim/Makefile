@@ -69,6 +69,7 @@ clean:
 		echo "Directory $(BUILDDIR) does not exist. Skipping deletion."; \
 	fi
 	cargo clean
+	-rm -rf ../sim-dir/metasim-*
 	-rm libVdut.so
 	-rm -f *.vcd
 	-rm -f *.so
