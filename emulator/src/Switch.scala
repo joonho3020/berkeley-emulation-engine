@@ -25,11 +25,14 @@ class LocalSwitch(cfg: EmulatorConfig) extends Module {
     io.ports(i).ip := DontCare
   }
 
+  val pipelined_id = io.ports.map(x => ShiftRegister(x.id, cfg.inter_proc_nw_lat))
+  val pipelined_op = io.ports.map(x => ShiftRegister(x.op, cfg.inter_proc_nw_lat))
+
   // Xbar
   for (i <- 0 until num_procs) {
     for (j <- 0 until num_procs) {
-      when (j.U === io.ports(i).id) {
-        io.ports(i).ip := io.ports(j).op
+      when (j.U === pipelined_id(i)) {
+        io.ports(i).ip := pipelined_op(j)
       }
     }
   }
@@ -42,6 +45,6 @@ class GlobalSwitch(cfg: EmulatorConfig) extends Module {
 
   val topo = cfg.global_network_topology
   for ((src, dst) <- topo) {
-    io.ports(dst.mod)(dst.proc).ip := io.ports(src.mod)(src.proc).op
+    io.ports(dst.mod)(dst.proc).ip := ShiftRegister(io.ports(src.mod)(src.proc).op, cfg.inter_mod_nw_lat)
   }
 }

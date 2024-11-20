@@ -31,8 +31,6 @@ case class EmulatorConfig(
   // The compiler supports changing these flags
   require(dmem_rd_lat == 0)
   require(dmem_rd_lat <= 1)
-  require(inter_proc_nw_lat == 0)
-  require(inter_mod_nw_lat  == 0)
 
   // These requirements are HW limitations
   require(imem_lat <= 1)

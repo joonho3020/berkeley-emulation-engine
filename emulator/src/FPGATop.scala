@@ -312,8 +312,4 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
     ${mmap.str}
   """)
   mmap.write_to_file("FPGATop.mmap")
-
-  val out = new ObjectOutputStream(new FileOutputStream("FPGATop.config"))
-  out.writeObject(cfg)
-  out.close()
 }

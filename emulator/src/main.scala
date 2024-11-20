@@ -17,7 +17,7 @@ object Main {
         [--num-procs x]
         [--imem-lat  x]
         [--inter-proc-nw-lat     x]
-        [--inter-mod-nw-lat-lat  x]
+        [--inter-mod-nw-lat  x]
         [--sram-width    x]
         [--sram-entries  x]
         [--blackbox-dmem  x]
@@ -44,7 +44,7 @@ object Main {
       case Array("--num-procs",            x) => num_procs = x.toInt
       case Array("--imem-lat",             x) => imem_lat  = x.toInt
       case Array("--inter-proc-nw-lat",    x) => inter_proc_nw_lat = x.toInt
-      case Array("--inter-mod-nw-lat-lat", x) => inter_mod_nw_lat  = x.toInt
+      case Array("--inter-mod-nw-lat", x) => inter_mod_nw_lat  = x.toInt
       case Array("--sram-width",           x) => sram_width   = x.toInt
       case Array("--sram-entries",         x) => sram_entries = x.toInt
       case Array("--blackbox-dmem",        x) => blackbox_dmem = x.toBoolean
