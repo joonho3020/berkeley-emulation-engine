@@ -418,7 +418,7 @@ impl PlatformConfig {
 }
 
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Clone)]
 #[command(version, about, long_about = None)]
 pub struct Args {
     /// Enable functional simulation prints
