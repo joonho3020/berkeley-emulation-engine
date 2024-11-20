@@ -6,7 +6,7 @@ use crate::common::{
     config::*,
     utils::save_graph_pdf
 };
-use full_palette::{ORANGE, RED};
+use full_palette::RED;
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
 use petgraph::{
@@ -14,7 +14,7 @@ use petgraph::{
     visit::{EdgeRef, VisitMap, Visitable},
     Direction::{Incoming, Outgoing}
 };
-use fixedbitset::FixedBitSet;
+use fixedbitset::{FixedBitSet, IndexRange};
 use plotters::prelude::*;
 use yansi::Paint;
 use std::collections::BTreeSet;
@@ -209,23 +209,25 @@ fn print_scheduling_stats(
     circuit: &Circuit,
     must_scheduled_data: Vec<u32>,
     be_scheduled_data: Vec<u32>,
-    ex_scheduled_data: Vec<u32>,
     nw_utilization: Vec<u32>)
 {
     let title = format!("{}/scheduling-progress.png", circuit.compiler_cfg.output_dir);
     let root = BitMapBackend::new(&title, (2560, 1920)).into_drawing_area();
-    let _ = root.fill(&WHITE);
+    let _ = root
+        .fill(&WHITE);
 
     let mut chart = ChartBuilder::on(&root)
-        .caption("Scheduling Progress", ("sans-serif", 50).into_font())
-        .margin(30)
+        .margin(40)
         .x_label_area_size(200)
         .y_label_area_size(200)
-        .build_cartesian_2d(0f32..circuit.emul.host_steps as f32,
-                            0f32..circuit.platform_cfg.total_procs() as f32).unwrap();
+        .build_cartesian_2d(
+            0f32..circuit.emul.host_steps as f32,
+            0f32..circuit.platform_cfg.total_procs() as f32).unwrap();
 
     let _ = chart
         .configure_mesh()
+        .x_desc("Host PC")
+        .y_desc("# Number of nodes")
         .x_label_style(("sans-serif", 60))
         .y_label_style(("sans-serif", 60))
         .draw();
@@ -250,15 +252,15 @@ fn print_scheduling_stats(
             Rectangle::new([(x - 10, y - 10), (x + 10, y + 10)], BLUE.filled())
         });
 
-    chart
-        .draw_series(LineSeries::new(
-            (0..).zip(ex_scheduled_data.iter()).map(|(a, b)| (a as f32, *b as f32)),
-            ORANGE.stroke_width(3)
-        )).unwrap()
-        .label("ex-scheduled".to_string())
-        .legend(move |(x, y)| {
-            Rectangle::new([(x - 10, y - 10), (x + 10, y + 10)], ORANGE.filled())
-        });
+// chart
+// .draw_series(LineSeries::new(
+// (0..).zip(ex_scheduled_data.iter()).map(|(a, b)| (a as f32, *b as f32)),
+// ORANGE.stroke_width(3)
+// )).unwrap()
+// .label("ex-scheduled".to_string())
+// .legend(move |(x, y)| {
+// Rectangle::new([(x - 10, y - 10), (x + 10, y + 10)], ORANGE.filled())
+// });
 
     chart
         .draw_series(LineSeries::new(
@@ -558,30 +560,6 @@ fn all_childs_reachable(
     return (reachable, coalesced_paths);
 }
 
-fn overrides_ff_input(
-    circuit: &Circuit,
-    nidx: &NodeIndex,
-    pc: &u32) -> bool {
-    let mut overrides = false;
-
-    let childs = circuit.graph.neighbors_directed(*nidx, Outgoing);
-    for cidx in childs {
-        let cnode = circuit.graph.node_weight(cidx).unwrap();
-        let scheduled = cnode.info().scheduled;
-        if (!scheduled ||
-            (scheduled && *pc <= cnode.info().pc)) &&
-           (cnode.is() == Primitive::Gate     ||
-            cnode.is() == Primitive::Latch    ||
-            cnode.is() == Primitive::Input    ||
-            cnode.is() == Primitive::ConstLut ||
-            cnode.is() == Primitive::SRAMRdData) {
-               overrides = true;
-        }
-    }
-
-    return overrides;
-}
-
 fn mark_nw_busy(
     nw: &mut NetworkAvailability,
     pc: &u32,
@@ -637,11 +615,6 @@ fn schedule_candidates_at_pc(
         // Check if routes to child nodes are ready
         let (reachable, routes) = all_childs_reachable(circuit, nw, &cand.index, pc);
         if !reachable {
-            continue;
-        }
-
-        // Check if the produced bit doesn't override a unscheduled FF input
-        if overrides_ff_input(circuit, &cand.index, pc) {
             continue;
         }
 
@@ -706,7 +679,6 @@ fn schedule_instructions_internal(circuit: &mut Circuit) {
 
     let mut must_schedule_data: Vec<u32> = vec![];
     let mut be_schedule_data:   Vec<u32> = vec![];
-    let mut ex_schedule_data:   Vec<u32> = vec![];
     let mut nw_util_data:       Vec<u32> = vec![];
 
     for cur_rank in 0..(max_rank + 1) {
@@ -716,7 +688,6 @@ fn schedule_instructions_internal(circuit: &mut Circuit) {
 
         let mut must_schedule_candidates:        BTreeSet<NodeIndexMobility> = BTreeSet::new();
         let mut best_effort_schedule_candidates: BTreeSet<NodeIndexMobility> = BTreeSet::new();
-        let mut extra_effort_schedule_candidates: BTreeSet<NodeIndexMobility> = BTreeSet::new();
 
         let mut debug_scheduled_nodes: Vec<NodeIndex> = vec![];
         let mut per_pc_scheduled: Vec<u32> = vec![];
@@ -725,16 +696,13 @@ fn schedule_instructions_internal(circuit: &mut Circuit) {
         for nidx in circuit.graph.node_indices() {
             let node = circuit.graph.node_weight_mut(nidx).unwrap();
             let info = node.info_mut();
-// if info.rank.asap <= cur_rank && cur_rank <= info.rank.alap && !info.scheduled {
-            if cur_rank <= info.rank.alap && !info.scheduled {
+            if info.rank.asap <= cur_rank && cur_rank <= info.rank.alap && !info.scheduled {
                 let mob = info.rank.alap - cur_rank;
                 info.rank = RankInfo { mob: mob, ..info.rank };
-                if info.rank.asap <= cur_rank && (cpn.contains(&nidx) || mob == 0) {
+                if cpn.contains(&nidx) || info.rank.alap - cur_rank == 0 {
                     must_schedule_candidates.insert(NodeIndexMobility::new(nidx, mob));
-                } else if info.rank.asap <= cur_rank {
-                    best_effort_schedule_candidates.insert(NodeIndexMobility::new(nidx, mob));
                 } else {
-                    extra_effort_schedule_candidates.insert(NodeIndexMobility::new(nidx, mob));
+                    best_effort_schedule_candidates.insert(NodeIndexMobility::new(nidx, mob));
                 }
             }
         }
@@ -783,27 +751,8 @@ fn schedule_instructions_internal(circuit: &mut Circuit) {
 
             // For analysis
             println!("pc: {} successful best effort scheduled: {}", try_pc, scheduled.len());
-            be_schedule_data.push(scheduled.len() as u32);
-            per_pc_scheduled[(try_pc - pc_min) as usize] += scheduled.len() as u32;
-            for s in scheduled {
-                scheduled_map.visit(s.index);
-                debug_scheduled_nodes.push(s.index);
-            }
-        }
-
-        for try_pc in pc_min..pc {
-            let mut scheduled_coordinates = scheduled_coordinates_by_pc.get_mut(&try_pc).unwrap();
-            let scheduled = schedule_candidates_at_pc(
-                circuit,
-                &mut extra_effort_schedule_candidates,
-                &mut scheduled_coordinates,
-                &mut nw,
-                &try_pc);
-
-            // For analysis
-            println!("pc: {} successful extra effort scheduled: {}", try_pc, scheduled.len());
             nw_util_data.push(nw.iports.cnt_busy(try_pc));
-            ex_schedule_data.push(scheduled.len() as u32);
+            be_schedule_data.push(scheduled.len() as u32);
             per_pc_scheduled[(try_pc - pc_min) as usize] += scheduled.len() as u32;
             for s in scheduled {
                 scheduled_map.visit(s.index);
@@ -855,11 +804,7 @@ fn schedule_instructions_internal(circuit: &mut Circuit) {
         "{} out of {} scheduled",
         scheduled_map.count_ones(..), scheduled_map.len());
 
-    print_scheduling_stats(circuit,
-        must_schedule_data,
-        be_schedule_data,
-        ex_schedule_data,
-        nw_util_data);
+    print_scheduling_stats(circuit, must_schedule_data, be_schedule_data, nw_util_data);
 }
 
 fn check_route(route: &NetworkRoute, msg: &str) {
