@@ -3,6 +3,7 @@ package emulator
 import chisel3._
 import chisel3.util._
 import chisel3.util.Decoupled
+import chisel3.experimental._
 import chisel3.experimental.hierarchy.{instantiable, public}
 
 object SRAMInputTypes extends ChiselEnum {
@@ -119,6 +120,13 @@ class SRAMInputs(cfg: EmulatorConfig) extends Bundle {
   val wr_mask = UInt(cfg.sram_width.W)
 }
 
+case class SRAMProcessorAnno(
+  target: firrtl.annotations.ReferenceTarget,
+  customData: String) extends firrtl.annotations.SingleTargetAnnotation[firrtl.annotations.ReferenceTarget] {
+  // This method is required to map the annotation to another target
+  def duplicate(n: firrtl.annotations.ReferenceTarget): SRAMProcessorAnno = this.copy(target = n)
+}
+
 @instantiable
 class SRAMProcessor(cfg: EmulatorConfig) extends Module {
   import cfg._
@@ -130,6 +138,12 @@ class SRAMProcessor(cfg: EmulatorConfig) extends Module {
   val inputs = Seq.fill(2)(RegInit(0.U.asTypeOf(new SRAMInputs(cfg))))
   val prev_input = Reg(new SRAMInputs(cfg))
   val sram = SyncReadMem(cfg.sram_entries, UInt(cfg.sram_width.W))
+
+  annotate(new ChiselAnnotation {
+    override def toFirrtl: SRAMProcessorAnno = {
+      SRAMProcessorAnno(sram.toTarget, "SRAMProcessorAnno")
+    }
+  })
 
   io.init := init
 

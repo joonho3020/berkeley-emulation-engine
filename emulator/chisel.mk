@@ -16,7 +16,8 @@ SCALA_FILES   := $(shell find $(SCALA_SRC_DIR) -name '*.scala')
 MILL_BUILD     := $(EMULATOR_DIR)/out/mill.lock
 FPGATOP_SV     := $(BUILDDIR)/FPGATop.sv
 FPGATOP_MMAP   := $(BUILDDIR)/FPGATop.mmap
-MILL_BUILD_ARTIFACTS := $(MILL_BUILD) $(FPGATOP_SV) $(FPGATOP_MMAP)
+FPGATOP_ANNOS  := $(BUILDDIR)/FPGATop.annos
+MILL_BUILD_ARTIFACTS := $(MILL_BUILD) $(FPGATOP_SV) $(FPGATOP_MMAP) $(FPGATOP_ANNOS)
 
 # Chisel generated driver stuff
 chisel_elaborate: $(MILL_BUILD_ARTIFACTS)
@@ -39,5 +40,6 @@ $(MILL_BUILD_ARTIFACTS): $(SCALA_FILES) | $(BUILDDIR)
 	sed -i '/.*\.v$$/d' $(EMULATOR_DIR)/FPGATop.sv # Remove last line if blackbox was used
 	cp $(EMULATOR_DIR)/FPGATop.sv   $(BUILDDIR)/
 	cp $(EMULATOR_DIR)/FPGATop.mmap $(BUILDDIR)/
+	cp $(EMULATOR_DIR)/FPGATop.annos $(BUILDDIR)/
 
 .PHONY: chisel_elaborate

@@ -22,6 +22,7 @@ emulator/__pycache__
 emulator/results.xml
 emulator/sim_build
 emulator/test/*
+emulator/FPGATop.*
 
 sim/metasim/src/simif/*
 sim/alveo-u250/src/simif/*

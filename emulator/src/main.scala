@@ -5,10 +5,13 @@ import _root_.circt.stage.ChiselStage
 import org.chipsalliance.cde.config.{Field, Parameters}
 import freechips.rocketchip.amba.axi4.AXI4BundleParameters
 import freechips.rocketchip.diplomacy._
+import chisel3.stage.ChiselGeneratorAnnotation
+import circt.stage.{ChiselStage, FirtoolOption}
+import scala.collection.mutable.ListBuffer
+import java.io.{BufferedWriter, FileWriter}
 
-object Main {
-  def main(args: Array[String]): Unit = {
-
+object Builder {
+  def makeTop(args: Array[String]): LazyModule = {
     if (args.contains("--help")) {
       println("""Usage: Main
         [--debug     x]
@@ -72,12 +75,42 @@ object Main {
     })
 
     val fpgatop = LazyModule(new FPGATop)
-    ChiselStage.emitSystemVerilogFile(
-      fpgatop.module,
-      firtoolOpts = Array(
-        "-disable-all-randomization",
-        "-strip-debug-info",
-        "--lowering-options=disallowLocalVariables,noAlwaysComb,verifLabels,disallowPortDeclSharing"))
+    return fpgatop
   }
+}
 
+object GenerateSV {
+  def main(args: Array[String]): Unit = {
+    val fpgatop = Builder.makeTop(args)
+
+    val anno_seq = (new ChiselStage).execute(
+      Array("--target", "systemverilog"),
+      Seq(ChiselGeneratorAnnotation(() => fpgatop.module),
+        FirtoolOption("--disable-all-randomization"),
+        FirtoolOption("-strip-debug-info"),
+        FirtoolOption("--lowering-options=disallowLocalVariables,noAlwaysComb,verifLabels,disallowPortDeclSharing"),
+        FirtoolOption("--disable-annotation-unknown"),
+        FirtoolOption("--disable-annotation-classless"),
+        FirtoolOption("--export-module-hierarchy")
+      ))
+  }
+}
+
+object GenerateAnnos {
+  def main(args: Array[String]): Unit = {
+    val fpgatop = Builder.makeTop(args)
+
+    val anno_seq = (new ChiselStage).execute(
+      Array("--target", "chirrtl"),
+      Seq(ChiselGeneratorAnnotation(() => fpgatop.module)))
+
+    val file = new BufferedWriter(new FileWriter("FPGATop.anno"))
+    file.write(
+      anno_seq.filter(_ match {
+        case SRAMProcessorAnno(target, string) => true
+        case _ => false
+      }).toSeq.toString()
+    )
+    file.close()
+  }
 }
