@@ -127,65 +127,6 @@ case class SRAMProcessorAnno(
   def duplicate(n: firrtl.annotations.ReferenceTarget): SRAMProcessorAnno = this.copy(target = n)
 }
 
-
-// Chisel generated SyncReadMem has separate clocks for read and write ports
-// and this prevents it from being constrained into UltraRAMs.
-class SRAMBlackBox(addr_bits: Int, width_bits: Int) extends BlackBox(Map(
-  "DATA_WIDTH" -> width_bits,
-  "ADDR_WIDTH" -> addr_bits
-)) with HasBlackBoxInline {
-  val io = IO(new Bundle {
-    val clk = Input(Clock())
-    val R0_addr = Input(UInt(addr_bits.W))
-    val R0_en   = Input(Bool())
-    val R0_data = Output(UInt(width_bits.W))
-    val W0_addr = Input(UInt(addr_bits.W))
-    val W0_en   = Input(Bool())
-    val W0_data = Input(UInt(width_bits.W))
-  })
-
-  setInline("SyncReadMemBlackBox.v",
-    """
-    |module sram #(
-    |  parameter DATA_WIDTH = 256,       // Width of each memory word
-    |  parameter ADDR_WIDTH = 14,       // Width of the address bus
-    |  parameter DEPTH = (1 << ADDR_WIDTH) // Number of memory locations
-    |  )(
-    |    input clk,
-    |    input  [ADDR_WIDTH-1:0] R0_addr, // Read address
-    |    input                   R0_en,   // Read enable
-    |    output [DATA_WIDTH-1:0] R0_data, // Read data
-    |    input  [ADDR_WIDTH-1:0] W0_addr, // Write address
-    |    input                   W0_en,   // Write enable
-    |    input  [DATA_WIDTH-1:0] W0_data  // Write data
-    |  );
-    |
-    |  // Memory array
-    |  reg [DATA_WIDTH-1:0] Memory[0:DEPTH-1];
-    |
-    |  // Internal registers for read operation
-    |  reg [ADDR_WIDTH-1:0] _R0_addr_d0;
-    |  reg                  _R0_en_d0;
-    |
-    |  // Read port logic
-    |  always @(posedge clk) begin
-    |    _R0_en_d0 <= R0_en;
-    |    _R0_addr_d0 <= R0_addr;
-    |  end
-    |
-    |  // Write port logic
-    |  always @(posedge clk) begin
-    |    if (W0_en & 1'h1) begin
-    |      Memory[W0_addr] <= W0_data;
-    |    end
-    |  end
-    |
-    |  // Read data assignment
-    |  assign R0_data = _R0_en_d0 ? Memory[_R0_addr_d0] : {DATA_WIDTH{1'bx}};
-    |endmodule
-    """.stripMargin)
-}
-
 @instantiable
 class SRAMProcessor(cfg: EmulatorConfig) extends Module {
   import cfg._
@@ -196,10 +137,13 @@ class SRAMProcessor(cfg: EmulatorConfig) extends Module {
   val cur  = RegInit(0.U(1.W))
   val inputs = Seq.fill(2)(RegInit(0.U.asTypeOf(new SRAMInputs(cfg))))
   val prev_input = Reg(new SRAMInputs(cfg))
+  val sram = SyncReadMem(cfg.sram_entries, UInt(cfg.sram_width.W))
 
-  val sram_addr_bits = log2Ceil(cfg.sram_entries + 1)
-  val sram = Module(new SRAMBlackBox(sram_addr_bits, cfg.sram_width))
-  sram.io.clk := clock
+  annotate(new ChiselAnnotation {
+    override def toFirrtl: SRAMProcessorAnno = {
+      SRAMProcessorAnno(sram.toAbsoluteTarget, sram.pathName)
+    }
+  })
 
   io.init := init
 
@@ -296,9 +240,7 @@ class SRAMProcessor(cfg: EmulatorConfig) extends Module {
   }
 
   val sram_rport_addr = Mux(wen && pc === 0.U, waddr, raddr)
-  val rdata = sram.io.R0_data
-  sram.io.R0_addr := sram_rport_addr
-  sram.io.R0_en   := io.run
+  val rdata = sram.read(sram_rport_addr, io.run)
 
   val masked_wr_data = Module(new SRAMMaskedWriteData(cfg))
   masked_wr_data.io.wr_mask_bits := io.cfg_in.wmask_bits
@@ -310,11 +252,9 @@ class SRAMProcessor(cfg: EmulatorConfig) extends Module {
   val wcond = io.run && wen && pc === cfg.sram_rd_lat.U
   val wport_waddr = Mux(wcond, waddr, pc)
   val wport_wdata = Mux(wcond, masked_wr_data.io.masked_wr_data, 0.U)
-
-
-  sram.io.W0_en := wcond || !init
-  sram.io.W0_data := wport_wdata
-  sram.io.W0_addr := wport_waddr
+  when (wcond || !init) {
+    sram.write(wport_waddr, wport_wdata)
+  }
 
   for (i <- 0 until num_procs) {
     io.ports(i).op := rdata >> io.ports(i).idx
