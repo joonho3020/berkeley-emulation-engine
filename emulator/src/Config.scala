@@ -22,6 +22,9 @@ case class EmulatorConfig(
   sram_entries: Int = 16,        // Number of SRAM entries
   sram_wr_lat: Int  = 1,         // Number of cycles to perform SRAM write
   sram_rd_lat: Int  = 1,         // Number of cycles to perform SRAM reads
+  large_sram_cnt: Int = 2,       // Number of large srams
+  large_sram_width: Int = 16,       // Width of large srams
+  large_sram_entries: Int = 16,       // Depth of large srams
   blackbox_dmem: Boolean = false, // Use blackbox datamemory (for FPGA lutram mapping)
   debug:      Boolean = false    // Insert debug bundles
 ) {
@@ -31,6 +34,10 @@ case class EmulatorConfig(
   // The compiler supports changing these flags
   require(dmem_rd_lat == 0)
   require(dmem_rd_lat <= 1)
+
+  // Constraints
+  require(large_sram_width   >= sram_width)
+  require(large_sram_entries >= sram_entries)
 
   // These requirements are HW limitations
   require(imem_lat <= 1)
