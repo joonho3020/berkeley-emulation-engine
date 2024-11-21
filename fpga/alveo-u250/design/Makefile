@@ -26,9 +26,12 @@ BUILDDIR     := $(PROJECT_DIR)/srcs/$(BUILD_SUFFIX)
 
 BOARD_PART_TCL   = $(TOP_DIR)/au250.tcl
 VLOG_SOURCES     += $(shell find $(TOP_DIR)/rtl            -type f -name "*.v")
-SVLOG_SOURCES    += $(shell find $(BUILDDIR)       -type f -name "*.sv")
 CONSTRAINTS      += $(shell find $(TOP_DIR)/constraints    -type f -name "*.xdc")
-CONSTRAINTS      += $(shell find $(BUILDDIR)               -type f -name "*.xdc")
+
+VLOG_SOURCES     += $(shell find $(BUILDDIR)            -type f -name "*.v")
+SVLOG_SOURCES    += $(shell find $(BUILDDIR)            -type f -name "*.sv")
+CONSTRAINTS      += $(shell find $(BUILDDIR)            -type f -name "*.xdc")
+
 IP               += $(shell find $(TOP_DIR)/ip -maxdepth 2 -type f -name "*.xci")
 TOP_MODULE = XilinxU250Board
 

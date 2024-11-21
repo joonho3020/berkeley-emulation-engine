@@ -15,7 +15,7 @@ SCALA_FILES   := $(shell find $(SCALA_SRC_DIR) -name '*.scala')
 
 GENERATED_DIR := generated-m$(num_mods).p$(num_procs).s$(max_steps).nwl$(inter_proc_nw_lat).nwg$(inter_mod_nw_lat).sw$(sram_width).se$(sram_entries)
 MILL_BUILD     := $(EMULATOR_DIR)/out/mill.lock
-MILL_BUILD_ARTIFACTS := $(MILL_BUILD) $(EMULATOR_DIR)/$(GENERATED_DIR)/synth.xdc
+MILL_BUILD_ARTIFACTS := $(MILL_BUILD) $(BUILDDIR)/synth.xdc
 
 # Chisel generated driver stuff
 chisel_elaborate: $(MILL_BUILD_ARTIFACTS)
@@ -44,6 +44,6 @@ $(MILL_BUILD_ARTIFACTS): $(SCALA_FILES) | $(BUILDDIR)
 			--sram-width $(sram_width)               \
 			--sram-entries $(sram_entries)
 	@touch $(MILL_BUILD) # Update mill lock file timestamp
-	cp -r $(EMULATOR_DIR)/$(GENERATED_DIR)/*    $(BUILDDIR)/
+	cp -r $(EMULATOR_DIR)/$(GENERATED_DIR)/* $(BUILDDIR)/
 
 .PHONY: chisel_elaborate
