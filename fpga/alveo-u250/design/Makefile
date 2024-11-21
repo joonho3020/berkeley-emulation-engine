@@ -9,13 +9,13 @@ VIVADO_OPTS ?= -nolog -nojournal -mode batch
 # Variables for emulator platform
 debug             ?= "true"
 max_steps         ?= 1024
-num_mods          ?= 9
-num_procs         ?= 64
+num_mods          ?= 33
+num_procs         ?= 32
 imem_lat          ?= 1
-inter_mod_nw_lat  ?= 0
-inter_proc_nw_lat ?= 0
-sram_width        ?= 16
-sram_entries      ?= 16
+inter_mod_nw_lat  ?= 1
+inter_proc_nw_lat ?= 1
+sram_width        ?= 256
+sram_entries      ?= 16384
 blackbox_dmem     ?= "true"
 
 PROJECT_DIR = $(TOP_DIR)/project
@@ -28,6 +28,7 @@ BOARD_PART_TCL   = $(TOP_DIR)/au250.tcl
 VLOG_SOURCES     += $(shell find $(TOP_DIR)/rtl            -type f -name "*.v")
 SVLOG_SOURCES    += $(shell find $(BUILDDIR)       -type f -name "*.sv")
 CONSTRAINTS      += $(shell find $(TOP_DIR)/constraints    -type f -name "*.xdc")
+CONSTRAINTS      += $(shell find $(BUILDDIR)               -type f -name "*.xdc")
 IP               += $(shell find $(TOP_DIR)/ip -maxdepth 2 -type f -name "*.xci")
 TOP_MODULE = XilinxU250Board
 
