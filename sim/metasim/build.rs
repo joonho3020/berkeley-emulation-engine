@@ -7,6 +7,7 @@ use std::process::Command;
 
 pub struct Args {
     pub sv_file_path: String,
+    pub filelist_path: String,
     pub sim_mmap_file_path: String,
     pub build_dir: String,
 }
@@ -236,6 +237,7 @@ fn main() -> std::io::Result<()> {
     // to build.rs
     let args = Args {
         sv_file_path: "./build-dir/FPGATop.sv".to_string(),
+        filelist_path: "./build-dir/filelist.f".to_string(),
         sim_mmap_file_path: "./build-dir/FPGATop.mmap".to_string(),
         build_dir: "build-dir".to_string(),
     };
@@ -250,19 +252,26 @@ fn main() -> std::io::Result<()> {
         .expect("verilator is not in path");
 
     let sv_file_path = Path::new(&args.sv_file_path);
-    let sv_file = sv_file_path.file_name().unwrap().to_str().unwrap();
+    let top = sv_file_path.file_stem().unwrap().to_str().unwrap();
+
+    let filelist_path = Path::new(&args.filelist_path);
+    let filelist = filelist_path.file_name().unwrap().to_str().unwrap();
     Command::new("verilator")
         .current_dir(&cwd)
-        .arg("--cc")
-        .arg(sv_file)
-        .arg("--build")
         .arg("-j")
         .arg("8")
+        .arg("--cc")
+        .arg("--f")
+        .arg(filelist)
+        .arg("--build")
         .arg("-CFLAGS")
         .arg("-fPIC")
         .arg("--trace")
+        .arg("--top-module")
+        .arg(top)
         .status()?;
 
+    let sv_file_path = Path::new(&args.sv_file_path);
     let top = sv_file_path.file_stem().unwrap().to_str().unwrap();
     let obj_dir = format!("{}/obj_dir", cwd.to_str().unwrap());
     let vtop_h_path = format!("{}/V{}.h", obj_dir, top);

@@ -725,7 +725,6 @@ fn schedule_instructions_internal(circuit: &mut Circuit) {
         for nidx in circuit.graph.node_indices() {
             let node = circuit.graph.node_weight_mut(nidx).unwrap();
             let info = node.info_mut();
-// if info.rank.asap <= cur_rank && cur_rank <= info.rank.alap && !info.scheduled {
             if cur_rank <= info.rank.alap && !info.scheduled {
                 let mob = info.rank.alap - cur_rank;
                 info.rank = RankInfo { mob: mob, ..info.rank };

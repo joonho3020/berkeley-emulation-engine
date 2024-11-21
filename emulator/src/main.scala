@@ -101,14 +101,5 @@ object Main {
         FirtoolOption("-o"),
         FirtoolOption(cfg.outdir),
       ))
-
-// val file = new BufferedWriter(new FileWriter(s"${cfg.outdir}/FPGATop.anno"))
-// file.write(
-// anno_seq.filter(_ match {
-// case SRAMProcessorAnno(target, string) => true
-// case _ => false
-// }).toSeq.toString()
-// )
-// file.close()
   }
 }

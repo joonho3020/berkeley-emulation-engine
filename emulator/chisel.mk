@@ -13,11 +13,9 @@ blackbox_dmem     ?= "false"
 SCALA_SRC_DIR := $(EMULATOR_DIR)/src
 SCALA_FILES   := $(shell find $(SCALA_SRC_DIR) -name '*.scala')
 
+GENERATED_DIR := generated-m$(num_mods).p$(num_procs).s$(max_steps).nwl$(inter_proc_nw_lat).nwg$(inter_mod_nw_lat).sw$(sram_width).se$(sram_entries)
 MILL_BUILD     := $(EMULATOR_DIR)/out/mill.lock
-FPGATOP_SV     := $(BUILDDIR)/FPGATop.sv
-FPGATOP_MMAP   := $(BUILDDIR)/FPGATop.mmap
-FPGATOP_ANNOS  := $(BUILDDIR)/FPGATop.annos
-MILL_BUILD_ARTIFACTS := $(MILL_BUILD) $(FPGATOP_SV) $(FPGATOP_MMAP) $(FPGATOP_ANNOS)
+MILL_BUILD_ARTIFACTS := $(MILL_BUILD) $(EMULATOR_DIR)/$(GENERATED_DIR)/synth.xdc
 
 # Chisel generated driver stuff
 chisel_elaborate: $(MILL_BUILD_ARTIFACTS)
@@ -36,10 +34,16 @@ $(MILL_BUILD_ARTIFACTS): $(SCALA_FILES) | $(BUILDDIR)
 			--sram-width $(sram_width)               \
 			--sram-entries $(sram_entries)           \
 			--blackbox-dmem $(blackbox_dmem)
+	cd $(EMULATOR_DIR) &&                        \
+		python build-xdc.py                        \
+			--max-steps $(max_steps)                 \
+			--num-mods $(num_mods)                   \
+			--num-procs $(num_procs)                 \
+			--inter-mod-nw-lat $(inter_mod_nw_lat)   \
+			--inter-proc-nw-lat $(inter_proc_nw_lat) \
+			--sram-width $(sram_width)               \
+			--sram-entries $(sram_entries)
 	@touch $(MILL_BUILD) # Update mill lock file timestamp
-	sed -i '/.*\.v$$/d' $(EMULATOR_DIR)/FPGATop.sv # Remove last line if blackbox was used
-	cp $(EMULATOR_DIR)/FPGATop.sv   $(BUILDDIR)/
-	cp $(EMULATOR_DIR)/FPGATop.mmap $(BUILDDIR)/
-	cp $(EMULATOR_DIR)/FPGATop.annos $(BUILDDIR)/
+	cp -r $(EMULATOR_DIR)/$(GENERATED_DIR)/*    $(BUILDDIR)/
 
 .PHONY: chisel_elaborate

@@ -37,7 +37,7 @@ $(SIMULATION_SRCS): $(MILL_BUILD_ARTIFACTS) $(SIMIF_SRCS)
 	fi
 	cp $(SIMIF_SRCS) $(SIMIF_DIR)
 	cargo clean
-	cargo build --release -vvv
+	cargo build --release
 
 # Run single example
 run: $(SIMULATION_SRCS)
