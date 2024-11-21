@@ -1,0 +1,10 @@
+[
+  {
+    "class": "sifive.enterprise.firrtl.TestHarnessHierarchyAnnotation",
+    "filename": "testharness.hierarchy.json"
+  },
+  {
+    "class": "sifive.enterprise.firrtl.ModuleHierarchyAnnotation",
+    "filename": "top.hierarchy.json"
+  }
+]

@@ -99,4 +99,8 @@ case class EmulatorConfig(
     }
     return ret
   }
+
+  def str: String = {
+    s"m${num_mods}.p${num_procs}.s${max_steps}.nwl${inter_mod_nw_lat}.nwg${inter_proc_nw_lat}.sw${sram_width}.se${sram_entries}"
+  }
 }

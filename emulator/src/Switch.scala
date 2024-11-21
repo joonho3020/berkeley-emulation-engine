@@ -25,7 +25,7 @@ class LocalSwitch(cfg: EmulatorConfig) extends Module {
     io.ports(i).ip := DontCare
   }
 
-// val pipelined_id = io.ports.map(x => ShiftRegister(x.id, cfg.inter_proc_nw_lat))
+  // Add pipeline registers
   val pipelined_op = io.ports.map(x => ShiftRegister(x.op, cfg.inter_proc_nw_lat))
 
   // Xbar

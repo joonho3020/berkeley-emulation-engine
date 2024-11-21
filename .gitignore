@@ -23,6 +23,7 @@ emulator/results.xml
 emulator/sim_build
 emulator/test/*
 emulator/FPGATop.*
+emulator/generated*
 
 sim/metasim/src/simif/*
 sim/alveo-u250/src/simif/*

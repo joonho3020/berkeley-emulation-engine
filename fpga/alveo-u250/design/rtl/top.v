@@ -418,7 +418,7 @@ axi_lite_cdc axi4_lite_master_cdc (
   .m_axi_rready(io_mmio_axi4_master_rready)     // output wire m_axi_rready
 );
 
-FPGATop fpgatop(
+FPGATop FPGATop(
   .clock(fpga_top_clock),
   .reset(!fpga_top_resetn),
 

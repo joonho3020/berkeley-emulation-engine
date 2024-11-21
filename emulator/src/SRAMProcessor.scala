@@ -141,7 +141,7 @@ class SRAMProcessor(cfg: EmulatorConfig) extends Module {
 
   annotate(new ChiselAnnotation {
     override def toFirrtl: SRAMProcessorAnno = {
-      SRAMProcessorAnno(sram.toTarget, "SRAMProcessorAnno")
+      SRAMProcessorAnno(sram.toAbsoluteTarget, sram.pathName)
     }
   })
 

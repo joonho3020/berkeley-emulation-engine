@@ -45,7 +45,10 @@ case class FPGATopParams(
   axil: FPGATopAXI4MMIOParams,
 
   // Emulation platform configuration
-  emul: EmulatorConfig)
+  emul: EmulatorConfig
+) {
+  def outdir: String = s"generated-${emul.str}"
+}
 
 case object FPGATopConfigKey extends Field[FPGATopParams]
 
@@ -311,5 +314,5 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
   println(s"""=================== Simulator Memory Map =========================
     ${mmap.str}
   """)
-  mmap.write_to_file("FPGATop.mmap")
+  mmap.write_to_file(s"${cfg.outdir}/FPGATop.mmap")
 }
