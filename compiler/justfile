@@ -16,6 +16,9 @@ num_mods := "33"
 num_procs := "64"
 sram_width := "256"
 sram_entries := "1024"
+large_sram_width := "256"
+large_sram_entries := "1024"
+large_sram_cnt := "0"
 
 imem_lat := "0"
 inter_mod_nw_lat := "0"
@@ -64,6 +67,9 @@ bee_vcd $RUST_BACKTRACE="1":
        --num-procs {{num_procs}} \
        --sram-width {{sram_width}} \
        --sram-entries {{sram_entries}} \
+       --large-sram-width {{large_sram_width}} \
+       --large-sram-entries {{large_sram_entries}} \
+       --large-sram-cnt {{large_sram_cnt}} \
        --imem-lat {{imem_lat}} \
        --dmem-rd-lat {{dmem_rd_lat}} \
        --inter-proc-nw-lat {{inter_proc_nw_lat}} \
@@ -88,6 +94,9 @@ bee $RUST_BACKTRACE="1":
        --num-procs {{num_procs}} \
        --sram-width {{sram_width}} \
        --sram-entries {{sram_entries}} \
+       --large-sram-width {{large_sram_width}} \
+       --large-sram-entries {{large_sram_entries}} \
+       --large-sram-cnt {{large_sram_cnt}} \
        --imem-lat {{imem_lat}} \
        --dmem-rd-lat {{dmem_rd_lat}} \
        --inter-proc-nw-lat {{inter_proc_nw_lat}} \
@@ -108,6 +117,9 @@ run_blifsim $RUST_BACKTRACE="1":
        --num-procs {{num_procs}} \
        --sram-width {{sram_width}} \
        --sram-entries {{sram_entries}} \
+       --large-sram-width {{large_sram_width}} \
+       --large-sram-entries {{large_sram_entries}} \
+       --large-sram-cnt {{large_sram_cnt}} \
        --imem-lat {{imem_lat}} \
        --dmem-rd-lat {{dmem_rd_lat}} \
        --inter-proc-nw-lat {{inter_proc_nw_lat}} \

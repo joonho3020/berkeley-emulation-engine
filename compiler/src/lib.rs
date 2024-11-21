@@ -52,6 +52,9 @@ pub mod blif_sim_test {
             sram_wr_ports:      1,
             sram_rd_lat:        1,
             sram_wr_lat:        1,
+            large_sram_width:   128,
+            large_sram_entries: 1024,
+            large_sram_cnt:     0,
             dbg_tail_length:    u32::MAX, // don't print debug graph when testing
             dbg_tail_threshold: u32::MAX  // don't print debug graph when testing
         };
@@ -279,6 +282,9 @@ pub mod emulation_tester {
             sram_wr_ports:      1,
             sram_rd_lat:        1,
             sram_wr_lat:        1,
+            large_sram_width:   128,
+            large_sram_entries: 1024,
+            large_sram_cnt:     0,
             dbg_tail_length:    u32::MAX, // don't print debug graph when testing
             dbg_tail_threshold: u32::MAX  // don't print debug graph when testing
         });

@@ -133,6 +133,12 @@ impl SRAMProcessor {
         assert!(cfg.sram_rd_ports == 1, "Currently only support single rd ported SRAM");
         assert!(cfg.sram_wr_ports == 1, "Currently only support single wr ported SRAM");
 
+        let sinfo = if id_ >= cfg.num_mods - cfg.large_sram_cnt {
+            cfg.large_sram()
+        } else {
+            cfg.small_sram()
+        };
+
         let mut ret = SRAMProcessor {
             id: id_,
             pc: 0,
@@ -141,11 +147,11 @@ impl SRAMProcessor {
             cur: 0,
             ports: vec![ProcessorSRAMPort::default(); cfg.num_procs as usize],
             mapping: SRAMMapping::default(),
-            inputs: vec![SRAMInputs::new(cfg.sram_width); 2],
-            prev_input: SRAMInputs::new(cfg.sram_width),
-            cur_rd_data: SRAMEntry::new(cfg.sram_width),
+            inputs: vec![SRAMInputs::new(sinfo.width); 2],
+            prev_input: SRAMInputs::new(sinfo.width),
+            cur_rd_data: SRAMEntry::new(sinfo.width),
             sram: AbstractMemory::new(
-                cfg.sram_entries,
+                sinfo.entries,
                 cfg.sram_rd_lat, cfg.sram_rd_ports,
                 cfg.sram_wr_lat, cfg.sram_wr_ports)
         };

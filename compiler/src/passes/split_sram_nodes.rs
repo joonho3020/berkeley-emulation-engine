@@ -14,13 +14,15 @@ use petgraph::{
 /// Given a SRAMNode which represents a SRAM blackbox, split up its
 /// IO port bits into separate nodes.
 pub fn split_sram_nodes(circuit: &mut Circuit) {
-    adjust_sram_nodes(circuit);
+    spread_sram_nodes(circuit);
+    reassign_sram_nodes_by_size(circuit);
+    check_sram_node_assignment(circuit);
     split_sram_node_by_io(circuit);
 }
 
 /// Currently, we assume that each SRAM is mapped to one module.
 /// Try reassigning SRAM nodes if this is not the case.
-fn adjust_sram_nodes(circuit: &mut Circuit) {
+fn spread_sram_nodes(circuit: &mut Circuit) {
     let mut free_modules: IndexSet<u32> = IndexSet::new();
     let mut sram_mapping: IndexMap<u32, Vec<NodeIndex>> = IndexMap::new();
 
@@ -60,6 +62,133 @@ fn adjust_sram_nodes(circuit: &mut Circuit) {
             let free = free_modules.pop().unwrap();
             let info = circuit.graph.node_weight_mut(*nidx).unwrap().info_mut();
             info.coord = Coordinate { module: free, proc: info.coord.proc };
+        }
+    }
+}
+
+/// Check if the SRAM nodes fit in their current SRAM processor.
+/// If not, try to swap
+fn reassign_sram_nodes_by_size(circuit: &mut Circuit) {
+    let mut sram_info: IndexMap<NodeIndex, SRAMSizeInfo> = IndexMap::new();
+
+    let pcfg = &circuit.platform_cfg;
+    let small_sram_proc_cnt = pcfg.num_mods - pcfg.large_sram_cnt;
+    let mut free_small_sram_procs: IndexSet<u32> = IndexSet::new();
+
+    for i in 0..small_sram_proc_cnt {
+        free_small_sram_procs.insert(i);
+    }
+
+    let mut nodes_to_reassign: Vec<(NodeIndex, u32)> = vec![];
+    for nidx in circuit.graph.node_indices() {
+        let node = circuit.graph.node_weight(nidx).unwrap();
+        if node.is() != Primitive::SRAMNode {
+            continue;
+        }
+
+        let pedges = circuit.graph.edges_directed(nidx, Incoming);
+        let mut addr_bits = 0;
+        let mut data_bits = 0;
+        for pedge in pedges {
+            let edge = circuit.graph.edge_weight(pedge.id()).unwrap().clone();
+            match edge.signal {
+                SignalType::SRAMRdAddr   { .. } => { addr_bits += 1; }
+                SignalType::SRAMRdWrAddr { .. } => { addr_bits += 1; }
+                SignalType::SRAMWrData   { .. } => { data_bits += 1; }
+                _ => {}
+            }
+        }
+
+        if node.info().coord.module < small_sram_proc_cnt {
+            free_small_sram_procs.shift_remove(&node.info().coord.module);
+        } else {
+            // Reassign to small sram processor
+            match free_small_sram_procs.pop() {
+                Some(x) => {
+                    nodes_to_reassign.push((nidx, x));
+                }
+                _ => { }
+            }
+        }
+
+        let sz = SRAMSizeInfo { width: data_bits, entries: 1 << addr_bits };
+        if sz.entries > pcfg.large_sram().entries || sz.width > pcfg.large_sram().width {
+            assert!(false,
+                "SRAMNode {:?} with SRAMSize {:?} doesn't fit for platform with config {:?}",
+                node.info(), sz, pcfg);
+        }
+
+        sram_info.insert(nidx, sz);
+    }
+
+    for (nidx, m) in nodes_to_reassign.iter() {
+        circuit.graph.node_weight_mut(*nidx).unwrap().info_mut().coord.module = *m;
+    }
+
+
+    println!("sram_info: {:?}", sram_info);
+
+    let mut unfitting_nodes: Vec<NodeIndex> = vec![];
+    for (nidx, sz) in sram_info.iter() {
+        let node = circuit.graph.node_weight(*nidx).unwrap();
+        let sram_proc_size = circuit.platform_cfg.sram_size_at_mod(node.info().coord.module);
+        if sram_proc_size >= *sz {
+            continue;
+        } else {
+            unfitting_nodes.push(*nidx);
+        }
+    }
+
+    println!("unfitting_nodes: {:?}", unfitting_nodes);
+    if unfitting_nodes.len() as u32 > pcfg.large_sram_cnt {
+        assert!(false, "Too many big SRAM nodes in the emulated target!");
+    }
+
+    println!("Reassigning nodes to larger sram processors");
+    for (i, nidx) in unfitting_nodes.iter().enumerate() {
+        let node = circuit.graph.node_weight_mut(*nidx).unwrap();
+        let sram_proc_idx = i as u32 + small_sram_proc_cnt;
+        println!("Move Node: {:?} from {} to {}",
+            node.info(), node.info().coord.module, sram_proc_idx);
+        node.info_mut().coord.module = sram_proc_idx;
+    }
+}
+
+fn check_sram_node_assignment(circuit: &Circuit) {
+    let mut allocated_sram_procs: IndexSet<u32> = IndexSet::new();
+    for nidx in circuit.graph.node_indices() {
+        let node = circuit.graph.node_weight(nidx).unwrap();
+        if node.is() != Primitive::SRAMNode {
+            continue;
+        }
+
+        if allocated_sram_procs.contains(&node.info().coord.module) {
+            assert!(false,
+                "Module {} already contains SRAM node",
+                node.info().coord.module);
+        } else {
+            let pedges = circuit.graph.edges_directed(nidx, Incoming);
+            let mut addr_bits = 0;
+            let mut data_bits = 0;
+            for pedge in pedges {
+                let edge = circuit.graph.edge_weight(pedge.id()).unwrap().clone();
+                match edge.signal {
+                    SignalType::SRAMRdAddr   { .. } => { addr_bits += 1; }
+                    SignalType::SRAMRdWrAddr { .. } => { addr_bits += 1; }
+                    SignalType::SRAMWrData   { .. } => { data_bits += 1; }
+                    _ => {}
+                }
+            }
+
+            allocated_sram_procs.insert(node.info().coord.module);
+
+            let sz =  circuit.platform_cfg.sram_size_at_mod(node.info().coord.module);
+            assert!(sz.width >= data_bits,
+                "SRAM processor has {} bits per entry, got {}",
+                sz.width, data_bits);
+            assert!(sz.entries >= 1 << addr_bits,
+                "SRAM processor has {} entries, got {}",
+                sz.entries, 1 << addr_bits);
         }
     }
 }
