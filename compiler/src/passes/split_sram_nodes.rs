@@ -61,6 +61,7 @@ fn spread_sram_nodes(circuit: &mut Circuit) {
             }
             let free = free_modules.pop().unwrap();
             let info = circuit.graph.node_weight_mut(*nidx).unwrap().info_mut();
+            assert!(info.coord.module != free, "Assigning to a already assigned node");
             info.coord = Coordinate { module: free, proc: info.coord.proc };
         }
     }
@@ -79,7 +80,7 @@ fn reassign_sram_nodes_by_size(circuit: &mut Circuit) {
         free_small_sram_procs.insert(i);
     }
 
-    let mut nodes_to_reassign: Vec<(NodeIndex, u32)> = vec![];
+    let mut nodes_to_reassign: Vec<NodeIndex> = vec![];
     for nidx in circuit.graph.node_indices() {
         let node = circuit.graph.node_weight(nidx).unwrap();
         if node.is() != Primitive::SRAMNode {
@@ -100,15 +101,9 @@ fn reassign_sram_nodes_by_size(circuit: &mut Circuit) {
         }
 
         if node.info().coord.module < small_sram_proc_cnt {
-            free_small_sram_procs.shift_remove(&node.info().coord.module);
+            free_small_sram_procs.swap_remove(&node.info().coord.module);
         } else {
-            // Reassign to small sram processor
-            match free_small_sram_procs.pop() {
-                Some(x) => {
-                    nodes_to_reassign.push((nidx, x));
-                }
-                _ => { }
-            }
+            nodes_to_reassign.push(nidx);
         }
 
         let sz = SRAMSizeInfo { width: data_bits, entries: 1 << addr_bits };
@@ -121,10 +116,13 @@ fn reassign_sram_nodes_by_size(circuit: &mut Circuit) {
         sram_info.insert(nidx, sz);
     }
 
-    for (nidx, m) in nodes_to_reassign.iter() {
-        circuit.graph.node_weight_mut(*nidx).unwrap().info_mut().coord.module = *m;
-    }
+    assert!(nodes_to_reassign.len() <= free_small_sram_procs.len(),
+        "Not enough free space for swapping, need a better SRAM allocation algo");
 
+    for nidx in nodes_to_reassign.iter() {
+        let reassign_mod = free_small_sram_procs.pop().unwrap();
+        circuit.graph.node_weight_mut(*nidx).unwrap().info_mut().coord.module = reassign_mod;
+    }
 
     println!("sram_info: {:?}", sram_info);
 
