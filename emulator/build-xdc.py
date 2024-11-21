@@ -15,7 +15,7 @@ args = parser.parse_args()
 
 
 def generated_dir(args) -> str:
-  return f'generated-m{args.num_mods}.p{args.num_procs}.s{args.max_steps}.nwl{args.inter_mod_nw_lat}.nwg{args.inter_proc_nw_lat}.sw{args.sram_width}.se{args.sram_entries}'
+  return f'generated-m{args.num_mods}.p{args.num_procs}.s{args.max_steps}.nwl{args.inter_proc_nw_lat}.nwg{args.inter_mod_nw_lat}.sw{args.sram_width}.se{args.sram_entries}'
 
 
 def read_firtool_input_annos() -> List:
