@@ -72,13 +72,13 @@ class SRAMMaskedWriteData(cfg: EmulatorConfig) extends Module {
   })
 
   val wr_data_mask_bits = Seq.fill(cfg.large_sram_width)(Wire(UInt(1.W)))
-  val div = io.wr_mask_bits / io.width_bits
+// val div = io.wr_mask_bits / io.width_bits
   for (i <- 0 until cfg.large_sram_width) {
     // val num_bits_per_mask = Wire(UInt(cfg.sram_width_bits.W))
     // num_bits_per_mask := io.width_bits / io.wmask_bits
     // wr_data_mask(i) := (io.wmask >> (i.U / num_bits_per_mask)) & 1.U
     // wr_data_mask(i) := (io.wmask >> (i.U * io.wmask_bits / io.width_bits)) & 1.U
-    wr_data_mask_bits(i) := (io.wr_mask >> (i.U * div)) & 1.U
+    wr_data_mask_bits(i) := (io.wr_mask >> (i.U * io.wr_mask_bits / io.width_bits)) & 1.U
   }
 
   val wr_data_mask = Wire(UInt(cfg.sram_width.W))
