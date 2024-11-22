@@ -128,8 +128,15 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
     // Map the input stimuli to a coordinate
     let mut mapped_input_stimulti_blasted: IndexMap<Coordinate, VecDeque<u64>> = IndexMap::new();
     for (sig, stim) in input_stimuli_blasted.iter() {
-        let coord = all_signal_map.get(sig).unwrap().info.coord;
-        mapped_input_stimulti_blasted.insert(coord, VecDeque::from(stim.clone()));
+        match all_signal_map.get(sig) {
+            Some(nmi) =>  {
+                let coord = nmi.info.coord;
+                mapped_input_stimulti_blasted.insert(coord, VecDeque::from(stim.clone()));
+            }
+            None =>  { println!("Input Signal {} not found", sig); }
+        }
+// let coord = all_signal_map.get(sig).unwrap().info.coord;
+// mapped_input_stimulti_blasted.insert(coord, VecDeque::from(stim.clone()));
     }
 
     // Total number of target cycles

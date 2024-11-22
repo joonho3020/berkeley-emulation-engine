@@ -41,6 +41,9 @@ pub mod fpgatop_test {
             sram_wr_ports:       1,
             sram_rd_lat:         1,
             sram_wr_lat:         1,
+            large_sram_cnt:      0,
+            large_sram_width:    16,
+            large_sram_entries:  16,
             dbg_tail_length:     u32::MAX, // don't print debug graph when testing
             dbg_tail_threshold:  u32::MAX  // don't print debug graph when testing
         };
