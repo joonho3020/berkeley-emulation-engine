@@ -22,6 +22,7 @@ case class EmulatorConfig(
   sram_entries: Int = 16,        // Number of SRAM entries
   sram_wr_lat: Int  = 1,         // Number of cycles to perform SRAM write
   sram_rd_lat: Int  = 1,         // Number of cycles to perform SRAM reads
+  sram_ip_pl:  Int  = 1,         // Number of pipeline stages btw the proc SRAM IP ports and the sram procs
   large_sram_cnt: Int = 2,       // Number of large srams
   large_sram_width: Int = 16,       // Width of large srams
   large_sram_entries: Int = 16,       // Depth of large srams

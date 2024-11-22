@@ -56,7 +56,7 @@ class FPGATop(implicit p: Parameters) extends LazyModule {
   val cfg = p(FPGATopConfigKey)
 
   println("================= Emulator configuration =======================");
-  println(cfg)
+  println(pprint.tokenize(cfg).mkString)
   println("================================================================");
 
    // AXI4 Master Node with a single master port

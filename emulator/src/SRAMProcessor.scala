@@ -144,22 +144,29 @@ class SRAMProcessor(cfg: EmulatorConfig, large_sram: Boolean) extends Module {
   val rec = Wire(UInt(1.W))
   rec := cur + 1.U
 
+
+  // Pipeline registers to cut critical path
+  val pl_ip    = io.ports.map(port => ShiftRegister(port.ip   , cfg.sram_ip_pl))
+  val pl_idx   = io.ports.map(port => ShiftRegister(port.idx  , cfg.sram_ip_pl))
+  val pl_valid = io.ports.map(port => ShiftRegister(port.valid, cfg.sram_ip_pl))
+
   val decs = Seq.fill(num_procs)(Module(new SRAMIndexDecoder(cfg)))
   for (i <- 0 until num_procs) {
-    decs(i).io.idx := io.ports(i).idx
+    decs(i).io.idx := pl_idx(i)
   }
-
 
   println(s"sram_addr_width_max: ${sram_addr_width_max}")
 
   val sram_addr_width_max_log2 = log2Ceil(sram_addr_width_max)
 
   val ip_shift_offsets = Seq.fill(num_procs)(Wire(UInt(sram_addr_width_max.W)))
-  ip_shift_offsets.zip(io.ports).zipWithIndex.foreach({ case ((iso, p), i) => {
-    val ip_shift_offset = Wire(UInt(sram_addr_width_max.W))
-    ip_shift_offset := p.ip << decs(i).io.offset(sram_addr_width_max_log2-1, 0)
-    iso := Mux(p.valid && io.run, ip_shift_offset, 0.U)
-  }})
+  ip_shift_offsets.zip(pl_ip).zip(pl_valid).zipWithIndex.foreach({
+    case (((iso, ip), valid), i) => {
+      val ip_shift_offset = Wire(UInt(sram_addr_width_max.W))
+      ip_shift_offset := ip << decs(i).io.offset(sram_addr_width_max_log2-1, 0)
+      iso := Mux(valid && io.run, ip_shift_offset, 0.U)
+    }
+  })
 
   val recv_rd_en = Wire(UInt(1.W))
   val recv_rd_en_vec = Wire(Vec(num_procs, UInt(1.W)))
