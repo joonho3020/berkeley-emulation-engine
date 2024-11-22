@@ -35,6 +35,9 @@ object Main {
         [--inter-mod-nw-lat  x]
         [--sram-width    x]
         [--sram-entries  x]
+        [--large-sram-width    x]
+        [--large-sram-entries  x]
+        [--large-sram-cnt  x]
         [--blackbox-dmem  x]
         """)
       System.exit(0)
@@ -50,19 +53,25 @@ object Main {
     var inter_mod_nw_lat:  Int = 0
     var sram_width:   Int = 16
     var sram_entries: Int = 16
+    var large_sram_width:   Int = 16
+    var large_sram_entries: Int = 16
+    var large_sram_cnt: Int = 16
     var blackbox_dmem: Boolean = false
 
     args.sliding(2, 2).toList.collect {
-      case Array("--debug",             x) => debug     = x.toBoolean
-      case Array("--max-steps",         x) => max_steps = x.toInt
-      case Array("--num-mods",          x) => num_mods  = x.toInt
-      case Array("--num-procs",         x) => num_procs = x.toInt
-      case Array("--imem-lat",          x) => imem_lat  = x.toInt
-      case Array("--inter-proc-nw-lat", x) => inter_proc_nw_lat = x.toInt
-      case Array("--inter-mod-nw-lat",  x) => inter_mod_nw_lat  = x.toInt
-      case Array("--sram-width",        x) => sram_width   = x.toInt
-      case Array("--sram-entries",      x) => sram_entries = x.toInt
-      case Array("--blackbox-dmem",     x) => blackbox_dmem = x.toBoolean
+      case Array("--debug",              x) => debug     = x.toBoolean
+      case Array("--max-steps",          x) => max_steps = x.toInt
+      case Array("--num-mods",           x) => num_mods  = x.toInt
+      case Array("--num-procs",          x) => num_procs = x.toInt
+      case Array("--imem-lat",           x) => imem_lat  = x.toInt
+      case Array("--inter-proc-nw-lat",  x) => inter_proc_nw_lat = x.toInt
+      case Array("--inter-mod-nw-lat",   x) => inter_mod_nw_lat  = x.toInt
+      case Array("--sram-width",         x) => sram_width   = x.toInt
+      case Array("--sram-entries",       x) => sram_entries = x.toInt
+      case Array("--large-sram-width",   x) => large_sram_width   = x.toInt
+      case Array("--large-sram-entries", x) => large_sram_entries = x.toInt
+      case Array("--large-sram-cnt",     x) => large_sram_cnt = x.toInt
+      case Array("--blackbox-dmem",      x) => blackbox_dmem = x.toBoolean
     }
 
     val cfg = FPGATopParams(
@@ -78,6 +87,9 @@ object Main {
             inter_proc_nw_lat = inter_proc_nw_lat,
             sram_width = sram_width,
             sram_entries = sram_entries,
+            large_sram_width = large_sram_width,
+            large_sram_entries = large_sram_entries,
+            large_sram_cnt = large_sram_cnt,
             blackbox_dmem = blackbox_dmem,
             debug = false
           )

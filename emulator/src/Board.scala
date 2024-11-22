@@ -2,7 +2,7 @@ package emulator
 
 import chisel3._
 import chisel3.util._
-import chisel3.experimental.hierarchy.{Definition, Instance}
+import chisel3.experimental.hierarchy.{Definition, Instance, Instantiate}
 
 class BoardDebugBundle(cfg: EmulatorConfig) extends Bundle {
   import cfg._
@@ -25,8 +25,16 @@ class Board(cfg: EmulatorConfig) extends Module {
   import cfg._
   val io = IO(new BoardBundle(cfg))
 
-  val mdef = Definition(new EModule(cfg))
-  val mods = Seq.fill(num_mods)(Instance(mdef))
+// val mdef_small = Definition(new EModule(cfg, false))
+// val mdef_large = Definition(new EModule(cfg, true))
+  val mods = (0 until num_mods).map(i => {
+    if (i < cfg.num_mods - cfg.large_sram_cnt) {
+      Instantiate(new EModule(cfg, false))
+    } else {
+      Instantiate(new EModule(cfg, true))
+    }
+  }).toSeq
+
   val global_switch = Module(new GlobalSwitch(cfg))
   for (i <- 0 until num_mods) {
     for (j <- 0 until num_procs) {

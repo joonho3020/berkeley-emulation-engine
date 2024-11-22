@@ -32,7 +32,7 @@ class EModuleBundle(cfg: EmulatorConfig) extends Bundle {
 }
 
 @instantiable
-class EModule(cfg: EmulatorConfig) extends Module {
+class EModule(cfg: EmulatorConfig, large_sram: Boolean) extends Module {
   import cfg._
 
   @public val io = IO(new EModuleBundle(cfg))
@@ -43,7 +43,7 @@ class EModule(cfg: EmulatorConfig) extends Module {
   val pdef = Definition(new Processor(cfg))
   val procs: Seq[Instance[Processor]] = Seq.fill(num_procs)(Instance(pdef))
 
-  val sdef = Definition(new SRAMProcessor(cfg))
+  val sdef = Definition(new SRAMProcessor(cfg, large_sram))
   val sram_proc = Instance(sdef)
 
   val local_switch = Module(new LocalSwitch(cfg))
