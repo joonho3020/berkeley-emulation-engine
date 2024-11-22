@@ -72,12 +72,13 @@ class SRAMMaskedWriteData(cfg: EmulatorConfig) extends Module {
   })
 
   val wr_data_mask_bits = Seq.fill(cfg.large_sram_width)(Wire(UInt(1.W)))
+  val div = io.wr_mask_bits / io.width_bits
   for (i <- 0 until cfg.large_sram_width) {
     // val num_bits_per_mask = Wire(UInt(cfg.sram_width_bits.W))
     // num_bits_per_mask := io.width_bits / io.wmask_bits
     // wr_data_mask(i) := (io.wmask >> (i.U / num_bits_per_mask)) & 1.U
     // wr_data_mask(i) := (io.wmask >> (i.U * io.wmask_bits / io.width_bits)) & 1.U
-    wr_data_mask_bits(i) := (io.wr_mask >> (i.U * io.wr_mask_bits / io.width_bits)) & 1.U
+    wr_data_mask_bits(i) := (io.wr_mask >> (i.U * div)) & 1.U
   }
 
   val wr_data_mask = Wire(UInt(cfg.sram_width.W))
@@ -162,55 +163,80 @@ class SRAMProcessor(cfg: EmulatorConfig, large_sram: Boolean) extends Module {
     decs(i).io.idx := io.ports(i).idx
   }
 
+
+  println(s"sram_addr_width_max: ${sram_addr_width_max}")
+
+  val sram_addr_width_max_log2 = log2Ceil(sram_addr_width_max)
+
   val ip_shift_offsets = Seq.fill(num_procs)(Wire(UInt(sram_addr_width_max.W)))
   ip_shift_offsets.zip(io.ports).zipWithIndex.foreach({ case ((iso, p), i) => {
-    iso := Mux(p.valid && io.run, p.ip << decs(i).io.offset, 0.U)
+    val ip_shift_offset = Wire(UInt(sram_addr_width_max.W))
+    ip_shift_offset := p.ip << decs(i).io.offset(sram_addr_width_max_log2-1, 0)
+    iso := Mux(p.valid && io.run, ip_shift_offset, 0.U)
   }})
 
   val recv_rd_en = Wire(UInt(1.W))
-  recv_rd_en := decs.map(d =>
+  val recv_rd_en_vec = Wire(Vec(num_procs, UInt(1.W)))
+  decs.map(d =>
       d.io.prim === SRAMInputTypes.SRAMRdEn ||
       d.io.prim === SRAMInputTypes.SRAMRdWrEn)
-    .zip(ip_shift_offsets)
-    .map({ case (prim_match, iso) => Mux(prim_match, iso, 0.U) })
-    .reduce(_ | _)
+        .zip(ip_shift_offsets)
+        .map({ case (prim_match, iso) => Mux(prim_match, iso, 0.U) })
+        .zip(recv_rd_en_vec)
+        .map({ case (bit, rd_en) => rd_en := bit })
+  recv_rd_en := recv_rd_en_vec.reduceTree(_ | _)
 
   val recv_wr_en = Wire(UInt(1.W))
-  recv_wr_en := decs.map(d =>
+  val recv_wr_en_vec = Wire(Vec(num_procs, UInt(1.W)))
+  decs.map(d =>
       d.io.prim === SRAMInputTypes.SRAMWrEn ||
       d.io.prim === SRAMInputTypes.SRAMRdWrMode)
     .zip(ip_shift_offsets)
     .map({ case (prim_match, iso) => Mux(prim_match, iso, 0.U) })
-    .reduce(_ | _)
+    .zip(recv_wr_en_vec)
+    .map({ case (bit, wr_en) => wr_en := bit })
+  recv_wr_en := recv_wr_en_vec.reduceTree(_ | _)
 
   val recv_rd_addr = Wire(UInt(sram_addr_width_max.W))
-  recv_rd_addr := decs.map(d =>
+  val recv_rd_addr_vec = Wire(Vec(num_procs, UInt(sram_addr_width_max.W)))
+  decs.map(d =>
       d.io.prim === SRAMInputTypes.SRAMRdAddr ||
       d.io.prim === SRAMInputTypes.SRAMRdWrAddr)
     .zip(ip_shift_offsets)
     .map({ case (prim_match, iso) => Mux(prim_match, iso, 0.U) })
-    .reduce(_ | _)
+    .zip(recv_rd_addr_vec)
+    .map({ case (bits, rd_addr) => rd_addr := bits })
+  recv_rd_addr := recv_rd_addr_vec.reduceTree(_ | _)
 
   val recv_wr_addr = Wire(UInt(sram_addr_width_max.W))
-  recv_wr_addr := decs
+  val recv_wr_addr_vec = Wire(Vec(num_procs, UInt(sram_addr_width_max.W)))
+  decs
     .map(_.io.prim === SRAMInputTypes.SRAMWrAddr)
     .zip(ip_shift_offsets)
     .map({ case (prim_match, iso) => Mux(prim_match, iso, 0.U) })
-    .reduce(_ | _)
+    .zip(recv_wr_addr_vec)
+    .map({ case (bits, wr_addr) => wr_addr := bits })
+  recv_wr_addr := recv_wr_addr_vec.reduceTree(_ | _)
 
   val recv_wr_data = Wire(UInt(sram_addr_width_max.W))
-  recv_wr_data := decs
+  val recv_wr_data_vec = Wire(Vec(num_procs, UInt(sram_addr_width_max.W)))
+  decs
     .map(_.io.prim === SRAMInputTypes.SRAMWrData)
     .zip(ip_shift_offsets)
     .map({ case (prim_match, iso) => Mux(prim_match, iso, 0.U) })
-    .reduce(_ | _)
+    .zip(recv_wr_data_vec)
+    .map({ case (bits, wr_data) => wr_data := bits })
+  recv_wr_data := recv_wr_data_vec.reduceTree(_ | _)
 
   val recv_wr_mask = Wire(UInt(sram_addr_width_max.W))
-  recv_wr_mask := decs
+  val recv_wr_mask_vec = Wire(Vec(num_procs, UInt(sram_addr_width_max.W)))
+  decs
     .map(_.io.prim === SRAMInputTypes.SRAMWrMask)
     .zip(ip_shift_offsets)
     .map({ case (prim_match, iso) => Mux(prim_match, iso, 0.U) })
-    .reduce(_ | _)
+    .zip(recv_wr_mask_vec)
+    .map({ case (bits, wr_mask) => wr_mask := bits })
+  recv_wr_mask := recv_wr_mask_vec.reduceTree(_ | _)
 
   for (i <- 0 until 2) {
     when (rec === i.U) {
