@@ -282,7 +282,7 @@ pub fn map_instructions(circuit: &mut Circuit) {
         } else {
             // HACK: Check if the SRAM is in the top of the module hierarchy
             // If it is, there may be aliases to the node which can mess things up
-            // Otherwise, it is save to add as a signal mapping
+            // Otherwise, it is safe to add as a signal mapping
             if node.name().split(".").collect_vec().len() > 1 {
                 let nodemap = NodeMapInfo {
                     info: node.info().clone(),

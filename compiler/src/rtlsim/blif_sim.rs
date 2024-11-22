@@ -61,24 +61,12 @@ impl SRAMState {
                 // Read the current data
                 let cur_data = self.mem.get(waddr as usize).unwrap();
 
-                // Compute mask
-                let num_bits_per_mask = self.cfg.width_bits / self.cfg.wmask_bits;
-                let mut mask = vec![0u8; self.cfg.width_bits as usize];
-                for i in 0..self.cfg.wmask_bits {
-                    let mask_value = self.input.wr_mask.get(i as usize).unwrap();
-                    for j in 0..num_bits_per_mask {
-                        let idx = i * num_bits_per_mask + j;
-                        *mask.get_mut(idx as usize).unwrap() = *mask_value;
-                    }
-                }
-
-                assert!(mask.len() == self.input.wr_data.len(),
-                    "mask {:?}, expected length: {}, num_masks: {} num_bits_per_mask: {}",
-                    mask, self.input.wr_data.len(), self.cfg.wmask_bits, num_bits_per_mask);
-
                 // Compute masked written value
                 let mut ret = vec![];
-                for ((m, w), r) in mask.iter().zip(self.input.wr_data.iter()).zip(cur_data.bits.iter()) {
+                for ((m, w), r) in self.input.wr_mask.iter()
+                                    .zip(self.input.wr_data.iter())
+                                    .zip(cur_data.bits.iter())
+                {
                     if *m == 0 {
                         ret.push(*r);
                     } else {

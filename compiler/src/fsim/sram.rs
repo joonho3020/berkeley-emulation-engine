@@ -168,8 +168,8 @@ impl SRAMProcessor {
     }
 
     pub fn set_sram_mapping(self: &mut Self, map: &SRAMMapping) {
-        println!("Emulating SRAM {:?} with {} wmask bits, {} bits per entry",
-            map.port_type, map.wmask_bits, map.width_bits);
+        println!("Emulating SRAM {:?} with {} bits per entry",
+            map.port_type, map.width_bits);
 
         self.mapping = map.clone();
     }
@@ -198,22 +198,25 @@ impl SRAMProcessor {
         assert!(self.mapping.wmask_bits > 0,
             "masked_write_data should only be called for SRAMs w/ wmask bits");
 
-        let num_bits_per_mask = self.mapping.width_bits / self.mapping.wmask_bits;
-        let mut mask = vec![0u8; self.pcfg.sram_width as usize];
-        for i in 0..self.mapping.wmask_bits {
-            let mask_value = sram_input.wr_mask.get(i as usize).unwrap();
-            for j in 0..num_bits_per_mask {
-                let idx = i * num_bits_per_mask + j;
-                *mask.get_mut(idx as usize).unwrap() = *mask_value;
-            }
-        }
+// let num_bits_per_mask = self.mapping.width_bits / self.mapping.wmask_bits;
+// let mut mask = vec![0u8; self.pcfg.sram_width as usize];
+// for i in 0..self.mapping.wmask_bits {
+// let mask_value = sram_input.wr_mask.get(i as usize).unwrap();
+// for j in 0..num_bits_per_mask {
+// let idx = i * num_bits_per_mask + j;
+// *mask.get_mut(idx as usize).unwrap() = *mask_value;
+// }
+// }
 
-        assert!(mask.len() == sram_input.wr_data.len(),
-            "mask {:?}, expected length: {}, num_masks: {} num_bits_per_mask: {}",
-            mask, sram_input.wr_data.len(), self.mapping.wmask_bits, num_bits_per_mask);
+// assert!(mask.len() == sram_input.wr_data.len(),
+// "mask {:?}, expected length: {}, num_masks: {} num_bits_per_mask: {}",
+// mask, sram_input.wr_data.len(), self.mapping.wmask_bits, num_bits_per_mask);
 
         let mut ret = vec![];
-        for ((m, w), r) in mask.iter().zip(sram_input.wr_data.iter()).zip(rd_data.bits.iter()) {
+        for ((m, w), r) in sram_input.wr_mask.iter()
+                            .zip(sram_input.wr_data.iter())
+                            .zip(rd_data.bits.iter())
+        {
             if *m == 0 {
                 ret.push(*r);
             } else {

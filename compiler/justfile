@@ -29,6 +29,7 @@ dmem_rd_lat := "0"
 clean:
   rm -rf sim-dir-*
   rm -rf blif-sim-dir-*
+  rm DEBUG*
 
 [group: 'test']
 test $RUST_TEST_THREADS="1":

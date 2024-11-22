@@ -195,7 +195,9 @@ fn check_sram_node_assignment(circuit: &Circuit) {
 struct ReplaceSRAMInfo {
     pub parents: Vec<(NodeIndex, HWEdge)>,
     pub childs:  Vec<(NodeIndex, HWEdge)>,
-    pub node: HWNode
+    pub node: HWNode,
+    pub width_bits: u32,
+    pub wmask_bits: u32,
 }
 
 impl ReplaceSRAMInfo {
@@ -203,7 +205,9 @@ impl ReplaceSRAMInfo {
         ReplaceSRAMInfo {
             parents: vec![],
             childs : vec![],
-            node: n
+            node: n,
+            width_bits: 0,
+            wmask_bits: 0
         }
     }
 }
@@ -234,14 +238,26 @@ fn split_sram_node_by_io(circuit: &mut Circuit) {
             sram_info.insert(nidx, ReplaceSRAMInfo::new(node.clone()));
         }
 
+        let mut width_bits = 0;
+        let mut wmask_bits = 0;
+
         // collect parent nodes & the edges
         let pedges = circuit.graph.edges_directed(nidx, Incoming);
         for pedge in pedges {
             let pidx = pedge.source();
             let edge = circuit.graph.edge_weight(pedge.id()).unwrap().clone();
+            match edge.signal {
+                SignalType::SRAMWrMask { .. }  => { wmask_bits += 1; }
+                SignalType::SRAMWrData { .. }  => { width_bits += 1; }
+                _ => { }
+            }
             sram_info.get_mut(&nidx).unwrap().parents.push((pidx, edge));
             check_nodes.insert(pidx);
         }
+
+        // Mark the width and wmask bits of this SRAM node
+        sram_info.get_mut(&nidx).unwrap().wmask_bits = wmask_bits;
+        sram_info.get_mut(&nidx).unwrap().width_bits = width_bits;
 
         // collect child nodes & associated edges
         let cedges = circuit.graph.edges_directed(nidx, Outgoing);
@@ -257,14 +273,45 @@ fn split_sram_node_by_io(circuit: &mut Circuit) {
     for (_, rinfo) in sram_info.iter() {
         // Fill from processor 0
         for (i, (pidx, edge)) in rinfo.parents.iter().enumerate() {
-            let mut node = assign_proc_to_sram_node(&rinfo.node, i as u32, pcfg);
-            node.prim = CircuitPrimitive::from(&edge.signal);
+            match &edge.signal {
+                // For bits corresponding to write masks, replicate the nodes
+                // If we don't do this, we have to expand the write mask bits
+                // into width_bits in the hardware implementation.
+                // Since we want the number of wmask_bits and width_bits to
+                // be configurable, this results in a giant crossbar in the
+                // hardware which consumes a lot of resources (especially for
+                // FPGAs).
+                // If we expand these bits in the compiler, the hardware
+                // implementation becomes simple: a simple bitwise and between
+                // the expanded mask bits and the data bits.
+                SignalType::SRAMWrMask { name, idx } => {
+                    assert!(rinfo.wmask_bits != 0);
+                    let nbits_per_mask_bit = rinfo.width_bits / rinfo.wmask_bits;
 
-            let sram_idx = circuit.graph.add_node(node);
-            circuit.graph.add_edge(*pidx, sram_idx, edge.clone());
+                    for j in 0..nbits_per_mask_bit {
+                        let mut node = assign_proc_to_sram_node(&rinfo.node, i as u32 + j, pcfg);
+                        let data_bit_idx = idx * nbits_per_mask_bit + j;
+                        node.prim = CircuitPrimitive::SRAMWrMask {
+                            name: name.to_string(),
+                            idx: data_bit_idx,
+                        };
 
-            assert!(!check_nodes.contains(&sram_idx),
-                "sram_info contains newly added NodeIndex {:?}", sram_idx);
+                        let sram_idx = circuit.graph.add_node(node);
+                        circuit.graph.add_edge(*pidx, sram_idx, edge.clone());
+                        assert!(!check_nodes.contains(&sram_idx),
+                            "sram_info contains newly added NodeIndex {:?}", sram_idx);
+                    }
+                }
+                _ => {
+                    let mut node = assign_proc_to_sram_node(&rinfo.node, i as u32, pcfg);
+                    node.prim = CircuitPrimitive::from(&edge.signal);
+
+                    let sram_idx = circuit.graph.add_node(node);
+                    circuit.graph.add_edge(*pidx, sram_idx, edge.clone());
+                    assert!(!check_nodes.contains(&sram_idx),
+                        "sram_info contains newly added NodeIndex {:?}", sram_idx);
+                }
+            }
         }
 
         // Fill from processor (nprocs - 1)
