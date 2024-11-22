@@ -42,6 +42,7 @@ pub fn try_new_circuit(args: &Args) -> std::io::Result<Circuit> {
             sram_wr_ports:      args.sram_wr_ports,
             sram_rd_lat:        args.sram_rd_lat,
             sram_wr_lat:        args.sram_wr_lat,
+            sram_ip_pl:         args.sram_ip_pl,
             large_sram_width:   args.large_sram_width,
             large_sram_entries: args.large_sram_entries,
             large_sram_cnt:     args.large_sram_cnt,

@@ -3,6 +3,7 @@ use crate::common::{
 };
 use crate::fsim::memory::*;
 use std::fmt::Debug;
+use std::collections::VecDeque;
 
 
 #[derive(Default, Clone)]
@@ -120,6 +121,7 @@ pub struct SRAMProcessor {
     pub host_steps: u32,
     pub pcfg: PlatformConfig,
     pub ports: Vec<ProcessorSRAMPort>,
+    pub ports_pipeline_regs: VecDeque<Vec<ProcessorSRAMPort>>,
     mapping: SRAMMapping,
     cur: u32,
     inputs: Vec<SRAMInputs>,
@@ -139,6 +141,12 @@ impl SRAMProcessor {
             cfg.small_sram()
         };
 
+        let mut pipeline_regs = VecDeque::new();
+        for _ in 0..cfg.sram_ip_pl {
+            pipeline_regs.push_back(
+                vec![ProcessorSRAMPort::default(); cfg.num_procs as usize]);
+        }
+
         let mut ret = SRAMProcessor {
             id: id_,
             pc: 0,
@@ -146,6 +154,7 @@ impl SRAMProcessor {
             pcfg: cfg.clone(),
             cur: 0,
             ports: vec![ProcessorSRAMPort::default(); cfg.num_procs as usize],
+            ports_pipeline_regs: pipeline_regs,
             mapping: SRAMMapping::default(),
             inputs: vec![SRAMInputs::new(sinfo.width); 2],
             prev_input: SRAMInputs::new(sinfo.width),
@@ -242,8 +251,18 @@ impl SRAMProcessor {
     // - send out SRAM Rd/Wr request
     // - run_cycle
     pub fn run_cycle(self: &mut Self) {
-        // Receive inputs and update input regs
+        // Receive inputs and put it in the pipeline registers
+        let mut port_inputs: Vec<ProcessorSRAMPort> = vec![];
         for p in self.ports.iter() {
+            port_inputs.push(p.clone());
+        }
+        self.ports_pipeline_regs.push_back(port_inputs);
+
+        let port_inputs_piplined = self.ports_pipeline_regs.pop_front().unwrap();
+
+
+        // Receive inputs and update input regs
+        for p in port_inputs_piplined.iter() {
             if p.val != 0 {
                 let (prim, bit_pos) = self.pcfg.index_to_sram_input_type(p.idx);
                 let ridx = self.recv_input_idx() as usize;

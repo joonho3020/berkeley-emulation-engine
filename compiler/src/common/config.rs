@@ -236,6 +236,10 @@ pub struct PlatformConfig {
     /// Latency of the SRAM write latency
     pub sram_wr_lat: u32,
 
+    /// The number of pipeline stages from the processor ip -> sram ip
+    /// This is to cut the critical path in HW implementations
+    pub sram_ip_pl: u32,
+
     /// Number of SRAM entries (for larger SRAM processors)
     pub large_sram_entries: u32,
 
@@ -268,6 +272,7 @@ impl Default for PlatformConfig {
             sram_wr_ports: 1,
             sram_rd_lat: 1,
             sram_wr_lat: 1,
+            sram_ip_pl: 1,
             large_sram_cnt: 0,
             large_sram_width: 64,
             large_sram_entries: 1024,
@@ -563,10 +568,6 @@ pub struct Args {
     #[arg(long, default_value_t = 1)]
     pub dmem_wr_lat: u32,
 
-    /// SRAM width in bits (per module)
-    #[arg(long, default_value_t = 128)]
-    pub sram_width: u32,
-
     /// Number of SRAM entries (for larger SRAM processors)
     #[arg(long, default_value_t = 1024)]
     pub large_sram_entries: u32,
@@ -578,6 +579,10 @@ pub struct Args {
     /// Number of larger SRAM processors (located for modules from the end)
     #[arg(long, default_value_t = 2)]
     pub large_sram_cnt: u32,
+
+    /// SRAM width in bits (per module)
+    #[arg(long, default_value_t = 128)]
+    pub sram_width: u32,
 
     /// Number of SRAM entries (per module)
     #[arg(long, default_value_t = 1024)]
@@ -598,6 +603,10 @@ pub struct Args {
     /// Latency of the SRAM write latency
     #[arg(long, default_value_t = 1)]
     pub sram_wr_lat: u32,
+
+    /// Pipeline stages between the processor ip & sram processor ip
+    #[arg(long, default_value_t = 1)]
+    pub sram_ip_pl: u32,
 
     /// debug tail length
     #[arg(long, default_value_t = 10)]

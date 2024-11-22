@@ -840,8 +840,9 @@ fn schedule_instructions_internal(circuit: &mut Circuit) {
         }
     }
 
-    //                        <base> + <NW>
-    circuit.emul.host_steps = pc + 1 + max_nw_route_dep_lat;
+    circuit.emul.host_steps = pc + 1 +                               // <base>
+                              max(max_nw_route_dep_lat,              // NW
+                                  circuit.platform_cfg.sram_ip_pl);  // SRAM
 
     let total_steps = circuit.emul.host_steps * circuit.platform_cfg.total_procs();
     println!("Machine ({} / {}) = {:.2} %, host_steps = {}",
