@@ -138,6 +138,9 @@ class SRAMProcessor(cfg: EmulatorConfig, large_sram: Boolean) extends Module {
   val inputs = Seq.fill(2)(RegInit(0.U.asTypeOf(new SRAMInputs(cfg))))
   val prev_input = Reg(new SRAMInputs(cfg))
 
+  // To cut critical path in FPGA
+  val cfg_regs = Reg(io.cfg_in)
+
   val cur_sram_entries = if (large_sram) cfg.large_sram_entries else cfg.sram_entries
   val cur_sram_width   = if (large_sram) cfg.large_sram_width else cfg.sram_width
   val sram = SyncReadMem(cur_sram_entries, UInt(cur_sram_width.W))
@@ -226,7 +229,7 @@ class SRAMProcessor(cfg: EmulatorConfig, large_sram: Boolean) extends Module {
 
   val cur_input = Mux(cur === 0.U, inputs(0), inputs(1))
 
-  when (io.cfg_in.single_port_ram) {
+  when (cfg_regs.single_port_ram) {
     ren   := !cur_input.wr_en && cur_input.rd_en
     wen   :=  cur_input.wr_en && cur_input.rd_en
     waddr := cur_input.rd_addr
@@ -246,8 +249,8 @@ class SRAMProcessor(cfg: EmulatorConfig, large_sram: Boolean) extends Module {
   val rdata = sram.read(sram_rport_addr, io.run)
 
   val masked_wr_data = Module(new SRAMMaskedWriteData(cfg))
-  masked_wr_data.io.wr_mask_bits := io.cfg_in.wmask_bits
-  masked_wr_data.io.width_bits   := io.cfg_in.width_bits
+  masked_wr_data.io.wr_mask_bits := cfg_regs.wmask_bits
+  masked_wr_data.io.width_bits   := cfg_regs.width_bits
   masked_wr_data.io.wr_mask      := cur_input.wr_mask
   masked_wr_data.io.wr_data      := cur_input.wr_data
   masked_wr_data.io.rd_data      := rdata
