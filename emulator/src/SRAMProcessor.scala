@@ -98,14 +98,14 @@ class PerProcessorSRAMBundle(cfg: EmulatorConfig) extends Bundle {
 }
 
 class SRAMProcessorConfigBundle(cfg: EmulatorConfig) extends Bundle {
-  val single_port_ram = Input(Bool())
-  val wmask_bits      = Input(UInt(cfg.sram_width_bits.W))
-  val width_bits      = Input(UInt(cfg.sram_width_bits.W))
+  val single_port_ram = Bool()
+  val wmask_bits      = UInt(cfg.sram_width_bits.W)
+  val width_bits      = UInt(cfg.sram_width_bits.W)
 }
 
 class SRAMProcessorBundle(cfg: EmulatorConfig) extends Bundle {
   val ports      = Vec(cfg.num_procs, new PerProcessorSRAMBundle(cfg))
-  val cfg_in     = new SRAMProcessorConfigBundle(cfg)
+  val cfg_in     = Input(new SRAMProcessorConfigBundle(cfg))
   val run        = Input(Bool())
   val host_steps = Input(UInt(cfg.index_bits.W))
   val init       = Output(Bool())
@@ -139,7 +139,8 @@ class SRAMProcessor(cfg: EmulatorConfig, large_sram: Boolean) extends Module {
   val prev_input = Reg(new SRAMInputs(cfg))
 
   // To cut critical path in FPGA
-  val cfg_regs = Reg(io.cfg_in)
+  val cfg_regs = Reg(new SRAMProcessorConfigBundle(cfg))
+  cfg_regs := io.cfg_in
 
   val cur_sram_entries = if (large_sram) cfg.large_sram_entries else cfg.sram_entries
   val cur_sram_width   = if (large_sram) cfg.large_sram_width else cfg.sram_width
