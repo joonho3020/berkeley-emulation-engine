@@ -63,31 +63,17 @@ class SRAMIndexDecoder(cfg: EmulatorConfig) extends Module {
 
 class SRAMMaskedWriteData(cfg: EmulatorConfig) extends Module {
   val io = IO(new Bundle {
-    val wr_mask_bits   = Input(UInt(cfg.sram_width_bits.W))
-    val width_bits     = Input(UInt(cfg.sram_width_bits.W))
-    val wr_mask        = Input(UInt(cfg.sram_width_bits.W))
-    val wr_data        = Input(UInt(cfg.large_sram_width.W))
-    val rd_data        = Input(UInt(cfg.large_sram_width.W))
+    val wr_mask_bits   = Input (UInt(cfg.sram_width_bits.W))
+    val width_bits     = Input (UInt(cfg.sram_width_bits.W))
+    val wr_mask        = Input (UInt(cfg.large_sram_width.W))
+    val wr_data        = Input (UInt(cfg.large_sram_width.W))
+    val rd_data        = Input (UInt(cfg.large_sram_width.W))
     val masked_wr_data = Output(UInt(cfg.large_sram_width.W))
   })
-
-  val wr_data_mask_bits = Seq.fill(cfg.large_sram_width)(Wire(UInt(1.W)))
-// val div = io.wr_mask_bits / io.width_bits
-  for (i <- 0 until cfg.large_sram_width) {
-    // val num_bits_per_mask = Wire(UInt(cfg.sram_width_bits.W))
-    // num_bits_per_mask := io.width_bits / io.wmask_bits
-    // wr_data_mask(i) := (io.wmask >> (i.U / num_bits_per_mask)) & 1.U
-    // wr_data_mask(i) := (io.wmask >> (i.U * io.wmask_bits / io.width_bits)) & 1.U
-    wr_data_mask_bits(i) := (io.wr_mask >> (i.U * io.wr_mask_bits / io.width_bits)) & 1.U
-  }
-
-  val wr_data_mask = Wire(UInt(cfg.sram_width.W))
-  wr_data_mask := Cat(wr_data_mask_bits.reverse)
-
   when (io.wr_mask_bits === 0.U) {
     io.masked_wr_data := io.wr_data
   } .otherwise {
-    io.masked_wr_data := (io.wr_data & wr_data_mask) | (io.rd_data & ~wr_data_mask)
+    io.masked_wr_data := (io.wr_data & io.wr_mask) | (io.rd_data & ~io.wr_mask)
   }
 }
 
