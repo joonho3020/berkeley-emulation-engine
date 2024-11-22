@@ -7,16 +7,19 @@ VIVADO_PATH ?= $(shell which vivado)
 VIVADO_OPTS ?= -nolog -nojournal -mode batch
 
 # Variables for emulator platform
-debug             ?= "true"
-max_steps         ?= 1024
-num_mods          ?= 33
-num_procs         ?= 32
-imem_lat          ?= 1
-inter_mod_nw_lat  ?= 1
-inter_proc_nw_lat ?= 1
-sram_width        ?= 256
-sram_entries      ?= 16384
-blackbox_dmem     ?= "true"
+debug              ?= "true"
+max_steps          ?= 1024
+num_mods           ?= 33
+num_procs          ?= 32
+imem_lat           ?= 1
+inter_mod_nw_lat   ?= 1
+inter_proc_nw_lat  ?= 1
+sram_width         ?= 256
+sram_entries       ?= 4096
+large_sram_width   ?= 256
+large_sram_entries ?= 16384
+large_sram_cnt     ?= 6
+blackbox_dmem      ?= "true"
 
 PROJECT_DIR = $(TOP_DIR)/project
 
