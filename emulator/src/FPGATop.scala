@@ -247,38 +247,34 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
   val cur_step = RegInit(0.U(cfg.emul.index_bits.W))
   val target_cycle = RegInit(0.U(64.W))
 
-  val stream_deq_bits_reg = RegNext(stream_converter.io.streams(0).deq.bits)
+
+  val stream_deq_skid_buffer = Module(new SkidBufferChain(stream_converter.io.streams(0).deq.bits.cloneType, 4))
+  stream_deq_skid_buffer.io.enq <> stream_converter.io.streams(0).deq
 
   // TODO: DRAM interface should go here
   for (i <- 0 until cfg.emul.num_mods) {
     for (j <- 0 until cfg.emul.num_procs) {
       val idx = i * cfg.emul.num_procs + j
-      board.io.io(i).i(j) := stream_deq_bits_reg >> (idx * cfg.emul.num_bits)
-// stream_converter.io.streams(0).deq.bits >> (idx * cfg.emul.num_bits)
+      board.io.io(i).i(j) := stream_deq_skid_buffer.io.deq.bits >> (idx * cfg.emul.num_bits)
     }
   }
 
-  stream_converter.io.streams(0).enq.bits := Cat(board.io.io.flatMap(io => io.o).reverse)
+  val stream_enq_skid_buffer = Module(new SkidBufferChain(stream_converter.io.streams(0).enq.bits.cloneType, 4))
+  stream_converter.io.streams(0).enq <> stream_enq_skid_buffer.io.deq
+  stream_enq_skid_buffer.io.enq.bits := Cat(board.io.io.flatMap(io => io.o).reverse)
 
-  val deq_bits_reg_set = RegInit(false.B)
+
   val board_run = DecoupledHelper(
-    stream_converter.io.streams(0).deq.valid,
-    stream_converter.io.streams(0).enq.ready)
-
-  when (board_run.fire() && !deq_bits_reg_set) {
-    deq_bits_reg_set := true.B
-  }
+    stream_deq_skid_buffer.io.deq.valid,
+    stream_enq_skid_buffer.io.enq.ready)
 
   val last_step = cur_step === host_steps - 1.U
-  board.io.run := board_run.fire() && deq_bits_reg_set
-  stream_converter.io.streams(0).deq.ready := board_run.fire(stream_converter.io.streams(0).deq.valid, last_step)
-  stream_converter.io.streams(0).enq.valid := board_run.fire(stream_converter.io.streams(0).enq.ready, last_step)
+  board.io.run := board_run.fire()
+  stream_deq_skid_buffer.io.deq.ready := board_run.fire(stream_deq_skid_buffer.io.deq.valid, last_step)
+  stream_enq_skid_buffer.io.enq.valid := board_run.fire(stream_enq_skid_buffer.io.enq.ready, last_step)
 
-  when (board.io.run && deq_bits_reg_set) {
+  when (board.io.run) {
     cur_step := Mux(last_step, 0.U, cur_step + 1.U)
-    when (last_step) {
-      deq_bits_reg_set := false.B
-    }
   }
 
   when (stream_converter.io.streams(0).enq.fire) {
