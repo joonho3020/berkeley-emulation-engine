@@ -14,15 +14,15 @@ resize_pblock pblock_xdma_0 -add {SLICE_X152Y240:SLICE_X232Y479 BUFG_GT_X1Y96:BU
 add_cells_to_pblock pblock_xdma_0 [get_cells -hierarchical -filter {NAME =~ "xdma_0"}] -clear_locs
 
 # Run PnR
-opt_design
+opt_design -directive Explore
 
 place_design
 
 write_checkpoint -force $PROJECT_DIR/impl/latest/${TOP_MODULE}_placed.dcp
 
-phys_opt_design -directive Default
+phys_opt_design -directive AggressiveExplore
 
-route_design
+route_design -directive AggressiveExplore
 
 write_xdc -force $PROJECT_DIR/impl/latest/${TOP_MODULE}_post_route.xdc
 write_bitstream -force $PROJECT_DIR/impl/latest/$TOP_MODULE.bit
