@@ -10,9 +10,8 @@ if {[string trim ${CONSTRAINTS}] ne ""} {
 
 # Create a pblock for the XDMA module
 create_pblock pblock_xdma_0
-resize_pblock pblock_xdma_0 -add {SLICE_X176Y0:SLICE_X232Y239 BUFG_GT_X1Y0:BUFG_GT_X1Y95 BUFG_GT_SYNC_X1Y0:BUFG_GT_SYNC_X1Y59 DSP48E2_X24Y0:DSP48E2_X31Y95 RAMB18_X11Y0:RAMB18_X13Y95 RAMB36_X11Y0:RAMB36_X13Y47 URAM288_X4Y0:URAM288_X4Y63} -locs keep_all
+resize_pblock pblock_xdma_0 -add {SLICE_X152Y240:SLICE_X232Y479 BUFG_GT_X1Y96:BUFG_GT_X1Y191 BUFG_GT_SYNC_X1Y60:BUFG_GT_SYNC_X1Y119 DSP48E2_X21Y96:DSP48E2_X31Y191 RAMB18_X11Y96:RAMB18_X13Y191 RAMB36_X11Y48:RAMB36_X13Y95 URAM288_X3Y64:URAM288_X4Y127} -locs keep_all
 add_cells_to_pblock pblock_xdma_0 [get_cells -hierarchical -filter {NAME =~ "xdma_0"}] -clear_locs
-set_property IS_SOFT true [get_pblocks pblock_xdma]
 
 # Run PnR
 opt_design
