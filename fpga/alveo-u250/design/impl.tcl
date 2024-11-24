@@ -24,6 +24,7 @@ phys_opt_design -directive AggressiveExplore
 
 route_design -directive AggressiveExplore
 
+write_checkpoint -force $PROJECT_DIR/impl/latest/${TOP_MODULE}_routed.dcp
 write_xdc -force $PROJECT_DIR/impl/latest/${TOP_MODULE}_post_route.xdc
 write_bitstream -force $PROJECT_DIR/impl/latest/$TOP_MODULE.bit
 

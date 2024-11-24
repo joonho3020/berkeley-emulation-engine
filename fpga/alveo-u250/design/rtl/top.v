@@ -230,6 +230,104 @@ wire io_dma_axi4_master_rlast;
 wire io_dma_axi4_master_rvalid;
 wire io_dma_axi4_master_rready;
 
+
+ila_0 ila_xdma_side
+	.clk(axi_aclk), // input wire clk
+
+	.probe0( m_axi_wready), // input wire [0:0] probe0  
+	.probe1( m_axi_awaddr), // input wire [31:0]  probe1 
+	.probe2( m_axi_bresp), // input wire [1:0]  probe2 
+	.probe3( m_axi_bvalid), // input wire [0:0]  probe3 
+	.probe4( m_axi_bready), // input wire [0:0]  probe4 
+	.probe5( m_axi_araddr), // input wire [31:0]  probe5 
+	.probe6( m_axi_rready), // input wire [0:0]  probe6 
+	.probe7( m_axi_wvalid), // input wire [0:0]  probe7 
+	.probe8( m_axi_arvalid), // input wire [0:0]  probe8 
+	.probe9( m_axi_arready), // input wire [0:0]  probe9 
+	.probe10(m_axi_rdata), // input wire [31:0]  probe10 
+	.probe11(m_axi_awvalid), // input wire [0:0]  probe11 
+	.probe12(m_axi_awready), // input wire [0:0]  probe12 
+	.probe13(m_axi_rresp), // input wire [1:0]  probe13 
+	.probe14(m_axi_wdata), // input wire [31:0]  probe14 
+	.probe15(m_axi_wstrb), // input wire [3:0]  probe15 
+	.probe16(m_axi_rvalid), // input wire [0:0]  probe16 
+	.probe17(m_axi_arprot), // input wire [2:0]  probe17 
+	.probe18(m_axi_awprot), // input wire [2:0]  probe18 
+	.probe19(m_axi_awid), // input wire [0:0]  probe19 
+	.probe20(m_axi_bid), // input wire [0:0]  probe20 
+	.probe21(m_axi_awlen), // input wire [7:0]  probe21 
+	.probe22(m_axi_buser), // input wire [0:0]  probe22 
+	.probe23(m_axi_awsize), // input wire [2:0]  probe23 
+	.probe24(m_axi_awburst), // input wire [1:0]  probe24 
+	.probe25(m_axi_arid), // input wire [0:0]  probe25 
+	.probe26(m_axi_awlock), // input wire [0:0]  probe26 
+	.probe27(m_axi_arlen), // input wire [7:0]  probe27 
+	.probe28(m_axi_arsize), // input wire [2:0]  probe28 
+	.probe29(m_axi_arbusrt), // input wire [1:0]  probe29 
+	.probe30(m_axi_arlock), // input wire [0:0]  probe30 
+	.probe31(m_axi_arcache), // input wire [3:0]  probe31 
+	.probe32(m_axi_awcache), // input wire [3:0]  probe32 
+	.probe33(4'h0), // input wire [3:0]  probe33 
+	.probe34(4'h0), // input wire [3:0]  probe34 
+	.probe35(m_axi_aruser), // input wire [0:0]  probe35 
+	.probe36(4'h0), // input wire [3:0]  probe36 
+	.probe37(4'h0), // input wire [3:0]  probe37 
+	.probe38(m_axi_rid), // input wire [0:0]  probe38 
+	.probe39(m_axi_awuser), // input wire [0:0]  probe39 
+	.probe40(m_axi_wid), // input wire [0:0]  probe40 
+	.probe41(m_axi_rlast), // input wire [0:0]  probe41 
+	.probe42(m_axi_ruser), // input wire [0:0]  probe42  
+	.probe43(m_axi_wlast) // input wire [0:0]  probe43
+);
+
+ila_0 ila_cl_side
+  .clk(     fpga_top_clock), // input wire clk
+  .probe0(  io_dma_axi4_master_wready), // input wire [0:0] probe0  
+  .probe1(  io_dma_axi4_master_awaddr), // input wire [31:0]  probe1 
+  .probe2(  io_dma_axi4_master_bresp), // input wire [1:0]  probe2 
+  .probe3(  io_dma_axi4_master_bvalid), // input wire [0:0]  probe3 
+  .probe4(  io_dma_axi4_master_bready), // input wire [0:0]  probe4 
+  .probe5(  io_dma_axi4_master_araddr), // input wire [31:0]  probe5 
+  .probe6(  io_dma_axi4_master_rready), // input wire [0:0]  probe6 
+  .probe7(  io_dma_axi4_master_wvalid), // input wire [0:0]  probe7 
+  .probe8(  io_dma_axi4_master_arvalid), // input wire [0:0]  probe8 
+  .probe9(  io_dma_axi4_master_arready), // input wire [0:0]  probe9 
+  .probe10( io_dma_axi4_master_rdata), // input wire [31:0]  probe10 
+  .probe11( io_dma_axi4_master_awvalid), // input wire [0:0]  probe11 
+  .probe12( io_dma_axi4_master_awready), // input wire [0:0]  probe12 
+  .probe13( io_dma_axi4_master_rresp), // input wire [1:0]  probe13 
+  .probe14( io_dma_axi4_master_wdata), // input wire [31:0]  probe14 
+  .probe15( io_dma_axi4_master_wstrb), // input wire [3:0]  probe15 
+  .probe16( io_dma_axi4_master_rvalid), // input wire [0:0]  probe16 
+  .probe17( 3'h0), // input wire [2:0]  probe17 
+  .probe18( 3'h0), // input wire [2:0]  probe18 
+  .probe19( io_dma_axi4_master_awid), // input wire [0:0]  probe19 
+  .probe20( io_dma_axi4_master_bid), // input wire [0:0]  probe20 
+  .probe21( io_dma_axi4_master_awlen), // input wire [7:0]  probe21 
+  .probe22( 1'h0), // input wire [0:0]  probe22 
+  .probe23( io_dma_axi4_master_awsize), // input wire [2:0]  probe23 
+  .probe24( 2'h0), // input wire [1:0]  probe24 
+  .probe25( io_dma_axi4_master_arid), // input wire [0:0]  probe25 
+  .probe26( 1'h0), // input wire [0:0]  probe26 
+  .probe27( io_dma_axi4_master_arlen), // input wire [7:0]  probe27 
+  .probe28( io_dma_axi4_master_arsize), // input wire [2:0]  probe28 
+  .probe29( 2'h0), // input wire [1:0]  probe29 
+  .probe30( 1'h0), // input wire [0:0]  probe30 
+  .probe31( 4'h0), // input wire [3:0]  probe31 
+  .probe32( 4'h0), // input wire [3:0]  probe32 
+  .probe33( 4'h0), // input wire [3:0]  probe33 
+  .probe34( 4'h0), // input wire [3:0]  probe34 
+  .probe35( 1'h0), // input wire [0:0]  probe35 
+  .probe36( 4'h0), // input wire [3:0]  probe36 
+  .probe37( 4'h0), // input wire [3:0]  probe37 
+  .probe38( io_dma_axi4_master_rid), // input wire [0:0]  probe38 
+  .probe39( 1'h0), // input wire [0:0]  probe39 
+  .probe40( 1'h0), // input wire [0:0]  probe40 
+  .probe41( io_dma_axi4_master_rlast), // input wire [0:0]  probe41 
+  .probe42( 1'h0), // input wire [0:0]  probe42  
+  .probe43( io_dma_axi4_master_wlast) // input wire [0:0]  probe43
+);
+
 axi_cdc axi4_master_cdc (
   .s_axi_aclk(axi_aclk),            // input wire s_axi_aclk
   .s_axi_aresetn(axi_aresetn),      // input wire s_axi_aresetn
