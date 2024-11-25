@@ -41,6 +41,8 @@ set_property -dict [list \
 set ila_0 "./ip/ila_0/ila_0.xci"
 add_files -norecurse $ila_0
 set_property -dict [list \
+  CONFIG.C_SLOT_0_AXI_ADDR_WIDTH {64} \
+  CONFIG.C_SLOT_0_AXI_DATA_WIDTH {512} \
   CONFIG.C_DATA_DEPTH {1024} \
   CONFIG.C_MONITOR_TYPE {AXI} \
 ] [get_ips ila_0]
