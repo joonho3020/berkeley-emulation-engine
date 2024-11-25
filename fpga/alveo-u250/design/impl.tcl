@@ -32,6 +32,8 @@ write_checkpoint -force $PROJECT_DIR/impl/latest/${TOP_MODULE}_routed.dcp
 write_xdc -force $PROJECT_DIR/impl/latest/${TOP_MODULE}_post_route.xdc
 write_bitstream -force $PROJECT_DIR/impl/latest/$TOP_MODULE.bit
 
+write_debug_probes -force $PROJECT_DIR/impl/latest/debug_probes.ltx
+
 report_drc -file $PROJECT_DIR/impl/$BUILD_SUFFIX/post_route_drc.rpt
 report_route_status -file   $PROJECT_DIR/impl/$BUILD_SUFFIX/post_route_route_status.rpt
 report_utilization  -hierarchical -hierarchical_percentages  -file    $PROJECT_DIR/impl/$BUILD_SUFFIX/impl_utilization_hier.rpt
