@@ -18,9 +18,13 @@ opt_design -directive Explore
 
 place_design
 
+report_timing_summary -file $PROJECT_DIR/impl/$BUILD_SUFFIX/impl_post_place_timing.rpt
+
 write_checkpoint -force $PROJECT_DIR/impl/latest/${TOP_MODULE}_placed.dcp
 
 phys_opt_design -directive AggressiveExplore
+
+report_timing_summary -file $PROJECT_DIR/impl/$BUILD_SUFFIX/impl_post_opt_timing.rpt
 
 route_design -directive AggressiveExplore
 
@@ -33,3 +37,4 @@ report_route_status -file   $PROJECT_DIR/impl/$BUILD_SUFFIX/post_route_route_sta
 report_utilization  -hierarchical -hierarchical_percentages  -file    $PROJECT_DIR/impl/$BUILD_SUFFIX/impl_utilization_hier.rpt
 report_utilization  -file    $PROJECT_DIR/impl/$BUILD_SUFFIX/impl_utilization.rpt
 report_timing_summary -file $PROJECT_DIR/impl/$BUILD_SUFFIX/impl_timing.rpt
+report_cdc -file $PROJECT_DIR/impl/$BUILD_SUFFIX/impl_cdc.rpt
