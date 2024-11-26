@@ -119,8 +119,9 @@ class SRAMProcessor(cfg: EmulatorConfig, large_sram: Boolean) extends Module {
   import cfg._
   @public val io = IO(new SRAMProcessorBundle(cfg))
 
+  // PC must have log2(sram_entries) bits for initialization
+  val pc   = RegInit(0.U(log2Ceil(sram_entries + 1).W))
   val init = RegInit(false.B)
-  val pc   = RegInit(0.U(index_bits.W))
   val cur  = RegInit(0.U(1.W))
   val inputs = Seq.fill(2)(RegInit(0.U.asTypeOf(new SRAMInputs(cfg))))
   val prev_input = Reg(new SRAMInputs(cfg))
