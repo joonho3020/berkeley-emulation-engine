@@ -22,11 +22,11 @@ report_timing_summary -file $PROJECT_DIR/impl/$BUILD_SUFFIX/impl_post_place_timi
 
 write_checkpoint -force $PROJECT_DIR/impl/latest/${TOP_MODULE}_placed.dcp
 
-phys_opt_design -directive AggressiveExplore
+phys_opt_design -directive Explore
 
 report_timing_summary -file $PROJECT_DIR/impl/$BUILD_SUFFIX/impl_post_opt_timing.rpt
 
-route_design -directive AggressiveExplore
+route_design -directive Explore
 
 write_checkpoint -force $PROJECT_DIR/impl/latest/${TOP_MODULE}_routed.dcp
 write_xdc -force $PROJECT_DIR/impl/latest/${TOP_MODULE}_post_route.xdc
