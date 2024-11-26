@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BITSTREAM_PATH=/scratch/joonho.whangbo/coding/berkeley-emulation-engine/fpga/alveo-u250/design/project/impl/latest
+BITSTREAM_PATH=/scratch/joonho.whangbo/coding/berkeley-emulation-engine/fpga/alveo-u250/large-version
 
 /usr/local/bin/firesim-fpga-util.py \
   --bitstream $BITSTREAM_PATH/XilinxU250Board.bit \
