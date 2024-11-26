@@ -268,6 +268,10 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
         let inst_bar = ProgressBar::new(module_insts.len() as u64);
         for (_m, insts) in module_insts.iter() {
             inst_bar.inc(1);
+            println!("Current module to push instructions: {}",
+                driver.ctrl_bridge.cur_inst_mod.read(&mut driver.simif)?);
+            println!("Total pushed instructions: {}",
+                driver.ctrl_bridge.tot_insts_pushed.read(&mut driver.simif)?);
             for inst in insts {
                 let mut bitbuf = inst.to_bits(&circuit.platform_cfg);
                 bitbuf.reverse();
@@ -281,6 +285,8 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
                 bytebuf.reverse();
                 bytebuf.resize(fpga_top_cfg.axi.beat_bytes() as usize, 0);
                 driver.inst_bridge.push(&mut driver.simif, &bytebuf)?;
+// println!("Current module pushed instructions: {}",
+// driver.ctrl_bridge.cur_insts_pushed.read(&mut driver.simif)?);
             }
         }
         inst_bar.finish();

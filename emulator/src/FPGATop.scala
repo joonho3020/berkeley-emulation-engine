@@ -162,7 +162,7 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
   val axil_addr_range = 1 << cfg.axil.axi4BundleParams.addrBits
   val axil_data_byts  = cfg.axil.axi4BundleParams.dataBits / 8
 
-  val max_mmio_regs = 3 * cfg.emul.num_mods + 11
+  val max_mmio_regs = 3 * cfg.emul.num_mods + 14
 
   val mmio = Module(new AXI4MMIOModule(max_mmio_regs, cfg.axil.axi4BundleParams))
   AXI4MMIOModule.tieoff(mmio)
@@ -188,7 +188,7 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
   val host_steps = RegInit(0.U(cfg.emul.index_bits.W))
   mmap.ctrl.add_reg(new MMIOIf(
     AXI4MMIOModule.bind_readwrite_reg(host_steps, mmio) << 2,
-    false,
+    true,
     true,
     "host_steps"))
 
@@ -222,6 +222,25 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
   // TODO: make this into parallel streams to make the loading faster(?)
   val cur_inst_mod = RegInit(0.U(log2Ceil(cfg.emul.num_mods + 1).W))
   val cur_insts_pushed = RegInit(0.U(log2Ceil(cfg.emul.insts_per_mod + 1).W))
+  val tot_insts_pushed = RegInit(0.U(log2Ceil(cfg.emul.insts_per_mod * cfg.emul.num_mods + 1).W))
+
+  mmap.ctrl.add_reg(new MMIOIf(
+    AXI4MMIOModule.bind_readwrite_reg(cur_inst_mod, mmio) << 2,
+    true,
+    false,
+    "cur_inst_mod"))
+
+  mmap.ctrl.add_reg(new MMIOIf(
+    AXI4MMIOModule.bind_readwrite_reg(cur_insts_pushed, mmio) << 2,
+    true,
+    false,
+    "cur_insts_pushed"))
+
+  mmap.ctrl.add_reg(new MMIOIf(
+    AXI4MMIOModule.bind_readwrite_reg(tot_insts_pushed, mmio) << 2,
+    true,
+    false,
+    "tot_insts_pushed"))
 
   for (i <- 0 until cfg.emul.num_mods) {
     board.io.insts(i).valid := false.B
@@ -286,6 +305,7 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
     true,
     false,
     "target_cycle_lo"))
+
   mmap.ctrl.add_reg(new MMIOIf(
     AXI4MMIOModule.bind_readonly_reg(target_cycle >> 32, mmio) << 2,
     true,
