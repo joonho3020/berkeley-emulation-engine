@@ -17,6 +17,21 @@ SIMIF_FILE_NAMES := $(shell find $(SIMIF_SRC_DIR) -type f -name '*.rs' -printf "
 SIMIF_COPIED := $(foreach entry,$(SIMIF_FILE_NAMES),$(SIMIF_DIR)/$(entry))
 DRIVER_SRCS := $(SIMIF_COPIED) $(SIMIF_DIR)/driver_generated.rs
 
+# Variables for emulator platform
+debug              ?= "true"
+max_steps          ?= 1024
+num_mods           ?= 17
+num_procs          ?= 64
+imem_lat           ?= 1
+inter_mod_nw_lat   ?= 1
+inter_proc_nw_lat  ?= 1
+sram_width         ?= 256
+sram_entries       ?= 16384
+large_sram_width   ?= 256
+large_sram_entries ?= 16384
+large_sram_cnt     ?= 0
+blackbox_dmem      ?= "true"
+
 .DEFAULT_GOAL := build
 
 $(BUILDDIR):

@@ -164,10 +164,14 @@ impl XDMAInterface {
 
     #[inline(never)]
     fn fpga_axi_write(self: &mut Self, addr: Addr, data: &Vec<u8>) -> Result<u32, SimIfErr> {
+        let mut aligned_buff = Self::aligned_vec(4096, data.len() as u32);
+        for i in 0..data.len() {
+            aligned_buff[i] = data[i];
+        }
         let bytes_written = unsafe {
             libc::pwrite(
                 self.write_fd.as_raw_fd(),
-                data.as_ptr() as *const libc::c_void,
+                aligned_buff.as_ptr() as *const libc::c_void,
                 data.len(),
                 addr as libc::off_t,
             )

@@ -161,7 +161,15 @@ fn main() -> Result<(), SimIfErr> {
     driver.ctrl_bridge.fingerprint.write(&mut driver.simif, 0xdeadbeaf)?;
     println!("reading from fingerprint addr: {:x}", driver.ctrl_bridge.fingerprint.read(&mut driver.simif)?);
 
-    let dma_bytes = 64;
+    let total_procs = args.bee_args.num_mods * args.bee_args.num_procs;
+    let data_bits = 512;
+    let io_stream_bits = ((total_procs + data_bits - 1) / data_bits) * data_bits;
+    let dma_bytes = io_stream_bits / 8;
+// let dma_bytes = 64;
+
+    println!("total_procs: {}, axi data bits: {}, io_stream_bits: {}, dma_bytes: {}",
+        total_procs, data_bits, io_stream_bits, dma_bytes);
+
     let mut rng = rand::thread_rng();
 
     println!("Testing Debug DMA Bridge");
@@ -174,14 +182,27 @@ fn main() -> Result<(), SimIfErr> {
         wbuf.extend((0..dma_bytes).map(|_| rng.gen_range(10..16)));
         let written_bytes = driver.dbg_bridge.push(&mut driver.simif, &wbuf)?;
         assert!(written_bytes == dma_bytes,
-            "DMA write didn't write expected amount. Wrote: {} out of {} bytes",
-            written_bytes, dma_bytes);
+            "DMA write didn't write expected amount. Wrote: {} out of {} byte, iter {}",
+            written_bytes, dma_bytes, _i);
 
         let mut rbuf = vec![0u8; dma_bytes as usize];
         let read_bytes = driver.dbg_bridge.pull(&mut driver.simif, &mut rbuf)?;
+        assert!(read_bytes == dma_bytes, "Read {} bytes, expected read {}, iter {}",
+            read_bytes, dma_bytes, _i);
 
-        assert!(read_bytes == dma_bytes, "Read {} bytes, expected read {}", read_bytes, dma_bytes);
-        assert!(wbuf == rbuf, "wbuf: {:X?}\nrbuf: {:X?}", wbuf, rbuf);
+        assert!(wbuf == rbuf, "wbuf: {:X?}\nrbuf: {:X?}\ndiverge at index: {:?}, num diff: {:?}, iter{}",
+            wbuf,
+            rbuf,
+            wbuf.iter()
+                .zip(rbuf.iter())
+                .enumerate()
+                .find(|(_, (a, b))| a != b)
+                .map(|(index, _)| index),
+            wbuf.iter()
+                .zip(rbuf.iter())
+                .map(|(a, b)| (a != b) as u32)
+                .reduce(|a, b| a + b),
+            _i);
     }
     bar.finish();
 
@@ -262,48 +283,48 @@ fn main() -> Result<(), SimIfErr> {
             .into_vec()
             .iter()
             .flat_map(|x| x.to_le_bytes()));
-        ivec.resize(io_stream_bytes as usize, 0);
+            ivec.resize(io_stream_bytes as usize, 0);
 
-        driver.io_bridge.push(&mut driver.simif, &ivec)?;
+            driver.io_bridge.push(&mut driver.simif, &ivec)?;
 
-        let mut ovec = vec![0u8; ivec.len()];
-        while true {
-            let read_bytes = driver.io_bridge.pull(&mut driver.simif, &mut ovec)?;
-            if read_bytes == 0 {
-                sleep(std::time::Duration::from_millis(1));
-            } else {
-                break;
+            let mut ovec = vec![0u8; ivec.len()];
+            while true {
+                let read_bytes = driver.io_bridge.pull(&mut driver.simif, &mut ovec)?;
+                if read_bytes == 0 {
+                    sleep(std::time::Duration::from_millis(1));
+                } else {
+                    break;
+                }
             }
-        }
 
-        // Run functional simulator
-        let input_stimuli_by_step = get_input_stimuli_by_step(
-            &circuit,
-            &input_stimuli_blasted,
-            &all_signal_map,
-            tcycle as u32);
-        funct_sim.run_cycle(&input_stimuli_by_step);
+            // Run functional simulator
+            let input_stimuli_by_step = get_input_stimuli_by_step(
+                &circuit,
+                &input_stimuli_blasted,
+                &all_signal_map,
+                tcycle as u32);
+            funct_sim.run_cycle(&input_stimuli_by_step);
 
-        // Collect functional simulation outputs
-        let mut obit_ref: BitVec<usize, Lsb0> = BitVec::new();
-        for _ in 0..tot_procs {
-            obit_ref.push(false);
-        }
+            // Collect functional simulation outputs
+            let mut obit_ref: BitVec<usize, Lsb0> = BitVec::new();
+            for _ in 0..tot_procs {
+                obit_ref.push(false);
+            }
 
-        for (os, coord) in output_signals.iter() {
-            let fsim_bit = funct_sim.peek(os).unwrap_or(0);
-            let id = coord.id(&circuit.platform_cfg);
-            obit_ref.set(id as usize, fsim_bit != 0);
-        }
-        let mut ovec_ref: Vec<u8> = obit_ref
-            .into_vec()
-            .iter()
-            .flat_map(|x| x.to_le_bytes())
-            .collect();
+            for (os, coord) in output_signals.iter() {
+                let fsim_bit = funct_sim.peek(os).unwrap_or(0);
+                let id = coord.id(&circuit.platform_cfg);
+                obit_ref.set(id as usize, fsim_bit != 0);
+            }
+            let mut ovec_ref: Vec<u8> = obit_ref
+                .into_vec()
+                .iter()
+                .flat_map(|x| x.to_le_bytes())
+                .collect();
         ovec_ref.resize(io_stream_bytes as usize, 0);
 
-// println!("ovec: {:?}", ovec);
-// println!("ovec_ref: {:?}", ovec_ref);
+        println!("ovec: {:?}", ovec);
+        println!("ovec_ref: {:?}", ovec_ref);
 
         if ovec != ovec_ref {
             println!("MISMATCH");
