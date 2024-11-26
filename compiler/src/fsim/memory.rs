@@ -171,7 +171,8 @@ impl<T: Default + Clone> AbstractMemory<T> {
         for rport in self.rports.iter_mut() {
             match rport.cur_req() {
                 Some(req) => {
-                    rport.set_resp(self.data.get(req.addr as usize).unwrap().clone())
+                    let addr_ = req.addr as usize % self.data.len();
+                    rport.set_resp(self.data.get(addr_).unwrap().clone())
                 }
                 None => {}
             }
