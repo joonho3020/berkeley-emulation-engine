@@ -185,6 +185,8 @@ fn main() -> Result<(), SimIfErr> {
             "DMA write didn't write expected amount. Wrote: {} out of {} byte, iter {}",
             written_bytes, dma_bytes, _i);
 
+// sleep(std::time::Duration::from_millis(10));
+
         let mut rbuf = vec![0u8; dma_bytes as usize];
         let read_bytes = driver.dbg_bridge.pull(&mut driver.simif, &mut rbuf)?;
         assert!(read_bytes == dma_bytes, "Read {} bytes, expected read {}, iter {}",
@@ -227,12 +229,23 @@ fn main() -> Result<(), SimIfErr> {
 
     println!("Setting host_steps");
     driver.ctrl_bridge.host_steps.write(&mut driver.simif, circuit.emul.host_steps)?;
+    assert!(driver.ctrl_bridge.init_done.read(&mut driver.simif)? == 0, "Init set before pushing instructions");
+
+    while driver.ctrl_bridge.host_steps.read(&mut driver.simif)? == 0 {
+    }
+
+    println!("host_steps {}", driver.ctrl_bridge.host_steps.read(&mut driver.simif)?);
+
+    sleep(std::time::Duration::from_millis(10));
 
     println!("Start pushing instructions");
     let inst_bar = ProgressBar::new(module_insts.len() as u64);
     for (_m, insts) in module_insts.iter() {
         inst_bar.inc(1);
-        for inst in insts {
+        for (inst_idx, inst) in insts.iter().enumerate() {
+            assert!(driver.ctrl_bridge.init_done.read(&mut driver.simif)? == 0,
+                "Init set while pushing instructions, module {} inst {}", _m, inst_idx);
+
             let mut bitbuf = inst.to_bits(&circuit.platform_cfg);
             bitbuf.reverse();
             assert!(bitbuf.len() < 8 * 8, "Instruction bits {} > 64", bitbuf.len());
@@ -245,7 +258,25 @@ fn main() -> Result<(), SimIfErr> {
                 .rev());
             bytebuf.reverse();
             bytebuf.resize(64 as usize, 0);
-            driver.inst_bridge.push(&mut driver.simif, &bytebuf)?;
+            sleep(std::time::Duration::from_millis(1));
+            'inst_push_loop: while true {
+                match driver.inst_bridge.push(&mut driver.simif, &bytebuf) {
+                    Ok(written_bytes) => {
+                        if written_bytes == 0 {
+                            continue;
+                        } else {
+                            assert!(written_bytes == 64, "Less than 64 bytes written for instruction");
+                            break 'inst_push_loop;
+                        }
+                    }
+                    Err(_) => {
+                        println!("DMA push panics while pushing instructions");
+                        sleep(std::time::Duration::from_millis(1));
+                        assert!(driver.ctrl_bridge.init_done.read(&mut driver.simif)? == 0,
+                            "Init set while pushing instructions");
+                    }
+                }
+            }
         }
     }
     inst_bar.finish();

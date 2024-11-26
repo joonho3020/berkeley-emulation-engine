@@ -177,7 +177,10 @@ impl XDMAInterface {
             )
         };
         if bytes_written < 0 {
-            panic!("write failed, data ptr: {:?} len: {} addr: {:x}", data.as_ptr(), data.len(), addr);
+            let err: SimIfErr = format!(
+                    "write failed, data ptr: {:?} len: {} addr: {:x}",
+                    data.as_ptr(), data.len(), addr).into();
+            return Err(err);
         }
         return Ok(bytes_written as u32);
     }
