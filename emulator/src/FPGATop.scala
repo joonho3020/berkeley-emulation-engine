@@ -253,6 +253,7 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
       board.io.insts(i).bits  := stream_converter.io.streams(1).deq.bits.asTypeOf(Instruction(cfg.emul))
       stream_converter.io.streams(1).deq.ready := board.io.insts(i).ready
       when (board.io.insts(i).fire) {
+        tot_insts_pushed := tot_insts_pushed + 1.U
         when (cur_insts_pushed === host_steps * cfg.emul.num_procs.U - 1.U) {
           cur_insts_pushed := 0.U
           cur_inst_mod := cur_inst_mod + 1.U
