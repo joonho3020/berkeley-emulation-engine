@@ -231,6 +231,12 @@ wire io_dma_axi4_master_rvalid;
 wire io_dma_axi4_master_rready;
 
 
+wire io_debug_st_val;
+wire io_debug_st_rdy;
+wire [32:0] io_debug_tot_pushed;
+wire [32:0] io_debug_cur_mod;
+wire [32:0] io_debug_cur_pushed;
+
 ila_0 ila_xdma_side (
   .clk(axi_aclk), // input wire clk
 
@@ -282,12 +288,12 @@ ila_0 ila_xdma_side (
 
 ila_0 ila_cl_side (
   .clk(     fpga_top_clock), // input wire clk
-  .probe0(  io_dma_axi4_master_wready), // input wire [0:0] probe0  
-  .probe1(  io_dma_axi4_master_awaddr), // input wire [31:0]  probe1 
-  .probe2(  io_dma_axi4_master_bresp), // input wire [1:0]  probe2 
-  .probe3(  io_dma_axi4_master_bvalid), // input wire [0:0]  probe3 
-  .probe4(  io_dma_axi4_master_bready), // input wire [0:0]  probe4 
-  .probe5(  io_dma_axi4_master_araddr), // input wire [31:0]  probe5 
+  .probe0(  io_debug_st_val), // input wire [0:0] probe0  
+  .probe1(  io_debug_cur_mod), // input wire [31:0]  probe1 
+  .probe2(  io_debug_tot_pushed), // input wire [1:0]  probe2 
+  .probe3(  io_debug_st_rdy), // input wire [0:0]  probe3 
+  .probe4(  1'h0), // input wire [0:0]  probe4 
+  .probe5(  io_debug_cur_pushed), // input wire [31:0]  probe5 
   .probe6(  io_dma_axi4_master_rready), // input wire [0:0]  probe6 
   .probe7(  io_dma_axi4_master_wvalid), // input wire [0:0]  probe7 
   .probe8(  io_dma_axi4_master_arvalid), // input wire [0:0]  probe8 
@@ -586,7 +592,14 @@ FPGATop FPGATop(
   .io_mmio_axi4_master_r_bits_data(io_mmio_axi4_master_rdata),
   .io_mmio_axi4_master_r_bits_resp(io_mmio_axi4_master_rresp),
   .io_mmio_axi4_master_r_bits_id(),
-  .io_mmio_axi4_master_r_bits_last()
+  .io_mmio_axi4_master_r_bits_last(),
+
+
+  .io_debug_st_val(io_debug_st_val),
+  .io_debug_st_rdy(io_debug_st_rdy),
+  .io_debug_tot_pushed(io_debug_tot_pushed),
+  .io_debug_cur_mod(io_debug_cur_mod),
+  .io_debug_cur_pushed(io_debug_cur_pushed),
 );
 
 endmodule

@@ -124,6 +124,14 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
   val io_dma_axi4_slave = Wire(AXI4Bundle(cfg.axi.axi4BundleParams))
   io_dma_axi4_slave <> outer.axiDMASlaveNode.in.head._1
 
+  val io_debug = IO(new Bundle {
+    val st_val = Output(Bool())
+    val st_rdy = Output(Bool())
+    val tot_pushed = Output(UInt(log2Ceil(cfg.emul.insts_per_mod * cfg.emul.num_mods + 1).W))
+    val cur_mod    = Output(UInt(log2Ceil(cfg.emul.num_mods + 1).W))
+    val cur_pushed = Output(UInt(log2Ceil(cfg.emul.insts_per_mod + 1).W))
+  })
+
   dontTouch(io_dma_axi4_master)
   dontTouch(io_dma_axi4_slave)
 
@@ -247,11 +255,22 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
     board.io.insts(i).bits  := DontCare
   }
 
+  io_debug.cur_pushed := cur_insts_pushed
+  io_debug.tot_pushed := tot_insts_pushed
+  io_debug.cur_mod    := cur_inst_mod
+  io_debug.st_val := DontCare
+  io_debug.st_rdy := DontCare
+
   for (i <- 0 until cfg.emul.num_mods) {
     when (i.U === cur_inst_mod) {
       board.io.insts(i).valid := stream_converter.io.streams(1).deq.valid
       board.io.insts(i).bits  := stream_converter.io.streams(1).deq.bits.asTypeOf(Instruction(cfg.emul))
       stream_converter.io.streams(1).deq.ready := board.io.insts(i).ready
+
+      io_debug.st_val := stream_converter.io.streams(1).deq.valid
+      io_debug.st_rdy := board.io.insts(i).ready
+
+
       when (board.io.insts(i).fire) {
         tot_insts_pushed := tot_insts_pushed + 1.U
         when (cur_insts_pushed === host_steps * cfg.emul.num_procs.U - 1.U) {
