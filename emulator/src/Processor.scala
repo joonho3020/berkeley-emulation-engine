@@ -58,10 +58,25 @@ class Processor(cfg: EmulatorConfig) extends Module {
   io.isc.inst_i.ready := false.B
 
 
-
   val ldm = Module(new DataMemory(cfg))
   val sdm = Module(new DataMemory(cfg))
 
+  // Temporal assertions regarding instruction scan chain
+  val prev_pc = RegNext(pc)
+  assert(( init && !io.isc.inst_i.ready) ||
+         (!init &&  io.isc.inst_i.ready))
+
+  assert(init ||
+        (!init &&  io.isc.init_i && !io.isc.inst_o.fire) ||
+        (!init && !io.isc.init_i && (pc === prev_pc)))
+
+  val received_inst = RegNext(!init && io.isc.init_i && io.isc.inst_i.fire)
+  assert((received_inst && (pc === (prev_pc + 1.U) % io.host_steps)) ||
+         !received_inst)
+
+  val forwarded_inst = RegNext(!init && !io.isc.init_i && io.isc.inst_i.fire)
+  assert((forwarded_inst && pc === prev_pc) ||
+         !forwarded_inst)
 
   when (!init) {
     when (!io.isc.init_i) {

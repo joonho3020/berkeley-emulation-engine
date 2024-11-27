@@ -69,11 +69,19 @@ class EModule(cfg: EmulatorConfig, large_sram: Boolean) extends Module {
   for (i <- 0 until num_procs - 1) {
     procs(i+1).io.isc.init_i := procs(i).io.isc.init_o
     if (i % ireg_skip == ireg_skip - 1) {
-      val q = Module(new Queue(Instruction(cfg), 1))
+      val q = Module(new Queue(Instruction(cfg), 2))
       q.io.enq <> procs(i+1).io.isc.inst_o
       procs(i).io.isc.inst_i <> q.io.deq
+
+      assert(
+        !procs(i).io.isc.init_o ||
+        (procs(i).io.isc.init_o && !q.io.enq.valid))
     } else {
       procs(i).io.isc.inst_i <> procs(i+1).io.isc.inst_o
+
+      assert(
+        !procs(i).io.isc.init_o ||
+        (procs(i).io.isc.init_o && !procs(i+1).io.isc.inst_o.valid))
     }
   }
   procs(0).io.isc.init_i := true.B
