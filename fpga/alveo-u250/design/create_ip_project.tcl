@@ -16,12 +16,13 @@ if {![file exists $ip_directory]} {
 
 set fpga_freq_mhz 100
 
-create_ip -name xdma                 -vendor xilinx.com -library ip -version 4.1 -module_name xdma_0                   -dir $ip_directory
-create_ip -name ila                  -vendor xilinx.com -library ip -version 6.2 -module_name ila_0                    -dir $ip_directory
-create_ip -name axi_clock_converter  -vendor xilinx.com -library ip -version 2.1 -module_name axi_cdc                  -dir $ip_directory
-create_ip -name axi_clock_converter  -vendor xilinx.com -library ip -version 2.1 -module_name axi_lite_cdc             -dir $ip_directory
-create_ip -name clk_wiz              -vendor xilinx.com -library ip -version 6.0 -module_name clk_wiz_0                -dir $ip_directory
-create_ip -name proc_sys_reset       -vendor xilinx.com -library ip -version 5.0 -module_name proc_sys_reset_0         -dir $ip_directory
+create_ip -name xdma                 -vendor xilinx.com -library ip -version 4.1 -module_name xdma_0            -dir $ip_directory
+create_ip -name ila                  -vendor xilinx.com -library ip -version 6.2 -module_name ila_0             -dir $ip_directory
+create_ip -name ila                  -vendor xilinx.com -library ip -version 6.2 -module_name ila_1             -dir $ip_directory
+create_ip -name axi_clock_converter  -vendor xilinx.com -library ip -version 2.1 -module_name axi_cdc           -dir $ip_directory
+create_ip -name axi_clock_converter  -vendor xilinx.com -library ip -version 2.1 -module_name axi_lite_cdc      -dir $ip_directory
+create_ip -name clk_wiz              -vendor xilinx.com -library ip -version 6.0 -module_name clk_wiz_0         -dir $ip_directory
+create_ip -name proc_sys_reset       -vendor xilinx.com -library ip -version 5.0 -module_name proc_sys_reset_0  -dir $ip_directory
 
 set xdma_ip_path "./ip/xdma_0/xdma_0.xci"
 add_files -norecurse $xdma_ip_path
@@ -46,6 +47,18 @@ set_property -dict [list \
   CONFIG.C_DATA_DEPTH {1024} \
   CONFIG.C_MONITOR_TYPE {AXI} \
 ] [get_ips ila_0]
+
+set ila_1 "./ip/ila_1/ila_1.xci"
+add_files -norecurse $ila_1
+set_property -dict [list \
+  CONFIG.C_NUM_OF_PROBES {8} \
+  CONFIG.C_PROBE2_WIDTH {32} \
+  CONFIG.C_PROBE3_WIDTH {32} \
+  CONFIG.C_PROBE4_WIDTH {32} \
+  CONFIG.C_PROBE5_WIDTH {32} \
+  CONFIG.C_PROBE6_WIDTH {32} \
+  CONFIG.C_PROBE7_WIDTH {32} \
+] [get_ips ila_1]
 
 set axi_cdc "./ip/axi_cdc/axi_cdc.xci"
 add_files -norecurse $axi_cdc

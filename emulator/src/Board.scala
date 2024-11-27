@@ -19,6 +19,9 @@ class BoardBundle(cfg: EmulatorConfig) extends Bundle {
   val run = Input(Bool())
   val io = Vec(num_mods, new EModuleIOBitsBundle(cfg))
   val dbg = if (cfg.debug) Some(new BoardDebugBundle(cfg)) else None
+  val dbg_sram_init   = Output(UInt(cfg.num_mods.W))
+  val dbg_proc_0_init = Output(UInt(cfg.num_mods.W))
+  val dbg_proc_n_init = Output(UInt(cfg.num_mods.W))
 }
 
 class Board(cfg: EmulatorConfig) extends Module {
@@ -51,4 +54,8 @@ class Board(cfg: EmulatorConfig) extends Module {
     dbg := mods(i).io.dbg.get
     dontTouch(dbg)
   }})
+
+  io.dbg_sram_init   := Cat(mods.map(_.io.dbg_sram_init).reverse)
+  io.dbg_proc_0_init := Cat(mods.map(_.io.dbg_proc_0_init).reverse)
+  io.dbg_proc_n_init := Cat(mods.map(_.io.dbg_proc_n_init).reverse)
 }

@@ -130,6 +130,9 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
     val tot_pushed = Output(UInt(log2Ceil(cfg.emul.insts_per_mod * cfg.emul.num_mods + 1).W))
     val cur_mod    = Output(UInt(log2Ceil(cfg.emul.num_mods + 1).W))
     val cur_pushed = Output(UInt(log2Ceil(cfg.emul.insts_per_mod + 1).W))
+    val sram_proc_init_vec = Output(UInt(cfg.emul.num_mods.W))
+    val proc_0_init_vec = Output(UInt(cfg.emul.num_mods.W))
+    val proc_n_init_vec = Output(UInt(cfg.emul.num_mods.W))
   })
 
   dontTouch(io_dma_axi4_master)
@@ -260,6 +263,9 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
   io_debug.cur_mod    := cur_inst_mod
   io_debug.st_val := DontCare
   io_debug.st_rdy := DontCare
+  io_debug.sram_proc_init_vec := board.io.dbg_sram_init
+  io_debug.proc_0_init_vec    := board.io.dbg_proc_0_init
+  io_debug.proc_n_init_vec    := board.io.dbg_proc_n_init
 
   for (i <- 0 until cfg.emul.num_mods) {
     when (i.U === cur_inst_mod) {

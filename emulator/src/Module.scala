@@ -29,6 +29,9 @@ class EModuleBundle(cfg: EmulatorConfig) extends Bundle {
   val sw_glb = Vec(cfg.num_procs, new GlobalSwitchPort(cfg))
 
   val dbg = if (cfg.debug) Some(new EModuleDebugBundle(cfg)) else None
+  val dbg_sram_init   = Output(Bool())
+  val dbg_proc_0_init = Output(Bool())
+  val dbg_proc_n_init = Output(Bool())
 }
 
 @instantiable
@@ -94,4 +97,8 @@ class EModule(cfg: EmulatorConfig, large_sram: Boolean) extends Module {
   io.dbg.map(_.pdbg.zipWithIndex.map { case(dbg, i) => {
     dbg := procs(i).io.dbg.get
   }})
+
+  io.dbg_sram_init := sram_proc.io.init
+  io.dbg_proc_0_init := procs(0).io.isc.init_o
+  io.dbg_proc_n_init := procs(cfg.num_procs-1).io.isc.init_o
 }
