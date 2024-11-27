@@ -347,7 +347,7 @@ ila_1 ila_debug (
   .probe5(io_debug_sram_proc_init_vec),
   .probe6(io_debug_proc_0_init_vec),
   .probe7(io_debug_proc_n_init_vec)
-):
+);
 
 axi_cdc axi4_master_cdc (
   .s_axi_aclk(axi_aclk),            // input wire s_axi_aclk
