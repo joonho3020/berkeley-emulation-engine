@@ -248,21 +248,15 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
     false,
     "dbg_proc_n_init"))
 
-
-  for (i <- 0 until cfg.emul.num_mods) {
-    board.io.insts(i).valid := false.B
-    board.io.insts(i).bits  := DontCare
-  }
-
   io_debug.tot_pushed      := tot_insts_pushed
   io_debug.proc_0_init_vec := board.io.dbg_proc_0_init
   io_debug.proc_n_init_vec := board.io.dbg_proc_n_init
 
-  board.io.inst.bits  := stream_converter.io.streams(1).deq.bits.asTypeOf(BoardInstInitBundle(cfg.emul))
+  board.io.inst.bits  := stream_converter.io.streams(1).deq.bits.asTypeOf(new BoardInstInitBundle(cfg.emul))
   board.io.inst.valid := stream_converter.io.streams(1).deq.valid
   stream_converter.io.streams(1).deq.ready := board.io.inst.ready
 
-  when (stream_converter.io.streams(1).deq.fire()) {
+  when (stream_converter.io.streams(1).deq.fire) {
     tot_insts_pushed := tot_insts_pushed + 1.U
   }
 

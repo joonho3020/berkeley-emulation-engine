@@ -46,16 +46,16 @@ class Processor(cfg: EmulatorConfig) extends Module {
 
   val imem = Module(new InstMem(cfg))
   imem.io.wen := false.B
-  imem.io.winst := io.isc.inst_i.bits
+  imem.io.winst := io.inst.bits
 
   val ldm = Module(new DataMemory(cfg))
   val sdm = Module(new DataMemory(cfg))
 
   val init = RegInit(false.B)
-  io.isc.inst.ready := !init
+  io.inst.ready := !init
 
   when (!init) {
-    when (io.isc.inst.fire()) {
+    when (io.inst.fire) {
       imem.io.wen := true.B
       when (pc === io.host_steps - 1.U) {
         pc := 0.U
@@ -158,7 +158,7 @@ class Processor(cfg: EmulatorConfig) extends Module {
     io.dbg.map(x => x.ops := ops)
   }
 
-  when (!init && io.isc.init_i) {
+  when (!init) {
     ldm.io.wr.en  := true.B
     ldm.io.wr.idx := pc
     ldm.io.wr.bit := 0.U

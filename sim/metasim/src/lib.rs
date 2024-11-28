@@ -268,12 +268,12 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
         let inst_bar = ProgressBar::new(module_insts.len() as u64);
         for (_m, insts) in module_insts.iter() {
             inst_bar.inc(1);
-            println!("Current module to push instructions: {}",
-                driver.ctrl_bridge.cur_inst_mod.read(&mut driver.simif)?);
+
             println!("Total pushed instructions: {}",
                 driver.ctrl_bridge.tot_insts_pushed.read(&mut driver.simif)?);
-            for (inst, i) in insts.iter().enumerate() {
-                let _p = i / host_steps;
+
+            for (i, inst) in insts.iter().enumerate() {
+                let _p = i as u32 / host_steps;
                 let mut bitbuf = inst.to_bits(&circuit.platform_cfg);
                 for x in 0..circuit.platform_cfg.num_proc_bits() {
                     let sl = circuit.platform_cfg.num_proc_bits() - x - 1;

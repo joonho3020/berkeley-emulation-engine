@@ -40,7 +40,7 @@ pub struct ControlIf {
     pub fingerprint: RdWrMMIOIf,
     pub init_done: RdMMIOIf,
     pub tot_insts_pushed: RdMMIOIf,
-    pub dbg_proc_0_init: RdMMIOIf
+    pub dbg_proc_0_init: RdMMIOIf,
     pub dbg_proc_n_init: RdMMIOIf
 }
 

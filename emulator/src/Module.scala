@@ -72,7 +72,7 @@ class EModule(cfg: EmulatorConfig, large_sram: Boolean) extends Module {
   val inst_q = Module(new Queue(new ModuleInstInitBundle(cfg), 2))
   inst_q.io.enq <> io.inst
 
-  for (i <- 0 until num_proc) {
+  for (i <- 0 until num_procs) {
     procs(i).io.inst.bits  := inst_q.io.deq.bits.inst
     procs(i).io.inst.valid := inst_q.io.deq.valid && (inst_q.io.deq.bits.pidx === i.U)
   }
