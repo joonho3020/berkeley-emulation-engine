@@ -309,6 +309,12 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
             driver.simif.step();
         }
 
+        println!("proc_0_init_vec: {:x}",
+            driver.ctrl_bridge.dbg_proc_0_init.read(&mut driver.simif)?);
+
+        println!("proc_n_init_vec: {:x}",
+            driver.ctrl_bridge.dbg_proc_n_init.read(&mut driver.simif)?);
+
         println!("Start simulation");
 
         let sim_bar = ProgressBar::new(target_cycles as u64);
