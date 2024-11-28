@@ -208,8 +208,6 @@ fn main() -> Result<(), SimIfErr> {
     }
     bar.finish();
 
-
-
     println!("Start configuration register setup");
 
 
@@ -242,9 +240,27 @@ fn main() -> Result<(), SimIfErr> {
     let inst_bar = ProgressBar::new(module_insts.len() as u64);
     for (_m, insts) in module_insts.iter() {
         inst_bar.inc(1);
+
+        while true {
+            let cur_mod = driver.ctrl_bridge.cur_inst_mod.read(&mut driver.simif)?;
+            if cur_mod == *_m {
+                break;
+            }
+        }
+
         for (inst_idx, inst) in insts.iter().enumerate() {
             assert!(driver.ctrl_bridge.init_done.read(&mut driver.simif)? == 0,
                 "Init set while pushing instructions, module {} inst {}", _m, inst_idx);
+
+            while true {
+                let cur_insts_pushed = driver.ctrl_bridge.cur_insts_pushed.read(&mut driver.simif)?;
+                if cur_insts_pushed == inst_idx as u32 {
+                    break;
+                } else {
+                    println!("cur_inst_pushed {} != inst_idx {}", cur_insts_pushed, inst_idx);
+                    assert!(false);
+                }
+            }
 
             let mut bitbuf = inst.to_bits(&circuit.platform_cfg);
             bitbuf.reverse();
@@ -258,11 +274,15 @@ fn main() -> Result<(), SimIfErr> {
                 .rev());
             bytebuf.reverse();
             bytebuf.resize(64 as usize, 0);
-            sleep(std::time::Duration::from_millis(1));
+
+            sleep(std::time::Duration::from_millis(2));
+
             'inst_push_loop: while true {
                 match driver.inst_bridge.push(&mut driver.simif, &bytebuf) {
                     Ok(written_bytes) => {
                         if written_bytes == 0 {
+                            println!("wrote zero bytes, try again");
+                            sleep(std::time::Duration::from_millis(1));
                             continue;
                         } else {
                             assert!(written_bytes == 64, "Less than 64 bytes written for instruction");
@@ -278,10 +298,21 @@ fn main() -> Result<(), SimIfErr> {
                 }
             }
         }
+        println!("total instructions pushed {} ",
+            driver.ctrl_bridge.tot_insts_pushed.read(&mut driver.simif)?);
     }
     inst_bar.finish();
 
+    println!("total instructions pushed {} ",
+        driver.ctrl_bridge.tot_insts_pushed.read(&mut driver.simif)?);
+
+    assert!(driver.ctrl_bridge.tot_insts_pushed.read(&mut driver.simif)? ==
+            driver.ctrl_bridge.host_steps.read(&mut driver.simif)? * total_procs,
+            "Pushed instructions doesn't match expectation w/ host steps {}",
+            driver.ctrl_bridge.host_steps.read(&mut driver.simif)?);
+
     while driver.ctrl_bridge.init_done.read(&mut driver.simif)? == 0 {
+        println!("init {}", driver.ctrl_bridge.init_done.read(&mut driver.simif)?);
         sleep(std::time::Duration::from_millis(1));
     }
 
