@@ -297,6 +297,24 @@ fn main() -> Result<(), SimIfErr> {
                     }
                 }
             }
+
+            'inst_pull_loop: while true {
+                let mut read_buf = XDMAInterface::aligned_vec(0x1000, 64);
+                match driver.inst_bridge.pull(&mut driver.simif, &mut read_buf) {
+                    Ok(read_bytes) => {
+                        if read_bytes == 0 {
+                            println!("read zero bytes back, try again");
+                            continue;
+                        } else {
+                            assert!(read_bytes == 64, "Less than 64 bytes read for instruction");
+                            break 'inst_pull_loop;
+                        }
+                    }
+                    Err(_) => {
+                        continue;
+                    }
+                }
+            }
         }
         println!("total instructions pushed {} ",
             driver.ctrl_bridge.tot_insts_pushed.read(&mut driver.simif)?);
