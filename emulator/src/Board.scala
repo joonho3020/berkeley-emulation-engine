@@ -22,6 +22,9 @@ class BoardBundle(cfg: EmulatorConfig) extends Bundle {
   val dbg_sram_init   = Output(UInt(cfg.num_mods.W))
   val dbg_proc_0_init = Output(UInt(cfg.num_mods.W))
   val dbg_proc_n_init = Output(UInt(cfg.num_mods.W))
+  val dbg_pc = Vec(num_mods, Output(UInt(cfg.index_bits.W)))
+  val dbg_uninit_proc_idx = Vec(num_mods, Output(UInt(log2Ceil(cfg.num_procs + 1).W)))
+  val dbg_q_empty = Vec(num_mods, Output(Bool()))
 }
 
 class Board(cfg: EmulatorConfig) extends Module {
@@ -58,4 +61,10 @@ class Board(cfg: EmulatorConfig) extends Module {
   io.dbg_sram_init   := Cat(mods.map(_.io.dbg_sram_init).reverse)
   io.dbg_proc_0_init := Cat(mods.map(_.io.dbg_proc_0_init).reverse)
   io.dbg_proc_n_init := Cat(mods.map(_.io.dbg_proc_n_init).reverse)
+
+  for (i <- 0 until num_mods) {
+    io.dbg_pc(i) := mods(i).io.dbg_pc
+    io.dbg_uninit_proc_idx(i) := mods(i).io.dbg_uninit_proc_idx
+    io.dbg_q_empty(i) := mods(i).io.dbg_q_empty
+  }
 }

@@ -239,6 +239,9 @@ wire [31:0] io_debug_cur_pushed;
 wire [31:0] io_debug_sram_proc_init_vec;
 wire [31:0] io_debug_proc_0_init_vec;
 wire [31:0] io_debug_proc_n_init_vec;
+wire [31:0] io_debug_pc;
+wire [31:0] io_debug_uninit_proc_idx;
+wire [31:0] io_debug_q_empty;
 
 ila_0 ila_xdma_side (
   .clk(axi_aclk), // input wire clk
@@ -346,7 +349,10 @@ ila_1 ila_debug (
   .probe4(io_debug_cur_pushed),
   .probe5(io_debug_sram_proc_init_vec),
   .probe6(io_debug_proc_0_init_vec),
-  .probe7(io_debug_proc_n_init_vec)
+  .probe7(io_debug_proc_n_init_vec),
+  .probe8(io_debug_pc),
+  .probe9(io_debug_uninit_proc_idx),
+  .probe10(io_debug_q_empty)
 );
 
 axi_cdc axi4_master_cdc (
@@ -617,7 +623,10 @@ FPGATop FPGATop(
   .io_debug_cur_pushed(io_debug_cur_pushed),
   .io_debug_sram_proc_init_vec(io_debug_sram_proc_init_vec),
   .io_debug_proc_0_init_vec(io_debug_proc_0_init_vec),
-  .io_debug_proc_n_init_vec(io_debug_proc_n_init_vec)
+  .io_debug_proc_n_init_vec(io_debug_proc_n_init_vec),
+  .io_debug_pc(io_debug_pc),
+  .io_debug_uninit_proc_idx(io_debug_uninit_proc_idx),
+  .io_debug_q_empty(io_debug_q_empty)
 );
 
 endmodule

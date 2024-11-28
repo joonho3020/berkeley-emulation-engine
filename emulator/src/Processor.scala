@@ -34,6 +34,8 @@ class ProcessorBundle(cfg: EmulatorConfig) extends Bundle {
   val sram_port = Flipped(new PerProcessorSRAMBundle(cfg))
 
   val dbg = if (cfg.debug) Some(Output(new ProcessorDebugBundle(cfg))) else None
+
+  val dbg_pc = Output(UInt(index_bits.W))
 }
 
 @instantiable
@@ -77,6 +79,8 @@ class Processor(cfg: EmulatorConfig) extends Module {
   val forwarded_inst = RegNext(!init && !io.isc.init_i && io.isc.inst_i.fire)
   assert((forwarded_inst && pc === prev_pc) ||
          !forwarded_inst)
+
+  io.dbg_pc := pc
 
   when (!init) {
     when (!io.isc.init_i) {
