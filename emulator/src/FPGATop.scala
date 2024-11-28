@@ -300,6 +300,7 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
       board.io.insts(i).valid := inst_fire.fire(board.io.insts(i).ready)
       stream_converter.io.streams(1).deq.ready := inst_fire.fire(stream_converter.io.streams(1).deq.valid)
       stream_converter.io.streams(1).enq.valid := inst_fire.fire(stream_converter.io.streams(1).enq.ready)
+      stream_converter.io.streams(1).enq.bits  := stream_converter.io.streams(1).deq.bits
 
 // board.io.insts(i).valid := stream_converter.io.streams(1).deq.valid
 // stream_converter.io.streams(1).deq.ready := board.io.insts(i).ready

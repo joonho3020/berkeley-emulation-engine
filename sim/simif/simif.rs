@@ -42,6 +42,7 @@ pub struct ControlIf {
     pub cur_insts_pushed: RdMMIOIf,
     pub tot_insts_pushed: RdMMIOIf,
     pub init_done: RdMMIOIf,
+    pub dbg_module: RdWrMMIOIf
 }
 
 #[derive(Debug)]
@@ -49,7 +50,7 @@ pub struct Driver
 {
     pub simif: Box<dyn SimIf>,
     pub io_bridge:   PushPullDMAIf,
-    pub inst_bridge: PushDMAIf,
+    pub inst_bridge: PushPullDMAIf,
     pub dbg_bridge:  PushPullDMAIf,
     pub ctrl_bridge: ControlIf
 }

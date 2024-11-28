@@ -287,6 +287,17 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
                 driver.inst_bridge.push(&mut driver.simif, &bytebuf)?;
 // println!("Current module pushed instructions: {}",
 // driver.ctrl_bridge.cur_insts_pushed.read(&mut driver.simif)?);
+
+                while true {
+                    let mut read_inst = vec![0u8; bytebuf.len()];
+                    let read_bytes = driver.inst_bridge.pull(&mut driver.simif, &mut read_inst)?;
+                    if read_bytes == 0 {
+                        driver.simif.step();
+                    } else {
+                        assert!(read_inst == bytebuf, "pushed and pulled instruction doesn't match");
+                        break;
+                    }
+                }
             }
         }
         inst_bar.finish();
