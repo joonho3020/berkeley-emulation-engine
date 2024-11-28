@@ -176,7 +176,7 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
   val axil_addr_range = 1 << cfg.axil.axi4BundleParams.addrBits
   val axil_data_byts  = cfg.axil.axi4BundleParams.dataBits / 8
 
-  val max_mmio_regs = 3 * cfg.emul.num_mods + 15
+  val max_mmio_regs = 3 * cfg.emul.num_mods + 18
 
   val mmio = Module(new AXI4MMIOModule(max_mmio_regs, cfg.axil.axi4BundleParams))
   AXI4MMIOModule.tieoff(mmio)
@@ -280,6 +280,28 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
   io_debug.pc := DontCare
   io_debug.uninit_proc_idx := DontCare
   io_debug.q_empty := DontCare
+
+  val dbg_pc              = RegNext(io_debug.pc)
+  val dbg_uninit_proc_idx = RegNext(io_debug.uninit_proc_idx)
+  val dbg_q_empty         = RegNext(io_debug.q_empty)
+
+  mmap.ctrl.add_reg(new MMIOIf(
+    AXI4MMIOModule.bind_readwrite_reg(dbg_pc, mmio) << 2,
+    true,
+    false,
+    "dbg_pc"))
+
+  mmap.ctrl.add_reg(new MMIOIf(
+    AXI4MMIOModule.bind_readwrite_reg(dbg_uninit_proc_idx, mmio) << 2,
+    true,
+    false,
+    "dbg_uninit_proc_idx"))
+
+  mmap.ctrl.add_reg(new MMIOIf(
+    AXI4MMIOModule.bind_readwrite_reg(dbg_q_empty, mmio) << 2,
+    true,
+    false,
+    "dbg_q_empty"))
 
   for (i <- 0 until cfg.emul.num_mods) {
     when (i.U === dbg_module) {
