@@ -125,17 +125,9 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
   io_dma_axi4_slave <> outer.axiDMASlaveNode.in.head._1
 
   val io_debug = IO(new Bundle {
-    val st_val = Output(Bool())
-    val st_rdy = Output(Bool())
-    val tot_pushed = Output(UInt(log2Ceil(cfg.emul.insts_per_mod * cfg.emul.num_mods + 1).W))
-    val cur_mod    = Output(UInt(log2Ceil(cfg.emul.num_mods + 1).W))
-    val cur_pushed = Output(UInt(log2Ceil(cfg.emul.insts_per_mod + 1).W))
-    val sram_proc_init_vec = Output(UInt(cfg.emul.num_mods.W))
+    val tot_pushed      = Output(UInt(log2Ceil(cfg.emul.insts_per_mod * cfg.emul.num_mods + 1).W))
     val proc_0_init_vec = Output(UInt(cfg.emul.num_mods.W))
     val proc_n_init_vec = Output(UInt(cfg.emul.num_mods.W))
-    val pc = Output(UInt(cfg.emul.index_bits.W))
-    val uninit_proc_idx = Output(UInt(log2Ceil(cfg.emul.num_procs + 1).W))
-    val q_empty = Output(Bool())
   })
 
   dontTouch(io_dma_axi4_master)
@@ -176,7 +168,7 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
   val axil_addr_range = 1 << cfg.axil.axi4BundleParams.addrBits
   val axil_data_byts  = cfg.axil.axi4BundleParams.dataBits / 8
 
-  val max_mmio_regs = 3 * cfg.emul.num_mods + 18
+  val max_mmio_regs = 3 * cfg.emul.num_mods + 14
 
   val mmio = Module(new AXI4MMIOModule(max_mmio_regs, cfg.axil.axi4BundleParams))
   AXI4MMIOModule.tieoff(mmio)
@@ -239,108 +231,39 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
   val tot_insts_pushed = RegInit(0.U(log2Ceil(cfg.emul.insts_per_mod * cfg.emul.num_mods + 1).W))
 
   mmap.ctrl.add_reg(new MMIOIf(
-    AXI4MMIOModule.bind_readwrite_reg(cur_inst_mod, mmio) << 2,
-    true,
-    false,
-    "cur_inst_mod"))
-
-  mmap.ctrl.add_reg(new MMIOIf(
-    AXI4MMIOModule.bind_readwrite_reg(cur_insts_pushed, mmio) << 2,
-    true,
-    false,
-    "cur_insts_pushed"))
-
-  mmap.ctrl.add_reg(new MMIOIf(
     AXI4MMIOModule.bind_readwrite_reg(tot_insts_pushed, mmio) << 2,
     true,
     false,
     "tot_insts_pushed"))
+
+  mmap.ctrl.add_reg(new MMIOIf(
+    AXI4MMIOModule.bind_readwrite_reg(RegNext(board.io.dbg_proc_0_init), mmio) << 2,
+    true,
+    false,
+    "dbg_proc_0_init"))
+
+  mmap.ctrl.add_reg(new MMIOIf(
+    AXI4MMIOModule.bind_readwrite_reg(RegNext(board.io.dbg_proc_0_init), mmio) << 2,
+    true,
+    false,
+    "dbg_proc_n_init"))
+
 
   for (i <- 0 until cfg.emul.num_mods) {
     board.io.insts(i).valid := false.B
     board.io.insts(i).bits  := DontCare
   }
 
-  io_debug.cur_pushed := cur_insts_pushed
-  io_debug.tot_pushed := tot_insts_pushed
-  io_debug.cur_mod    := cur_inst_mod
-  io_debug.st_val := DontCare
-  io_debug.st_rdy := DontCare
-  io_debug.sram_proc_init_vec := board.io.dbg_sram_init
-  io_debug.proc_0_init_vec    := board.io.dbg_proc_0_init
-  io_debug.proc_n_init_vec    := board.io.dbg_proc_n_init
+  io_debug.tot_pushed      := tot_insts_pushed
+  io_debug.proc_0_init_vec := board.io.dbg_proc_0_init
+  io_debug.proc_n_init_vec := board.io.dbg_proc_n_init
 
-  val dbg_module = RegInit(0.U(log2Ceil(cfg.emul.num_mods + 1).W))
-  mmap.ctrl.add_reg(new MMIOIf(
-    AXI4MMIOModule.bind_readwrite_reg(dbg_module, mmio) << 2,
-    true,
-    true,
-    "dbg_module"))
+  board.io.inst.bits  := stream_converter.io.streams(1).deq.bits.asTypeOf(BoardInstInitBundle(cfg.emul))
+  board.io.inst.valid := stream_converter.io.streams(1).deq.valid
+  stream_converter.io.streams(1).deq.ready := board.io.inst.ready
 
-  io_debug.pc := DontCare
-  io_debug.uninit_proc_idx := DontCare
-  io_debug.q_empty := DontCare
-
-  val dbg_pc              = RegNext(io_debug.pc)
-  val dbg_uninit_proc_idx = RegNext(io_debug.uninit_proc_idx)
-  val dbg_q_empty         = RegNext(io_debug.q_empty)
-
-  mmap.ctrl.add_reg(new MMIOIf(
-    AXI4MMIOModule.bind_readwrite_reg(dbg_pc, mmio) << 2,
-    true,
-    false,
-    "dbg_pc"))
-
-  mmap.ctrl.add_reg(new MMIOIf(
-    AXI4MMIOModule.bind_readwrite_reg(dbg_uninit_proc_idx, mmio) << 2,
-    true,
-    false,
-    "dbg_uninit_proc_idx"))
-
-  mmap.ctrl.add_reg(new MMIOIf(
-    AXI4MMIOModule.bind_readwrite_reg(dbg_q_empty, mmio) << 2,
-    true,
-    false,
-    "dbg_q_empty"))
-
-  for (i <- 0 until cfg.emul.num_mods) {
-    when (i.U === dbg_module) {
-      io_debug.pc := board.io.dbg_pc(i)
-      io_debug.uninit_proc_idx := board.io.dbg_uninit_proc_idx(i)
-      io_debug.q_empty := board.io.dbg_q_empty(i)
-    }
-  }
-
-  for (i <- 0 until cfg.emul.num_mods) {
-    when (i.U === cur_inst_mod) {
-      val inst_fire = DecoupledHelper(
-        stream_converter.io.streams(1).deq.valid,
-        stream_converter.io.streams(1).enq.ready,
-        board.io.insts(i).ready)
-
-      board.io.insts(i).bits  := stream_converter.io.streams(1).deq.bits.asTypeOf(Instruction(cfg.emul))
-      board.io.insts(i).valid := inst_fire.fire(board.io.insts(i).ready)
-      stream_converter.io.streams(1).deq.ready := inst_fire.fire(stream_converter.io.streams(1).deq.valid)
-      stream_converter.io.streams(1).enq.valid := inst_fire.fire(stream_converter.io.streams(1).enq.ready)
-// stream_converter.io.streams(1).enq.bits  := stream_converter.io.streams(1).deq.bits
-
-// board.io.insts(i).valid := stream_converter.io.streams(1).deq.valid
-// stream_converter.io.streams(1).deq.ready := board.io.insts(i).ready
-
-      io_debug.st_val := stream_converter.io.streams(1).deq.valid
-      io_debug.st_rdy := board.io.insts(i).ready
-
-
-      when (inst_fire.fire()) {
-        tot_insts_pushed := tot_insts_pushed + 1.U
-        when (cur_insts_pushed === host_steps * cfg.emul.num_procs.U - 1.U) {
-          cur_insts_pushed := 0.U
-          cur_inst_mod := cur_inst_mod + 1.U
-        } .otherwise {
-          cur_insts_pushed := cur_insts_pushed + 1.U
-        }
-      }
-    }
+  when (stream_converter.io.streams(1).deq.fire()) {
+    tot_insts_pushed := tot_insts_pushed + 1.U
   }
 
   val cur_step = RegInit(0.U(cfg.emul.index_bits.W))

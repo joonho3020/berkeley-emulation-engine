@@ -272,8 +272,17 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
                 driver.ctrl_bridge.cur_inst_mod.read(&mut driver.simif)?);
             println!("Total pushed instructions: {}",
                 driver.ctrl_bridge.tot_insts_pushed.read(&mut driver.simif)?);
-            for inst in insts {
+            for (inst, i) in insts.iter().enumerate() {
+                let _p = i / host_steps;
                 let mut bitbuf = inst.to_bits(&circuit.platform_cfg);
+                for x in 0..circuit.platform_cfg.num_proc_bits() {
+                    let sl = circuit.platform_cfg.num_proc_bits() - x - 1;
+                    bitbuf.push((_p >> sl) & 1 == 1);
+                }
+                for x in 0..circuit.platform_cfg.num_mod_bits() {
+                    let sl = circuit.platform_cfg.num_mod_bits() - x - 1;
+                    bitbuf.push((_m >> sl) & 1 == 1);
+                }
                 bitbuf.reverse();
                 assert!(bitbuf.len() < 8 * 8, "Instruction bits {} > 64", bitbuf.len());
                 let mut bytebuf: Vec<u8> = bitbuf

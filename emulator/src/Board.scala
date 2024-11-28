@@ -9,22 +9,23 @@ class BoardDebugBundle(cfg: EmulatorConfig) extends Bundle {
   val bdbg = Vec(num_mods, new EModuleDebugBundle(cfg))
 }
 
+class BoardInstInitBundle(cfg: EmulatorConfig) extends Bundle {
+  val inst = new ModuleInstInitBundle(cfg)
+  val midx = UInt(log2Ceil(cfg.num_mods + 1).W)
+}
+
 class BoardBundle(cfg: EmulatorConfig) extends Bundle {
   import cfg._
 
   val cfg_in = Vec(num_mods, Input(new EModuleConfigBundle(cfg)))
   val init = Output(Bool())
-  val insts = Vec(num_mods, Flipped(Decoupled(Instruction(cfg))))
+  val inst = Flipped(Decoupled(new BoardInstInitBundle(cfg)))
 
   val run = Input(Bool())
   val io = Vec(num_mods, new EModuleIOBitsBundle(cfg))
   val dbg = if (cfg.debug) Some(new BoardDebugBundle(cfg)) else None
-  val dbg_sram_init   = Output(UInt(cfg.num_mods.W))
   val dbg_proc_0_init = Output(UInt(cfg.num_mods.W))
   val dbg_proc_n_init = Output(UInt(cfg.num_mods.W))
-  val dbg_pc = Vec(num_mods, Output(UInt(cfg.index_bits.W)))
-  val dbg_uninit_proc_idx = Vec(num_mods, Output(UInt(log2Ceil(cfg.num_procs + 1).W)))
-  val dbg_q_empty = Vec(num_mods, Output(Bool()))
 }
 
 class Board(cfg: EmulatorConfig) extends Module {
@@ -47,10 +48,21 @@ class Board(cfg: EmulatorConfig) extends Module {
       global_switch.io.ports(i)(j) <> mods(i).io.sw_glb(j)
     }
     mods(i).io.cfg_in := io.cfg_in(i)
-    mods(i).io.inst <> io.insts(i)
     mods(i).io.run := io.run
     mods(i).io.io <> io.io(i)
   }
+
+  val inst_q = Module(new Queue(new BoardInstInitBundle(cfg), 4))
+  inst_q.io.enq <> io.inst
+
+  for (i <- 0 until num_mods) {
+    mods(i).io.inst.bits := inst_q.io.deq.bits.inst
+    mods(i).io.inst.valid := inst_q.io.deq.valid && (inst_q.io.deq.bits.midx === i.U)
+  }
+
+  inst_q.io.deq.ready := mods.zipWithIndex.map({ case(mod, i) => {
+    mod.io.inst.ready && (inst_q.io.deq.bits.midx === i.U)
+  }}).reduce(_ || _)
 
   io.init := mods.map(_.io.init).reduce(_ && _)
   io.dbg.map(_.bdbg.zipWithIndex.map { case(dbg, i) => {
@@ -58,13 +70,6 @@ class Board(cfg: EmulatorConfig) extends Module {
     dontTouch(dbg)
   }})
 
-  io.dbg_sram_init   := Cat(mods.map(_.io.dbg_sram_init).reverse)
   io.dbg_proc_0_init := Cat(mods.map(_.io.dbg_proc_0_init).reverse)
   io.dbg_proc_n_init := Cat(mods.map(_.io.dbg_proc_n_init).reverse)
-
-  for (i <- 0 until num_mods) {
-    io.dbg_pc(i) := mods(i).io.dbg_pc
-    io.dbg_uninit_proc_idx(i) := mods(i).io.dbg_uninit_proc_idx
-    io.dbg_q_empty(i) := mods(i).io.dbg_q_empty
-  }
 }
