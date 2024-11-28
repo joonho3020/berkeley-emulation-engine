@@ -68,7 +68,7 @@ class EModule(cfg: EmulatorConfig, large_sram: Boolean) extends Module {
     io.sw_glb(i) <> procs(i).io.sw_glb
   }
 
-  val dbg_q_empty = Seq.fill(num_procs / ireg_skip)(Wire(Bool()))
+  val dbg_q_empty = Seq.fill(num_procs / ireg_skip - 1)(Wire(Bool()))
   io.dbg_q_empty := dbg_q_empty.reduce(_ || _)
 
   // instruction scan chain

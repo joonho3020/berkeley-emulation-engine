@@ -277,6 +277,10 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
     true,
     "dbg_module"))
 
+  io_debug.pc := DontCare
+  io_debug.uninit_proc_idx := DontCare
+  io_debug.q_empty := DontCare
+
   for (i <- 0 until cfg.emul.num_mods) {
     when (i.U === dbg_module) {
       io_debug.pc := board.io.dbg_pc(i)
