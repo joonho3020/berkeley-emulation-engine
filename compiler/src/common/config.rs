@@ -310,6 +310,14 @@ impl PlatformConfig {
         self.log2ceil(Opcode::COUNT as u32)
     }
 
+    pub fn num_proc_bits(self: &Self) -> u32 {
+        self.log2ceil(self.num_procs)
+    }
+
+    pub fn num_mod_bits(self: &Self) -> u32 {
+        self.log2ceil(self.num_mods)
+    }
+
     /// number of bits for the LUT
     pub fn lut_bits(self: &Self) -> u32 {
         1 << self.lut_inputs
