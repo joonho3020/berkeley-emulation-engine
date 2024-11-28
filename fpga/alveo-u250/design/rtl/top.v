@@ -342,9 +342,9 @@ ila_0 ila_cl_side (
 
 ila_1 ila_debug (
   .clk(fpga_top_clock),
-  .probe2(io_debug_tot_pushed),
-  .probe6(io_debug_proc_0_init_vec),
-  .probe7(io_debug_proc_n_init_vec)
+  .probe0(io_debug_tot_pushed),
+  .probe1(io_debug_proc_0_init_vec),
+  .probe2(io_debug_proc_n_init_vec)
 );
 
 axi_cdc axi4_master_cdc (
