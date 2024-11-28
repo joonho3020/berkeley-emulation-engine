@@ -24,6 +24,8 @@ write_checkpoint -force $PROJECT_DIR/impl/latest/${TOP_MODULE}_placed.dcp
 
 phys_opt_design -directive Explore
 
+write_checkpoint -force $PROJECT_DIR/impl/latest/${TOP_MODULE}_phys_opt.dcp
+
 report_timing_summary -file $PROJECT_DIR/impl/$BUILD_SUFFIX/impl_post_opt_timing.rpt
 
 route_design -directive Explore
@@ -31,7 +33,6 @@ route_design -directive Explore
 write_checkpoint -force $PROJECT_DIR/impl/latest/${TOP_MODULE}_routed.dcp
 write_xdc -force $PROJECT_DIR/impl/latest/${TOP_MODULE}_post_route.xdc
 write_bitstream -force $PROJECT_DIR/impl/latest/$TOP_MODULE.bit
-
 write_debug_probes -force $PROJECT_DIR/impl/latest/debug_probes.ltx
 
 report_drc -file $PROJECT_DIR/impl/$BUILD_SUFFIX/post_route_drc.rpt
@@ -40,3 +41,4 @@ report_utilization  -hierarchical -hierarchical_percentages  -file    $PROJECT_D
 report_utilization  -file    $PROJECT_DIR/impl/$BUILD_SUFFIX/impl_utilization.rpt
 report_timing_summary -file $PROJECT_DIR/impl/$BUILD_SUFFIX/impl_timing.rpt
 report_cdc -file $PROJECT_DIR/impl/$BUILD_SUFFIX/impl_cdc.rpt
+report_methodology -file $PROJECT_DIR/impl/$BUILD_SUFFIX/impl_methodology.rpt
