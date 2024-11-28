@@ -42,7 +42,10 @@ pub struct ControlIf {
     pub cur_insts_pushed: RdMMIOIf,
     pub tot_insts_pushed: RdMMIOIf,
     pub init_done: RdMMIOIf,
-    pub dbg_module: RdWrMMIOIf
+    pub dbg_module: RdWrMMIOIf,
+    pub dbg_pc: RdMMIOIf,
+    pub dbg_uninit_proc_idx: RdMMIOIf,
+    pub dbg_q_empty: RdMMIOIf
 }
 
 #[derive(Debug)]
