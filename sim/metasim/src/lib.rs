@@ -275,6 +275,8 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
             for (i, inst) in insts.iter().enumerate() {
                 let _p = i as u32 / host_steps;
                 let mut bitbuf = inst.to_bits(&circuit.platform_cfg);
+                assert!(bitbuf.len() < 8 * 8, "Instruction bits {} > 64", bitbuf.len());
+
                 for x in 0..circuit.platform_cfg.num_proc_bits() {
                     let sl = circuit.platform_cfg.num_proc_bits() - x - 1;
                     bitbuf.push((_p >> sl) & 1 == 1);
@@ -283,8 +285,12 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
                     let sl = circuit.platform_cfg.num_mod_bits() - x - 1;
                     bitbuf.push((_m >> sl) & 1 == 1);
                 }
+
                 bitbuf.reverse();
-                assert!(bitbuf.len() < 8 * 8, "Instruction bits {} > 64", bitbuf.len());
+
+                assert!(bitbuf.len() as u32 <= fpga_top_cfg.axi.beat_bytes() * 8,
+                    "Instruction + procidx + modidx bits {} > 512", bitbuf.len());
+
                 let mut bytebuf: Vec<u8> = bitbuf
                                             .into_vec()
                                             .iter()
@@ -294,19 +300,6 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
                 bytebuf.reverse();
                 bytebuf.resize(fpga_top_cfg.axi.beat_bytes() as usize, 0);
                 driver.inst_bridge.push(&mut driver.simif, &bytebuf)?;
-// println!("Current module pushed instructions: {}",
-// driver.ctrl_bridge.cur_insts_pushed.read(&mut driver.simif)?);
-
-                while true {
-                    let mut read_inst = vec![0u8; bytebuf.len()];
-                    let read_bytes = driver.inst_bridge.pull(&mut driver.simif, &mut read_inst)?;
-                    if read_bytes == 0 {
-                        driver.simif.step();
-                    } else {
-// assert!(read_inst == bytebuf, "pushed and pulled instruction doesn't match");
-                        break;
-                    }
-                }
             }
         }
         inst_bar.finish();

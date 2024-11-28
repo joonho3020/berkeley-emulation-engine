@@ -21,7 +21,7 @@ class EModuleDebugBundle(cfg: EmulatorConfig) extends Bundle {
 
 class ModuleInstInitBundle(cfg: EmulatorConfig) extends Bundle {
   val inst = Instruction(cfg)
-  val pidx = UInt(log2Ceil(cfg.num_procs + 1).W)
+  val pidx = UInt(log2Ceil(cfg.num_procs).W)
 }
 
 class EModuleBundle(cfg: EmulatorConfig) extends Bundle {

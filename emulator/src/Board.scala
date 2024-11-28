@@ -11,7 +11,7 @@ class BoardDebugBundle(cfg: EmulatorConfig) extends Bundle {
 
 class BoardInstInitBundle(cfg: EmulatorConfig) extends Bundle {
   val inst = new ModuleInstInitBundle(cfg)
-  val midx = UInt(log2Ceil(cfg.num_mods + 1).W)
+  val midx = UInt(log2Ceil(cfg.num_mods).W)
 }
 
 class BoardBundle(cfg: EmulatorConfig) extends Bundle {
