@@ -182,10 +182,11 @@ clk_wiz_0 clk_wizard
   .clk_in1(axi_aclk)
 );
 
+wire axi_sync_resetn;
 
 // https://docs.amd.com/v/u/en-US/pg164-proc-sys-reset
 proc_sys_reset_0 reset_synchronizer (
-  .slowest_sync_clk(fpga_top_clock),          // input wire slowest_sync_clk
+  .slowest_sync_clk(axi_aclk),          // input wire slowest_sync_clk
   .ext_reset_in(!axi_aresetn),                  // input wire ext_reset_in
   .aux_reset_in(1'b0),                  // input wire aux_reset_in
   .mb_debug_sys_rst(1'b0),          // input wire mb_debug_sys_rst
@@ -193,10 +194,19 @@ proc_sys_reset_0 reset_synchronizer (
   .mb_reset(),                          // output wire mb_reset
   .bus_struct_reset(),          // output wire [0 : 0] bus_struct_reset
   .peripheral_reset(),          // output wire [0 : 0] peripheral_reset
-  .interconnect_aresetn(fpga_top_resetn),  // output wire [0 : 0] interconnect_aresetn
+  .interconnect_aresetn(axi_sync_resetn),  // output wire [0 : 0] interconnect_aresetn
   .peripheral_aresetn()      // output wire [0 : 0] peripheral_aresetn
 );
 
+xpm_cdc_single #(
+  .DEST_SYNC_FF(4),
+  .SRC_INPUT_REG(0)
+) reset_cdc (
+  .src_clk  (axi_aclk),
+  .src_in   (axi_sync_resetn),
+  .dest_clk (fpga_top_clock),
+  .dest_out (fpga_top_resetn)
+);
 
 wire [3 : 0] io_dma_axi4_master_awid;
 wire [63 : 0] io_dma_axi4_master_awaddr;
