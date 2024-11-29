@@ -14,7 +14,7 @@ if {![file exists $ip_directory]} {
     puts "Directory already exists: $ip_directory"
 }
 
-set fpga_freq_mhz 85
+set fpga_freq_mhz 80
 
 create_ip -name xdma                 -vendor xilinx.com -library ip -version 4.1 -module_name xdma_0            -dir $ip_directory
 create_ip -name ila                  -vendor xilinx.com -library ip -version 6.2 -module_name ila_0             -dir $ip_directory
