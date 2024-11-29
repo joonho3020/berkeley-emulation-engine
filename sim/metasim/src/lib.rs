@@ -333,7 +333,6 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
 
                 // Check that the logic for midx validation works
                 let midx_mismatch_cnt = driver.ctrl_bridge.midx_mismatch_cnt.read(&mut driver.simif)?;
-                println!("midx_mismatch_cnt: {}", midx_mismatch_cnt);
                 for _ in 0..midx_mismatch_cnt {
                     println!("midx_mismatch found: received midx {}",
                         driver.ctrl_bridge.midx_mismatch_deq.read(&mut driver.simif)?);
@@ -341,7 +340,6 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
 
                 // Check that the logic for pidx validation works
                 let pidx_mismatch_cnt = driver.ctrl_bridge.pidx_mismatch_cnt.read(&mut driver.simif)?;
-                println!("pidx_mismatch_cnt: {}", pidx_mismatch_cnt);
                 for _ in 0..pidx_mismatch_cnt {
                     println!("pidx_mismatch found: received pidx {}",
                         driver.ctrl_bridge.pidx_mismatch_deq.read(&mut driver.simif)?);

@@ -60,6 +60,9 @@ run: $(DRIVER_SRCS)
 		--num-procs $(num_procs) \
 		--sram-width $(sram_width) \
 		--sram-entries $(sram_entries) \
+		--large-sram-width $(large_sram_width) \
+		--large-sram-entries $(large_sram_entries) \
+		--large-sram-cnt $(large_sram_cnt) \
 		--imem-lat $(imem_lat) \
 		--inter-proc-nw-lat $(inter_proc_nw_lat) \
 		--inter-mod-nw-lat $(inter_mod_nw_lat) \
