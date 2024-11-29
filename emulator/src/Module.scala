@@ -36,6 +36,7 @@ class EModuleBundle(cfg: EmulatorConfig) extends Bundle {
   val dbg = if (cfg.debug) Some(new EModuleDebugBundle(cfg)) else None
   val dbg_proc_0_init = Output(Bool())
   val dbg_proc_n_init = Output(Bool())
+  val dbg_proc_init_cnt = Output(UInt(log2Ceil(cfg.num_procs + 1).W))
 }
 
 @instantiable
@@ -101,4 +102,5 @@ class EModule(cfg: EmulatorConfig, large_sram: Boolean) extends Module {
 
   io.dbg_proc_0_init := !procs(0).io.inst.ready
   io.dbg_proc_n_init := !procs(cfg.num_procs-1).io.inst.ready
+  io.dbg_proc_init_cnt := RegNext(procs.map{ p => (!p.io.inst.ready).asUInt }.reduce(_ +& _))
 }

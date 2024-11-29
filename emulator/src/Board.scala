@@ -26,6 +26,7 @@ class BoardBundle(cfg: EmulatorConfig) extends Bundle {
   val dbg = if (cfg.debug) Some(new BoardDebugBundle(cfg)) else None
   val dbg_proc_0_init = Output(UInt(cfg.num_mods.W))
   val dbg_proc_n_init = Output(UInt(cfg.num_mods.W))
+  val dbg_proc_init_cnt = Vec(num_mods, Output(UInt(log2Ceil(cfg.num_procs + 1).W)))
 }
 
 class Board(cfg: EmulatorConfig) extends Module {
@@ -72,4 +73,7 @@ class Board(cfg: EmulatorConfig) extends Module {
 
   io.dbg_proc_0_init := Cat(mods.map(_.io.dbg_proc_0_init).reverse)
   io.dbg_proc_n_init := Cat(mods.map(_.io.dbg_proc_n_init).reverse)
+  for (i <- 0 until num_mods) {
+    io.dbg_proc_init_cnt(i) := mods(i).io.dbg_proc_init_cnt
+  }
 }

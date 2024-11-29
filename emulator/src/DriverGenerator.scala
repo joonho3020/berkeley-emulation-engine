@@ -83,9 +83,26 @@ class SRAMConfigVecIf(val cfgs: Seq[SRAMConfigAddr]) extends MMap {
   }
 }
 
+case class DebugInitCntrAddr(addr: Int)
+
+class DebugProcInitCntIf(val cntrs: Seq[DebugInitCntrAddr]) extends MMap {
+  def str: String = {
+    var ret = "vec![\n"
+    cntrs.zipWithIndex.foreach({ case (cntr, i) => {
+      ret += s"          RdMMIOIf::new(0x${Integer.toHexString(cntr.addr)})"
+      if (i != cntrs.length - 1) {
+        ret += ",\n"
+      }
+    }})
+    ret += "\n        ]"
+    return ret
+  }
+}
+
 class ControlIf(val name: String) extends MMap {
   var regs = ListBuffer[MMIOIf]()
   var srams = ListBuffer[SRAMConfigAddr]()
+  var dbg_init_cntr = ListBuffer[DebugInitCntrAddr]()
 
   def add_reg(r: MMIOIf): Unit = {
     regs.append(r)
@@ -99,10 +116,21 @@ class ControlIf(val name: String) extends MMap {
     new SRAMConfigVecIf(srams.toSeq)
   }
 
+  def add_dbg_mmio(addr: Int): Unit = {
+    dbg_init_cntr.append(DebugInitCntrAddr(addr))
+  }
+
+  def dbg_cfg_vec: DebugProcInitCntIf = {
+    new DebugProcInitCntIf(dbg_init_cntr.toSeq)
+  }
+
   def str: String = {
     val sram = sram_cfg_vec
+    val dbg  = dbg_cfg_vec
+
     var ret = s"""${name}: ControlIf {
-        sram: ${sram.str},"""
+        sram: ${sram.str},
+        dbg_init_cntrs: ${dbg.str},"""
     regs.foreach(r => {
       ret += s"""
         ${r.str},"""

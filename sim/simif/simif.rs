@@ -34,14 +34,31 @@ impl SRAMConfig {
 #[derive(Debug)]
 pub struct ControlIf {
     pub sram: Vec<SRAMConfig>,
-    pub host_steps: RdWrMMIOIf,
-    pub target_cycle_lo: RdMMIOIf,
-    pub target_cycle_hi: RdMMIOIf,
+
     pub fingerprint: RdWrMMIOIf,
+    pub host_steps: RdWrMMIOIf,
+
+    pub host_steps_prv_deq: RdMMIOIf,
+    pub host_steps_prv_cnt: RdMMIOIf,
+    pub host_steps_cur_deq: RdMMIOIf,
+    pub host_steps_cur_cnt: RdMMIOIf,
+
     pub init_done: RdMMIOIf,
     pub tot_insts_pushed: RdMMIOIf,
+
     pub dbg_proc_0_init: RdMMIOIf,
-    pub dbg_proc_n_init: RdMMIOIf
+    pub dbg_proc_n_init: RdMMIOIf,
+
+    pub midx_mismatch_deq: RdMMIOIf,
+    pub midx_mismatch_cnt: RdMMIOIf,
+
+    pub pidx_mismatch_deq: RdMMIOIf,
+    pub pidx_mismatch_cnt: RdMMIOIf,
+
+    pub dbg_init_cntrs: Vec<RdMMIOIf>,
+
+    pub target_cycle_lo: RdMMIOIf,
+    pub target_cycle_hi: RdMMIOIf,
 }
 
 #[derive(Debug)]

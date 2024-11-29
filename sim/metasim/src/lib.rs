@@ -260,7 +260,33 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
         }
 
         driver.ctrl_bridge.host_steps.write(&mut driver.simif, host_steps)?;
+        driver.simif.step();
 
+        // Check that the host_step change checking logic works
+        driver.ctrl_bridge.host_steps.write(&mut driver.simif, host_steps + 1)?;
+        driver.simif.step();
+
+        let host_steps_changed =
+            driver.ctrl_bridge.host_steps_prv_cnt.read(&mut driver.simif)?;
+
+        println!("host_steps_changed: {}", host_steps_changed);
+
+        if host_steps_changed != 1 {
+            let deq_cnt = driver.ctrl_bridge.host_steps_cur_cnt.read(&mut driver.simif)?;
+            println!("host_steps_prv_deq {} entries, cur_deq {} entries",
+                host_steps_changed, deq_cnt);
+
+            for _ in 0..host_steps_changed {
+                println!("prv {} -> cur {}",
+                    driver.ctrl_bridge.host_steps_prv_deq.read(&mut driver.simif)?,
+                    driver.ctrl_bridge.host_steps_cur_deq.read(&mut driver.simif)?);
+            }
+
+            println!("host_steps should only change once, changed {} times", host_steps_changed);
+        }
+
+        // Set the host_step back to a correct value
+        driver.ctrl_bridge.host_steps.write(&mut driver.simif, host_steps)?;
         driver.simif.step();
 
         println!("Start pushing instructions");
@@ -300,9 +326,42 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
                 bytebuf.reverse();
                 bytebuf.resize(fpga_top_cfg.axi.beat_bytes() as usize, 0);
                 driver.inst_bridge.push(&mut driver.simif, &bytebuf)?;
+
+                for _ in 0..2 {
+                    driver.simif.step();
+                }
+
+                // Check that the logic for midx validation works
+                let midx_mismatch_cnt = driver.ctrl_bridge.midx_mismatch_cnt.read(&mut driver.simif)?;
+                println!("midx_mismatch_cnt: {}", midx_mismatch_cnt);
+                for _ in 0..midx_mismatch_cnt {
+                    println!("midx_mismatch found: received midx {}",
+                        driver.ctrl_bridge.midx_mismatch_deq.read(&mut driver.simif)?);
+                }
+
+                // Check that the logic for pidx validation works
+                let pidx_mismatch_cnt = driver.ctrl_bridge.pidx_mismatch_cnt.read(&mut driver.simif)?;
+                println!("pidx_mismatch_cnt: {}", pidx_mismatch_cnt);
+                for _ in 0..pidx_mismatch_cnt {
+                    println!("pidx_mismatch found: received pidx {}",
+                        driver.ctrl_bridge.pidx_mismatch_deq.read(&mut driver.simif)?);
+                }
             }
+
+            // Check if all processor 0 & processor n-1 have been initialized
+            let proc_0_init_vec = driver.ctrl_bridge.dbg_proc_0_init.read(&mut driver.simif)?;
+            let proc_n_init_vec = driver.ctrl_bridge.dbg_proc_n_init.read(&mut driver.simif)?;
+            assert!(proc_0_init_vec == proc_n_init_vec,
+                "proc 0 {:x} n {:x}",
+                proc_0_init_vec, proc_n_init_vec);
+
+            // Check that the number of processors initialized processors match w/
+            // what is expected
+            let dbg_init_cntr = driver.ctrl_bridge.dbg_init_cntrs.get(*_m as usize).unwrap();
+            assert!(dbg_init_cntr.read(&mut driver.simif)? == circuit.platform_cfg.num_procs);
         }
         inst_bar.finish();
+
 
         // Wait until initialization is finished
         while driver.ctrl_bridge.init_done.read(&mut driver.simif)? == 0 {

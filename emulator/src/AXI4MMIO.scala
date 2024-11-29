@@ -94,15 +94,16 @@ object AXI4MMIOModule {
 
   def tieoff(mmio: AXI4MMIOModule): Unit = {
     mmio.io.ctrl.map(rw => {
-      rw.wr.ready := false.B
-      rw.rd.valid := false.B
+      rw.wr.ready := true.B
+      rw.rd.valid := true.B
       rw.rd.bits  := DontCare
     })
   }
 
+  // All these functions assume that the tieoff has been called
+
   def bind_readonly_reg(reg: Data, mmio: AXI4MMIOModule): Int = {
     assert(mmio.io.ctrl(idx).wr.valid === false.B)
-    mmio.io.ctrl(idx).wr.ready := false.B
     mmio.io.ctrl(idx).rd.valid := true.B
     mmio.io.ctrl(idx).rd.bits  := reg
     idx += 1
@@ -110,7 +111,6 @@ object AXI4MMIOModule {
   }
 
   def bind_writeonly_reg(reg: Data, mmio: AXI4MMIOModule): Int = {
-    mmio.io.ctrl(idx).rd.valid := false.B
     mmio.io.ctrl(idx).wr.ready := true.B
     when (mmio.io.ctrl(idx).wr.valid) {
       reg := mmio.io.ctrl(idx).wr.bits
@@ -121,6 +121,10 @@ object AXI4MMIOModule {
 
   def bind_writeonly_reg_array(regs: Seq[Data], mmio: AXI4MMIOModule): Seq[Int] = {
     regs.map(r => AXI4MMIOModule.bind_writeonly_reg(r, mmio))
+  }
+
+  def bind_readonly_reg_array(regs: Seq[Data], mmio: AXI4MMIOModule): Seq[Int] = {
+    regs.map(r => AXI4MMIOModule.bind_readonly_reg(r, mmio))
   }
 
   def bind_readwrite_reg(reg: Data, mmio: AXI4MMIOModule): Int = {
@@ -137,5 +141,11 @@ object AXI4MMIOModule {
 
   def bind_readwrite_reg_array(regs: Seq[Data], mmio: AXI4MMIOModule): Seq[Int] = {
     regs.map(r => AXI4MMIOModule.bind_readwrite_reg(r, mmio))
+  }
+
+  def bind_decoupled_read(deq: DecoupledIO[Data], mmio: AXI4MMIOModule): Int = {
+    mmio.io.ctrl(idx).rd <> deq
+    idx += 1
+    return idx - 1
   }
 }

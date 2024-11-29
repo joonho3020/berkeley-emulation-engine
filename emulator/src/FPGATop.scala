@@ -168,7 +168,7 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
   val axil_addr_range = 1 << cfg.axil.axi4BundleParams.addrBits
   val axil_data_byts  = cfg.axil.axi4BundleParams.dataBits / 8
 
-  val max_mmio_regs = 3 * cfg.emul.num_mods + 14
+  val max_mmio_regs = 4 * cfg.emul.num_mods + 22
 
   val mmio = Module(new AXI4MMIOModule(max_mmio_regs, cfg.axil.axi4BundleParams))
   AXI4MMIOModule.tieoff(mmio)
@@ -190,6 +190,12 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
     mmap.ctrl.add_sram(SRAMConfigAddr(p << 2, m << 2, w << 2))
   }})
 
+  val fingerprint_reg = RegInit(BigInt("F00DCAFE", 16).U(32.W))
+  mmap.ctrl.add_reg(new MMIOIf(
+    AXI4MMIOModule.bind_readwrite_reg(fingerprint_reg, mmio) << 2,
+    true,
+    true,
+    "fingerprint"))
 
   val host_steps = RegInit(0.U(cfg.emul.index_bits.W))
   mmap.ctrl.add_reg(new MMIOIf(
@@ -198,12 +204,39 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
     true,
     "host_steps"))
 
-  val fingerprint_reg = RegInit(BigInt("F00DCAFE", 16).U(32.W))
+  val host_steps_prv = RegNext(host_steps)
+  val host_steps_prv_q = Module(new Queue(UInt(cfg.emul.index_bits.W), 4))
+  val host_steps_cur_q  = Module(new Queue(UInt(cfg.emul.index_bits.W), 4))
+
+  host_steps_prv_q.io.enq.valid := host_steps_prv =/= host_steps
+  host_steps_prv_q.io.enq.bits  := host_steps_prv
+
+  host_steps_cur_q.io.enq.valid := host_steps_prv =/= host_steps
+  host_steps_cur_q.io.enq.bits  := host_steps
+
   mmap.ctrl.add_reg(new MMIOIf(
-    AXI4MMIOModule.bind_readwrite_reg(fingerprint_reg, mmio) << 2,
+    AXI4MMIOModule.bind_decoupled_read(host_steps_prv_q.io.deq, mmio) << 2,
     true,
+    false,
+    "host_steps_prv_deq"))
+
+  mmap.ctrl.add_reg(new MMIOIf(
+    AXI4MMIOModule.bind_readonly_reg(host_steps_prv_q.io.count, mmio) << 2,
     true,
-    "fingerprint"))
+    false,
+    "host_steps_prv_cnt"))
+
+  mmap.ctrl.add_reg(new MMIOIf(
+    AXI4MMIOModule.bind_decoupled_read(host_steps_cur_q.io.deq, mmio) << 2,
+    true,
+    false,
+    "host_steps_cur_deq"))
+
+  mmap.ctrl.add_reg(new MMIOIf(
+    AXI4MMIOModule.bind_readonly_reg(host_steps_cur_q.io.count, mmio) << 2,
+    true,
+    false,
+    "host_steps_cur_cnt"))
 
   ////////////////////////////////////////////////////////////////////////////
 
@@ -225,9 +258,6 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
     board.io.cfg_in(i).sram.width_bits      := width_bits(i)
   }
 
-  // TODO: make this into parallel streams to make the loading faster(?)
-  val cur_inst_mod = RegInit(0.U(log2Ceil(cfg.emul.num_mods + 1).W))
-  val cur_insts_pushed = RegInit(0.U(log2Ceil(cfg.emul.insts_per_mod + 1).W))
   val tot_insts_pushed = RegInit(0.U(log2Ceil(cfg.emul.insts_per_mod * cfg.emul.num_mods + 1).W))
 
   mmap.ctrl.add_reg(new MMIOIf(
@@ -243,7 +273,7 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
     "dbg_proc_0_init"))
 
   mmap.ctrl.add_reg(new MMIOIf(
-    AXI4MMIOModule.bind_readwrite_reg(RegNext(board.io.dbg_proc_0_init), mmio) << 2,
+    AXI4MMIOModule.bind_readwrite_reg(RegNext(board.io.dbg_proc_n_init), mmio) << 2,
     true,
     false,
     "dbg_proc_n_init"))
@@ -252,13 +282,75 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
   io_debug.proc_0_init_vec := board.io.dbg_proc_0_init
   io_debug.proc_n_init_vec := board.io.dbg_proc_n_init
 
+  // TODO: make this into parallel streams to make the loading faster(?)
   board.io.inst.bits  := stream_converter.io.streams(1).deq.bits.asTypeOf(new BoardInstInitBundle(cfg.emul))
   board.io.inst.valid := stream_converter.io.streams(1).deq.valid
   stream_converter.io.streams(1).deq.ready := board.io.inst.ready
 
+  val expect_midx = RegInit(0.U(log2Ceil(cfg.emul.num_mods).W))
+  val expect_pidx = RegInit(0.U(log2Ceil(cfg.emul.num_procs).W))
+  val inst_cntr   = RegInit(0.U(cfg.emul.index_bits.W))
+
   when (stream_converter.io.streams(1).deq.fire) {
     tot_insts_pushed := tot_insts_pushed + 1.U
+
+    when (inst_cntr === host_steps - 1.U) {
+      inst_cntr := 0.U
+      when (expect_pidx === (cfg.emul.num_procs - 1).U) {
+        expect_pidx := 0.U
+        expect_midx := expect_midx + 1.U
+      } .otherwise {
+        expect_pidx := expect_pidx + 1.U
+      }
+    } .otherwise {
+      inst_cntr := inst_cntr + 1.U
+    }
   }
+
+  val midx_mismatch_q = Module(new Queue(UInt(log2Ceil(cfg.emul.num_mods).W), 4))
+
+  mmap.ctrl.add_reg(new MMIOIf(
+    AXI4MMIOModule.bind_decoupled_read(midx_mismatch_q.io.deq, mmio) << 2,
+    true,
+    false,
+    "midx_mismatch_deq"))
+
+  mmap.ctrl.add_reg(new MMIOIf(
+    AXI4MMIOModule.bind_readonly_reg(midx_mismatch_q.io.count, mmio) << 2,
+    true,
+    false,
+    "midx_mismatch_cnt"))
+
+  midx_mismatch_q.io.enq.valid := (expect_midx =/= board.io.inst.bits.midx) &&
+                                  board.io.inst.fire
+  midx_mismatch_q.io.enq.bits := board.io.inst.bits.midx
+
+  val pidx_mismatch_q = Module(new Queue(UInt(log2Ceil(cfg.emul.num_procs).W), 4))
+
+  mmap.ctrl.add_reg(new MMIOIf(
+    AXI4MMIOModule.bind_decoupled_read(pidx_mismatch_q.io.deq, mmio) << 2,
+    true,
+    false,
+    "pidx_mismatch_deq"))
+
+  mmap.ctrl.add_reg(new MMIOIf(
+    AXI4MMIOModule.bind_readonly_reg(pidx_mismatch_q.io.count, mmio) << 2,
+    true,
+    false,
+    "pidx_mismatch_cnt"))
+
+  pidx_mismatch_q.io.enq.valid := (expect_pidx =/= board.io.inst.bits.inst.pidx) &&
+                                  board.io.inst.fire
+  pidx_mismatch_q.io.enq.bits := board.io.inst.bits.inst.pidx
+
+  val dbg_proc_init_cnt = board.io.dbg_proc_init_cnt.map(dpic => {
+    RegNext(dpic)
+  })
+
+  val dbg_proc_init_idx = AXI4MMIOModule.bind_readonly_reg_array(dbg_proc_init_cnt, mmio)
+  dbg_proc_init_idx.foreach(dpi_idx => {
+    mmap.ctrl.add_dbg_mmio(dpi_idx << 2)
+  })
 
   val cur_step = RegInit(0.U(cfg.emul.index_bits.W))
   val target_cycle = RegInit(0.U(64.W))
