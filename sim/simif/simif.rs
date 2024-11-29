@@ -33,6 +33,8 @@ impl SRAMConfig {
 
 #[derive(Debug)]
 pub struct ControlIf {
+    pub custom_resetn: WrMMIOIf,
+
     pub sram: Vec<SRAMConfig>,
 
     pub fingerprint: RdWrMMIOIf,
@@ -46,6 +48,7 @@ pub struct ControlIf {
     pub init_done: RdMMIOIf,
     pub tot_insts_pushed: RdMMIOIf,
 
+    pub pcs_are_zero: RdMMIOIf,
     pub dbg_proc_0_init: RdMMIOIf,
     pub dbg_proc_n_init: RdMMIOIf,
 

@@ -202,20 +202,53 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
 
         let mut driver = Driver::try_from_simif(Box::new(sim));
 
-        println!("Testing MMIO fingerprint");
+        // Custom reset
+        println!("Set custom resetn to low");
+        driver.ctrl_bridge.custom_resetn.write(&mut driver.simif, 0)?;
+        for i in 0..10 {
+            driver.simif.step();
+        }
 
+        println!("Set custom resetn to high");
+        driver.ctrl_bridge.custom_resetn.write(&mut driver.simif, 1)?;
+        for i in 0..10 {
+            driver.simif.step();
+        }
+
+        let pcs_are_zero = driver.ctrl_bridge.pcs_are_zero.read(&mut driver.simif)?;
+        assert!(pcs_are_zero == (1 << circuit.platform_cfg.num_mods) - 1,
+            "All PC values should be initialized after reset {:x}", pcs_are_zero);
+
+        println!("Testing MMIO fingerprint");
         let fgr_init = driver.ctrl_bridge.fingerprint.read(&mut driver.simif)?;
         assert!(fgr_init == 0xf00dcafe,
-            "mmio fingerprint mismatch, expect {} got {}", 0, fgr_init);
+            "mmio fingerprint mismatch, expect 0xf00dcafe got {}", fgr_init);
 
+        println!("Write to MMIO fingerprint");
         driver.ctrl_bridge.fingerprint.write(&mut driver.simif, 0xdeadcafe)?;
         let fgr_read = driver.ctrl_bridge.fingerprint.read(&mut driver.simif)?;
 
         assert!(fgr_read == 0xdeadcafe,
             "mmio fingerprint mismatch, expect {:x} got {:x}", 0xdeadcafeu32, fgr_read);
 
-        println!("Testing DMA");
+        println!("Set custom resetn to low");
+        driver.ctrl_bridge.custom_resetn.write(&mut driver.simif, 0)?;
+        for i in 0..10 {
+            driver.simif.step();
+        }
 
+        println!("Set custom resetn to high");
+        driver.ctrl_bridge.custom_resetn.write(&mut driver.simif, 1)?;
+        for i in 0..10 {
+            driver.simif.step();
+        }
+
+        println!("Read MMIO fingerprint again after reset");
+        let fgr_init = driver.ctrl_bridge.fingerprint.read(&mut driver.simif)?;
+        assert!(fgr_init == 0xf00dcafe,
+            "mmio fingerprint mismatch, expect 0xf00dcafe got {}", fgr_init);
+
+        println!("Start testing the DMA interface");
         let pattern: Vec<u8> = vec![0xd, 0xe, 0xa, 0xd, 0xc, 0xa, 0xf, 0xe];
         let mut data: Vec<u8> = vec![];
         data.extend(pattern.iter().cycle().take(io_stream_bytes as usize));

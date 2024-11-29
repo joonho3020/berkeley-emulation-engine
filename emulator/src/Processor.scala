@@ -31,6 +31,7 @@ class ProcessorBundle(cfg: EmulatorConfig) extends Bundle {
   val sram_port = Flipped(new PerProcessorSRAMBundle(cfg))
 
   val dbg = if (cfg.debug) Some(Output(new ProcessorDebugBundle(cfg))) else None
+  val pc_is_zero = Output(Bool())
 }
 
 @instantiable
@@ -43,6 +44,8 @@ class Processor(cfg: EmulatorConfig) extends Module {
   io.io_o := io_o
 
   val pc = RegInit(0.U(index_bits.W))
+
+  io.pc_is_zero := pc === 0.U
 
   val imem = Module(new InstMem(cfg))
   imem.io.wen := false.B
