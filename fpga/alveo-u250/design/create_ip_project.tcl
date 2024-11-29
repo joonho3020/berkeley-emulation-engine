@@ -19,6 +19,7 @@ set fpga_freq_mhz 80
 create_ip -name xdma                 -vendor xilinx.com -library ip -version 4.1 -module_name xdma_0            -dir $ip_directory
 create_ip -name ila                  -vendor xilinx.com -library ip -version 6.2 -module_name ila_0             -dir $ip_directory
 create_ip -name ila                  -vendor xilinx.com -library ip -version 6.2 -module_name ila_1             -dir $ip_directory
+create_ip -name ila                  -vendor xilinx.com -library ip -version 6.2 -module_name ila_2             -dir $ip_directory
 create_ip -name axi_clock_converter  -vendor xilinx.com -library ip -version 2.1 -module_name axi_cdc           -dir $ip_directory
 create_ip -name axi_clock_converter  -vendor xilinx.com -library ip -version 2.1 -module_name axi_lite_cdc      -dir $ip_directory
 create_ip -name clk_wiz              -vendor xilinx.com -library ip -version 6.0 -module_name clk_wiz_0         -dir $ip_directory
@@ -56,6 +57,13 @@ set_property -dict [list \
   CONFIG.C_PROBE1_WIDTH {32} \
   CONFIG.C_PROBE2_WIDTH {32} \
 ] [get_ips ila_1]
+
+set ila_2 "./ip/ila_2/ila_2.xci"
+add_files -norecurse $ila_1
+set_property -dict [list \
+  CONFIG.C_NUM_OF_PROBES {1} \
+  CONFIG.C_PROBE0_WIDTH {1} \
+] [get_ips ila_2]
 
 set axi_cdc "./ip/axi_cdc/axi_cdc.xci"
 add_files -norecurse $axi_cdc

@@ -347,6 +347,11 @@ ila_1 ila_debug (
   .probe2(io_debug_proc_n_init_vec)
 );
 
+ila_2 ila_reset (
+  .clk(fpga_top_clock),
+  .probe0(!fpga_top_resetn)
+);
+
 axi_cdc axi4_master_cdc (
   .s_axi_aclk(axi_aclk),            // input wire s_axi_aclk
   .s_axi_aresetn(axi_aresetn),      // input wire s_axi_aresetn
