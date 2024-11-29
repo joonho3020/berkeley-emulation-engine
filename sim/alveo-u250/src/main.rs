@@ -241,26 +241,9 @@ fn main() -> Result<(), SimIfErr> {
     for (_m, insts) in module_insts.iter() {
         inst_bar.inc(1);
 
-        while true {
-            let cur_mod = driver.ctrl_bridge.cur_inst_mod.read(&mut driver.simif)?;
-            if cur_mod == *_m {
-                break;
-            }
-        }
-
         for (inst_idx, inst) in insts.iter().enumerate() {
             assert!(driver.ctrl_bridge.init_done.read(&mut driver.simif)? == 0,
                 "Init set while pushing instructions, module {} inst {}", _m, inst_idx);
-
-            while true {
-                let cur_insts_pushed = driver.ctrl_bridge.cur_insts_pushed.read(&mut driver.simif)?;
-                if cur_insts_pushed == inst_idx as u32 {
-                    break;
-                } else {
-                    println!("cur_inst_pushed {} != inst_idx {}", cur_insts_pushed, inst_idx);
-                    assert!(false);
-                }
-            }
 
             let mut bitbuf = inst.to_bits(&circuit.platform_cfg);
             bitbuf.reverse();
@@ -298,26 +281,39 @@ fn main() -> Result<(), SimIfErr> {
                 }
             }
 
-            'inst_pull_loop: while true {
-                let mut read_buf = XDMAInterface::aligned_vec(0x1000, 64);
-                match driver.inst_bridge.pull(&mut driver.simif, &mut read_buf) {
-                    Ok(read_bytes) => {
-                        if read_bytes == 0 {
-                            println!("read zero bytes back, try again");
-                            continue;
-                        } else {
-                            assert!(read_bytes == 64, "Less than 64 bytes read for instruction");
-                            break 'inst_pull_loop;
-                        }
-                    }
-                    Err(_) => {
-                        continue;
-                    }
-                }
+            // Check that the logic for midx validation works
+            let midx_mismatch_cnt = driver.ctrl_bridge.midx_mismatch_cnt.read(&mut driver.simif)?;
+            println!("midx_mismatch_cnt: {}", midx_mismatch_cnt);
+            for _ in 0..midx_mismatch_cnt {
+                println!("midx_mismatch found: received midx {}",
+                    driver.ctrl_bridge.midx_mismatch_deq.read(&mut driver.simif)?);
+            }
+
+            // Check that the logic for pidx validation works
+            let pidx_mismatch_cnt = driver.ctrl_bridge.pidx_mismatch_cnt.read(&mut driver.simif)?;
+            println!("pidx_mismatch_cnt: {}", pidx_mismatch_cnt);
+            for _ in 0..pidx_mismatch_cnt {
+                println!("pidx_mismatch found: received pidx {}",
+                    driver.ctrl_bridge.pidx_mismatch_deq.read(&mut driver.simif)?);
             }
         }
         println!("total instructions pushed {} ",
             driver.ctrl_bridge.tot_insts_pushed.read(&mut driver.simif)?);
+
+        // Check if all processor 0 & processor n-1 have been initialized
+        let proc_0_init_vec = driver.ctrl_bridge.dbg_proc_0_init.read(&mut driver.simif)?;
+        let proc_n_init_vec = driver.ctrl_bridge.dbg_proc_n_init.read(&mut driver.simif)?;
+        assert!(proc_0_init_vec == proc_n_init_vec,
+            "proc 0 {:x} n {:x}",
+            proc_0_init_vec, proc_n_init_vec);
+
+        // Check that the number of processors initialized processors match w/
+        // what is expected
+        let dbg_init_cntr_mmio = driver.ctrl_bridge.dbg_init_cntrs.get(*_m as usize).unwrap();
+        let dbg_init_cntr = dbg_init_cntr_mmio.read(&mut driver.simif)?;
+        assert!(dbg_init_cntr == circuit.platform_cfg.num_procs,
+            "number of processors initialized for module {}: {} out of {}",
+            _m, dbg_init_cntr, circuit.platform_cfg.num_procs);
     }
     inst_bar.finish();
 
@@ -328,6 +324,25 @@ fn main() -> Result<(), SimIfErr> {
             driver.ctrl_bridge.host_steps.read(&mut driver.simif)? * total_procs,
             "Pushed instructions doesn't match expectation w/ host steps {}",
             driver.ctrl_bridge.host_steps.read(&mut driver.simif)?);
+
+    // Check that the host_steps did not change while pushing the instructions
+    let host_steps_changed =
+        driver.ctrl_bridge.host_steps_prv_cnt.read(&mut driver.simif)?;
+
+    println!("host_steps_changed: {}", host_steps_changed);
+
+    if host_steps_changed != 1 {
+        let deq_cnt = driver.ctrl_bridge.host_steps_cur_cnt.read(&mut driver.simif)?;
+        println!("host_steps_prv_deq {} entries, cur_deq {} entries",
+            host_steps_changed, deq_cnt);
+
+        for _ in 0..host_steps_changed {
+            println!("prv {} -> cur {}",
+                driver.ctrl_bridge.host_steps_prv_deq.read(&mut driver.simif)?,
+                driver.ctrl_bridge.host_steps_cur_deq.read(&mut driver.simif)?);
+        }
+        println!("host_steps should only change once, changed {} times", host_steps_changed);
+    }
 
     while driver.ctrl_bridge.init_done.read(&mut driver.simif)? == 0 {
         println!("init {}", driver.ctrl_bridge.init_done.read(&mut driver.simif)?);
