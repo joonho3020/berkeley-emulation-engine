@@ -237,6 +237,10 @@ fn main() -> Result<(), SimIfErr> {
     sleep(std::time::Duration::from_millis(10));
 
     println!("Start pushing instructions");
+    println!("num_proc_bits: {} num_mod_bits: {}",
+        circuit.platform_cfg.num_proc_bits(),
+        circuit.platform_cfg.num_mod_bits());
+
     let inst_bar = ProgressBar::new(module_insts.len() as u64);
     for (_m, insts) in module_insts.iter() {
         inst_bar.inc(1);
@@ -244,6 +248,11 @@ fn main() -> Result<(), SimIfErr> {
         let dbg_init_cntr_mmio = driver.ctrl_bridge.dbg_init_cntrs.get(*_m as usize).unwrap();
         let dbg_init_cntr = dbg_init_cntr_mmio.read(&mut driver.simif)?;
         assert!(dbg_init_cntr == 0, "There should be no processors that are initialized");
+
+        assert!(insts.len() as u32 == circuit.emul.host_steps * circuit.platform_cfg.num_procs,
+            "Number of instructions for this module is weird got {}, expect {}",
+            insts.len(),
+            circuit.emul.host_steps * circuit.platform_cfg.num_procs);
 
         for (inst_idx, inst) in insts.iter().enumerate() {
             let _p = inst_idx as u32 / circuit.emul.host_steps;
@@ -263,6 +272,7 @@ fn main() -> Result<(), SimIfErr> {
                 bitbuf.push((_m >> sl) & 1 == 1);
             }
             bitbuf.reverse();
+            println!("bitbuf: {:X?}", bitbuf);
 
             assert!(bitbuf.len() < 512);
 
@@ -283,6 +293,11 @@ fn main() -> Result<(), SimIfErr> {
             if dbg_init_cntr != _p {
                 println!("FISHY... Initializing module {} processor {}, initialized count {}",
                     _m, _p, dbg_init_cntr);
+
+                // Check if all processor 0 & processor n-1 have been initialized
+                let proc_0_init_vec = driver.ctrl_bridge.dbg_proc_0_init.read(&mut driver.simif)?;
+                let proc_n_init_vec = driver.ctrl_bridge.dbg_proc_n_init.read(&mut driver.simif)?;
+                println!("proc_0_init_vec: {:x} proc_n_init_vec: {:x}", proc_0_init_vec, proc_n_init_vec);
             }
 
             match driver.inst_bridge.push(&mut driver.simif, &bytebuf) {
@@ -359,7 +374,7 @@ fn main() -> Result<(), SimIfErr> {
             for _ in 0..pidx_mismatch_cnt {
                 println!("pidx_mismatch found: received pidx {}, expect {}",
                     driver.ctrl_bridge.pidx_mismatch_deq.read(&mut driver.simif)?,
-                    inst_idx);
+                    _p);
             }
         }
         let tot_insts_pushed = driver.ctrl_bridge.tot_insts_pushed.read(&mut driver.simif)?;
