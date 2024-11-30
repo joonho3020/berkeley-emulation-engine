@@ -9,8 +9,9 @@ module XilinxU250Board (
     output [15:0] pci_exp_txp,
 
     // SI570 PLL reference clock
-    input clk_user_p,
-    input clk_user_n
+    // https://docs.amd.com/r/en-US/ug1289-u200-u250-reconfig-accel/Clocks
+    input clk_300mhz_0_p,
+    input clk_300mhz_0_n
 );
 
 wire sys_clk;
@@ -82,16 +83,16 @@ IBUFDS_GTE4 #(
   .REFCLK_HROW_CK_SEL(2'b00)
 )
 IBUFDS_inst (
-   .O(sys_clk_gt),         // 1-bit output: Refer to Transceiver User Guide.
-   .I (pcie_mgt_clkp),     // 1-bit input: Refer to Transceiver User Guide.
-   .IB(pcie_mgt_clkn),      // 1-bit input: Refer to Transceiver User Guide.
+   .O(sys_clk_gt),     // 1-bit output: Refer to Transceiver User Guide.
+   .I (pcie_mgt_clkp), // 1-bit input: Refer to Transceiver User Guide.
+   .IB(pcie_mgt_clkn), // 1-bit input: Refer to Transceiver User Guide.
    .CEB(1'b0),
    .ODIV2(sys_clk)
 );
 
 xdma_0 xdma_0 (
   .sys_clk(sys_clk),                                    // input wire sys_clk
-  .sys_clk_gt(sys_clk_gt),                                 // input wire sys_clk_gt
+  .sys_clk_gt(sys_clk_gt),                              // input wire sys_clk_gt
   .sys_rst_n(pcie_perstn_rst),                          // input wire sys_rst_n
   .user_lnk_up(),                                       // output wire user_lnk_up
   .pci_exp_txp(pci_exp_txp),                            // output wire [15 : 0] pci_exp_txp
@@ -180,15 +181,14 @@ wire fpga_top_resetn;
 wire clk_wiz_refclk;
 wire clk_wiz_locked;
 
-IBUFDS_GTE4 #(
-  .REFCLK_HROW_CK_SEL(2'b00)
-)
-IBUFDS_pll_inst (
-   .O(clk_wiz_refclk),         // 1-bit output: Refer to Transceiver User Guide.
-   .I (clk_user_p),     // 1-bit input: Refer to Transceiver User Guide.
-   .IB(clk_user_n),      // 1-bit input: Refer to Transceiver User Guide.
-   .CEB(1'b0),
-   .ODIV2()
+IBUFDS #(
+   .DIFF_TERM("FALSE"),       // Differential Termination
+   .IBUF_LOW_PWR("FALSE"),    // Low power="TRUE", Highest performance="FALSE"
+   .IOSTANDARD("DEFAULT")     // Specify the input I/O standard
+) IBUFDS_inst (
+   .O(clk_wiz_refclk),  // Buffer output
+   .I(clk_300mhz_0_p),      // Diff_p buffer input (connect directly to top-level port)
+   .IB(clk_300mhz_0_n)      // Diff_n buffer input (connect directly to top-level port)
 );
 
 reg reset_0;
