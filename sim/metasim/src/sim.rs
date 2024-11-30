@@ -56,11 +56,11 @@ impl SimIf for Sim {
         let time = self.cycle * 2;
         unsafe {
             FPGATop_eval(self.dut);
-            dump_vcd(self.vcd, time);
+// dump_vcd(self.vcd, time);
 
             poke_clock(self.dut, 1);
             FPGATop_eval(self.dut);
-            dump_vcd(self.vcd, time + 1);
+// dump_vcd(self.vcd, time + 1);
 
             poke_clock(self.dut, 0);
         }

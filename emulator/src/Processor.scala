@@ -8,7 +8,7 @@ import chisel3.experimental.hierarchy.{instantiable, public}
 class ProcessorDebugBundle(cfg: EmulatorConfig) extends Bundle {
   val ldm = UInt(cfg.dmem_bits.W)
   val sdm = UInt(cfg.dmem_bits.W)
-  val ops = Vec(cfg.lut_inputs, UInt(cfg.num_bits.W))
+// val ops = Vec(cfg.lut_inputs, UInt(cfg.num_bits.W))
 }
 
 class ProcInstInitBundle(cfg: EmulatorConfig) extends Bundle {
@@ -158,7 +158,7 @@ class Processor(cfg: EmulatorConfig) extends Module {
   if (cfg.debug) {
     io.dbg.map(x => x.ldm := ldm.io.dbg.get)
     io.dbg.map(x => x.sdm := sdm.io.dbg.get)
-    io.dbg.map(x => x.ops := ops)
+// io.dbg.map(x => x.ops := ops)
   }
 
   when (!init) {

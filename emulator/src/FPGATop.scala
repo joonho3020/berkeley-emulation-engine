@@ -128,6 +128,7 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
     val tot_pushed      = Output(UInt(log2Ceil(cfg.emul.insts_per_mod * cfg.emul.num_mods + 1).W))
     val proc_0_init_vec = Output(UInt(cfg.emul.num_mods.W))
     val proc_n_init_vec = Output(UInt(cfg.emul.num_mods.W))
+    val dbg_state = Output(UInt((cfg.emul.num_mods * cfg.emul.num_procs * cfg.emul.dmem_bits * 2).W))
   })
 
   dontTouch(io_dma_axi4_master)
@@ -444,4 +445,9 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
     ${mmap.str}
   """)
   mmap.write_to_file(s"${cfg.outdir}/FPGATop.mmap")
+
+  io_debug.dbg_state := DontCare
+  board.io.dbg.map(x => {
+    io_debug.dbg_state := x.asUInt
+  })
 }
