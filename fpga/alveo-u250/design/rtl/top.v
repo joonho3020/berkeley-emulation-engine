@@ -185,7 +185,7 @@ IBUFDS #(
    .DIFF_TERM("FALSE"),       // Differential Termination
    .IBUF_LOW_PWR("FALSE"),    // Low power="TRUE", Highest performance="FALSE"
    .IOSTANDARD("DEFAULT")     // Specify the input I/O standard
-) IBUFDS_inst (
+) IBUFDS_pll_refclk (
    .O(clk_wiz_refclk),  // Buffer output
    .I(clk_300mhz_0_p),      // Diff_p buffer input (connect directly to top-level port)
    .IB(clk_300mhz_0_n)      // Diff_n buffer input (connect directly to top-level port)
