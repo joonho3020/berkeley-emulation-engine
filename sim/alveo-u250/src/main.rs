@@ -154,12 +154,46 @@ fn main() -> Result<(), SimIfErr> {
 
     let mut driver = Driver::try_from_simif(Box::new(simif));
 
+    // Custom reset
+    println!("Set custom resetn to low");
+    driver.ctrl_bridge.custom_resetn.write(&mut driver.simif, 0)?;
+
+    sleep(std::time::Duration::from_millis(10));
+
+    println!("Set custom resetn to high");
+    driver.ctrl_bridge.custom_resetn.write(&mut driver.simif, 1)?;
+
+    let pcs_are_zero = driver.ctrl_bridge.pcs_are_zero.read(&mut driver.simif)?;
+    assert!(pcs_are_zero == (1 << circuit.platform_cfg.num_mods) - 1,
+        "All PC values should be initialized after reset {:x}", pcs_are_zero);
+
     println!("Testing MMIO fingerprint");
     let fgr_init = driver.ctrl_bridge.fingerprint.read(&mut driver.simif)?;
     println!("fgr_init: {:x}", fgr_init);
 
     driver.ctrl_bridge.fingerprint.write(&mut driver.simif, 0xdeadbeaf)?;
     println!("reading from fingerprint addr: {:x}", driver.ctrl_bridge.fingerprint.read(&mut driver.simif)?);
+
+    // Custom reset
+    println!("Set custom resetn to low");
+    driver.ctrl_bridge.custom_resetn.write(&mut driver.simif, 0)?;
+    sleep(std::time::Duration::from_millis(10));
+
+    println!("Set custom resetn to high");
+    driver.ctrl_bridge.custom_resetn.write(&mut driver.simif, 1)?;
+
+    let pcs_are_zero = driver.ctrl_bridge.pcs_are_zero.read(&mut driver.simif)?;
+    assert!(pcs_are_zero == (1 << circuit.platform_cfg.num_mods) - 1,
+        "All PC values should be initialized after reset {:x}", pcs_are_zero);
+
+    println!("Testing MMIO fingerprint 22222");
+    let fgr_init = driver.ctrl_bridge.fingerprint.read(&mut driver.simif)?;
+    println!("fgr_init: {:x}", fgr_init);
+
+    let pcs_are_zero = driver.ctrl_bridge.pcs_are_zero.read(&mut driver.simif)?;
+    assert!(pcs_are_zero == (1 << circuit.platform_cfg.num_mods) - 1,
+        "All PC values should be initialized after reset {:x}", pcs_are_zero);
+    println!("pcs_are_zero {:x}", pcs_are_zero);
 
     let total_procs = args.bee_args.num_mods * args.bee_args.num_procs;
     let data_bits = 512;
@@ -298,6 +332,22 @@ fn main() -> Result<(), SimIfErr> {
                 let proc_0_init_vec = driver.ctrl_bridge.dbg_proc_0_init.read(&mut driver.simif)?;
                 let proc_n_init_vec = driver.ctrl_bridge.dbg_proc_n_init.read(&mut driver.simif)?;
                 println!("proc_0_init_vec: {:x} proc_n_init_vec: {:x}", proc_0_init_vec, proc_n_init_vec);
+
+                // Check that the logic for midx validation works
+                let midx_mismatch_cnt = driver.ctrl_bridge.midx_mismatch_cnt.read(&mut driver.simif)?;
+                for _ in 0..midx_mismatch_cnt {
+                    println!("midx_mismatch found: received midx {}, expect {}",
+                        driver.ctrl_bridge.midx_mismatch_deq.read(&mut driver.simif)?,
+                        _m);
+                }
+
+                // Check that the logic for pidx validation works
+                let pidx_mismatch_cnt = driver.ctrl_bridge.pidx_mismatch_cnt.read(&mut driver.simif)?;
+                for _ in 0..pidx_mismatch_cnt {
+                    println!("pidx_mismatch found: received pidx {}, expect {}",
+                        driver.ctrl_bridge.pidx_mismatch_deq.read(&mut driver.simif)?,
+                        inst_idx);
+                }
             }
 
             match driver.inst_bridge.push(&mut driver.simif, &bytebuf) {
