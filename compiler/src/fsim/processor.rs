@@ -3,6 +3,8 @@ use crate::fsim::memory::*;
 use crate::fsim::sram::ProcessorSRAMPort;
 use std::fmt::Debug;
 
+pub type ProcessorState = (Vec<Bit>, Vec<Bit>);
+
 #[derive(Default, Clone, Debug)]
 struct ProcessorSwitchPort {
     ip: Bit,
