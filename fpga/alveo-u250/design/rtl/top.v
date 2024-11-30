@@ -1,11 +1,16 @@
 module XilinxU250Board (
+    // PCIe ports
     input pcie_mgt_clkn,
     input pcie_mgt_clkp,
     input pcie_perstn_rst,
     input  [15:0] pci_exp_rxn,
     input  [15:0] pci_exp_rxp,
     output [15:0] pci_exp_txn,
-    output [15:0] pci_exp_txp
+    output [15:0] pci_exp_txp,
+
+    // SI570 PLL reference clock
+    input clk_user_p,
+    input clk_user_n
 );
 
 wire sys_clk;
@@ -172,31 +177,78 @@ xdma_0 xdma_0 (
 wire fpga_top_clock;
 wire fpga_top_resetn;
 
-clk_wiz_0 clk_wizard
-(
+wire clk_wiz_refclk;
+wire clk_wiz_locked;
+
+IBUFDS_GTE4 #(
+  .REFCLK_HROW_CK_SEL(2'b00)
+)
+IBUFDS_pll_inst (
+   .O(clk_wiz_refclk),         // 1-bit output: Refer to Transceiver User Guide.
+   .I (clk_user_p),     // 1-bit input: Refer to Transceiver User Guide.
+   .IB(clk_user_n),      // 1-bit input: Refer to Transceiver User Guide.
+   .CEB(1'b0),
+   .ODIV2()
+);
+
+reg reset_0;
+reg reset_1 = 1;
+reg reset_2 = 1;
+reg reset_3 = 1;
+reg reset_4 = 1;
+reg reset_5 = 1;
+
+wire pll_reset;
+always @(posedge clk_wiz_refclk) begin
+  reset_1 <= reset_0;
+  reset_2 <= reset_1;
+  reset_3 <= reset_2;
+  reset_4 <= reset_3;
+  reset_5 <= reset_4;
+end
+assign pll_reset = reset_5;
+
+clk_wiz_0 clk_wizard (
   // Clock out ports
   .clk_out1(fpga_top_clock),
   // Status and control signals
-  .reset(!axi_aresetn),
+  .reset(pll_reset),
+  // locked
+  .locked(clk_wiz_locked),
   // Clock in ports
-  .clk_in1(axi_aclk)
+  .clk_in1(clk_wiz_refclk)
 );
 
+ila_2 ila_clk_wiz_locked (
+  .clk(fpga_top_clock),
+  .probe0(clk_wiz_locked)
+);
+
+wire axi_sync_resetn;
 
 // https://docs.amd.com/v/u/en-US/pg164-proc-sys-reset
 proc_sys_reset_0 reset_synchronizer (
-  .slowest_sync_clk(fpga_top_clock),          // input wire slowest_sync_clk
-  .ext_reset_in(!axi_aresetn),                  // input wire ext_reset_in
-  .aux_reset_in(1'b0),                  // input wire aux_reset_in
-  .mb_debug_sys_rst(1'b0),          // input wire mb_debug_sys_rst
-  .dcm_locked(1'b1),                      // input wire dcm_locked
-  .mb_reset(),                          // output wire mb_reset
+  .slowest_sync_clk(axi_aclk),  // input wire slowest_sync_clk
+  .ext_reset_in(!axi_aresetn),  // input wire ext_reset_in
+  .aux_reset_in(1'b0),          // input wire aux_reset_in
+  .mb_debug_sys_rst(1'b0),      // input wire mb_debug_sys_rst
+  .dcm_locked(1'b1),            // input wire dcm_locked
+  .mb_reset(),                  // output wire mb_reset
   .bus_struct_reset(),          // output wire [0 : 0] bus_struct_reset
   .peripheral_reset(),          // output wire [0 : 0] peripheral_reset
-  .interconnect_aresetn(fpga_top_resetn),  // output wire [0 : 0] interconnect_aresetn
+  .interconnect_aresetn(axi_sync_resetn),  // output wire [0 : 0] interconnect_aresetn
   .peripheral_aresetn()      // output wire [0 : 0] peripheral_aresetn
 );
 
+xpm_cdc_single #(
+  .DEST_SYNC_FF(4),
+  .SRC_INPUT_REG(0)
+) reset_cdc (
+  .src_clk  (axi_aclk),
+  .src_in   (axi_sync_resetn),
+  .dest_clk (fpga_top_clock),
+  .dest_out (fpga_top_resetn)
+);
 
 wire [3 : 0] io_dma_axi4_master_awid;
 wire [63 : 0] io_dma_axi4_master_awaddr;

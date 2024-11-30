@@ -39,9 +39,9 @@ set_operating_conditions -design_power_budget 160
 #create_clock -period 3.333 -name clk_300mhz_3 [get_ports clk_300mhz_3_p]
 
 # SI570 user clock
-#set_property -dict {LOC AU19 IOSTANDARD LVDS} [get_ports clk_user_p]
-#set_property -dict {LOC AV19 IOSTANDARD LVDS} [get_ports clk_user_n]
-#create_clock -period 6.400 -name clk_user [get_ports clk_user_p]
+set_property -dict {LOC AU19 IOSTANDARD LVDS} [get_ports clk_user_p]
+set_property -dict {LOC AV19 IOSTANDARD LVDS} [get_ports clk_user_n]
+create_clock -period 6.400 -name clk_user [get_ports clk_user_p]
 
 # LEDs
 #set_property -dict {LOC BC21 IOSTANDARD LVCMOS12 SLEW SLOW DRIVE 8} [get_ports {led[0]}]

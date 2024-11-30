@@ -90,7 +90,7 @@ set clk_wiz_0 "./ip/clk_wiz_0/clk_wiz_0.xci"
 add_files -norecurse $clk_wiz_0
 set_property -dict [list \
    CONFIG.CLKOUT1_REQUESTED_OUT_FREQ $fpga_freq_mhz \
-   CONFIG.USE_LOCKED {false} \
+   CONFIG.USE_LOCKED {true} \
 ] [get_ips clk_wiz_0]
 
 
