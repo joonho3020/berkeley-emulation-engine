@@ -194,9 +194,10 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
   withReset (!custom_resetn.asBool) {
     val num_mods_log2 = log2Ceil(cfg.emul.num_mods + 1)
 
-    val single_port_ram = Seq.fill(cfg.emul.num_mods)(RegInit(0.U(num_mods_log2.W)))
-    val wmask_bits      = Seq.fill(cfg.emul.num_mods)(RegInit(0.U(num_mods_log2.W)))
-    val width_bits      = Seq.fill(cfg.emul.num_mods)(RegInit(0.U(num_mods_log2.W)))
+    require(cfg.axil.dataBits >= cfg.emul.sram_width_bits)
+    val single_port_ram = Seq.fill(cfg.emul.num_mods)(RegInit(0.U(cfg.axil.dataBits.W)))
+    val wmask_bits      = Seq.fill(cfg.emul.num_mods)(RegInit(0.U(cfg.axil.dataBits.W)))
+    val width_bits      = Seq.fill(cfg.emul.num_mods)(RegInit(0.U(cfg.axil.dataBits.W)))
 
     val ptype_idxs = AXI4MMIOModule.bind_readwrite_reg_array(single_port_ram, mmio)
     val mask_idxs  = AXI4MMIOModule.bind_readwrite_reg_array(wmask_bits,      mmio)

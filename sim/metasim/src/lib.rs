@@ -205,13 +205,13 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
         // Custom reset
         println!("Set custom resetn to low");
         driver.ctrl_bridge.custom_resetn.write(&mut driver.simif, 0)?;
-        for i in 0..10 {
+        for _i in 0..10 {
             driver.simif.step();
         }
 
         println!("Set custom resetn to high");
         driver.ctrl_bridge.custom_resetn.write(&mut driver.simif, 1)?;
-        for i in 0..10 {
+        for _i in 0..10 {
             driver.simif.step();
         }
 
@@ -233,13 +233,13 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
 
         println!("Set custom resetn to low");
         driver.ctrl_bridge.custom_resetn.write(&mut driver.simif, 0)?;
-        for i in 0..10 {
+        for _i in 0..10 {
             driver.simif.step();
         }
 
         println!("Set custom resetn to high");
         driver.ctrl_bridge.custom_resetn.write(&mut driver.simif, 1)?;
-        for i in 0..10 {
+        for _i in 0..10 {
             driver.simif.step();
         }
 
@@ -275,6 +275,8 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
                 SRAMPortType::OneRdOneWrPortSRAM => { false }
             };
             let sram_mmios: &SRAMConfig = driver.ctrl_bridge.sram.get(*m as usize).unwrap();
+
+            println!("Module {} SRAM config {:?}", m, sram_cfg);
 
             sram_mmios.ptype.write(&mut driver.simif, single_port_sram as u32)?;
             for _ in 0..5 {
