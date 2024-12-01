@@ -198,7 +198,7 @@ reg fpga_top_pll_locked_sync_1;
 wire fpga_top_clock;
 wire fpga_top_resetn;
 
-always (@posedge fpga_top_clock) begin
+always @(posedge fpga_top_clock) begin
   fpga_top_pll_locked_sync_0 <= fpga_top_pll_locked;
   fpga_top_pll_locked_sync_1 <= fpga_top_pll_locked_sync_0;
 end
@@ -216,7 +216,7 @@ clk_wiz_0 clk_wizard (
 
 ila_3 ila_clk_wiz_lock_and_reset (
   .clk(fpga_top_clock),
-  .probe0(fpga_top_pll_locked)
+  .probe0(fpga_top_pll_locked),
   .probe1(fpga_top_pll_reset)
 );
 
