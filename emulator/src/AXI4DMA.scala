@@ -112,7 +112,7 @@ class AXI4DecoupledConverter(
     serdes_deq.io.wide.in.valid    := false.B
     serdes_deq.io.narrow.out.ready := false.B
 
-    val incomingQueueIO = Module(new Queue(UInt(sp.widthBits.W), 4)).io
+    val incomingQueueIO = Module(new Queue(UInt(sp.widthBits.W), sp.bufferDepth)).io
     deq <> incomingQueueIO.deq
     incomingQueueIO.enq <> serdes_deq.io.wide.out
 
@@ -176,7 +176,7 @@ class AXI4DecoupledConverter(
     serdes_enq.io.narrow.in.valid := false.B
     serdes_enq.io.wide.out.ready  := false.B
 
-    val outgoingQueueIO = Module(new Queue(UInt(sp.widthBits.W), 4)).io
+    val outgoingQueueIO = Module(new Queue(UInt(sp.widthBits.W), sp.bufferDepth)).io
 
     outgoingQueueIO.enq <> enq
     serdes_enq.io.wide.in <> outgoingQueueIO.deq

@@ -81,6 +81,8 @@ class Processor(cfg: EmulatorConfig) extends Module {
   fd_inst := DontCare
   when (pc >= cfg.imem_lat.U) {
     fd_inst := imem.io.rinst
+  } otherwise {
+    fd_inst := 0.U.asTypeOf(Instruction(cfg))
   }
   dontTouch(fd_inst)
 

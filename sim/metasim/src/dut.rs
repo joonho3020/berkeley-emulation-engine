@@ -79,8 +79,6 @@ extern "C" {
     pub fn peek_io_mmio_axi4_master_r_valid (dut: *mut VFPGATop) -> u64;
     pub fn peek_io_mmio_axi4_master_r_bits_resp (dut: *mut VFPGATop) -> u64;
     pub fn peek_io_mmio_axi4_master_r_bits_last (dut: *mut VFPGATop) -> u64;
-    pub fn peek_io_debug_proc_0_init_vec (dut: *mut VFPGATop) -> u64;
-    pub fn peek_io_debug_proc_n_init_vec (dut: *mut VFPGATop) -> u64;
     pub fn poke_io_mmio_axi4_master_aw_bits_id (dut: *mut VFPGATop, io_mmio_axi4_master_aw_bits_id: u64);
     pub fn peek_io_mmio_axi4_master_b_bits_id (dut: *mut VFPGATop) -> u64;
     pub fn poke_io_mmio_axi4_master_ar_bits_id (dut: *mut VFPGATop, io_mmio_axi4_master_ar_bits_id: u64);
@@ -88,6 +86,8 @@ extern "C" {
     pub fn poke_io_dma_axi4_master_w_bits_data (dut: *mut VFPGATop, io_dma_axi4_master_w_bits_data: *const u32);
     pub fn peek_io_dma_axi4_master_r_bits_data (dut: *mut VFPGATop, io_dma_axi4_master_r_bits_data: *mut u32);
     pub fn peek_io_debug_tot_pushed (dut: *mut VFPGATop) -> u64;
+    pub fn peek_io_debug_proc_0_init_vec (dut: *mut VFPGATop) -> u64;
+    pub fn peek_io_debug_proc_n_init_vec (dut: *mut VFPGATop) -> u64;
     pub fn poke_io_mmio_axi4_master_aw_bits_addr (dut: *mut VFPGATop, io_mmio_axi4_master_aw_bits_addr: u64);
     pub fn poke_io_mmio_axi4_master_w_bits_data (dut: *mut VFPGATop, io_mmio_axi4_master_w_bits_data: u64);
     pub fn poke_io_mmio_axi4_master_ar_bits_addr (dut: *mut VFPGATop, io_mmio_axi4_master_ar_bits_addr: u64);

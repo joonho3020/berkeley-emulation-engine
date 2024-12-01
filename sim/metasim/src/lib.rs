@@ -495,6 +495,7 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
 
                         }
                     }
+                    assert!(false);
 // println!("rtl_state_vec: {:?}", rtl_state_vec);
 // println!("rtl_state_bit_vec: {:?}", rtl_state_bit_vec);
 // println!("     rtl_state: {:?}", rtl_state);

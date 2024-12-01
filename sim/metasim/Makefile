@@ -38,7 +38,6 @@ large_sram_width   ?= 256
 large_sram_entries ?= 16384
 large_sram_cnt     ?= 0
 blackbox_dmem      ?= "true"
-debug              ?= "true"
 
 .DEFAULT_GOAL := test
 
