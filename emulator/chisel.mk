@@ -1,4 +1,5 @@
 debug              ?= "true"
+emul_debug         ?= "false"
 max_steps          ?= 128
 num_mods           ?= 9
 num_procs          ?= 8
@@ -29,6 +30,7 @@ $(MILL_BUILD_ARTIFACTS): $(SCALA_FILES) | $(BUILDDIR)
 	cd $(EMULATOR_DIR) &&                           \
 		mill emulator.run                             \
 			--debug $(debug)                            \
+			--emul-debug $(emul_debug)                  \
 			--max-steps $(max_steps)                    \
 			--num-mods $(num_mods)                      \
 			--num-procs $(num_procs)                    \

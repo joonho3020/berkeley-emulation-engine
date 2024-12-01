@@ -253,7 +253,7 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
         let mut data: Vec<u8> = vec![];
         data.extend(pattern.iter().cycle().take(io_stream_bytes as usize));
 
-        let wbytes = driver.dbg_bridge.push(&mut driver.simif, &data)?;
+        let wbytes = driver.dma_bridge.push(&mut driver.simif, &data)?;
         assert!(wbytes == data.len() as u32, "write failed");
 
         for _ in 0..20 {
@@ -261,7 +261,7 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
         }
 
         let mut rdata: Vec<u8> = vec![0u8; data.len()];
-        let rbytes = driver.dbg_bridge.pull(&mut driver.simif, &mut rdata)?;
+        let rbytes = driver.dma_bridge.pull(&mut driver.simif, &mut rdata)?;
 
         assert!(rbytes == data.len() as u32, "read failed, rbytes: {}, expected: {}", rbytes, data.len());
         assert!(data == rdata, "DMA read {:X?}\nexpect   {:X?}", rdata, data);
@@ -441,13 +441,69 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
                 }
             }
 
-            // Run functional simulator
+            // functional simulator input setup
             let input_stimuli_by_step = get_input_stimuli_by_step(
                 &circuit,
                 &input_stimuli_blasted,
                 &all_signal_map,
                 tcycle as u32);
-            funct_sim.run_cycle(&input_stimuli_by_step);
+
+            let dbg_stream_bits = ((2 * total_procs + data_bits - 1) / data_bits) * data_bits;
+            let dbg_stream_bytes = dbg_stream_bits / 8;
+
+            for step in 0..host_steps {
+                let mut rtl_state_vec = vec![0u8; dbg_stream_bytes as usize];
+                'spin_until_read: while true {
+                    let read_bytes = driver.dbg_bridge.pull(&mut driver.simif, &mut rtl_state_vec)?;
+                    if read_bytes == 0 {
+                        driver.simif.step();
+                    } else {
+                        break 'spin_until_read;
+                    }
+                }
+
+                let rtl_state_bit_vec: Vec<bool> = rtl_state_vec
+                                                .iter()
+                                                .flat_map(|&byte| (0..8).map(move |i| (byte & (1 << i)) != 0))
+                                                .collect();
+
+                let mut rtl_state: Vec<Vec<(Bit, Bit)>> = vec![];
+                for m in 0..fpga_top_cfg.emul.num_mods {
+                    let mut mod_state: Vec<(Bit, Bit)> = vec![];
+                    for p in 0..fpga_top_cfg.emul.num_procs {
+                        let ldm_idx = (m * fpga_top_cfg.emul.num_procs + p) * 2;
+                        let sdm_idx = ldm_idx + 1;
+                        mod_state.push((
+                            *rtl_state_bit_vec.get(ldm_idx as usize).unwrap() as Bit,
+                            *rtl_state_bit_vec.get(sdm_idx as usize).unwrap() as Bit));
+                    }
+                    rtl_state.push(mod_state);
+                }
+                let fsim_state = funct_sim.step_with_input(step, &input_stimuli_by_step);
+                if rtl_state != fsim_state {
+                    println!("    MISMATCH LDM/SDM write bits at step: {}", step);
+                    for m in 0..fpga_top_cfg.emul.num_mods {
+                        for p in 0..fpga_top_cfg.emul.num_procs {
+                            let rtl = rtl_state
+                                .get(m as usize).unwrap().get(p as usize).unwrap();
+                            let fsim = fsim_state
+                                .get(m as usize).unwrap().get(p as usize).unwrap();
+                            if rtl != fsim {
+                                println!("        Mismatch at module {} proc {} rtl {:?} fsim {:?}",
+                                    m, p, rtl, fsim);
+                            }
+
+                        }
+                    }
+// println!("rtl_state_vec: {:?}", rtl_state_vec);
+// println!("rtl_state_bit_vec: {:?}", rtl_state_bit_vec);
+// println!("     rtl_state: {:?}", rtl_state);
+// println!("    fsim_state: {:?}", fsim_state);
+                }
+            }
+
+
+// funct_sim.run_cycle(&input_stimuli_by_step);
 
             // Collect functional simulation outputs
             let mut obit_ref: BitVec<usize, Lsb0> = BitVec::new();
@@ -467,13 +523,14 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
                 .collect();
             ovec_ref.resize(io_stream_bytes as usize, 0);
 
-            println!("ovec: {:?}", ovec);
-            println!("ovec_ref: {:?}", ovec_ref);
+            println!("Target cycle finished: {}", tcycle);
+            println!("ovec:     {:X?}", ovec);
+            println!("ovec_ref: {:X?}", ovec_ref);
 
             if ovec != ovec_ref {
                 println!("MISMATCH");
-                println!("ovec: {:?}", ovec);
-                println!("ovec_ref: {:?}", ovec_ref);
+                println!("ovec:     {:X?}", ovec);
+                println!("ovec_ref: {:X?}", ovec_ref);
                 mismatch_string = Some(format!(
                         "Target cycle {} mismatch got {:?} expect {:?}",
                         tcycle, ovec, ovec_ref));

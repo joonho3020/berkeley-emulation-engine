@@ -25,6 +25,7 @@ SIMULATION_SRCS := $(VERILATOR_LIB) $(DRIVER_SRCS)
 
 # Variables for emulator platform
 debug              ?= "true"
+emul_debug         ?= "true"
 max_steps          ?= 1024
 num_mods           ?= 17
 num_procs          ?= 64

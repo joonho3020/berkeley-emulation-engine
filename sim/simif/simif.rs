@@ -7,6 +7,7 @@ pub type SimIfErr = Box<dyn std::error::Error>;
 pub trait SimIf: Debug {
     fn finish(self: &mut Self);
     fn step(self: &mut Self);
+    fn step_debug(self: &mut Self);
     fn push(self:  &mut Self, addr: u32, data: &Vec<u8>) -> Result<u32, SimIfErr>;
     fn pull(self:  &mut Self, addr: u32, data: &mut Vec<u8>) -> Result<u32, SimIfErr>;
     fn read(self:  &mut Self, addr: u32) -> Result<u32, SimIfErr>;
@@ -70,6 +71,7 @@ pub struct Driver
     pub simif: Box<dyn SimIf>,
     pub io_bridge:   PushPullDMAIf,
     pub inst_bridge: PushPullDMAIf,
+    pub dma_bridge:  PushPullDMAIf,
     pub dbg_bridge:  PushPullDMAIf,
     pub ctrl_bridge: ControlIf
 }

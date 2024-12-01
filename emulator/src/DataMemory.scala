@@ -19,17 +19,11 @@ class AbstractDataMemory(cfg: EmulatorConfig) extends Module {
   val io = IO(new Bundle {
     val rd = Vec(lut_inputs, new DataMemoryReadPort(cfg))
     val wr = new DataMemoryWritePort(cfg)
-    val dbg = if (cfg.debug) Some(Output(UInt(dmem_bits.W))) else None
   })
 }
 
 class ChiselDataMemory(cfg: EmulatorConfig) extends AbstractDataMemory(cfg) {
   val mem = Reg(Vec(cfg.max_steps, UInt(cfg.num_bits.W)))
-
-  if (cfg.debug) {
-    val dbg = Cat(mem.reverse)
-    io.dbg.map(x => x := dbg)
-  }
 
   when (io.wr.en) {
     mem(io.wr.idx) := io.wr.bit

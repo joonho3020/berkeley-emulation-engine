@@ -6,8 +6,8 @@ import chisel3.util.Decoupled
 import chisel3.experimental.hierarchy.{instantiable, public}
 
 class ProcessorDebugBundle(cfg: EmulatorConfig) extends Bundle {
-  val ldm = UInt(cfg.dmem_bits.W)
-  val sdm = UInt(cfg.dmem_bits.W)
+  val ldm = UInt(cfg.num_bits.W)
+  val sdm = UInt(cfg.num_bits.W)
 // val ops = Vec(cfg.lut_inputs, UInt(cfg.num_bits.W))
 }
 
@@ -77,7 +77,11 @@ class Processor(cfg: EmulatorConfig) extends Module {
   imem.io.pc := pc
 
   // -------------------------- Decode -----------------------------------
-  val fd_inst = imem.io.rinst
+  val fd_inst = Wire(new Instruction(cfg))
+  fd_inst := DontCare
+  when (pc >= cfg.imem_lat.U) {
+    fd_inst := imem.io.rinst
+  }
   dontTouch(fd_inst)
 
   for (i <- 0 until cfg.lut_inputs) {
@@ -156,8 +160,8 @@ class Processor(cfg: EmulatorConfig) extends Module {
   io.sram_port.idx   := Cat(de_inst.ops.map(_.rs).tail.reverse)
 
   if (cfg.debug) {
-    io.dbg.map(x => x.ldm := ldm.io.dbg.get)
-    io.dbg.map(x => x.sdm := sdm.io.dbg.get)
+    io.dbg.map(x => x.ldm := ldm.io.wr.bit)
+    io.dbg.map(x => x.sdm := sdm.io.wr.bit)
 // io.dbg.map(x => x.ops := ops)
   }
 
