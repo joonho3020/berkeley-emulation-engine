@@ -175,11 +175,9 @@ xdma_0 xdma_0 (
   .cfg_mgmt_read_write_done()                           // output wire cfg_mgmt_read_write_done
 );
 
-wire fpga_top_clock;
-wire fpga_top_resetn;
 
+// Generate refclk from off-board PLL
 wire clk_wiz_refclk;
-wire clk_wiz_locked;
 
 IBUFDS #(
    .DIFF_TERM("FALSE"),       // Differential Termination
@@ -191,37 +189,35 @@ IBUFDS #(
    .IB(clk_300mhz_0_n)      // Diff_n buffer input (connect directly to top-level port)
 );
 
-reg reset_0;
-reg reset_1 = 1;
-reg reset_2 = 1;
-reg reset_3 = 1;
-reg reset_4 = 1;
-reg reset_5 = 1;
+wire fpga_top_pll_reset;
+wire fpga_top_pll_locked;
+(* ASYNC_REG = "TRUE" *)  reg fpga_top_pll_locked_sync_0;
+reg fpga_top_pll_locked_sync_1;
 
-wire pll_reset;
-always @(posedge clk_wiz_refclk) begin
-  reset_1 <= reset_0;
-  reset_2 <= reset_1;
-  reset_3 <= reset_2;
-  reset_4 <= reset_3;
-  reset_5 <= reset_4;
+
+wire fpga_top_clock;
+wire fpga_top_resetn;
+
+always (@posedge fpga_top_clock) begin
+  fpga_top_pll_locked_sync_0 <= fpga_top_pll_locked;
+  fpga_top_pll_locked_sync_1 <= fpga_top_pll_locked_sync_0;
 end
-assign pll_reset = reset_5;
 
 clk_wiz_0 clk_wizard (
   // Clock out ports
   .clk_out1(fpga_top_clock),
   // Status and control signals
-  .reset(pll_reset),
+  .reset(fpga_top_pll_reset),
   // locked
-  .locked(clk_wiz_locked),
+  .locked(fpga_top_pll_locked),
   // Clock in ports
   .clk_in1(clk_wiz_refclk)
 );
 
-ila_2 ila_clk_wiz_locked (
+ila_3 ila_clk_wiz_lock_and_reset (
   .clk(fpga_top_clock),
-  .probe0(clk_wiz_locked)
+  .probe0(fpga_top_pll_locked)
+  .probe1(fpga_top_pll_reset)
 );
 
 wire axi_sync_resetn;
@@ -667,7 +663,9 @@ FPGATop FPGATop(
 
   .io_debug_tot_pushed(io_debug_tot_pushed),
   .io_debug_proc_0_init_vec(io_debug_proc_0_init_vec),
-  .io_debug_proc_n_init_vec(io_debug_proc_n_init_vec)
+  .io_debug_proc_n_init_vec(io_debug_proc_n_init_vec),
+  .io_pll_reset(fpga_top_pll_reset),
+  .io_pll_locked(fpga_top_pll_locked_sync_1)
 );
 
 endmodule

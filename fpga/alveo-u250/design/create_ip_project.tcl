@@ -20,6 +20,7 @@ create_ip -name xdma                 -vendor xilinx.com -library ip -version 4.1
 create_ip -name ila                  -vendor xilinx.com -library ip -version 6.2 -module_name ila_0             -dir $ip_directory
 create_ip -name ila                  -vendor xilinx.com -library ip -version 6.2 -module_name ila_1             -dir $ip_directory
 create_ip -name ila                  -vendor xilinx.com -library ip -version 6.2 -module_name ila_2             -dir $ip_directory
+create_ip -name ila                  -vendor xilinx.com -library ip -version 6.2 -module_name ila_3             -dir $ip_directory
 create_ip -name axi_clock_converter  -vendor xilinx.com -library ip -version 2.1 -module_name axi_cdc           -dir $ip_directory
 create_ip -name axi_clock_converter  -vendor xilinx.com -library ip -version 2.1 -module_name axi_lite_cdc      -dir $ip_directory
 create_ip -name clk_wiz              -vendor xilinx.com -library ip -version 6.0 -module_name clk_wiz_0         -dir $ip_directory
@@ -64,6 +65,14 @@ set_property -dict [list \
   CONFIG.C_NUM_OF_PROBES {1} \
   CONFIG.C_PROBE0_WIDTH {1} \
 ] [get_ips ila_2]
+
+set ila_3 "./ip/ila_3/ila_3.xci"
+add_files -norecurse $ila_1
+set_property -dict [list \
+  CONFIG.C_NUM_OF_PROBES {2} \
+  CONFIG.C_PROBE0_WIDTH {1} \
+  CONFIG.C_PROBE1_WIDTH {1} \
+] [get_ips ila_3]
 
 set axi_cdc "./ip/axi_cdc/axi_cdc.xci"
 add_files -norecurse $axi_cdc

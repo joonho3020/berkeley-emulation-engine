@@ -33,6 +33,8 @@ impl SRAMConfig {
 
 #[derive(Debug)]
 pub struct ControlIf {
+    pub pll_locked: RdMMIOIf,
+    pub pll_reset: WrMMIOIf,
     pub custom_resetn: WrMMIOIf,
 
     pub sram: Vec<SRAMConfig>,
