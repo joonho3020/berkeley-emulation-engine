@@ -339,16 +339,16 @@ impl SRAMProcessor {
                 data: SRAMEntry { bits: wdata }
             });
 
-// println!("FSIM: SRAM single_port: {:?} width: {} wmask: {} ren: {} wen: {} wr_addr: 0x{:x} wr_data: 0x{:X?} wr_mask: 0x{:X?} rd_addr: 0x{:x}",
-// self.mapping.port_type,
-// self.mapping.width_bits,
-// self.mapping.wmask_bits,
-// cur_input.rd_en,
-// cur_input.wr_en,
-// cur_input.wr_addr,
-// cur_input.wr_data,
-// cur_input.wr_mask,
-// cur_input.rd_addr);
+            println!("FSIM: SRAM single_port: {:?} width: {} wmask: {} ren: {} wen: {} wr_addr: 0x{:x} wr_data: 0x{:X?} wr_mask: 0x{:X?} rd_addr: 0x{:x}",
+                self.mapping.port_type,
+                self.mapping.width_bits,
+                self.mapping.wmask_bits,
+                cur_input.rd_en,
+                cur_input.wr_en,
+                cur_input.wr_addr,
+                cur_input.wr_data,
+                cur_input.wr_mask,
+                cur_input.rd_addr);
         }
 
         // Update SRAM state
