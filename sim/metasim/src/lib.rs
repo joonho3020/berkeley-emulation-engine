@@ -182,10 +182,13 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
         let mut sim = Sim::try_new(&fpga_top_cfg);
 
         poke_reset(sim.dut, 1);
+        poke_io_clkwiz_ctrl_axi_aresetn(sim.dut, 0);
         for _ in 0..5 {
             sim.step();
         }
+
         poke_reset(sim.dut, 0);
+        poke_io_clkwiz_ctrl_axi_aresetn(sim.dut, 1);
         for _ in 0..5 {
             sim.step();
         }
@@ -199,19 +202,63 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
         mmio_write(&mut sim, 0x2000, 0xdeadcafe);
         mmio_read(&mut sim,  0x2000);
 
+        mmio_write(&mut sim, 0x20000, 0xdeadcafe);
+        mmio_read(&mut sim,  0x20000);
+
+        poke_io_clkwiz_ctrl_ctrl_clk_wiz_locked(sim.dut, 0);
+
 
         let mut driver = Driver::try_from_simif(Box::new(sim));
+
+
+        println!("Perform Clockwizard reset sequence");
+
+        // Assume lock is low when starting
+        for _ in 0..10 {
+            driver.simif.step();
+        }
+
+        println!("read from pll_locked");
+
+        // Assert and deassert reset to lock the PLL
+        while driver.clkwiz_ctrl.pll_locked.read(&mut driver.simif)? == 0 {
+            println!("pll_locked mmio read is 0");
+
+            // Set reset to high
+            driver.clkwiz_ctrl.pll_reset.write(&mut driver.simif, 1)?;
+
+            println!("pll_reset write 1 done");
+
+            // Set reset to low after some time
+            for _ in 0..10 {
+                driver.simif.step();
+            }
+            driver.clkwiz_ctrl.pll_reset.write(&mut driver.simif, 0)?;
+            println!("pll_reset write 0 done");
+
+            // PLL is locked
+            driver.simif.init();
+            driver.simif.step();
+        }
+
+        println!("FPGATop resetn sequence");
+        driver.clkwiz_ctrl.fpga_top_resetn.write(&mut driver.simif, 0)?;
+        for i in 0..10 {
+            driver.simif.step();
+        }
+        driver.clkwiz_ctrl.fpga_top_resetn.write(&mut driver.simif, 1)?;
+
 
         // Custom reset
         println!("Set custom resetn to low");
         driver.ctrl_bridge.custom_resetn.write(&mut driver.simif, 0)?;
-        for i in 0..10 {
+        for _ in 0..10 {
             driver.simif.step();
         }
 
         println!("Set custom resetn to high");
         driver.ctrl_bridge.custom_resetn.write(&mut driver.simif, 1)?;
-        for i in 0..10 {
+        for _ in 0..10 {
             driver.simif.step();
         }
 
@@ -233,13 +280,13 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
 
         println!("Set custom resetn to low");
         driver.ctrl_bridge.custom_resetn.write(&mut driver.simif, 0)?;
-        for i in 0..10 {
+        for _ in 0..10 {
             driver.simif.step();
         }
 
         println!("Set custom resetn to high");
         driver.ctrl_bridge.custom_resetn.write(&mut driver.simif, 1)?;
-        for i in 0..10 {
+        for _ in 0..10 {
             driver.simif.step();
         }
 

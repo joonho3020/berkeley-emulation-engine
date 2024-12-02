@@ -5,6 +5,7 @@ use crate::simif::dmaif::*;
 pub type SimIfErr = Box<dyn std::error::Error>;
 
 pub trait SimIf: Debug {
+    fn init(self: &mut Self);
     fn finish(self: &mut Self);
     fn step(self: &mut Self);
     fn push(self:  &mut Self, addr: u32, data: &Vec<u8>) -> Result<u32, SimIfErr>;

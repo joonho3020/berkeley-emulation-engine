@@ -19,6 +19,7 @@ class ClockWizardControllerBundle(cfg: FPGATopParams) extends Bundle {
 class ClockWizardController(cfg: FPGATopParams) extends Module {
   val io = IO(new ClockWizardControllerBundle(cfg))
 
+
   ////////////////////////////////////////////////////////////////////////////
   // MMIO
   ////////////////////////////////////////////////////////////////////////////
@@ -28,7 +29,23 @@ class ClockWizardController(cfg: FPGATopParams) extends Module {
   AXI4MMIOModule.tieoff(mmio)
   dontTouch(mmio.io.axi)
 
-  mmio.io.axi <> io.axil
+
+
+  val aw_q = Queue.irrevocable(io.axil.aw, 4)
+  val w_q  = Queue.irrevocable(io.axil. w, 4)
+  val b_q  = Queue.irrevocable(mmio.io.axi.b, 4)
+  val ar_q = Queue.irrevocable(io.axil.ar, 4)
+  val r_q  = Queue.irrevocable(mmio.io.axi.r, 4)
+
+
+
+  mmio.io.axi.aw <> aw_q
+  mmio.io.axi.w  <> w_q
+  io.axil.b <> b_q
+
+  mmio.io.axi.ar <> ar_q
+  io.axil.r <> r_q
+
 
   val pll_locked = RegNext(io.clk_wiz_locked)
 

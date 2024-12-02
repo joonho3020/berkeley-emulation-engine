@@ -99,7 +99,7 @@ class FPGATop(implicit p: Parameters) extends LazyModule {
   val axiMMIOSlaveNode = AXI4SlaveNode(Seq(
     AXI4SlavePortParameters(
       slaves = Seq(AXI4SlaveParameters(
-        address = Seq(AddressSet(0, (BigInt(1) << cfg.axil.addrBits) - 1)),
+        address = Seq(AddressSet(0, (BigInt(1) << 16) - 1)),
         resources     = (new MemoryDevice).reg,
         regionType    = RegionType.UNCACHED,
         executable    = false,
@@ -446,7 +446,7 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
     val ctrl        = new ClockWizardControllerBundle(cfg)
   })
 
-  withClockAndReset(io_clkwiz_ctrl.axi_aclk.asClock, io_clkwiz_ctrl.axi_aresetn) {
+  withClockAndReset(io_clkwiz_ctrl.axi_aclk.asClock, !io_clkwiz_ctrl.axi_aresetn) {
     val clkwiz_ctrl = Module(new ClockWizardController(cfg))
     clkwiz_ctrl.io <> io_clkwiz_ctrl.ctrl
   }
