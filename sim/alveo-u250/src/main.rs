@@ -159,6 +159,38 @@ fn main() -> Result<(), SimIfErr> {
 
     let mut driver = Driver::try_from_simif(Box::new(simif));
 
+
+
+
+    while driver.clkwiz_ctrl.pll_locked.read(&mut driver.simif)? == 0 {
+        println!("pll_locked mmio read is 0");
+
+        // Set reset to high
+        driver.clkwiz_ctrl.pll_reset.write(&mut driver.simif, 1)?;
+
+        println!("pll_reset write 1 done");
+
+        // Set reset to low after some time
+        driver.simif.step();
+        driver.clkwiz_ctrl.pll_reset.write(&mut driver.simif, 0)?;
+        println!("pll_reset write 0 done");
+
+        // PLL is locked
+        driver.simif.init();
+        break;
+    }
+
+    println!("FPGATop resetn sequence");
+    driver.clkwiz_ctrl.fpga_top_resetn.write(&mut driver.simif, 0)?;
+    for i in 0..10 {
+        driver.simif.step();
+    }
+    driver.clkwiz_ctrl.fpga_top_resetn.write(&mut driver.simif, 1)?;
+
+
+
+
+
     // Custom reset
     println!("Set custom resetn to low");
     driver.ctrl_bridge.custom_resetn.write(&mut driver.simif, 0)?;

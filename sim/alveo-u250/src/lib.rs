@@ -6,6 +6,7 @@ use std::os::unix::fs::{FileExt, OpenOptionsExt};
 use std::os::unix::io::AsRawFd;
 use std::alloc::{self, Layout};
 use crate::simif::simif::*;
+use std::thread::sleep;
 
 use libc::{O_RDONLY, O_WRONLY};
 
@@ -201,10 +202,14 @@ impl XDMAInterface {
 }
 
 impl SimIf for XDMAInterface {
+    fn init(self: &mut Self) {
+    }
+
     fn finish(self: &mut Self) {
     }
 
     fn step(self: &mut Self) {
+        sleep(std::time::Duration::from_millis(10));
     }
 
     fn push(self:  &mut Self, addr: u32, data: &Vec<u8>) -> Result<u32, SimIfErr> {
