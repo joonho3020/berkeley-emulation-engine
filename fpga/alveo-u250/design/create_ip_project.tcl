@@ -82,9 +82,10 @@ set_property -dict [list \
 set ila_3 "./ip/ila_3/ila_3.xci"
 add_files -norecurse $ila_1
 set_property -dict [list \
-  CONFIG.C_NUM_OF_PROBES {2} \
+  CONFIG.C_NUM_OF_PROBES {3} \
   CONFIG.C_PROBE0_WIDTH {1} \
   CONFIG.C_PROBE1_WIDTH {1} \
+  CONFIG.C_PROBE2_WIDTH {1} \
 ] [get_ips ila_3]
 
 set axi_cdc "./ip/axi_cdc/axi_cdc.xci"
