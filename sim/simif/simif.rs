@@ -33,8 +33,6 @@ impl SRAMConfig {
 
 #[derive(Debug)]
 pub struct ControlIf {
-    pub pll_locked: RdMMIOIf,
-    pub pll_reset: WrMMIOIf,
     pub custom_resetn: WrMMIOIf,
 
     pub sram: Vec<SRAMConfig>,
@@ -67,11 +65,19 @@ pub struct ControlIf {
 }
 
 #[derive(Debug)]
+pub struct ClockWizardControlIf {
+    pub pll_locked: RdMMIOIf,
+    pub pll_reset:  WrMMIOIf,
+    pub fpga_top_resetn: WrMMIOIf,
+}
+
+#[derive(Debug)]
 pub struct Driver
 {
     pub simif: Box<dyn SimIf>,
     pub io_bridge:   PushPullDMAIf,
     pub inst_bridge: PushPullDMAIf,
     pub dbg_bridge:  PushPullDMAIf,
-    pub ctrl_bridge: ControlIf
+    pub clkwiz_ctrl: ClockWizardControlIf,
+    pub ctrl_bridge: ControlIf,
 }

@@ -130,11 +130,6 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
     val proc_n_init_vec = Output(UInt(cfg.emul.num_mods.W))
   })
 
-  val io_pll = IO(new Bundle {
-    val reset = Output(Bool())
-    val locked = Input(Bool())
-  })
-
   dontTouch(io_dma_axi4_master)
   dontTouch(io_dma_axi4_slave)
 
@@ -173,28 +168,13 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
   val axil_addr_range = 1 << cfg.axil.axi4BundleParams.addrBits
   val axil_data_byts  = cfg.axil.axi4BundleParams.dataBits / 8
 
-  val max_mmio_regs = 4 * cfg.emul.num_mods + 26
+  val max_mmio_regs = 4 * cfg.emul.num_mods + 24
 
   val mmio = Module(new AXI4MMIOModule(max_mmio_regs, cfg.axil.axi4BundleParams))
   AXI4MMIOModule.tieoff(mmio)
   dontTouch(mmio.io.axi)
 
   mmio.io.axi <> mmio_axi4_slave
-
-  val pll_locked = RegNext(io_pll.locked)
-  mmap.ctrl.add_reg(new MMIOIf(
-    AXI4MMIOModule.bind_readonly_reg(pll_locked, mmio) << 2,
-    true,
-    false,
-    "pll_locked"))
-
-  val pll_reset = RegInit(false.B)
-  io_pll.reset := pll_reset
-  mmap.ctrl.add_reg(new MMIOIf(
-    AXI4MMIOModule.bind_writeonly_reg(pll_reset, mmio) << 2,
-    false,
-    true,
-    "pll_reset"))
 
   val custom_resetn = RegInit(false.B)
   mmap.ctrl.add_reg(new MMIOIf(
@@ -460,8 +440,20 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
   }
 
 
+  val io_clkwiz_ctrl = IO(new Bundle {
+    val axi_aclk    = Input(Bool())
+    val axi_aresetn = Input(Bool())
+    val ctrl        = new ClockWizardControllerBundle(cfg)
+  })
+
+  withClockAndReset(io_clkwiz_ctrl.axi_aclk.asClock, io_clkwiz_ctrl.axi_aresetn) {
+    val clkwiz_ctrl = Module(new ClockWizardController(cfg))
+    clkwiz_ctrl.io <> io_clkwiz_ctrl.ctrl
+  }
+
   println(s"""=================== Simulator Memory Map =========================
     ${mmap.str}
   """)
   mmap.write_to_file(s"${cfg.outdir}/FPGATop.mmap")
+
 }

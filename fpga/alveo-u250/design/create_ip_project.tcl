@@ -25,6 +25,19 @@ create_ip -name axi_clock_converter  -vendor xilinx.com -library ip -version 2.1
 create_ip -name axi_clock_converter  -vendor xilinx.com -library ip -version 2.1 -module_name axi_lite_cdc      -dir $ip_directory
 create_ip -name clk_wiz              -vendor xilinx.com -library ip -version 6.0 -module_name clk_wiz_0         -dir $ip_directory
 create_ip -name proc_sys_reset       -vendor xilinx.com -library ip -version 5.0 -module_name proc_sys_reset_0  -dir $ip_directory
+create_ip -name axi_crossbar         -vendor xilinx.com -library ip -version 2.1 -module_name axi_lite_xbar     -dir $ip_directory
+
+set axi_lite_xbar "./ip/axi_lite_xbar/axi_lite_xbar.xci"
+add_files -norecurse $axi_lite_xbar
+set_property -dict [list \
+  CONFIG.PROTOCOL {AXI4LITE} \
+  CONFIG.NUM_MI {2} \
+  CONFIG.ADDR_RANGES {1} \
+  CONFIG.M00_A00_ADDR_WIDTH {12} \
+  CONFIG.M00_A00_BASE_ADDR {0x0000000000000000} \
+  CONFIG.M01_A00_ADDR_WIDTH {12} \
+  CONFIG.M01_A00_BASE_ADDR {0x0000000000010000} \
+] [get_ips axi_lite_xbar]
 
 set xdma_ip_path "./ip/xdma_0/xdma_0.xci"
 add_files -norecurse $xdma_ip_path
