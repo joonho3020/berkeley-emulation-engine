@@ -75,7 +75,7 @@ run: $(SIMULATION_SRCS)
 			 --large-sram-width $(large_sram_width)      \
 			 --large-sram-entries $(large_sram_entries)  \
 			 --large-sram-cnt $(large_sram_cnt)          \
-			 --sim-dir $(sim_dir) | tee DEBUG
+			 --sim-dir $(sim_dir) |& tee DEBUG
 
 # Run existing tests
 test: $(SIMULATION_SRCS)

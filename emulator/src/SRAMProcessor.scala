@@ -322,6 +322,11 @@ class SRAMProcessor(cfg: EmulatorConfig, large_sram: Boolean) extends Module {
     }
   }
 
+  assert(!wcond ||
+         (wcond &&
+          cfg_regs.width_bits > 0.U &&
+          cfg_regs.wmask_bits > 0.U))
+
   when (wcond && cfg.debug.asBool) {
     Logger.logInfo("RTL:  SRAM single_port: %d width: %d wmask: %d ren: %d wen: %d wr_addr: 0x%x wr_data: 0x%x wr_mask: 0x%x rd_addr: 0x%x\n",
       cfg_regs.single_port_ram,
