@@ -722,10 +722,10 @@ FPGATop FPGATop(
   .io_clkwiz_ctrl_ctrl_axil_ar_bits_prot(3'h0),
   .io_clkwiz_ctrl_ctrl_axil_ar_bits_qos(4'h0),
 
-  .io_clkwiz_ctrl_ctrl_axil_r_ready(xbar_axil_rready),
-  .io_clkwiz_ctrl_ctrl_axil_r_valid(xbar_axil_rvalid),
-  .io_clkwiz_ctrl_ctrl_axil_r_bits_data(xbar_axil_rdata),
-  .io_clkwiz_ctrl_ctrl_axil_r_bits_resp(xbar_axil_rresp),
+  .io_clkwiz_ctrl_ctrl_axil_r_ready(xbar_axil_1_rready),
+  .io_clkwiz_ctrl_ctrl_axil_r_valid(xbar_axil_1_rvalid),
+  .io_clkwiz_ctrl_ctrl_axil_r_bits_data(xbar_axil_1_rdata),
+  .io_clkwiz_ctrl_ctrl_axil_r_bits_resp(xbar_axil_1_rresp),
   .io_clkwiz_ctrl_ctrl_axil_r_bits_id(),
   .io_clkwiz_ctrl_ctrl_axil_r_bits_last(),
 
