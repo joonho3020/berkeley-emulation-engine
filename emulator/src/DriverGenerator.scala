@@ -145,7 +145,8 @@ class ClockWizardControlIf extends MMap {
     var ret = s"""clkwiz_ctrl: ClockWizardControlIf {
            pll_locked: RdMMIOIf::new(0x10000),
            pll_reset:  WrMMIOIf::new(0x10004),
-           fpga_top_resetn:  WrMMIOIf::new(0x10008),"""
+           fpga_top_resetn:  WrMMIOIf::new(0x10008),
+           fingerprint:  RdWrMMIOIf::new(0x1000c),"""
     ret += "\n      }\n"
     return ret
   }

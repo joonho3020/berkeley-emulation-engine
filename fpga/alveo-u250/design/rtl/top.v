@@ -331,6 +331,7 @@ axi_lite_xbar axi_lite_xbar (
 
 wire clk_wiz_locked;
 wire clk_wiz_reset;
+wire clk_wiz_reset_refclk_domain;
 wire fpga_top_clock;
 wire fpga_top_ctrl_resetn;
 wire fpga_top_resetn;
@@ -348,11 +349,21 @@ IBUFDS #(
    .IB(clk_300mhz_0_n)      // Diff_n buffer input (connect directly to top-level port)
 );
 
+xpm_cdc_single #(
+  .DEST_SYNC_FF(4),
+  .SRC_INPUT_REG(0)
+) clkwiz_reset_cdc (
+  .src_clk  (axi_aclk),
+  .src_in   (clk_wiz_reset),
+  .dest_clk (clk_wiz_refclk),
+  .dest_out (clk_wiz_reset_refclk_domain)
+);
+
 clk_wiz_0 clk_wizard (
   // Clock out ports
   .clk_out1(fpga_top_clock),
   // Status and control signals
-  .reset(clk_wiz_reset),
+  .reset(clk_wiz_reset_refclk_domain),
   // locked
   .locked(clk_wiz_locked),
   // Clock in ports
