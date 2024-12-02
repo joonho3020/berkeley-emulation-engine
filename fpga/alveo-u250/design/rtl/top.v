@@ -369,11 +369,18 @@ xpm_cdc_single #(
   .dest_out (fpga_top_resetn)
 );
 
-ila_3 ila_clk_wiz_lock_and_reset (
+ila_3 ila_clk_wiz_lock (
   .clk(fpga_top_clock),
   .probe0(clk_wiz_locked),
-  .probe1(clk_wiz_reset),
+  .probe1(1'h0),
   .probe2(fpga_top_resetn)
+);
+
+ila_3 ila_clk_wiz_reset (
+  .clk(axi_aclk),
+  .probe0(clk_wiz_reset),
+  .probe1(1'h0),
+  .probe2(1'h0)
 );
 
 wire [3 : 0] io_dma_axi4_master_awid;
