@@ -682,7 +682,7 @@ FPGATop FPGATop(
 
   .io_debug_tot_pushed(io_debug_tot_pushed),
   .io_debug_proc_0_init_vec(io_debug_proc_0_init_vec),
-  .io_debug_proc_n_init_vec(io_debug_proc_n_init_vec)
+  .io_debug_proc_n_init_vec(io_debug_proc_n_init_vec),
 
   .io_clkwiz_ctrl_axi_aclk(axi_aclk),
   .io_clkwiz_ctrl_axi_aresetn(axi_aresetn),
