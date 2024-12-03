@@ -403,7 +403,7 @@ ila_2 ila_clk_wiz_locked (
 );
 
 ila_2 ila_refclk_toggle (
-  .clk(axi_aclk),
+  .clk(clk_wiz_refclk),
   .probe0(ref_clk_toggle)
 );
 
