@@ -1,5 +1,6 @@
 use crate::fsim::module::*;
 use crate::fsim::switch::*;
+use crate::fsim::processor::ProcessorState;
 use crate::common::{hwgraph::*, config::*, network::*, circuit::Circuit, primitive::*};
 use petgraph::graph::NodeIndex;
 use indexmap::IndexMap;
@@ -180,6 +181,32 @@ impl Board {
         }
 
         self.global_switch.run_cycle();
+    }
+
+    pub fn step_with_input(
+        self: &mut Self,
+        step: u32,
+        input_stimuli: &IndexMap<u32, Vec<(&str, Bit)>>
+    ) -> Vec<Vec<(Bit, Bit)>> {
+        match input_stimuli.get(&(step as u32)) {
+            Some(vec) => {
+                for (sig, bit) in vec.iter() {
+                    self.poke(sig, *bit);
+                }
+            }
+            None => {}
+        };
+        self.step();
+
+        let mut board_state = vec![];
+        for m in self.modules.iter() {
+            let mut module_state = vec![];
+            for p in m.procs.iter() {
+                module_state.push((p.dbg_ldm_wbit, p.dbg_sdm_wbit));
+            }
+            board_state.push(module_state);
+        }
+        return board_state;
     }
 
     pub fn run_cycle(

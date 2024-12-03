@@ -59,8 +59,8 @@ case class EmulatorConfig(
 
 
   // SRAM processor related parameters
-  val sram_addr_bits  = log2Ceil(large_sram_entries)
-  val sram_width_bits = log2Ceil(large_sram_width)
+  val sram_addr_bits  = log2Ceil(large_sram_entries + 1)
+  val sram_width_bits = log2Ceil(large_sram_width   + 1)
 
   val sram_rd_en_offset     = 0
   val sram_wr_en_offset     = sram_rd_en_offset + 1

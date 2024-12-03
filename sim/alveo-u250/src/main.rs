@@ -253,7 +253,7 @@ fn main() -> Result<(), SimIfErr> {
 
         let mut wbuf: Vec<u8> = XDMAInterface::aligned_vec(0x1000, 0);
         wbuf.extend((0..dma_bytes).map(|_| rng.gen_range(10..16)));
-        let written_bytes = driver.dbg_bridge.push(&mut driver.simif, &wbuf)?;
+        let written_bytes = driver.dma_bridge.push(&mut driver.simif, &wbuf)?;
         assert!(written_bytes == dma_bytes,
             "DMA write didn't write expected amount. Wrote: {} out of {} byte, iter {}",
             written_bytes, dma_bytes, _i);
@@ -261,7 +261,7 @@ fn main() -> Result<(), SimIfErr> {
 // sleep(std::time::Duration::from_millis(10));
 
         let mut rbuf = vec![0u8; dma_bytes as usize];
-        let read_bytes = driver.dbg_bridge.pull(&mut driver.simif, &mut rbuf)?;
+        let read_bytes = driver.dma_bridge.pull(&mut driver.simif, &mut rbuf)?;
         assert!(read_bytes == dma_bytes, "Read {} bytes, expected read {}, iter {}",
             read_bytes, dma_bytes, _i);
 

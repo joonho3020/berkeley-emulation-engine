@@ -3,6 +3,8 @@ use crate::fsim::memory::*;
 use crate::fsim::sram::ProcessorSRAMPort;
 use std::fmt::Debug;
 
+pub type ProcessorState = (Vec<Bit>, Vec<Bit>);
+
 #[derive(Default, Clone, Debug)]
 struct ProcessorSwitchPort {
     ip: Bit,
@@ -54,7 +56,11 @@ pub struct Processor {
     /// the computed bit. Used when inst.sinfo.fwd is true
     sin_fwd_bit: Bit,
 
-    sram_port: ProcessorSRAMPort
+    sram_port: ProcessorSRAMPort,
+
+
+    pub dbg_ldm_wbit: Bit,
+    pub dbg_sdm_wbit: Bit
 }
 
 impl Processor {
@@ -76,7 +82,9 @@ impl Processor {
             sin_fwd_bit: 0,
             sin_idx: 0,
             sram_port: ProcessorSRAMPort::default(),
-            processor_id: id_
+            processor_id: id_,
+            dbg_ldm_wbit: 0,
+            dbg_sdm_wbit: 0
         }
     }
 
@@ -201,6 +209,8 @@ impl Processor {
 
         self.ldm.run_cycle();
         self.imem.run_cycle();
+
+        self.dbg_ldm_wbit = if self.pc >= self.cfg.fetch_decode_lat() { f_out } else { 0 };
     }
 
     pub fn update_sram_in(self: &mut Self) {
@@ -251,6 +261,8 @@ impl Processor {
         } else {
             self.pc += 1;
         }
+
+        self.dbg_sdm_wbit = if self.pc >= self.cfg.fetch_decode_lat() { sdm_store_bit } else { 0 };
     }
 
     pub fn get_switch_in_id(self: &Self) -> Bits {

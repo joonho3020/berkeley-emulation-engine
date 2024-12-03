@@ -78,6 +78,21 @@ impl SimIf for Sim {
         self.cycle += 1;
     }
 
+    fn step_debug(self: &mut Self) {
+        let time = self.cycle * 2;
+        unsafe {
+            FPGATop_eval(self.dut);
+            dump_vcd(self.vcd, time);
+
+            poke_clock(self.dut, 1);
+            FPGATop_eval(self.dut);
+            dump_vcd(self.vcd, time + 1);
+
+            poke_clock(self.dut, 0);
+        }
+        self.cycle += 1;
+    }
+
     fn push(self:  &mut Self, addr: u32, data: &Vec<u8>) -> Result<u32, SimIfErr> {
         unsafe { dma_write(self, addr, data.len() as u32, data); }
         return Ok(data.len() as u32);
