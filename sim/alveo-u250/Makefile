@@ -1,3 +1,9 @@
+include ../../variables.mk
+
+# Override default variables
+emul_debug = "false"
+sim_type = "alveo-u250"
+
 EMULATOR_DIR  := ../../emulator
 BUILDDIR=build-dir
 
@@ -16,21 +22,6 @@ SIMIF_SRCS       := $(shell find $(SIMIF_SRC_DIR) -name '*.rs')
 SIMIF_FILE_NAMES := $(shell find $(SIMIF_SRC_DIR) -type f -name '*.rs' -printf "%f\n")
 SIMIF_COPIED := $(foreach entry,$(SIMIF_FILE_NAMES),$(SIMIF_DIR)/$(entry))
 DRIVER_SRCS := $(SIMIF_COPIED) $(SIMIF_DIR)/driver_generated.rs
-
-# Variables for emulator platform
-debug              ?= "true"
-max_steps          ?= 1024
-num_mods           ?= 5
-num_procs          ?= 4
-imem_lat           ?= 1
-inter_mod_nw_lat   ?= 1
-inter_proc_nw_lat  ?= 1
-sram_width         ?= 16
-sram_entries       ?= 16
-large_sram_width   ?= 16
-large_sram_entries ?= 16
-large_sram_cnt     ?= 0
-blackbox_dmem      ?= "true"
 
 .DEFAULT_GOAL := build
 

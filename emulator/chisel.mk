@@ -1,4 +1,3 @@
-debug              ?= "true"
 emul_debug         ?= "false"
 max_steps          ?= 128
 num_mods           ?= 9
@@ -29,7 +28,6 @@ $(MILL_BUILD_ARTIFACTS): $(SCALA_FILES) | $(BUILDDIR)
 	@echo "Changes detected in Scala files. Rebuilding with Mill..."
 	cd $(EMULATOR_DIR) &&                           \
 		mill emulator.run                             \
-			--debug $(debug)                            \
 			--emul-debug $(emul_debug)                  \
 			--max-steps $(max_steps)                    \
 			--num-mods $(num_mods)                      \

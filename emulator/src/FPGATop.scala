@@ -35,9 +35,6 @@ case class FPGATopAXI4MMIOParams(
 }
 
 case class FPGATopParams(
-  // Adds a extra DMA stream engine to check for XDMA DMA transactions
-  debug: Boolean,
-
   // XDMA AXI4 parameters for DMA
   axi:  FPGATopAXI4DMAParams,
 
@@ -133,13 +130,16 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
   dontTouch(io_dma_axi4_master)
   dontTouch(io_dma_axi4_slave)
 
-  val total_procs = cfg.emul.num_procs * cfg.emul.num_mods
   val dataBits = cfg.axi.axi4BundleParams.dataBits
-  val io_stream_width = (((total_procs + dataBits - 1) / dataBits) * dataBits).toInt
-  val dbg_stream_width = (((total_procs * 2 + dataBits - 1) / dataBits) * dataBits).toInt
-  println(s"io_stream_width: ${io_stream_width}")
-  println(s"dbg_stream_width: ${dbg_stream_width}")
+  val total_procs = cfg.emul.num_procs * cfg.emul.num_mods
   println(s"total_procs: ${total_procs}")
+
+  val io_stream_width = (((total_procs + dataBits - 1) / dataBits) * dataBits).toInt
+  println(s"io_stream_width: ${io_stream_width}")
+
+  val dbg_stream_width = (((total_procs * 2 + dataBits - 1) / dataBits) * dataBits).toInt
+  val dbg_stream_depth = if (cfg.emul.debug) { 2 * cfg.emul.max_steps } else { 4 }
+  println(s"dbg_stream_width: ${dbg_stream_width} depth: ${dbg_stream_depth}")
 
   // TODO : Change streamParams to Map for better indexing?
   val stream_converter = Module(new AXI4DecoupledConverter(
@@ -148,7 +148,7 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
       StreamParam(io_stream_width, io_stream_width / dataBits * 2),
       StreamParam(cfg.axi.axi4BundleParams.dataBits, 128),
       StreamParam(io_stream_width, io_stream_width / dataBits * 2),
-      StreamParam(dbg_stream_width, 2 * cfg.emul.max_steps)
+      StreamParam(dbg_stream_width, dbg_stream_depth)
     ),
     addressSpaceBits = 12))
 

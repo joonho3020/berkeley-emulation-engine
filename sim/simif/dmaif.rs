@@ -4,11 +4,9 @@ use crate::simif::simif::*;
 pub trait DMAPush: PushDMAAddrs {
     fn push(self: &Self, sim: &mut Box<dyn SimIf>, data: &Vec<u8>) -> Result<u32, SimIfErr> {
         let empty_bytes = sim.read(self.empty_addr())?;
-// println!("DMA PUSH empty bytes: {}", empty_bytes);
         let pushed_bytes = if empty_bytes >= data.len() as u32 {
             sim.push(self.deq_addr(), data)?
         } else {
-// println!("Not enough buffer space on the FPGA to push, empty bytes: {}", empty_bytes);
             0
         }; Ok(pushed_bytes)
     }

@@ -6,20 +6,8 @@ NUM_THREADS ?= 8
 VIVADO_PATH ?= $(shell which vivado)
 VIVADO_OPTS ?= -nolog -nojournal -mode batch
 
-# Variables for emulator platform
-debug              ?= "true"
-max_steps          ?= 1024
-num_mods           ?= 5
-num_procs          ?= 4
-imem_lat           ?= 1
-inter_mod_nw_lat   ?= 1
-inter_proc_nw_lat  ?= 1
-sram_width         ?= 16
-sram_entries       ?= 16
-large_sram_width   ?= 16
-large_sram_entries ?= 16
-large_sram_cnt     ?= 0
-blackbox_dmem      ?= "true"
+include ../../../variables.mk
+emul_debug         ?= "false"
 
 PROJECT_DIR = $(TOP_DIR)/project
 

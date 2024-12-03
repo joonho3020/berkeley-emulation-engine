@@ -26,7 +26,6 @@ object Main {
     if (args.contains("--help")) {
       println("""Usage: Main
         [--o         x]
-        [--debug     x]
         [--max-step  x]
         [--num-mods  x]
         [--num-procs x]
@@ -43,7 +42,6 @@ object Main {
       System.exit(0)
     }
 
-    var debug: Boolean   = false
     var emul_debug: Boolean   = false
     var max_steps:   Int = 128
     var num_procs:   Int = 8
@@ -60,7 +58,6 @@ object Main {
     var blackbox_dmem: Boolean = false
 
     args.sliding(2, 2).toList.collect {
-      case Array("--debug",              x) => debug      = x.toBoolean
       case Array("--emul-debug",         x) => emul_debug = x.toBoolean
       case Array("--max-steps",          x) => max_steps = x.toInt
       case Array("--num-mods",           x) => num_mods  = x.toInt
@@ -77,7 +74,6 @@ object Main {
     }
 
     val cfg = FPGATopParams(
-          debug = debug,
           FPGATopAXI4DMAParams (64, 512,  4, None),
           FPGATopAXI4MMIOParams(25,  32, 12, None),
           EmulatorConfig(

@@ -221,22 +221,15 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
         println!("read from pll_locked");
 
         driver.clkwiz_ctrl.pll_reset_cycle.write(&mut driver.simif, 15)?;
+        driver.clkwiz_ctrl.pll_reset.write(&mut driver.simif, 1)?;
 
         // Assert and deassert reset to lock the PLL
         while driver.clkwiz_ctrl.pll_locked.read(&mut driver.simif)? == 0 {
             println!("pll_locked mmio read is 0");
 
-            // Set reset to high
-            driver.clkwiz_ctrl.pll_reset.write(&mut driver.simif, 1)?;
-
-            println!("pll_reset write 1 done");
-
-            // Set reset to low after some time
-            for _ in 0..20 {
+            for _ in 0..10 {
                 driver.simif.step();
             }
-// driver.clkwiz_ctrl.pll_reset.write(&mut driver.simif, 0)?;
-// println!("pll_reset write 0 done");
 
             // PLL is locked
             driver.simif.init();
@@ -547,15 +540,8 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
                         }
                     }
                     assert!(false);
-// println!("rtl_state_vec: {:?}", rtl_state_vec);
-// println!("rtl_state_bit_vec: {:?}", rtl_state_bit_vec);
-// println!("     rtl_state: {:?}", rtl_state);
-// println!("    fsim_state: {:?}", fsim_state);
                 }
             }
-
-
-// funct_sim.run_cycle(&input_stimuli_by_step);
 
             // Collect functional simulation outputs
             let mut obit_ref: BitVec<usize, Lsb0> = BitVec::new();

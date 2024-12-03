@@ -1,14 +1,12 @@
+include ../../variables.mk
+
+# Override default variables
+emul_debug = "true"
+sim_type = "metasim"
+
+
 EMULATOR_DIR  := ../../emulator
 BUILDDIR=build-dir
-
-
-# Variables for emulator platform
-top        ?= "Adder"
-dir        := "../../examples/"
-svfile     := $(dir)/$(top)".sv"
-input_file := $(dir)/$(top)".input"
-lut_file   := $(dir)/$(top)".lut.blif"
-sim_dir    := "../sim-dir/metasim-"$(top)
 
 
 VERILATOR_LIB=libVdut.so
@@ -23,23 +21,8 @@ DRIVER_SRCS := $(SIMIF_COPIED) $(SIMIF_DIR)/driver_generated.rs
 SIMULATION_SRCS := $(VERILATOR_LIB) $(DRIVER_SRCS)
 
 
-# Variables for emulator platform
-debug              ?= "true"
-emul_debug         ?= "true"
-max_steps          ?= 1024
-num_mods           ?= 17
-num_procs          ?= 64
-imem_lat           ?= 1
-inter_mod_nw_lat   ?= 1
-inter_proc_nw_lat  ?= 1
-sram_width         ?= 256
-sram_entries       ?= 16384
-large_sram_width   ?= 256
-large_sram_entries ?= 16384
-large_sram_cnt     ?= 0
-blackbox_dmem      ?= "true"
-
 .DEFAULT_GOAL := test
+
 
 $(BUILDDIR):
 	mkdir -p $(BUILDDIR)
