@@ -365,17 +365,6 @@ BUFG BUFG_inst (
    .I(clk_300mhz_ibufds)  // 1-bit input: Clock input
 );
 
-clk_wiz_0 clk_wizard (
-  // Clock out ports
-  .clk_out1(fpga_top_clock),
-  // Status and control signals
-  .reset(clk_wiz_reset_refclk_domain),
-  // locked
-  .locked(clk_wiz_locked),
-  // Clock in ports
-  .clk_in1(clk_wiz_refclk)
-);
-
 xpm_cdc_single #(
   .DEST_SYNC_FF(4),
   .SRC_INPUT_REG(0)
@@ -386,25 +375,32 @@ xpm_cdc_single #(
   .dest_out (fpga_top_resetn)
 );
 
-reg ref_clk_toggle;
-
-always @(posedge clk_wiz_refclk) begin
-  ref_clk_toggle <= ~ref_clk_toggle;
-end
-
-ila_2 ila_clk_wiz_reset (
-  .clk(axi_aclk),
-  .probe0(clk_wiz_reset)
+clk_wiz_1 clk_wiz
+(
+  .clk_out1(fpga_top_clock),
+  .reset(clk_wiz_reset_refclk_domain),
+  .locked(clk_wiz_locked),
+  .clk_in1(clk_wiz_refclk)
 );
 
-ila_2 ila_clk_wiz_locked (
+ila_2 ila_clkwiz_locked_axi_aclk (
   .clk(axi_aclk),
   .probe0(clk_wiz_locked)
 );
 
-ila_2 ila_refclk_toggle (
+ila_2 ila_clkwiz_locked_refclk (
   .clk(clk_wiz_refclk),
-  .probe0(ref_clk_toggle)
+  .probe0(clk_wiz_locked)
+);
+
+ila_2 ila_clk_wiz_1_reset (
+  .clk(clk_wiz_refclk),
+  .probe0(clk_wiz_reset_refclk_domain)
+);
+
+ila_2 ila_fpga_top_resetn (
+  .clk(fpga_top_clock),
+  .probe0(fpga_top_resetn)
 );
 
 wire [3 : 0] io_dma_axi4_master_awid;

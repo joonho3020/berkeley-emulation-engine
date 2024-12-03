@@ -23,8 +23,7 @@ create_ip -name ila                  -vendor xilinx.com -library ip -version 6.2
 create_ip -name ila                  -vendor xilinx.com -library ip -version 6.2 -module_name ila_3             -dir $ip_directory
 create_ip -name axi_clock_converter  -vendor xilinx.com -library ip -version 2.1 -module_name axi_cdc           -dir $ip_directory
 create_ip -name axi_clock_converter  -vendor xilinx.com -library ip -version 2.1 -module_name axi_lite_cdc      -dir $ip_directory
-create_ip -name clk_wiz              -vendor xilinx.com -library ip -version 6.0 -module_name clk_wiz_0         -dir $ip_directory
-create_ip -name proc_sys_reset       -vendor xilinx.com -library ip -version 5.0 -module_name proc_sys_reset_0  -dir $ip_directory
+create_ip -name clk_wiz              -vendor xilinx.com -library ip -version 6.0 -module_name clk_wiz_1         -dir $ip_directory
 create_ip -name axi_crossbar         -vendor xilinx.com -library ip -version 2.1 -module_name axi_lite_xbar     -dir $ip_directory
 
 set axi_lite_xbar "./ip/axi_lite_xbar/axi_lite_xbar.xci"
@@ -109,16 +108,19 @@ set_property -dict [list \
   CONFIG.WUSER_WIDTH {0} \
 ] [get_ips axi_lite_cdc]
 
-set clk_wiz_0 "./ip/clk_wiz_0/clk_wiz_0.xci"
-add_files -norecurse $clk_wiz_0
+# For 80MHz
+set clk_wiz_1 "./ip/clk_wiz_1/clk_wiz_1.xci"
 set_property -dict [list \
-   CONFIG.CLKOUT1_REQUESTED_OUT_FREQ $fpga_freq_mhz \
-   CONFIG.USE_LOCKED {true} \
-] [get_ips clk_wiz_0]
-
-
-set proc_sys_reset_0 "./ip/proc_sys_reset_0/proc_sys_reset_0.xci"
-add_files -norecurse $proc_sys_reset_0
+  CONFIG.CLKIN1_JITTER_PS {33.330000000000005} \
+  CONFIG.CLKOUT1_JITTER {106.018} \
+  CONFIG.CLKOUT1_PHASE_ERROR {77.836} \
+  CONFIG.CLKOUT1_REQUESTED_OUT_FREQ {80.000} \
+  CONFIG.MMCM_CLKFBOUT_MULT_F {4.000} \
+  CONFIG.MMCM_CLKIN1_PERIOD {3.333} \
+  CONFIG.MMCM_CLKIN2_PERIOD {10.0} \
+  CONFIG.MMCM_CLKOUT0_DIVIDE_F {15.000} \
+  CONFIG.PRIM_IN_FREQ {300.000} \
+] [get_ips clk_wiz_1]
 
 generate_target all [get_ips]
 close_project
