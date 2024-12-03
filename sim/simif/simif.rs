@@ -70,6 +70,8 @@ pub struct ClockWizardControlIf {
     pub pll_locked: RdMMIOIf,
     pub pll_reset:  WrMMIOIf,
     pub fpga_top_resetn: WrMMIOIf,
+    pub fingerprint: RdWrMMIOIf,
+    pub pll_reset_cycle: WrMMIOIf,
 }
 
 #[derive(Debug)]

@@ -220,6 +220,8 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
 
         println!("read from pll_locked");
 
+        driver.clkwiz_ctrl.pll_reset_cycle.write(&mut driver.simif, 15)?;
+
         // Assert and deassert reset to lock the PLL
         while driver.clkwiz_ctrl.pll_locked.read(&mut driver.simif)? == 0 {
             println!("pll_locked mmio read is 0");
@@ -230,11 +232,11 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
             println!("pll_reset write 1 done");
 
             // Set reset to low after some time
-            for _ in 0..10 {
+            for _ in 0..20 {
                 driver.simif.step();
             }
-            driver.clkwiz_ctrl.pll_reset.write(&mut driver.simif, 0)?;
-            println!("pll_reset write 0 done");
+// driver.clkwiz_ctrl.pll_reset.write(&mut driver.simif, 0)?;
+// println!("pll_reset write 0 done");
 
             // PLL is locked
             driver.simif.init();

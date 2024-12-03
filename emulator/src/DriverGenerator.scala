@@ -146,7 +146,8 @@ class ClockWizardControlIf extends MMap {
            pll_locked: RdMMIOIf::new(0x10000),
            pll_reset:  WrMMIOIf::new(0x10004),
            fpga_top_resetn:  WrMMIOIf::new(0x10008),
-           fingerprint:  RdWrMMIOIf::new(0x1000c),"""
+           fingerprint:  RdWrMMIOIf::new(0x1000c),
+           pll_reset_cycle:  WrMMIOIf::new(0x10010),"""
     ret += "\n      }\n"
     return ret
   }

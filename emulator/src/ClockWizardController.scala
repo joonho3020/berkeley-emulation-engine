@@ -24,7 +24,7 @@ class ClockWizardController(cfg: FPGATopParams) extends Module {
   // MMIO
   ////////////////////////////////////////////////////////////////////////////
 
-  val max_mmio_regs = 4
+  val max_mmio_regs = 5
   val mmio = Module(new AXI4MMIOModule(max_mmio_regs, cfg.axil.axi4BundleParams, 0x10000))
   AXI4MMIOModule.tieoff(mmio)
   dontTouch(mmio.io.axi)
@@ -49,7 +49,7 @@ class ClockWizardController(cfg: FPGATopParams) extends Module {
 
   val pll_locked = RegNext(io.clk_wiz_locked)
 
-  val pll_reset = RegInit(true.B)
+  val pll_reset = RegInit(false.B)
   io.clk_wiz_reset := pll_reset
 
   val fpga_top_resetn = RegInit(false.B)
@@ -74,4 +74,21 @@ class ClockWizardController(cfg: FPGATopParams) extends Module {
   }
   mmio.io.ctrl(3).rd.valid := true.B
   mmio.io.ctrl(3).rd.bits := fingerprint_reg
+
+  val pll_reset_cycle = RegInit(10.U(32.W))
+
+  when (mmio.io.ctrl(4).wr.valid) {
+    pll_reset_cycle := mmio.io.ctrl(4).wr.bits
+  }
+
+  val pll_reset_cntr = RegInit(0.U(32.W))
+  when (pll_reset) {
+    pll_reset_cntr := pll_reset_cntr + 1.U
+    when (pll_reset_cycle === pll_reset_cntr - 1.U) {
+      pll_reset_cntr := 0.U
+      pll_reset := false.B
+    }
+  } .otherwise {
+    pll_reset_cntr := 0.U
+  }
 }
