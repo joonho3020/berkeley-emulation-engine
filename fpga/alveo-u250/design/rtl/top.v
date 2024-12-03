@@ -338,13 +338,14 @@ wire fpga_top_resetn;
 
 // Generate refclk from off-board PLL
 wire clk_wiz_refclk;
+wire clk_300mhz_ibufds;
 
 IBUFDS #(
    .DIFF_TERM("FALSE"),       // Differential Termination
    .IBUF_LOW_PWR("FALSE"),    // Low power="TRUE", Highest performance="FALSE"
    .IOSTANDARD("DEFAULT")     // Specify the input I/O standard
 ) IBUFDS_pll_refclk (
-   .O(clk_wiz_refclk),  // Buffer output
+   .O(clk_300mhz_ibufds),  // Buffer output
    .I(clk_300mhz_0_p),      // Diff_p buffer input (connect directly to top-level port)
    .IB(clk_300mhz_0_n)      // Diff_n buffer input (connect directly to top-level port)
 );
@@ -357,6 +358,11 @@ xpm_cdc_single #(
   .src_in   (clk_wiz_reset),
   .dest_clk (clk_wiz_refclk),
   .dest_out (clk_wiz_reset_refclk_domain)
+);
+
+BUFG BUFG_inst (
+   .O(clk_wiz_refclk), // 1-bit output: Clock output
+   .I(clk_300mhz_ibufds)  // 1-bit input: Clock input
 );
 
 clk_wiz_0 clk_wizard (
@@ -391,8 +397,13 @@ ila_2 ila_clk_wiz_reset (
   .probe0(clk_wiz_reset)
 );
 
+ila_2 ila_clk_wiz_locked (
+  .clk(axi_aclk),
+  .probe0(clk_wiz_locked)
+);
+
 ila_2 ila_refclk_toggle (
-  .clk(clk_wiz_refclk),
+  .clk(axi_aclk),
   .probe0(ref_clk_toggle)
 );
 
