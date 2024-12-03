@@ -45,9 +45,17 @@ impl Sim {
     pub fn max_len(self: &Self) -> u32 {
         Self::MAX_LEN
     }
+
+    pub unsafe fn clkwiz_lock(self: &mut Self) {
+        poke_io_clkwiz_ctrl_ctrl_clk_wiz_locked(self.dut, 1);
+    }
 }
 
 impl SimIf for Sim {
+    fn init(self: &mut Self) {
+        unsafe { self.clkwiz_lock(); }
+    }
+
     fn finish(self: &mut Self) {
         unsafe { self.finish(); }
     }
@@ -59,10 +67,13 @@ impl SimIf for Sim {
             dump_vcd(self.vcd, time);
 
             poke_clock(self.dut, 1);
+            poke_io_clkwiz_ctrl_axi_aclk(self.dut, 1);
+
             FPGATop_eval(self.dut);
             dump_vcd(self.vcd, time + 1);
 
             poke_clock(self.dut, 0);
+            poke_io_clkwiz_ctrl_axi_aclk(self.dut, 0);
         }
         self.cycle += 1;
     }
@@ -94,11 +105,21 @@ impl SimIf for Sim {
     }
 
     fn read(self:  &mut Self, addr: u32) -> Result<u32, SimIfErr> {
-        return Ok(unsafe { mmio_read(self, addr) });
+        // TODO : Fix the magic number
+        let result = if addr < 0x10000 {
+            unsafe { mmio_read(self, addr) }
+        } else {
+            unsafe { clkwiz_ctrl_read(self, addr) }
+        };
+        return Ok(result);
     }
 
     fn write(self: &mut Self, addr: u32, data: u32) -> Result<(), SimIfErr> {
-        unsafe { mmio_write(self, addr, data) };
+        if addr < 0x10000 {
+            unsafe { mmio_write(self, addr, data) };
+        } else {
+            unsafe { clkwiz_ctrl_write(self, addr, data) };
+        }
         return Ok(());
     }
 }

@@ -12,7 +12,7 @@ class CtrlBundle(wBits: Int) extends Bundle {
   val wr = Decoupled(UInt(wBits.W))
 }
 
-class AXI4MMIOModule(numRegs: Int, cfg: AXI4BundleParameters) extends Module {
+class AXI4MMIOModule(numRegs: Int, cfg: AXI4BundleParameters, baseAddr: Int = 0) extends Module {
   val io = IO(new Bundle {
     val axi = Flipped(AXI4Bundle(cfg))
     val ctrl = Vec(numRegs, new CtrlBundle(cfg.dataBits))
@@ -31,8 +31,8 @@ class AXI4MMIOModule(numRegs: Int, cfg: AXI4BundleParameters) extends Module {
 
   val max_idx = (numRegs - 1).U
 
-  val ridx = io.axi.ar.bits.addr >> addr_offset.U
-  val ridx_invalid = ridx > max_idx
+  val ridx = (io.axi.ar.bits.addr - baseAddr.U) >> addr_offset.U
+  val ridx_invalid = (ridx > max_idx) || (io.axi.ar.bits.addr < baseAddr.U)
   val read_fire = DecoupledHelper(
     io.axi.ar.valid,
     io.axi.r.ready)
@@ -63,8 +63,8 @@ class AXI4MMIOModule(numRegs: Int, cfg: AXI4BundleParameters) extends Module {
     }
   }})
 
-  val widx = io.axi.aw.bits.addr >> addr_offset.U
-  val widx_invalid = widx > max_idx
+  val widx = (io.axi.aw.bits.addr - baseAddr.U) >> addr_offset.U
+  val widx_invalid = (widx > max_idx) || (io.axi.aw.bits.addr < baseAddr.U)
   val write_fire = DecoupledHelper(
     io.axi.aw.valid,
     io.axi.w.valid,

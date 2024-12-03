@@ -5,6 +5,7 @@ use crate::simif::dmaif::*;
 pub type SimIfErr = Box<dyn std::error::Error>;
 
 pub trait SimIf: Debug {
+    fn init(self: &mut Self);
     fn finish(self: &mut Self);
     fn step(self: &mut Self);
     fn step_debug(self: &mut Self);
@@ -66,6 +67,15 @@ pub struct ControlIf {
 }
 
 #[derive(Debug)]
+pub struct ClockWizardControlIf {
+    pub pll_locked: RdMMIOIf,
+    pub pll_reset:  WrMMIOIf,
+    pub fpga_top_resetn: WrMMIOIf,
+    pub fingerprint: RdWrMMIOIf,
+    pub pll_reset_cycle: WrMMIOIf,
+}
+
+#[derive(Debug)]
 pub struct Driver
 {
     pub simif: Box<dyn SimIf>,
@@ -73,5 +83,6 @@ pub struct Driver
     pub inst_bridge: PushPullDMAIf,
     pub dma_bridge:  PushPullDMAIf,
     pub dbg_bridge:  PushPullDMAIf,
-    pub ctrl_bridge: ControlIf
+    pub clkwiz_ctrl: ClockWizardControlIf,
+    pub ctrl_bridge: ControlIf,
 }

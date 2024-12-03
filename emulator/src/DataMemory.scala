@@ -87,7 +87,6 @@ class BlackBoxDataMemory(cfg: EmulatorConfig) extends AbstractDataMemory(cfg) {
   val memory = Module(new DataMemoryBlackBox(cfg.max_steps, cfg.num_bits))
   require(cfg.lut_inputs == 3)
 
-
   memory.io.clk         := clock
   memory.io.writeEnable := io.wr.en
   memory.io.writeData   := io.wr.bit

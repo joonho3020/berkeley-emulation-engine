@@ -140,9 +140,24 @@ class ControlIf(val name: String) extends MMap {
   }
 }
 
+class ClockWizardControlIf extends MMap {
+  def str: String = {
+    var ret = s"""clkwiz_ctrl: ClockWizardControlIf {
+           pll_locked: RdMMIOIf::new(0x10000),
+           pll_reset:  WrMMIOIf::new(0x10004),
+           fpga_top_resetn:  WrMMIOIf::new(0x10008),
+           fingerprint:  RdWrMMIOIf::new(0x1000c),
+           pll_reset_cycle:  WrMMIOIf::new(0x10010),"""
+    ret += "\n      }\n"
+    return ret
+  }
+}
+
 class DriverMemoryMap extends MMap {
   var dmas  = ListBuffer[DMAIf]()
   var ctrl = new ControlIf("ctrl_bridge")
+
+  val clkwiz_ctrl = new ClockWizardControlIf
 
   def str: String = {
     var ret = s"""
@@ -155,6 +170,8 @@ class DriverMemoryMap extends MMap {
       ${dma.str},"""
     })
     ret += "\n"
+    ret += clkwiz_ctrl.str
+    ret += ",\n"
     ret += "      " + ctrl.str
     ret += "    }\n"
     ret += "  }\n"
