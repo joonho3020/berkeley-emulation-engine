@@ -134,8 +134,13 @@ fn main() -> Result<(), SimIfErr> {
     // Map the input stimuli to a coordinate
     let mut mapped_input_stimulti_blasted: IndexMap<Coordinate, VecDeque<u64>> = IndexMap::new();
     for (sig, stim) in input_stimuli_blasted.iter() {
-        let coord = all_signal_map.get(sig).unwrap().info.coord;
-        mapped_input_stimulti_blasted.insert(coord, VecDeque::from(stim.clone()));
+        match all_signal_map.get(sig) {
+            Some(nmi) =>  {
+                let coord = nmi.info.coord;
+                mapped_input_stimulti_blasted.insert(coord, VecDeque::from(stim.clone()));
+            }
+            None =>  { println!("Input Signal {} not found", sig); }
+        }
     }
 
     // Total number of target cycles
@@ -153,6 +158,40 @@ fn main() -> Result<(), SimIfErr> {
     }
 
     let mut driver = Driver::try_from_simif(Box::new(simif));
+
+    println!("Clock wizard fingerprint register: {:x}",
+        driver.clkwiz_ctrl.fingerprint.read(&mut driver.simif)?);
+
+    while driver.clkwiz_ctrl.pll_locked.read(&mut driver.simif)? == 0 {
+        println!("pll_locked mmio read is 0");
+
+        // Set reset to high
+        driver.clkwiz_ctrl.pll_reset.write(&mut driver.simif, 1)?;
+
+        println!("pll_reset write 1 done");
+
+        // Set reset to low after some time
+        driver.simif.step();
+        driver.clkwiz_ctrl.pll_reset.write(&mut driver.simif, 0)?;
+        println!("pll_reset write 0 done");
+
+        // PLL is locked
+        for _ in 0..30 {
+            driver.simif.step();
+        }
+        driver.simif.init();
+    }
+
+    println!("FPGATop resetn sequence");
+    driver.clkwiz_ctrl.fpga_top_resetn.write(&mut driver.simif, 0)?;
+    for i in 0..10 {
+        driver.simif.step();
+    }
+    driver.clkwiz_ctrl.fpga_top_resetn.write(&mut driver.simif, 1)?;
+
+
+
+
 
     // Custom reset
     println!("Set custom resetn to low");
@@ -207,7 +246,7 @@ fn main() -> Result<(), SimIfErr> {
     let mut rng = rand::thread_rng();
 
     println!("Testing Debug DMA Bridge");
-    let iterations = 1000;
+    let iterations = 10000000;
     let bar = ProgressBar::new(iterations);
     for _i in 0..iterations {
         bar.inc(1);
@@ -306,7 +345,7 @@ fn main() -> Result<(), SimIfErr> {
                 bitbuf.push((_m >> sl) & 1 == 1);
             }
             bitbuf.reverse();
-            println!("bitbuf: {:X?}", bitbuf);
+// println!("bitbuf: {:X?}", bitbuf);
 
             assert!(bitbuf.len() < 512);
 
@@ -320,7 +359,7 @@ fn main() -> Result<(), SimIfErr> {
             bytebuf.reverse();
             bytebuf.resize(64 as usize, 0);
 
-            sleep(std::time::Duration::from_millis(2));
+            sleep(std::time::Duration::from_micros(100));
 
             let dbg_init_cntr_mmio = driver.ctrl_bridge.dbg_init_cntrs.get(*_m as usize).unwrap();
             let dbg_init_cntr = dbg_init_cntr_mmio.read(&mut driver.simif)?;
@@ -517,42 +556,47 @@ fn main() -> Result<(), SimIfErr> {
             .flat_map(|x| x.to_le_bytes()));
             ivec.resize(io_stream_bytes as usize, 0);
 
-            driver.io_bridge.push(&mut driver.simif, &ivec)?;
+        let written_bytes = driver.io_bridge.push(&mut driver.simif, &ivec)?;
+        if written_bytes == 0 {
+            println!("Target cycle {} DMA FAILED", tcycle);
+            mismatch = true;
+            break 'emulation_loop;
+        }
 
-            let mut ovec = vec![0u8; ivec.len()];
-            while true {
-                let read_bytes = driver.io_bridge.pull(&mut driver.simif, &mut ovec)?;
-                if read_bytes == 0 {
-                    sleep(std::time::Duration::from_millis(1));
-                } else {
-                    break;
-                }
+        let mut ovec = vec![0u8; ivec.len()];
+        while true {
+            let read_bytes = driver.io_bridge.pull(&mut driver.simif, &mut ovec)?;
+            if read_bytes == 0 {
+                sleep(std::time::Duration::from_millis(1));
+            } else {
+                break;
             }
+        }
 
-            // Run functional simulator
-            let input_stimuli_by_step = get_input_stimuli_by_step(
-                &circuit,
-                &input_stimuli_blasted,
-                &all_signal_map,
-                tcycle as u32);
-            funct_sim.run_cycle(&input_stimuli_by_step);
+        // Run functional simulator
+        let input_stimuli_by_step = get_input_stimuli_by_step(
+            &circuit,
+            &input_stimuli_blasted,
+            &all_signal_map,
+            tcycle as u32);
+        funct_sim.run_cycle(&input_stimuli_by_step);
 
-            // Collect functional simulation outputs
-            let mut obit_ref: BitVec<usize, Lsb0> = BitVec::new();
-            for _ in 0..tot_procs {
-                obit_ref.push(false);
-            }
+        // Collect functional simulation outputs
+        let mut obit_ref: BitVec<usize, Lsb0> = BitVec::new();
+        for _ in 0..tot_procs {
+            obit_ref.push(false);
+        }
 
-            for (os, coord) in output_signals.iter() {
-                let fsim_bit = funct_sim.peek(os).unwrap_or(0);
-                let id = coord.id(&circuit.platform_cfg);
-                obit_ref.set(id as usize, fsim_bit != 0);
-            }
-            let mut ovec_ref: Vec<u8> = obit_ref
-                .into_vec()
-                .iter()
-                .flat_map(|x| x.to_le_bytes())
-                .collect();
+        for (os, coord) in output_signals.iter() {
+            let fsim_bit = funct_sim.peek(os).unwrap_or(0);
+            let id = coord.id(&circuit.platform_cfg);
+            obit_ref.set(id as usize, fsim_bit != 0);
+        }
+        let mut ovec_ref: Vec<u8> = obit_ref
+            .into_vec()
+            .iter()
+            .flat_map(|x| x.to_le_bytes())
+            .collect();
         ovec_ref.resize(io_stream_bytes as usize, 0);
 
         println!("ovec: {:?}", ovec);
