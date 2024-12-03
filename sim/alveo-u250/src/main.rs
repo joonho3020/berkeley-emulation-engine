@@ -159,8 +159,8 @@ fn main() -> Result<(), SimIfErr> {
 
     let mut driver = Driver::try_from_simif(Box::new(simif));
 
-
-
+    println!("Clock wizard fingerprint register: {:x}",
+        driver.clkwiz_ctrl.fingerprint.read(&mut driver.simif)?);
 
     while driver.clkwiz_ctrl.pll_locked.read(&mut driver.simif)? == 0 {
         println!("pll_locked mmio read is 0");
@@ -176,8 +176,10 @@ fn main() -> Result<(), SimIfErr> {
         println!("pll_reset write 0 done");
 
         // PLL is locked
+        for _ in 0..30 {
+            driver.simif.step();
+        }
         driver.simif.init();
-        break;
     }
 
     println!("FPGATop resetn sequence");
