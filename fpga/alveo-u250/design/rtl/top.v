@@ -1,11 +1,17 @@
 module XilinxU250Board (
+    // PCIe ports
     input pcie_mgt_clkn,
     input pcie_mgt_clkp,
     input pcie_perstn_rst,
     input  [15:0] pci_exp_rxn,
     input  [15:0] pci_exp_rxp,
     output [15:0] pci_exp_txn,
-    output [15:0] pci_exp_txp
+    output [15:0] pci_exp_txp,
+
+    // SI570 PLL reference clock
+    // https://docs.amd.com/r/en-US/ug1289-u200-u250-reconfig-accel/Clocks
+    input clk_300mhz_0_p,
+    input clk_300mhz_0_n
 );
 
 wire sys_clk;
@@ -73,20 +79,129 @@ wire [1:0] m_axil_rresp;
 wire m_axil_rvalid;
 wire m_axil_rready;
 
+wire [63 : 0] xbar_axil_out_awaddr;
+wire [5 : 0] xbar_axil_out_awprot;
+wire [1 : 0] xbar_axil_out_awvalid;
+wire [1 : 0] xbar_axil_out_awready;
+wire [63 : 0] xbar_axil_out_wdata;
+wire [7 : 0] xbar_axil_out_wstrb;
+wire [1 : 0] xbar_axil_out_wvalid;
+wire [1 : 0] xbar_axil_out_wready;
+wire [3 : 0] xbar_axil_out_bresp;
+wire [1 : 0] xbar_axil_out_bvalid;
+wire [1 : 0] xbar_axil_out_bready;
+wire [63 : 0] xbar_axil_out_araddr;
+wire [5 : 0] xbar_axil_out_arprot;
+wire [1 : 0] xbar_axil_out_arvalid;
+wire [1 : 0] xbar_axil_out_arready;
+wire [63 : 0] xbar_axil_out_rdata;
+wire [3 : 0] xbar_axil_out_rresp;
+wire [1 : 0] xbar_axil_out_rvalid;
+wire [1 : 0] xbar_axil_out_rready;
+
+wire [31:0] xbar_axil_0_awaddr;
+wire [2:0] xbar_axil_0_awprot;
+wire xbar_axil_0_awvalid;
+wire xbar_axil_0_awready;
+wire [31:0] xbar_axil_0_wdata;
+wire [3:0] xbar_axil_0_wstrb;
+wire xbar_axil_0_wvalid;
+wire xbar_axil_0_wready;
+wire xbar_axil_0_bvalid;
+wire [1:0] xbar_axil_0_bresp;
+wire xbar_axil_0_bready;
+wire [31:0] xbar_axil_0_araddr;
+wire [2:0] xbar_axil_0_arprot;
+wire xbar_axil_0_arvalid;
+wire xbar_axil_0_arready;
+wire [31:0] xbar_axil_0_rdata;
+wire [1:0] xbar_axil_0_rresp;
+wire xbar_axil_0_rvalid;
+wire xbar_axil_0_rready;
+
+wire [31:0] xbar_axil_1_awaddr;
+wire [2:0] xbar_axil_1_awprot;
+wire xbar_axil_1_awvalid;
+wire xbar_axil_1_awready;
+wire [31:0] xbar_axil_1_wdata;
+wire [3:0] xbar_axil_1_wstrb;
+wire xbar_axil_1_wvalid;
+wire xbar_axil_1_wready;
+wire xbar_axil_1_bvalid;
+wire [1:0] xbar_axil_1_bresp;
+wire xbar_axil_1_bready;
+wire [31:0] xbar_axil_1_araddr;
+wire [2:0] xbar_axil_1_arprot;
+wire xbar_axil_1_arvalid;
+wire xbar_axil_1_arready;
+wire [31:0] xbar_axil_1_rdata;
+wire [1:0] xbar_axil_1_rresp;
+wire xbar_axil_1_rvalid;
+wire xbar_axil_1_rready;
+
+assign xbar_axil_0_awaddr       = xbar_axil_out_awaddr[31:0];
+assign xbar_axil_0_awprot       = xbar_axil_out_awprot[2:0];
+assign xbar_axil_0_awvalid      = xbar_axil_out_awvalid[0];
+assign xbar_axil_out_awready[0] = xbar_axil_0_awready;
+
+assign xbar_axil_0_wdata       = xbar_axil_out_wdata[31:0];
+assign xbar_axil_0_wstrb       = xbar_axil_out_wstrb[3:0];
+assign xbar_axil_0_wvalid      = xbar_axil_out_wvalid[0];
+assign xbar_axil_out_wready[0] = xbar_axil_0_wready;
+
+assign xbar_axil_out_bresp[1:0] = xbar_axil_0_bresp;
+assign xbar_axil_out_bvalid[0]  = xbar_axil_0_bvalid;
+assign xbar_axil_0_bready       = xbar_axil_out_bready[0];
+
+assign xbar_axil_0_araddr    = xbar_axil_out_araddr[31:0];
+assign xbar_axil_0_arprot    = xbar_axil_out_arprot[2:0];
+assign xbar_axil_0_arvalid   = xbar_axil_out_arvalid[0];
+assign xbar_axil_out_arready[0] = xbar_axil_0_arready;
+
+assign xbar_axil_out_rdata[31:0] = xbar_axil_0_rdata;
+assign xbar_axil_out_rresp[1:0]  = xbar_axil_0_rresp;
+assign xbar_axil_out_rvalid[0]   = xbar_axil_0_rvalid;
+assign xbar_axil_0_rready        = xbar_axil_out_rready[0];
+
+assign xbar_axil_1_awaddr       = xbar_axil_out_awaddr[63:32];
+assign xbar_axil_1_awprot       = xbar_axil_out_awprot[5:3];
+assign xbar_axil_1_awvalid      = xbar_axil_out_awvalid[1];
+assign xbar_axil_out_awready[1] = xbar_axil_1_awready;
+
+assign xbar_axil_1_wdata       = xbar_axil_out_wdata[63:32];
+assign xbar_axil_1_wstrb       = xbar_axil_out_wstrb[7:4];
+assign xbar_axil_1_wvalid      = xbar_axil_out_wvalid[1];
+assign xbar_axil_out_wready[1] = xbar_axil_1_wready;
+
+assign xbar_axil_out_bresp[3:2] = xbar_axil_1_bresp;
+assign xbar_axil_out_bvalid[1]  = xbar_axil_1_bvalid;
+assign xbar_axil_1_bready       = xbar_axil_out_bready[1];
+
+assign xbar_axil_1_araddr    = xbar_axil_out_araddr[63:32];
+assign xbar_axil_1_arprot    = xbar_axil_out_arprot[5:3];
+assign xbar_axil_1_arvalid   = xbar_axil_out_arvalid[1];
+assign xbar_axil_out_arready[1] = xbar_axil_1_arready;
+
+assign xbar_axil_out_rdata[63:32] = xbar_axil_1_rdata;
+assign xbar_axil_out_rresp[3:2]  = xbar_axil_1_rresp;
+assign xbar_axil_out_rvalid[1]   = xbar_axil_1_rvalid;
+assign xbar_axil_1_rready        = xbar_axil_out_rready[1];
+
+
 IBUFDS_GTE4 #(
   .REFCLK_HROW_CK_SEL(2'b00)
 )
 IBUFDS_inst (
-   .O(sys_clk_gt),         // 1-bit output: Refer to Transceiver User Guide.
-   .I (pcie_mgt_clkp),     // 1-bit input: Refer to Transceiver User Guide.
-   .IB(pcie_mgt_clkn),      // 1-bit input: Refer to Transceiver User Guide.
+   .O(sys_clk_gt),     // 1-bit output: Refer to Transceiver User Guide.
+   .I (pcie_mgt_clkp), // 1-bit input: Refer to Transceiver User Guide.
+   .IB(pcie_mgt_clkn), // 1-bit input: Refer to Transceiver User Guide.
    .CEB(1'b0),
    .ODIV2(sys_clk)
 );
 
 xdma_0 xdma_0 (
   .sys_clk(sys_clk),                                    // input wire sys_clk
-  .sys_clk_gt(sys_clk_gt),                                 // input wire sys_clk_gt
+  .sys_clk_gt(sys_clk_gt),                              // input wire sys_clk_gt
   .sys_rst_n(pcie_perstn_rst),                          // input wire sys_rst_n
   .user_lnk_up(),                                       // output wire user_lnk_up
   .pci_exp_txp(pci_exp_txp),                            // output wire [15 : 0] pci_exp_txp
@@ -169,34 +284,124 @@ xdma_0 xdma_0 (
   .cfg_mgmt_read_write_done()                           // output wire cfg_mgmt_read_write_done
 );
 
+axi_lite_xbar axi_lite_xbar (
+  .aclk(axi_aclk),               // input wire aclk
+  .aresetn(axi_aresetn),         // input wire aresetn
+
+  .s_axi_awaddr(m_axil_awaddr),    // input wire [31 : 0] s_axi_awaddr
+  .s_axi_awprot(m_axil_awprot),    // input wire [2 : 0] s_axi_awprot
+  .s_axi_awvalid(m_axil_awvalid),  // input wire [0 : 0] s_axi_awvalid
+  .s_axi_awready(m_axil_awready),  // output wire [0 : 0] s_axi_awready
+  .s_axi_wdata(m_axil_wdata),      // input wire [31 : 0] s_axi_wdata
+  .s_axi_wstrb(m_axil_wstrb),      // input wire [3 : 0] s_axi_wstrb
+  .s_axi_wvalid(m_axil_wvalid),    // input wire [0 : 0] s_axi_wvalid
+  .s_axi_wready(m_axil_wready),    // output wire [0 : 0] s_axi_wready
+  .s_axi_bresp(m_axil_bresp),      // output wire [1 : 0] s_axi_bresp
+  .s_axi_bvalid(m_axil_bvalid),    // output wire [0 : 0] s_axi_bvalid
+  .s_axi_bready(m_axil_bready),    // input wire [0 : 0] s_axi_bready
+  .s_axi_araddr(m_axil_araddr),    // input wire [31 : 0] s_axi_araddr
+  .s_axi_arprot(m_axil_arprot),    // input wire [2 : 0] s_axi_arprot
+  .s_axi_arvalid(m_axil_arvalid),  // input wire [0 : 0] s_axi_arvalid
+  .s_axi_arready(m_axil_arready),  // output wire [0 : 0] s_axi_arready
+  .s_axi_rdata(m_axil_rdata),      // output wire [31 : 0] s_axi_rdata
+  .s_axi_rresp(m_axil_rresp),      // output wire [1 : 0] s_axi_rresp
+  .s_axi_rvalid(m_axil_rvalid),    // output wire [0 : 0] s_axi_rvalid
+  .s_axi_rready(m_axil_rready),    // input wire [0 : 0] s_axi_rready
+
+  .m_axi_awaddr(xbar_axil_out_awaddr),    // output wire [63 : 0] m_axi_awaddr
+  .m_axi_awprot(xbar_axil_out_awprot),    // output wire [5 : 0] m_axi_awprot
+  .m_axi_awvalid(xbar_axil_out_awvalid),  // output wire [1 : 0] m_axi_awvalid
+  .m_axi_awready(xbar_axil_out_awready),  // input wire [1 : 0] m_axi_awready
+  .m_axi_wdata(xbar_axil_out_wdata),      // output wire [63 : 0] m_axi_wdata
+  .m_axi_wstrb(xbar_axil_out_wstrb),      // output wire [7 : 0] m_axi_wstrb
+  .m_axi_wvalid(xbar_axil_out_wvalid),    // output wire [1 : 0] m_axi_wvalid
+  .m_axi_wready(xbar_axil_out_wready),    // input wire [1 : 0] m_axi_wready
+  .m_axi_bresp(xbar_axil_out_bresp),      // input wire [3 : 0] m_axi_bresp
+  .m_axi_bvalid(xbar_axil_out_bvalid),    // input wire [1 : 0] m_axi_bvalid
+  .m_axi_bready(xbar_axil_out_bready),    // output wire [1 : 0] m_axi_bready
+  .m_axi_araddr(xbar_axil_out_araddr),    // output wire [63 : 0] m_axi_araddr
+  .m_axi_arprot(xbar_axil_out_arprot),    // output wire [5 : 0] m_axi_arprot
+  .m_axi_arvalid(xbar_axil_out_arvalid),  // output wire [1 : 0] m_axi_arvalid
+  .m_axi_arready(xbar_axil_out_arready),  // input wire [1 : 0] m_axi_arready
+  .m_axi_rdata(xbar_axil_out_rdata),      // input wire [63 : 0] m_axi_rdata
+  .m_axi_rresp(xbar_axil_out_rresp),      // input wire [3 : 0] m_axi_rresp
+  .m_axi_rvalid(xbar_axil_out_rvalid),    // input wire [1 : 0] m_axi_rvalid
+  .m_axi_rready(xbar_axil_out_rready)    // output wire [1 : 0] m_axi_rready
+);
+
+wire clk_wiz_locked;
+wire clk_wiz_reset;
+wire clk_wiz_reset_refclk_domain;
 wire fpga_top_clock;
+wire fpga_top_ctrl_resetn;
 wire fpga_top_resetn;
 
-clk_wiz_0 clk_wizard
+// Generate refclk from off-board PLL
+wire clk_wiz_refclk;
+wire clk_300mhz_ibufds;
+
+IBUFDS #(
+   .DIFF_TERM("FALSE"),       // Differential Termination
+   .IBUF_LOW_PWR("FALSE"),    // Low power="TRUE", Highest performance="FALSE"
+   .IOSTANDARD("DEFAULT")     // Specify the input I/O standard
+) IBUFDS_pll_refclk (
+   .O(clk_300mhz_ibufds),  // Buffer output
+   .I(clk_300mhz_0_p),      // Diff_p buffer input (connect directly to top-level port)
+   .IB(clk_300mhz_0_n)      // Diff_n buffer input (connect directly to top-level port)
+);
+
+xpm_cdc_single #(
+  .DEST_SYNC_FF(4),
+  .SRC_INPUT_REG(0)
+) clkwiz_reset_cdc (
+  .src_clk  (axi_aclk),
+  .src_in   (clk_wiz_reset),
+  .dest_clk (clk_wiz_refclk),
+  .dest_out (clk_wiz_reset_refclk_domain)
+);
+
+BUFG BUFG_inst (
+   .O(clk_wiz_refclk), // 1-bit output: Clock output
+   .I(clk_300mhz_ibufds)  // 1-bit input: Clock input
+);
+
+xpm_cdc_single #(
+  .DEST_SYNC_FF(4),
+  .SRC_INPUT_REG(0)
+) reset_cdc (
+  .src_clk  (axi_aclk),
+  .src_in   (fpga_top_ctrl_resetn),
+  .dest_clk (fpga_top_clock),
+  .dest_out (fpga_top_resetn)
+);
+
+clk_wiz_1 clk_wiz
 (
-  // Clock out ports
   .clk_out1(fpga_top_clock),
-  // Status and control signals
-  .reset(!axi_aresetn),
-  // Clock in ports
-  .clk_in1(axi_aclk)
+  .reset(clk_wiz_reset_refclk_domain),
+  .locked(clk_wiz_locked),
+  .clk_in1(clk_wiz_refclk)
 );
 
-
-// https://docs.amd.com/v/u/en-US/pg164-proc-sys-reset
-proc_sys_reset_0 reset_synchronizer (
-  .slowest_sync_clk(fpga_top_clock),          // input wire slowest_sync_clk
-  .ext_reset_in(!axi_aresetn),                  // input wire ext_reset_in
-  .aux_reset_in(1'b0),                  // input wire aux_reset_in
-  .mb_debug_sys_rst(1'b0),          // input wire mb_debug_sys_rst
-  .dcm_locked(1'b1),                      // input wire dcm_locked
-  .mb_reset(),                          // output wire mb_reset
-  .bus_struct_reset(),          // output wire [0 : 0] bus_struct_reset
-  .peripheral_reset(),          // output wire [0 : 0] peripheral_reset
-  .interconnect_aresetn(fpga_top_resetn),  // output wire [0 : 0] interconnect_aresetn
-  .peripheral_aresetn()      // output wire [0 : 0] peripheral_aresetn
+ila_2 ila_clkwiz_locked_axi_aclk (
+  .clk(axi_aclk),
+  .probe0(clk_wiz_locked)
 );
 
+ila_2 ila_clkwiz_locked_refclk (
+  .clk(clk_wiz_refclk),
+  .probe0(clk_wiz_locked)
+);
+
+ila_2 ila_clk_wiz_1_reset (
+  .clk(clk_wiz_refclk),
+  .probe0(clk_wiz_reset_refclk_domain)
+);
+
+ila_2 ila_fpga_top_resetn (
+  .clk(fpga_top_clock),
+  .probe0(fpga_top_resetn)
+);
 
 wire [3 : 0] io_dma_axi4_master_awid;
 wire [63 : 0] io_dma_axi4_master_awaddr;
@@ -231,128 +436,15 @@ wire io_dma_axi4_master_rvalid;
 wire io_dma_axi4_master_rready;
 
 
-wire io_debug_st_val;
-wire io_debug_st_rdy;
 wire [31:0] io_debug_tot_pushed;
-wire [31:0] io_debug_cur_mod;
-wire [31:0] io_debug_cur_pushed;
-wire [31:0] io_debug_sram_proc_init_vec;
 wire [31:0] io_debug_proc_0_init_vec;
 wire [31:0] io_debug_proc_n_init_vec;
-wire [31:0] io_debug_pc;
-wire [31:0] io_debug_uninit_proc_idx;
-wire [31:0] io_debug_q_empty;
-
-ila_0 ila_xdma_side (
-  .clk(axi_aclk), // input wire clk
-
-  .probe0( m_axi_wready), // input wire [0:0] probe0  
-  .probe1( m_axi_awaddr), // input wire [31:0]  probe1 
-  .probe2( m_axi_bresp), // input wire [1:0]  probe2 
-  .probe3( m_axi_bvalid), // input wire [0:0]  probe3 
-  .probe4( m_axi_bready), // input wire [0:0]  probe4 
-  .probe5( m_axi_araddr), // input wire [31:0]  probe5 
-  .probe6( m_axi_rready), // input wire [0:0]  probe6 
-  .probe7( m_axi_wvalid), // input wire [0:0]  probe7 
-  .probe8( m_axi_arvalid), // input wire [0:0]  probe8 
-  .probe9( m_axi_arready), // input wire [0:0]  probe9 
-  .probe10(m_axi_rdata), // input wire [31:0]  probe10 
-  .probe11(m_axi_awvalid), // input wire [0:0]  probe11 
-  .probe12(m_axi_awready), // input wire [0:0]  probe12 
-  .probe13(m_axi_rresp), // input wire [1:0]  probe13 
-  .probe14(m_axi_wdata), // input wire [31:0]  probe14 
-  .probe15(m_axi_wstrb), // input wire [3:0]  probe15 
-  .probe16(m_axi_rvalid), // input wire [0:0]  probe16 
-  .probe17(m_axi_arprot), // input wire [2:0]  probe17 
-  .probe18(m_axi_awprot), // input wire [2:0]  probe18 
-  .probe19(m_axi_awid), // input wire [0:0]  probe19 
-  .probe20(m_axi_bid), // input wire [0:0]  probe20 
-  .probe21(m_axi_awlen), // input wire [7:0]  probe21 
-  .probe22(m_axi_buser), // input wire [0:0]  probe22 
-  .probe23(m_axi_awsize), // input wire [2:0]  probe23 
-  .probe24(m_axi_awburst), // input wire [1:0]  probe24 
-  .probe25(m_axi_arid), // input wire [0:0]  probe25 
-  .probe26(m_axi_awlock), // input wire [0:0]  probe26 
-  .probe27(m_axi_arlen), // input wire [7:0]  probe27 
-  .probe28(m_axi_arsize), // input wire [2:0]  probe28 
-  .probe29(m_axi_arbusrt), // input wire [1:0]  probe29 
-  .probe30(m_axi_arlock), // input wire [0:0]  probe30 
-  .probe31(m_axi_arcache), // input wire [3:0]  probe31 
-  .probe32(m_axi_awcache), // input wire [3:0]  probe32 
-  .probe33(4'h0), // input wire [3:0]  probe33 
-  .probe34(4'h0), // input wire [3:0]  probe34 
-  .probe35(m_axi_aruser), // input wire [0:0]  probe35 
-  .probe36(4'h0), // input wire [3:0]  probe36 
-  .probe37(4'h0), // input wire [3:0]  probe37 
-  .probe38(m_axi_rid), // input wire [0:0]  probe38 
-  .probe39(m_axi_awuser), // input wire [0:0]  probe39 
-  .probe40(m_axi_wid), // input wire [0:0]  probe40 
-  .probe41(m_axi_rlast), // input wire [0:0]  probe41 
-  .probe42(m_axi_ruser), // input wire [0:0]  probe42  
-  .probe43(m_axi_wlast) // input wire [0:0]  probe43
-);
-
-ila_0 ila_cl_side (
-  .clk(     fpga_top_clock), // input wire clk
-  .probe0(  io_dma_axi4_master_wready), // input wire [0:0] probe0  
-  .probe1(  io_dma_axi4_master_awaddr), // input wire [31:0]  probe1 
-  .probe2(  io_dma_axi4_master_bresp), // input wire [1:0]  probe2 
-  .probe3(  io_dma_axi4_master_bvalid), // input wire [0:0]  probe3 
-  .probe4(  io_dma_axi4_master_bready), // input wire [0:0]  probe4 
-  .probe5(  io_dma_axi4_master_araddr), // input wire [31:0]  probe5 
-  .probe6(  io_dma_axi4_master_rready), // input wire [0:0]  probe6 
-  .probe7(  io_dma_axi4_master_wvalid), // input wire [0:0]  probe7 
-  .probe8(  io_dma_axi4_master_arvalid), // input wire [0:0]  probe8 
-  .probe9(  io_dma_axi4_master_arready), // input wire [0:0]  probe9 
-  .probe10( io_dma_axi4_master_rdata), // input wire [31:0]  probe10 
-  .probe11( io_dma_axi4_master_awvalid), // input wire [0:0]  probe11 
-  .probe12( io_dma_axi4_master_awready), // input wire [0:0]  probe12 
-  .probe13( io_dma_axi4_master_rresp), // input wire [1:0]  probe13 
-  .probe14( io_dma_axi4_master_wdata), // input wire [31:0]  probe14 
-  .probe15( io_dma_axi4_master_wstrb), // input wire [3:0]  probe15 
-  .probe16( io_dma_axi4_master_rvalid), // input wire [0:0]  probe16 
-  .probe17( 3'h0), // input wire [2:0]  probe17 
-  .probe18( 3'h0), // input wire [2:0]  probe18 
-  .probe19( io_dma_axi4_master_awid), // input wire [0:0]  probe19 
-  .probe20( io_dma_axi4_master_bid), // input wire [0:0]  probe20 
-  .probe21( io_dma_axi4_master_awlen), // input wire [7:0]  probe21 
-  .probe22( 1'h0), // input wire [0:0]  probe22 
-  .probe23( io_dma_axi4_master_awsize), // input wire [2:0]  probe23 
-  .probe24( 2'h0), // input wire [1:0]  probe24 
-  .probe25( io_dma_axi4_master_arid), // input wire [0:0]  probe25 
-  .probe26( 1'h0), // input wire [0:0]  probe26 
-  .probe27( io_dma_axi4_master_arlen), // input wire [7:0]  probe27 
-  .probe28( io_dma_axi4_master_arsize), // input wire [2:0]  probe28 
-  .probe29( 2'h0), // input wire [1:0]  probe29 
-  .probe30( 1'h0), // input wire [0:0]  probe30 
-  .probe31( 4'h0), // input wire [3:0]  probe31 
-  .probe32( 4'h0), // input wire [3:0]  probe32 
-  .probe33( 4'h0), // input wire [3:0]  probe33 
-  .probe34( 4'h0), // input wire [3:0]  probe34 
-  .probe35( 1'h0), // input wire [0:0]  probe35 
-  .probe36( 4'h0), // input wire [3:0]  probe36 
-  .probe37( 4'h0), // input wire [3:0]  probe37 
-  .probe38( io_dma_axi4_master_rid), // input wire [0:0]  probe38 
-  .probe39( 1'h0), // input wire [0:0]  probe39 
-  .probe40( 1'h0), // input wire [0:0]  probe40 
-  .probe41( io_dma_axi4_master_rlast), // input wire [0:0]  probe41 
-  .probe42( 1'h0), // input wire [0:0]  probe42  
-  .probe43( io_dma_axi4_master_wlast) // input wire [0:0]  probe43
-);
 
 ila_1 ila_debug (
   .clk(fpga_top_clock),
-  .probe0(io_debug_st_val),
-  .probe1(io_debug_st_rdy),
-  .probe2(io_debug_tot_pushed),
-  .probe3(io_debug_cur_mod),
-  .probe4(io_debug_cur_pushed),
-  .probe5(io_debug_sram_proc_init_vec),
-  .probe6(io_debug_proc_0_init_vec),
-  .probe7(io_debug_proc_n_init_vec),
-  .probe8(io_debug_pc),
-  .probe9(io_debug_uninit_proc_idx),
-  .probe10(io_debug_q_empty)
+  .probe0(io_debug_tot_pushed),
+  .probe1(io_debug_proc_0_init_vec),
+  .probe2(io_debug_proc_n_init_vec)
 );
 
 axi_cdc axi4_master_cdc (
@@ -479,25 +571,25 @@ axi_lite_cdc axi4_lite_master_cdc (
   .s_axi_aclk(axi_aclk),        // input wire s_axi_aclk
   .s_axi_aresetn(axi_aresetn),  // input wire s_axi_aresetn
 
-  .s_axi_awaddr(m_axil_awaddr),    // input wire [31 : 0] s_axi_awaddr
-  .s_axi_awprot(m_axil_awprot),    // input wire [2 : 0] s_axi_awprot
-  .s_axi_awvalid(m_axil_awvalid),  // input wire s_axi_awvalid
-  .s_axi_awready(m_axil_awready),  // output wire s_axi_awready
-  .s_axi_wdata(m_axil_wdata),      // input wire [31 : 0] s_axi_wdata
-  .s_axi_wstrb(m_axil_wstrb),      // input wire [3 : 0] s_axi_wstrb
-  .s_axi_wvalid(m_axil_wvalid),    // input wire s_axi_wvalid
-  .s_axi_wready(m_axil_wready),    // output wire s_axi_wready
-  .s_axi_bresp(m_axil_bresp),      // output wire [1 : 0] s_axi_bresp
-  .s_axi_bvalid(m_axil_bvalid),    // output wire s_axi_bvalid
-  .s_axi_bready(m_axil_bready),    // input wire s_axi_bready
-  .s_axi_araddr(m_axil_araddr),    // input wire [31 : 0] s_axi_araddr
-  .s_axi_arprot(m_axil_arprot),    // input wire [2 : 0] s_axi_arprot
-  .s_axi_arvalid(m_axil_arvalid),  // input wire s_axi_arvalid
-  .s_axi_arready(m_axil_arready),  // output wire s_axi_arready
-  .s_axi_rdata(m_axil_rdata),      // output wire [31 : 0] s_axi_rdata
-  .s_axi_rresp(m_axil_rresp),      // output wire [1 : 0] s_axi_rresp
-  .s_axi_rvalid(m_axil_rvalid),    // output wire s_axi_rvalid
-  .s_axi_rready(m_axil_rready),    // input wire s_axi_rready
+  .s_axi_awaddr(xbar_axil_0_awaddr),    // input wire [31 : 0] s_axi_awaddr
+  .s_axi_awprot(xbar_axil_0_awprot),    // input wire [2 : 0] s_axi_awprot
+  .s_axi_awvalid(xbar_axil_0_awvalid),  // input wire s_axi_awvalid
+  .s_axi_awready(xbar_axil_0_awready),  // output wire s_axi_awready
+  .s_axi_wdata(xbar_axil_0_wdata),      // input wire [31 : 0] s_axi_wdata
+  .s_axi_wstrb(xbar_axil_0_wstrb),      // input wire [3 : 0] s_axi_wstrb
+  .s_axi_wvalid(xbar_axil_0_wvalid),    // input wire s_axi_wvalid
+  .s_axi_wready(xbar_axil_0_wready),    // output wire s_axi_wready
+  .s_axi_bresp(xbar_axil_0_bresp),      // output wire [1 : 0] s_axi_bresp
+  .s_axi_bvalid(xbar_axil_0_bvalid),    // output wire s_axi_bvalid
+  .s_axi_bready(xbar_axil_0_bready),    // input wire s_axi_bready
+  .s_axi_araddr(xbar_axil_0_araddr),    // input wire [31 : 0] s_axi_araddr
+  .s_axi_arprot(xbar_axil_0_arprot),    // input wire [2 : 0] s_axi_arprot
+  .s_axi_arvalid(xbar_axil_0_arvalid),  // input wire s_axi_arvalid
+  .s_axi_arready(xbar_axil_0_arready),  // output wire s_axi_arready
+  .s_axi_rdata(xbar_axil_0_rdata),      // output wire [31 : 0] s_axi_rdata
+  .s_axi_rresp(xbar_axil_0_rresp),      // output wire [1 : 0] s_axi_rresp
+  .s_axi_rvalid(xbar_axil_0_rvalid),    // output wire s_axi_rvalid
+  .s_axi_rready(xbar_axil_0_rready),    // input wire s_axi_rready
 
   .m_axi_aclk(fpga_top_clock),        // input wire m_axi_aclk
   .m_axi_aresetn(fpga_top_resetn),  // input wire m_axi_aresetn
@@ -615,18 +707,58 @@ FPGATop FPGATop(
   .io_mmio_axi4_master_r_bits_id(),
   .io_mmio_axi4_master_r_bits_last(),
 
-
-  .io_debug_st_val(io_debug_st_val),
-  .io_debug_st_rdy(io_debug_st_rdy),
   .io_debug_tot_pushed(io_debug_tot_pushed),
-  .io_debug_cur_mod(io_debug_cur_mod),
-  .io_debug_cur_pushed(io_debug_cur_pushed),
-  .io_debug_sram_proc_init_vec(io_debug_sram_proc_init_vec),
   .io_debug_proc_0_init_vec(io_debug_proc_0_init_vec),
   .io_debug_proc_n_init_vec(io_debug_proc_n_init_vec),
-  .io_debug_pc(io_debug_pc),
-  .io_debug_uninit_proc_idx(io_debug_uninit_proc_idx),
-  .io_debug_q_empty(io_debug_q_empty)
+
+  .io_clkwiz_ctrl_axi_aclk(axi_aclk),
+  .io_clkwiz_ctrl_axi_aresetn(axi_aresetn),
+
+  .io_clkwiz_ctrl_ctrl_axil_aw_ready(xbar_axil_1_awready),
+  .io_clkwiz_ctrl_ctrl_axil_aw_valid(xbar_axil_1_awvalid),
+  .io_clkwiz_ctrl_ctrl_axil_aw_bits_id(12'h0),
+  .io_clkwiz_ctrl_ctrl_axil_aw_bits_addr(xbar_axil_1_awaddr),
+  .io_clkwiz_ctrl_ctrl_axil_aw_bits_len(8'h0),
+  .io_clkwiz_ctrl_ctrl_axil_aw_bits_size(3'h2),
+  .io_clkwiz_ctrl_ctrl_axil_aw_bits_burst(2'h0),
+  .io_clkwiz_ctrl_ctrl_axil_aw_bits_lock(1'h0),
+  .io_clkwiz_ctrl_ctrl_axil_aw_bits_cache(4'h0),
+  .io_clkwiz_ctrl_ctrl_axil_aw_bits_prot(3'h0),
+  .io_clkwiz_ctrl_ctrl_axil_aw_bits_qos(4'h0),
+
+  .io_clkwiz_ctrl_ctrl_axil_w_ready(xbar_axil_1_wready),
+  .io_clkwiz_ctrl_ctrl_axil_w_valid(xbar_axil_1_wvalid),
+  .io_clkwiz_ctrl_ctrl_axil_w_bits_data(xbar_axil_1_wdata),
+  .io_clkwiz_ctrl_ctrl_axil_w_bits_strb(4'h0),
+  .io_clkwiz_ctrl_ctrl_axil_w_bits_last(1'h1),
+
+  .io_clkwiz_ctrl_ctrl_axil_b_ready(xbar_axil_1_bready),
+  .io_clkwiz_ctrl_ctrl_axil_b_valid(xbar_axil_1_bvalid),
+  .io_clkwiz_ctrl_ctrl_axil_b_bits_resp(xbar_axil_1_bresp),
+  .io_clkwiz_ctrl_ctrl_axil_b_bits_id(),
+
+  .io_clkwiz_ctrl_ctrl_axil_ar_ready(xbar_axil_1_arready),
+  .io_clkwiz_ctrl_ctrl_axil_ar_valid(xbar_axil_1_arvalid),
+  .io_clkwiz_ctrl_ctrl_axil_ar_bits_addr(xbar_axil_1_araddr),
+  .io_clkwiz_ctrl_ctrl_axil_ar_bits_id(12'h0),
+  .io_clkwiz_ctrl_ctrl_axil_ar_bits_len(8'h0),
+  .io_clkwiz_ctrl_ctrl_axil_ar_bits_size(3'h2),
+  .io_clkwiz_ctrl_ctrl_axil_ar_bits_burst(2'h0),
+  .io_clkwiz_ctrl_ctrl_axil_ar_bits_lock(1'h0),
+  .io_clkwiz_ctrl_ctrl_axil_ar_bits_cache(4'h0),
+  .io_clkwiz_ctrl_ctrl_axil_ar_bits_prot(3'h0),
+  .io_clkwiz_ctrl_ctrl_axil_ar_bits_qos(4'h0),
+
+  .io_clkwiz_ctrl_ctrl_axil_r_ready(xbar_axil_1_rready),
+  .io_clkwiz_ctrl_ctrl_axil_r_valid(xbar_axil_1_rvalid),
+  .io_clkwiz_ctrl_ctrl_axil_r_bits_data(xbar_axil_1_rdata),
+  .io_clkwiz_ctrl_ctrl_axil_r_bits_resp(xbar_axil_1_rresp),
+  .io_clkwiz_ctrl_ctrl_axil_r_bits_id(),
+  .io_clkwiz_ctrl_ctrl_axil_r_bits_last(),
+
+  .io_clkwiz_ctrl_ctrl_clk_wiz_locked(clk_wiz_locked),
+  .io_clkwiz_ctrl_ctrl_clk_wiz_reset(clk_wiz_reset),
+  .io_clkwiz_ctrl_ctrl_fpga_top_ctrl_resetn(fpga_top_ctrl_resetn)
 );
 
 endmodule

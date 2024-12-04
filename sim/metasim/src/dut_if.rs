@@ -174,6 +174,125 @@ pub unsafe fn mmio_write(
     sim.step();
 }
 
+
+pub unsafe fn poke_io_clkwiz_ctrl_ctrl_axil_aw(dut: *mut VFPGATop, aw: &AXI4AW) {
+    poke_io_clkwiz_ctrl_ctrl_axil_aw_bits_addr (dut, aw.addr.into());
+    poke_io_clkwiz_ctrl_ctrl_axil_aw_bits_id   (dut, aw.id.into());
+    poke_io_clkwiz_ctrl_ctrl_axil_aw_bits_len  (dut, aw.len.into());
+    poke_io_clkwiz_ctrl_ctrl_axil_aw_bits_size (dut, aw.size.into());
+    poke_io_clkwiz_ctrl_ctrl_axil_aw_bits_burst(dut, aw.burst.into());
+    poke_io_clkwiz_ctrl_ctrl_axil_aw_bits_lock (dut, aw.lock.into());
+    poke_io_clkwiz_ctrl_ctrl_axil_aw_bits_cache(dut, aw.cache.into());
+    poke_io_clkwiz_ctrl_ctrl_axil_aw_bits_prot (dut, aw.prot.into());
+    poke_io_clkwiz_ctrl_ctrl_axil_aw_bits_qos  (dut, aw.qos.into());
+}
+
+pub unsafe fn poke_io_clkwiz_ctrl_ctrl_axil_w(dut: *mut VFPGATop, w: &AXI4W) {
+    assert!(w.data.len() == 4);
+    let arr = [w.data[0], w.data[1], w.data[2], w.data[3]];
+    let data = u32::from_le_bytes(arr);
+
+    poke_io_clkwiz_ctrl_ctrl_axil_w_bits_last(dut, w.last.into());
+    poke_io_clkwiz_ctrl_ctrl_axil_w_bits_data(dut, data as u64);
+    poke_io_clkwiz_ctrl_ctrl_axil_w_bits_strb(dut, w.strb.into());
+}
+
+pub unsafe fn peek_io_clkwiz_ctrl_ctrl_axil_b(dut: *mut VFPGATop) -> AXI4B {
+    AXI4B {
+        id:   peek_io_clkwiz_ctrl_ctrl_axil_b_bits_id  (dut) as u32,
+        resp: peek_io_clkwiz_ctrl_ctrl_axil_b_bits_resp(dut) as u32
+    }
+}
+
+pub unsafe fn poke_io_clkwiz_ctrl_ctrl_axil_ar(dut: *mut VFPGATop, ar: &AXI4AR) {
+    poke_io_clkwiz_ctrl_ctrl_axil_ar_bits_addr (dut, ar.addr.into());
+    poke_io_clkwiz_ctrl_ctrl_axil_ar_bits_id   (dut, ar.id.into());
+    poke_io_clkwiz_ctrl_ctrl_axil_ar_bits_len  (dut, ar.len.into());
+    poke_io_clkwiz_ctrl_ctrl_axil_ar_bits_size (dut, ar.size.into());
+    poke_io_clkwiz_ctrl_ctrl_axil_ar_bits_burst(dut, ar.burst.into());
+    poke_io_clkwiz_ctrl_ctrl_axil_ar_bits_lock (dut, ar.lock.into());
+    poke_io_clkwiz_ctrl_ctrl_axil_ar_bits_cache(dut, ar.cache.into());
+    poke_io_clkwiz_ctrl_ctrl_axil_ar_bits_prot (dut, ar.prot.into());
+    poke_io_clkwiz_ctrl_ctrl_axil_ar_bits_qos  (dut, ar.qos.into());
+}
+
+pub unsafe fn peek_io_clkwiz_ctrl_ctrl_axil_r(dut: *mut VFPGATop) -> AXI4R {
+    AXI4R {
+        id:   peek_io_clkwiz_ctrl_ctrl_axil_r_bits_id  (dut) as u32,
+        resp: peek_io_clkwiz_ctrl_ctrl_axil_r_bits_resp(dut) as u32,
+        last: peek_io_clkwiz_ctrl_ctrl_axil_r_bits_last(dut) != 0,
+        data: peek_io_clkwiz_ctrl_ctrl_axil_r_bits_data(dut).to_le_bytes().to_vec()
+    }
+}
+
+pub unsafe fn clkwiz_ctrl_read(
+    sim: &mut Sim,
+    addr: u32,
+) -> u32 {
+    // Wait until the ready signal is high
+    while peek_io_clkwiz_ctrl_ctrl_axil_ar_ready(sim.dut) == 0 {
+        sim.step();
+    }
+
+    // Submit AXI request through AR channel
+    let ar = AXI4AR::from_addr_size(addr, 2);
+
+    poke_io_clkwiz_ctrl_ctrl_axil_ar(sim.dut, &ar);
+    poke_io_clkwiz_ctrl_ctrl_axil_ar_valid(sim.dut, true.into());
+
+    // Assumes that the response will come at least one cycle after the request
+    sim.step();
+    poke_io_clkwiz_ctrl_ctrl_axil_ar_valid(sim.dut, false.into());
+    poke_io_clkwiz_ctrl_ctrl_axil_r_ready(sim.dut, true.into());
+
+    sim.step();
+
+    // Wait until we get the response
+    while peek_io_clkwiz_ctrl_ctrl_axil_r_valid(sim.dut) == 0 {
+        sim.step();
+    }
+
+    poke_io_clkwiz_ctrl_ctrl_axil_r_ready(sim.dut, false.into());
+    let r = peek_io_clkwiz_ctrl_ctrl_axil_r(sim.dut);
+    sim.step();
+    return u32::from_le_bytes([r.data[0], r.data[1], r.data[2], r.data[3]]);
+}
+
+pub unsafe fn clkwiz_ctrl_write(
+    sim: &mut Sim,
+    addr: u32,
+    data: u32
+) {
+    while peek_io_clkwiz_ctrl_ctrl_axil_aw_ready(sim.dut) == 0 ||
+          peek_io_clkwiz_ctrl_ctrl_axil_w_ready (sim.dut) == 0 {
+        sim.step();
+    }
+
+    let aw = AXI4AW::from_addr_size(addr, 2);
+    poke_io_clkwiz_ctrl_ctrl_axil_aw(sim.dut, &aw);
+    poke_io_clkwiz_ctrl_ctrl_axil_aw_valid(sim.dut, true.into());
+
+    let w = AXI4W::from_u32(data, sim.cfg.axil.strb());
+    poke_io_clkwiz_ctrl_ctrl_axil_w(sim.dut, &w);
+    poke_io_clkwiz_ctrl_ctrl_axil_w_valid(sim.dut, true.into());
+
+    // Assumes that the response will come at least one cycle after the request
+    sim.step();
+    poke_io_clkwiz_ctrl_ctrl_axil_aw_valid(sim.dut, false.into());
+    poke_io_clkwiz_ctrl_ctrl_axil_w_valid(sim.dut, false.into());
+    poke_io_clkwiz_ctrl_ctrl_axil_b_ready(sim.dut, true.into());
+    sim.step();
+
+    // Wait until we get the response
+    while peek_io_clkwiz_ctrl_ctrl_axil_b_valid(sim.dut) == 0 {
+        sim.step();
+    }
+
+    poke_io_clkwiz_ctrl_ctrl_axil_b_ready(sim.dut, false.into());
+    let _b = peek_io_clkwiz_ctrl_ctrl_axil_b(sim.dut);
+    sim.step();
+}
+
 pub unsafe fn dma_read_req(
     sim: &mut Sim,
     addr: u32,

@@ -187,7 +187,7 @@ impl Board {
         self: &mut Self,
         step: u32,
         input_stimuli: &IndexMap<u32, Vec<(&str, Bit)>>
-    ) -> Vec<Vec<ProcessorState>> {
+    ) -> Vec<Vec<(Bit, Bit)>> {
         match input_stimuli.get(&(step as u32)) {
             Some(vec) => {
                 for (sig, bit) in vec.iter() {
@@ -202,7 +202,7 @@ impl Board {
         for m in self.modules.iter() {
             let mut module_state = vec![];
             for p in m.procs.iter() {
-                module_state.push((p.ldm.data.clone(), p.sdm.data.clone()));
+                module_state.push((p.dbg_ldm_wbit, p.dbg_sdm_wbit));
             }
             board_state.push(module_state);
         }

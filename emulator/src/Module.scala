@@ -19,22 +19,26 @@ class EModuleDebugBundle(cfg: EmulatorConfig) extends Bundle {
   val pdbg = Vec(cfg.num_procs, new ProcessorDebugBundle(cfg))
 }
 
+class ModuleInstInitBundle(cfg: EmulatorConfig) extends Bundle {
+  val inst = Instruction(cfg)
+  val pidx = UInt(log2Ceil(cfg.num_procs).W)
+}
+
 class EModuleBundle(cfg: EmulatorConfig) extends Bundle {
   val cfg_in = Input(new EModuleConfigBundle(cfg))
   val init = Output(Bool())
-  val inst = Flipped(Decoupled(Instruction(cfg)))
+  val inst = Flipped(Decoupled(new ModuleInstInitBundle(cfg)))
 
   val run  = Input(Bool())
   val io   = new EModuleIOBitsBundle(cfg)
   val sw_glb = Vec(cfg.num_procs, new GlobalSwitchPort(cfg))
 
   val dbg = if (cfg.debug) Some(new EModuleDebugBundle(cfg)) else None
-  val dbg_sram_init   = Output(Bool())
   val dbg_proc_0_init = Output(Bool())
   val dbg_proc_n_init = Output(Bool())
-  val dbg_pc = Output(UInt(cfg.index_bits.W))
-  val dbg_uninit_proc_idx = Output(UInt(log2Ceil(cfg.num_procs + 1).W))
-  val dbg_q_empty = Output(Bool())
+  val dbg_proc_init_cnt = Output(UInt(log2Ceil(cfg.num_procs + 1).W))
+
+  val pcs_are_zero = Output(Bool())
 }
 
 @instantiable
@@ -68,35 +72,20 @@ class EModule(cfg: EmulatorConfig, large_sram: Boolean) extends Module {
     io.sw_glb(i) <> procs(i).io.sw_glb
   }
 
-  val dbg_q_empty = Seq.fill(num_procs / ireg_skip - 1)(Wire(Bool()))
-  io.dbg_q_empty := dbg_q_empty.reduce(_ || _)
+  val inst_q = Module(new Queue(new ModuleInstInitBundle(cfg), 2))
+  inst_q.io.enq <> io.inst
 
-  // instruction scan chain
-  for (i <- 0 until num_procs - 1) {
-    procs(i+1).io.isc.init_i := procs(i).io.isc.init_o
-    if (i % ireg_skip == ireg_skip - 1) {
-      val q = Module(new Queue(Instruction(cfg), 2))
-      q.io.enq <> procs(i+1).io.isc.inst_o
-      procs(i).io.isc.inst_i <> q.io.deq
-      dbg_q_empty(i / ireg_skip) := q.io.count === 0.U
-
-      assert(
-        !procs(i).io.isc.init_o ||
-        (procs(i).io.isc.init_o && !q.io.enq.valid))
-    } else {
-      procs(i).io.isc.inst_i <> procs(i+1).io.isc.inst_o
-
-      assert(
-        !procs(i).io.isc.init_o ||
-        (procs(i).io.isc.init_o && !procs(i+1).io.isc.inst_o.valid))
-    }
+  for (i <- 0 until num_procs) {
+    procs(i).io.inst.bits  := inst_q.io.deq.bits.inst
+    procs(i).io.inst.valid := inst_q.io.deq.valid && (inst_q.io.deq.bits.pidx === i.U)
   }
-  procs(0).io.isc.init_i := true.B
-  procs(0).io.isc.inst_o.ready := false.B
-  procs(num_procs-1).io.isc.inst_i <> io.inst
+
+  inst_q.io.deq.ready := procs.zipWithIndex.map({ case(proc, i) => {
+    proc.io.inst.ready && (inst_q.io.deq.bits.pidx === i.U)
+  }}).reduce(_ || _)
 
   val procs_init = procs.map { p => {
-    p.io.isc.init_o
+    !p.io.inst.ready
   }}.reduce(_ && _)
 
   io.init := procs_init &&  sram_proc.io.init
@@ -113,21 +102,8 @@ class EModule(cfg: EmulatorConfig, large_sram: Boolean) extends Module {
     dbg := procs(i).io.dbg.get
   }})
 
-  io.dbg_sram_init := sram_proc.io.init
-  io.dbg_proc_0_init := procs(0).io.isc.init_o
-  io.dbg_proc_n_init := procs(cfg.num_procs-1).io.isc.init_o
-
-  val uninitialized_proc_idx = Wire(UInt(log2Ceil(num_procs + 1).W))
-  uninitialized_proc_idx := procs.map { p => {
-    p.io.isc.init_o.asUInt
-  }}.reduce(_ + _)
-
-  io.dbg_uninit_proc_idx := uninitialized_proc_idx
-
-  io.dbg_pc := DontCare
-  for (i <- 0 until num_procs) {
-    when (i.U === uninitialized_proc_idx) {
-      io.dbg_pc := procs(i).io.dbg_pc
-    }
-  }
+  io.dbg_proc_0_init := !procs(0).io.inst.ready
+  io.dbg_proc_n_init := !procs(cfg.num_procs-1).io.inst.ready
+  io.dbg_proc_init_cnt := RegNext(procs.map{ p => (!p.io.inst.ready).asUInt }.reduce(_ +& _))
+  io.pcs_are_zero := procs.map(_.io.pc_is_zero).reduce(_ && _)
 }

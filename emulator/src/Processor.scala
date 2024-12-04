@@ -6,16 +6,13 @@ import chisel3.util.Decoupled
 import chisel3.experimental.hierarchy.{instantiable, public}
 
 class ProcessorDebugBundle(cfg: EmulatorConfig) extends Bundle {
-  val ldm = UInt(cfg.dmem_bits.W)
-  val sdm = UInt(cfg.dmem_bits.W)
-  val ops = Vec(cfg.lut_inputs, UInt(cfg.num_bits.W))
+  val ldm = UInt(cfg.num_bits.W)
+  val sdm = UInt(cfg.num_bits.W)
+// val ops = Vec(cfg.lut_inputs, UInt(cfg.num_bits.W))
 }
 
-class InstScanChainBundle(cfg: EmulatorConfig) extends Bundle {
-  val init_o = Output(Bool())
-  val inst_i = Flipped(Decoupled(Instruction(cfg)))
-  val init_i = Input(Bool())
-  val inst_o = Decoupled(Instruction(cfg))
+class ProcInstInitBundle(cfg: EmulatorConfig) extends Bundle {
+  val inst = Flipped(Decoupled(Instruction(cfg)))
 }
 
 class ProcessorBundle(cfg: EmulatorConfig) extends Bundle {
@@ -23,7 +20,7 @@ class ProcessorBundle(cfg: EmulatorConfig) extends Bundle {
   val run  = Input(Bool())
   val host_steps  = Input(UInt(index_bits.W))
 
-  val isc = new InstScanChainBundle(cfg)
+  val inst = Flipped(Decoupled(Instruction(cfg)))
 
   val sw_loc = new LocalSwitchPort(cfg)
   val sw_glb = new GlobalSwitchPort(cfg)
@@ -34,8 +31,7 @@ class ProcessorBundle(cfg: EmulatorConfig) extends Bundle {
   val sram_port = Flipped(new PerProcessorSRAMBundle(cfg))
 
   val dbg = if (cfg.debug) Some(Output(new ProcessorDebugBundle(cfg))) else None
-
-  val dbg_pc = Output(UInt(index_bits.W))
+  val pc_is_zero = Output(Bool())
 }
 
 @instantiable
@@ -48,53 +44,27 @@ class Processor(cfg: EmulatorConfig) extends Module {
   io.io_o := io_o
 
   val pc = RegInit(0.U(index_bits.W))
-  val init = RegInit(false.B)
-  io.isc.init_o := init
+
+  io.pc_is_zero := pc === 0.U
 
   val imem = Module(new InstMem(cfg))
   imem.io.wen := false.B
-  imem.io.winst := io.isc.inst_i.bits
-
-  io.isc.inst_o.valid := false.B
-  io.isc.inst_o.bits  := DontCare
-  io.isc.inst_i.ready := false.B
-
+  imem.io.winst := io.inst.bits
 
   val ldm = Module(new DataMemory(cfg))
   val sdm = Module(new DataMemory(cfg))
 
-  // Temporal assertions regarding instruction scan chain
-  val prev_pc = RegNext(pc)
-  assert(( init && !io.isc.inst_i.ready) ||
-         (!init &&  io.isc.inst_i.ready))
-
-  assert(init ||
-        (!init &&  io.isc.init_i && !io.isc.inst_o.fire) ||
-        (!init && !io.isc.init_i && (pc === prev_pc)))
-
-  val received_inst = RegNext(!init && io.isc.init_i && io.isc.inst_i.fire)
-  assert((received_inst && (pc === (prev_pc + 1.U) % io.host_steps)) ||
-         !received_inst)
-
-  val forwarded_inst = RegNext(!init && !io.isc.init_i && io.isc.inst_i.fire)
-  assert((forwarded_inst && pc === prev_pc) ||
-         !forwarded_inst)
-
-  io.dbg_pc := pc
+  val init = RegInit(false.B)
+  io.inst.ready := !init
 
   when (!init) {
-    when (!io.isc.init_i) {
-      io.isc.inst_o <> io.isc.inst_i
-    } .otherwise {
-      io.isc.inst_i.ready := true.B
-      when (io.isc.inst_i.valid) {
-        when (pc === io.host_steps - 1.U) {
-          pc := 0.U
-          init := true.B
-        } .otherwise {
-          pc := pc + 1.U
-        }
-        imem.io.wen := true.B
+    when (io.inst.fire) {
+      imem.io.wen := true.B
+      when (pc === io.host_steps - 1.U) {
+        pc := 0.U
+        init := true.B
+      } .otherwise {
+        pc := pc + 1.U
       }
     }
   } .otherwise {
@@ -107,7 +77,13 @@ class Processor(cfg: EmulatorConfig) extends Module {
   imem.io.pc := pc
 
   // -------------------------- Decode -----------------------------------
-  val fd_inst = imem.io.rinst
+  val fd_inst = Wire(new Instruction(cfg))
+  fd_inst := DontCare
+  when (pc >= cfg.imem_lat.U) {
+    fd_inst := imem.io.rinst
+  } otherwise {
+    fd_inst := 0.U.asTypeOf(Instruction(cfg))
+  }
   dontTouch(fd_inst)
 
   for (i <- 0 until cfg.lut_inputs) {
@@ -186,12 +162,12 @@ class Processor(cfg: EmulatorConfig) extends Module {
   io.sram_port.idx   := Cat(de_inst.ops.map(_.rs).tail.reverse)
 
   if (cfg.debug) {
-    io.dbg.map(x => x.ldm := ldm.io.dbg.get)
-    io.dbg.map(x => x.sdm := sdm.io.dbg.get)
-    io.dbg.map(x => x.ops := ops)
+    io.dbg.map(x => x.ldm := ldm.io.wr.bit)
+    io.dbg.map(x => x.sdm := sdm.io.wr.bit)
+// io.dbg.map(x => x.ops := ops)
   }
 
-  when (!init && io.isc.init_i) {
+  when (!init) {
     ldm.io.wr.en  := true.B
     ldm.io.wr.idx := pc
     ldm.io.wr.bit := 0.U

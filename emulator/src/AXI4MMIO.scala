@@ -12,7 +12,7 @@ class CtrlBundle(wBits: Int) extends Bundle {
   val wr = Decoupled(UInt(wBits.W))
 }
 
-class AXI4MMIOModule(numRegs: Int, cfg: AXI4BundleParameters) extends Module {
+class AXI4MMIOModule(numRegs: Int, cfg: AXI4BundleParameters, baseAddr: Int = 0) extends Module {
   val io = IO(new Bundle {
     val axi = Flipped(AXI4Bundle(cfg))
     val ctrl = Vec(numRegs, new CtrlBundle(cfg.dataBits))
@@ -31,8 +31,8 @@ class AXI4MMIOModule(numRegs: Int, cfg: AXI4BundleParameters) extends Module {
 
   val max_idx = (numRegs - 1).U
 
-  val ridx = io.axi.ar.bits.addr >> addr_offset.U
-  val ridx_invalid = ridx > max_idx
+  val ridx = (io.axi.ar.bits.addr - baseAddr.U) >> addr_offset.U
+  val ridx_invalid = (ridx > max_idx) || (io.axi.ar.bits.addr < baseAddr.U)
   val read_fire = DecoupledHelper(
     io.axi.ar.valid,
     io.axi.r.ready)
@@ -63,8 +63,8 @@ class AXI4MMIOModule(numRegs: Int, cfg: AXI4BundleParameters) extends Module {
     }
   }})
 
-  val widx = io.axi.aw.bits.addr >> addr_offset.U
-  val widx_invalid = widx > max_idx
+  val widx = (io.axi.aw.bits.addr - baseAddr.U) >> addr_offset.U
+  val widx_invalid = (widx > max_idx) || (io.axi.aw.bits.addr < baseAddr.U)
   val write_fire = DecoupledHelper(
     io.axi.aw.valid,
     io.axi.w.valid,
@@ -94,15 +94,16 @@ object AXI4MMIOModule {
 
   def tieoff(mmio: AXI4MMIOModule): Unit = {
     mmio.io.ctrl.map(rw => {
-      rw.wr.ready := false.B
-      rw.rd.valid := false.B
+      rw.wr.ready := true.B
+      rw.rd.valid := true.B
       rw.rd.bits  := DontCare
     })
   }
 
+  // All these functions assume that the tieoff has been called
+
   def bind_readonly_reg(reg: Data, mmio: AXI4MMIOModule): Int = {
     assert(mmio.io.ctrl(idx).wr.valid === false.B)
-    mmio.io.ctrl(idx).wr.ready := false.B
     mmio.io.ctrl(idx).rd.valid := true.B
     mmio.io.ctrl(idx).rd.bits  := reg
     idx += 1
@@ -110,7 +111,6 @@ object AXI4MMIOModule {
   }
 
   def bind_writeonly_reg(reg: Data, mmio: AXI4MMIOModule): Int = {
-    mmio.io.ctrl(idx).rd.valid := false.B
     mmio.io.ctrl(idx).wr.ready := true.B
     when (mmio.io.ctrl(idx).wr.valid) {
       reg := mmio.io.ctrl(idx).wr.bits
@@ -121,6 +121,10 @@ object AXI4MMIOModule {
 
   def bind_writeonly_reg_array(regs: Seq[Data], mmio: AXI4MMIOModule): Seq[Int] = {
     regs.map(r => AXI4MMIOModule.bind_writeonly_reg(r, mmio))
+  }
+
+  def bind_readonly_reg_array(regs: Seq[Data], mmio: AXI4MMIOModule): Seq[Int] = {
+    regs.map(r => AXI4MMIOModule.bind_readonly_reg(r, mmio))
   }
 
   def bind_readwrite_reg(reg: Data, mmio: AXI4MMIOModule): Int = {
@@ -137,5 +141,11 @@ object AXI4MMIOModule {
 
   def bind_readwrite_reg_array(regs: Seq[Data], mmio: AXI4MMIOModule): Seq[Int] = {
     regs.map(r => AXI4MMIOModule.bind_readwrite_reg(r, mmio))
+  }
+
+  def bind_decoupled_read(deq: DecoupledIO[Data], mmio: AXI4MMIOModule): Int = {
+    mmio.io.ctrl(idx).rd <> deq
+    idx += 1
+    return idx - 1
   }
 }

@@ -134,8 +134,13 @@ fn main() -> Result<(), SimIfErr> {
     // Map the input stimuli to a coordinate
     let mut mapped_input_stimulti_blasted: IndexMap<Coordinate, VecDeque<u64>> = IndexMap::new();
     for (sig, stim) in input_stimuli_blasted.iter() {
-        let coord = all_signal_map.get(sig).unwrap().info.coord;
-        mapped_input_stimulti_blasted.insert(coord, VecDeque::from(stim.clone()));
+        match all_signal_map.get(sig) {
+            Some(nmi) =>  {
+                let coord = nmi.info.coord;
+                mapped_input_stimulti_blasted.insert(coord, VecDeque::from(stim.clone()));
+            }
+            None =>  { println!("Input Signal {} not found", sig); }
+        }
     }
 
     // Total number of target cycles
@@ -154,12 +159,69 @@ fn main() -> Result<(), SimIfErr> {
 
     let mut driver = Driver::try_from_simif(Box::new(simif));
 
+    println!("Clock wizard fingerprint register: {:x}",
+        driver.clkwiz_ctrl.fingerprint.read(&mut driver.simif)?);
+
+    driver.clkwiz_ctrl.pll_reset_cycle.write(&mut driver.simif, 500)?;
+    driver.clkwiz_ctrl.pll_reset.write(&mut driver.simif, 1)?;
+
+    while driver.clkwiz_ctrl.pll_locked.read(&mut driver.simif)? == 0 {
+        println!("pll_locked mmio read is 0");
+    }
+
+    println!("PLL locked!");
+
+    println!("FPGATop resetn sequence");
+    driver.clkwiz_ctrl.fpga_top_resetn.write(&mut driver.simif, 0)?;
+    for _i in 0..10 {
+        driver.simif.step();
+    }
+    driver.clkwiz_ctrl.fpga_top_resetn.write(&mut driver.simif, 1)?;
+
+
+
+
+
+    // Custom reset
+    println!("Set custom resetn to low");
+    driver.ctrl_bridge.custom_resetn.write(&mut driver.simif, 0)?;
+
+    sleep(std::time::Duration::from_millis(10));
+
+    println!("Set custom resetn to high");
+    driver.ctrl_bridge.custom_resetn.write(&mut driver.simif, 1)?;
+
+    let pcs_are_zero = driver.ctrl_bridge.pcs_are_zero.read(&mut driver.simif)?;
+    assert!(pcs_are_zero == (1 << circuit.platform_cfg.num_mods) - 1,
+        "All PC values should be initialized after reset {:x}", pcs_are_zero);
+
     println!("Testing MMIO fingerprint");
     let fgr_init = driver.ctrl_bridge.fingerprint.read(&mut driver.simif)?;
     println!("fgr_init: {:x}", fgr_init);
 
     driver.ctrl_bridge.fingerprint.write(&mut driver.simif, 0xdeadbeaf)?;
     println!("reading from fingerprint addr: {:x}", driver.ctrl_bridge.fingerprint.read(&mut driver.simif)?);
+
+    // Custom reset
+    println!("Set custom resetn to low");
+    driver.ctrl_bridge.custom_resetn.write(&mut driver.simif, 0)?;
+    sleep(std::time::Duration::from_millis(10));
+
+    println!("Set custom resetn to high");
+    driver.ctrl_bridge.custom_resetn.write(&mut driver.simif, 1)?;
+
+    let pcs_are_zero = driver.ctrl_bridge.pcs_are_zero.read(&mut driver.simif)?;
+    assert!(pcs_are_zero == (1 << circuit.platform_cfg.num_mods) - 1,
+        "All PC values should be initialized after reset {:x}", pcs_are_zero);
+
+    println!("Testing MMIO fingerprint 22222");
+    let fgr_init = driver.ctrl_bridge.fingerprint.read(&mut driver.simif)?;
+    println!("fgr_init: {:x}", fgr_init);
+
+    let pcs_are_zero = driver.ctrl_bridge.pcs_are_zero.read(&mut driver.simif)?;
+    assert!(pcs_are_zero == (1 << circuit.platform_cfg.num_mods) - 1,
+        "All PC values should be initialized after reset {:x}", pcs_are_zero);
+    println!("pcs_are_zero {:x}", pcs_are_zero);
 
     let total_procs = args.bee_args.num_mods * args.bee_args.num_procs;
     let data_bits = 512;
@@ -173,14 +235,14 @@ fn main() -> Result<(), SimIfErr> {
     let mut rng = rand::thread_rng();
 
     println!("Testing Debug DMA Bridge");
-    let iterations = 10000;
+    let iterations = 1000000;
     let bar = ProgressBar::new(iterations);
     for _i in 0..iterations {
         bar.inc(1);
 
         let mut wbuf: Vec<u8> = XDMAInterface::aligned_vec(0x1000, 0);
         wbuf.extend((0..dma_bytes).map(|_| rng.gen_range(10..16)));
-        let written_bytes = driver.dbg_bridge.push(&mut driver.simif, &wbuf)?;
+        let written_bytes = driver.dma_bridge.push(&mut driver.simif, &wbuf)?;
         assert!(written_bytes == dma_bytes,
             "DMA write didn't write expected amount. Wrote: {} out of {} byte, iter {}",
             written_bytes, dma_bytes, _i);
@@ -188,7 +250,7 @@ fn main() -> Result<(), SimIfErr> {
 // sleep(std::time::Duration::from_millis(10));
 
         let mut rbuf = vec![0u8; dma_bytes as usize];
-        let read_bytes = driver.dbg_bridge.pull(&mut driver.simif, &mut rbuf)?;
+        let read_bytes = driver.dma_bridge.pull(&mut driver.simif, &mut rbuf)?;
         assert!(read_bytes == dma_bytes, "Read {} bytes, expected read {}, iter {}",
             read_bytes, dma_bytes, _i);
 
@@ -237,34 +299,45 @@ fn main() -> Result<(), SimIfErr> {
     sleep(std::time::Duration::from_millis(10));
 
     println!("Start pushing instructions");
+    println!("num_proc_bits: {} num_mod_bits: {}",
+        circuit.platform_cfg.num_proc_bits(),
+        circuit.platform_cfg.num_mod_bits());
+
     let inst_bar = ProgressBar::new(module_insts.len() as u64);
     for (_m, insts) in module_insts.iter() {
         inst_bar.inc(1);
 
-        while true {
-            let cur_mod = driver.ctrl_bridge.cur_inst_mod.read(&mut driver.simif)?;
-            if cur_mod == *_m {
-                break;
-            }
-        }
+        let dbg_init_cntr_mmio = driver.ctrl_bridge.dbg_init_cntrs.get(*_m as usize).unwrap();
+        let dbg_init_cntr = dbg_init_cntr_mmio.read(&mut driver.simif)?;
+        assert!(dbg_init_cntr == 0, "There should be no processors that are initialized");
+
+        assert!(insts.len() as u32 == circuit.emul.host_steps * circuit.platform_cfg.num_procs,
+            "Number of instructions for this module is weird got {}, expect {}",
+            insts.len(),
+            circuit.emul.host_steps * circuit.platform_cfg.num_procs);
 
         for (inst_idx, inst) in insts.iter().enumerate() {
+            let _p = inst_idx as u32 / circuit.emul.host_steps;
+
+            let mut bitbuf = inst.to_bits(&circuit.platform_cfg);
+
+            assert!(bitbuf.len() < 8 * 8, "Instruction bits {} > 64", bitbuf.len());
             assert!(driver.ctrl_bridge.init_done.read(&mut driver.simif)? == 0,
                 "Init set while pushing instructions, module {} inst {}", _m, inst_idx);
 
-            while true {
-                let cur_insts_pushed = driver.ctrl_bridge.cur_insts_pushed.read(&mut driver.simif)?;
-                if cur_insts_pushed == inst_idx as u32 {
-                    break;
-                } else {
-                    println!("cur_inst_pushed {} != inst_idx {}", cur_insts_pushed, inst_idx);
-                    assert!(false);
-                }
+            for x in 0..circuit.platform_cfg.num_proc_bits() {
+                let sl = circuit.platform_cfg.num_proc_bits() - x - 1;
+                bitbuf.push((_p >> sl) & 1 == 1);
             }
-
-            let mut bitbuf = inst.to_bits(&circuit.platform_cfg);
+            for x in 0..circuit.platform_cfg.num_mod_bits() {
+                let sl = circuit.platform_cfg.num_mod_bits() - x - 1;
+                bitbuf.push((_m >> sl) & 1 == 1);
+            }
             bitbuf.reverse();
-            assert!(bitbuf.len() < 8 * 8, "Instruction bits {} > 64", bitbuf.len());
+// println!("bitbuf: {:X?}", bitbuf);
+
+            assert!(bitbuf.len() < 512);
+
             let mut bytebuf: Vec<u8> = XDMAInterface::aligned_vec(0x1000, 0);
             bytebuf.extend(bitbuf
                 .clone()
@@ -275,49 +348,138 @@ fn main() -> Result<(), SimIfErr> {
             bytebuf.reverse();
             bytebuf.resize(64 as usize, 0);
 
-            sleep(std::time::Duration::from_millis(2));
+            sleep(std::time::Duration::from_micros(10));
 
-            'inst_push_loop: while true {
-                match driver.inst_bridge.push(&mut driver.simif, &bytebuf) {
-                    Ok(written_bytes) => {
-                        if written_bytes == 0 {
-                            println!("wrote zero bytes, try again");
-                            sleep(std::time::Duration::from_millis(1));
-                            continue;
-                        } else {
-                            assert!(written_bytes == 64, "Less than 64 bytes written for instruction");
-                            break 'inst_push_loop;
-                        }
-                    }
-                    Err(_) => {
-                        println!("DMA push panics while pushing instructions");
-                        sleep(std::time::Duration::from_millis(1));
-                        assert!(driver.ctrl_bridge.init_done.read(&mut driver.simif)? == 0,
-                            "Init set while pushing instructions");
-                    }
+            let dbg_init_cntr_mmio = driver.ctrl_bridge.dbg_init_cntrs.get(*_m as usize).unwrap();
+            let dbg_init_cntr = dbg_init_cntr_mmio.read(&mut driver.simif)?;
+            if dbg_init_cntr != _p {
+                println!("FISHY... Initializing module {} processor {}, initialized count {}",
+                    _m, _p, dbg_init_cntr);
+
+                // Check if all processor 0 & processor n-1 have been initialized
+                let proc_0_init_vec = driver.ctrl_bridge.dbg_proc_0_init.read(&mut driver.simif)?;
+                let proc_n_init_vec = driver.ctrl_bridge.dbg_proc_n_init.read(&mut driver.simif)?;
+                println!("proc_0_init_vec: {:x} proc_n_init_vec: {:x}", proc_0_init_vec, proc_n_init_vec);
+
+                // Check that the logic for midx validation works
+                let midx_mismatch_cnt = driver.ctrl_bridge.midx_mismatch_cnt.read(&mut driver.simif)?;
+                for _ in 0..midx_mismatch_cnt {
+                    println!("midx_mismatch found: received midx {}, expect {}",
+                        driver.ctrl_bridge.midx_mismatch_deq.read(&mut driver.simif)?,
+                        _m);
+                }
+
+                // Check that the logic for pidx validation works
+                let pidx_mismatch_cnt = driver.ctrl_bridge.pidx_mismatch_cnt.read(&mut driver.simif)?;
+                for _ in 0..pidx_mismatch_cnt {
+                    println!("pidx_mismatch found: received pidx {}, expect {}",
+                        driver.ctrl_bridge.pidx_mismatch_deq.read(&mut driver.simif)?,
+                        inst_idx);
                 }
             }
 
-            'inst_pull_loop: while true {
-                let mut read_buf = XDMAInterface::aligned_vec(0x1000, 64);
-                match driver.inst_bridge.pull(&mut driver.simif, &mut read_buf) {
-                    Ok(read_bytes) => {
-                        if read_bytes == 0 {
-                            println!("read zero bytes back, try again");
-                            continue;
-                        } else {
-                            assert!(read_bytes == 64, "Less than 64 bytes read for instruction");
-                            break 'inst_pull_loop;
+            match driver.inst_bridge.push(&mut driver.simif, &bytebuf) {
+                Ok(written_bytes) => {
+                    if written_bytes == 0 {
+                        let dbg_init_cntr_mmio = driver.ctrl_bridge.dbg_init_cntrs.get(*_m as usize).unwrap();
+                        let dbg_init_cntr = dbg_init_cntr_mmio.read(&mut driver.simif)?;
+                        println!("init cntrs: {}, module: {} proc: {}", dbg_init_cntr, _m, _p);
+
+                        // Check that the logic for midx validation works
+                        let midx_mismatch_cnt = driver.ctrl_bridge.midx_mismatch_cnt.read(&mut driver.simif)?;
+                        for _ in 0..midx_mismatch_cnt {
+                            println!("midx_mismatch found: received midx {}, expect {}",
+                                driver.ctrl_bridge.midx_mismatch_deq.read(&mut driver.simif)?,
+                                _m);
                         }
-                    }
-                    Err(_) => {
+
+                        // Check that the logic for pidx validation works
+                        let pidx_mismatch_cnt = driver.ctrl_bridge.pidx_mismatch_cnt.read(&mut driver.simif)?;
+                        for _ in 0..pidx_mismatch_cnt {
+                            println!("pidx_mismatch found: received pidx {}, expect {}",
+                                driver.ctrl_bridge.pidx_mismatch_deq.read(&mut driver.simif)?,
+                                inst_idx);
+                        }
+
+                        // Check that the host_steps did not change while pushing the instructions
+                        let host_steps_changed =
+                            driver.ctrl_bridge.host_steps_prv_cnt.read(&mut driver.simif)?;
+                        println!("host_steps_changed: {}", host_steps_changed);
+
+                        if host_steps_changed != 1 {
+                            let deq_cnt = driver.ctrl_bridge.host_steps_cur_cnt.read(&mut driver.simif)?;
+                            println!("host_steps_prv_deq {} entries, cur_deq {} entries",
+                                host_steps_changed, deq_cnt);
+
+                            for _ in 0..host_steps_changed {
+                                println!("prv {} -> cur {}",
+                                    driver.ctrl_bridge.host_steps_prv_deq.read(&mut driver.simif)?,
+                                    driver.ctrl_bridge.host_steps_cur_deq.read(&mut driver.simif)?);
+                            }
+                            println!("host_steps should only change once, changed {} times", host_steps_changed);
+                        }
+
+                        // Check if all processor 0 & processor n-1 have been initialized
+                        let proc_0_init_vec = driver.ctrl_bridge.dbg_proc_0_init.read(&mut driver.simif)?;
+                        let proc_n_init_vec = driver.ctrl_bridge.dbg_proc_n_init.read(&mut driver.simif)?;
+                        println!("proc_0_init_vec: {:x} proc_n_init_vec: {:x}", proc_0_init_vec, proc_n_init_vec);
+
+                        assert!(false, "wrote zero bytes");
+                        sleep(std::time::Duration::from_millis(1));
                         continue;
+                    } else {
+                        assert!(written_bytes == 64, "Less than 64 bytes written for instruction");
                     }
                 }
+                Err(_) => {
+                    println!("DMA push panics while pushing instructions");
+                    sleep(std::time::Duration::from_millis(1));
+                    assert!(driver.ctrl_bridge.init_done.read(&mut driver.simif)? == 0,
+                        "Init set while pushing instructions");
+                }
+            }
+
+            // Check that the logic for midx validation works
+            let midx_mismatch_cnt = driver.ctrl_bridge.midx_mismatch_cnt.read(&mut driver.simif)?;
+            for _ in 0..midx_mismatch_cnt {
+                println!("midx_mismatch found: received midx {}, expect {}",
+                    driver.ctrl_bridge.midx_mismatch_deq.read(&mut driver.simif)?,
+                    _m);
+            }
+
+            // Check that the logic for pidx validation works
+            let pidx_mismatch_cnt = driver.ctrl_bridge.pidx_mismatch_cnt.read(&mut driver.simif)?;
+            for _ in 0..pidx_mismatch_cnt {
+                println!("pidx_mismatch found: received pidx {}, expect {}",
+                    driver.ctrl_bridge.pidx_mismatch_deq.read(&mut driver.simif)?,
+                    _p);
             }
         }
+        let tot_insts_pushed = driver.ctrl_bridge.tot_insts_pushed.read(&mut driver.simif)?;
         println!("total instructions pushed {} ",
             driver.ctrl_bridge.tot_insts_pushed.read(&mut driver.simif)?);
+        assert!(tot_insts_pushed == circuit.emul.host_steps * circuit.platform_cfg.num_procs * (_m + 1));
+
+        // Check if all processor 0 & processor n-1 have been initialized
+        let proc_0_init_vec = driver.ctrl_bridge.dbg_proc_0_init.read(&mut driver.simif)?;
+        let proc_n_init_vec = driver.ctrl_bridge.dbg_proc_n_init.read(&mut driver.simif)?;
+        assert!(proc_0_init_vec == proc_n_init_vec,
+            "proc 0 {:x} n {:x}",
+            proc_0_init_vec, proc_n_init_vec);
+
+        // Check that the number of processors initialized processors match w/
+        // what is expected
+        let dbg_init_cntr_mmio = driver.ctrl_bridge.dbg_init_cntrs.get(*_m as usize).unwrap();
+        let dbg_init_cntr = dbg_init_cntr_mmio.read(&mut driver.simif)?;
+        assert!(dbg_init_cntr == circuit.platform_cfg.num_procs,
+            "number of processors initialized for module {}: {} out of {}",
+            _m, dbg_init_cntr, circuit.platform_cfg.num_procs);
+
+        for module_idx in 0..circuit.platform_cfg.num_mods {
+            let dbg_init_cntr_mmio = driver.ctrl_bridge.dbg_init_cntrs.get(module_idx as usize).unwrap();
+            let dbg_init_cntr = dbg_init_cntr_mmio.read(&mut driver.simif)?;
+            println!("Number of processor initialized for module {}: {}", module_idx, dbg_init_cntr);
+        }
     }
     inst_bar.finish();
 
@@ -328,6 +490,24 @@ fn main() -> Result<(), SimIfErr> {
             driver.ctrl_bridge.host_steps.read(&mut driver.simif)? * total_procs,
             "Pushed instructions doesn't match expectation w/ host steps {}",
             driver.ctrl_bridge.host_steps.read(&mut driver.simif)?);
+
+    // Check that the host_steps did not change while pushing the instructions
+    let host_steps_changed =
+        driver.ctrl_bridge.host_steps_prv_cnt.read(&mut driver.simif)?;
+    println!("host_steps_changed: {}", host_steps_changed);
+
+    if host_steps_changed != 1 {
+        let deq_cnt = driver.ctrl_bridge.host_steps_cur_cnt.read(&mut driver.simif)?;
+        println!("host_steps_prv_deq {} entries, cur_deq {} entries",
+            host_steps_changed, deq_cnt);
+
+        for _ in 0..host_steps_changed {
+            println!("prv {} -> cur {}",
+                driver.ctrl_bridge.host_steps_prv_deq.read(&mut driver.simif)?,
+                driver.ctrl_bridge.host_steps_cur_deq.read(&mut driver.simif)?);
+        }
+        println!("host_steps should only change once, changed {} times", host_steps_changed);
+    }
 
     while driver.ctrl_bridge.init_done.read(&mut driver.simif)? == 0 {
         println!("init {}", driver.ctrl_bridge.init_done.read(&mut driver.simif)?);
@@ -365,42 +545,47 @@ fn main() -> Result<(), SimIfErr> {
             .flat_map(|x| x.to_le_bytes()));
             ivec.resize(io_stream_bytes as usize, 0);
 
-            driver.io_bridge.push(&mut driver.simif, &ivec)?;
+        let written_bytes = driver.io_bridge.push(&mut driver.simif, &ivec)?;
+        if written_bytes == 0 {
+            println!("Target cycle {} DMA FAILED", tcycle);
+            mismatch = true;
+            break 'emulation_loop;
+        }
 
-            let mut ovec = vec![0u8; ivec.len()];
-            while true {
-                let read_bytes = driver.io_bridge.pull(&mut driver.simif, &mut ovec)?;
-                if read_bytes == 0 {
-                    sleep(std::time::Duration::from_millis(1));
-                } else {
-                    break;
-                }
+        let mut ovec = vec![0u8; ivec.len()];
+        while true {
+            let read_bytes = driver.io_bridge.pull(&mut driver.simif, &mut ovec)?;
+            if read_bytes == 0 {
+                sleep(std::time::Duration::from_millis(1));
+            } else {
+                break;
             }
+        }
 
-            // Run functional simulator
-            let input_stimuli_by_step = get_input_stimuli_by_step(
-                &circuit,
-                &input_stimuli_blasted,
-                &all_signal_map,
-                tcycle as u32);
-            funct_sim.run_cycle(&input_stimuli_by_step);
+        // Run functional simulator
+        let input_stimuli_by_step = get_input_stimuli_by_step(
+            &circuit,
+            &input_stimuli_blasted,
+            &all_signal_map,
+            tcycle as u32);
+        funct_sim.run_cycle(&input_stimuli_by_step);
 
-            // Collect functional simulation outputs
-            let mut obit_ref: BitVec<usize, Lsb0> = BitVec::new();
-            for _ in 0..tot_procs {
-                obit_ref.push(false);
-            }
+        // Collect functional simulation outputs
+        let mut obit_ref: BitVec<usize, Lsb0> = BitVec::new();
+        for _ in 0..tot_procs {
+            obit_ref.push(false);
+        }
 
-            for (os, coord) in output_signals.iter() {
-                let fsim_bit = funct_sim.peek(os).unwrap_or(0);
-                let id = coord.id(&circuit.platform_cfg);
-                obit_ref.set(id as usize, fsim_bit != 0);
-            }
-            let mut ovec_ref: Vec<u8> = obit_ref
-                .into_vec()
-                .iter()
-                .flat_map(|x| x.to_le_bytes())
-                .collect();
+        for (os, coord) in output_signals.iter() {
+            let fsim_bit = funct_sim.peek(os).unwrap_or(0);
+            let id = coord.id(&circuit.platform_cfg);
+            obit_ref.set(id as usize, fsim_bit != 0);
+        }
+        let mut ovec_ref: Vec<u8> = obit_ref
+            .into_vec()
+            .iter()
+            .flat_map(|x| x.to_le_bytes())
+            .collect();
         ovec_ref.resize(io_stream_bytes as usize, 0);
 
         println!("ovec: {:?}", ovec);

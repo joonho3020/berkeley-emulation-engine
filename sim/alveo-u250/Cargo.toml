@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bee = { git = "ssh://git@github.com/joonho3020/berkeley-emulation-engine.git", branch = "main" }
+bee = { path = "../../compiler" }
 bitvec = "1.0.1"
 clap = { version = "4.5.20", features = ["derive"] }
 indexmap = "2.6.0"

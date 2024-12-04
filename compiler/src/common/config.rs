@@ -295,6 +295,14 @@ impl PlatformConfig {
         }
     }
 
+    pub fn num_proc_bits(self: &Self) -> u32 {
+        self.log2ceil(self.num_procs)
+    }
+
+    pub fn num_mod_bits(self: &Self) -> u32 {
+        self.log2ceil(self.num_mods)
+    }
+
     /// log2Ceil(self.max_steps)
     pub fn index_bits(self: &Self) -> u32 {
         self.log2ceil(self.max_steps)

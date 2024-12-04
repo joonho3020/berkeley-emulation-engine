@@ -88,7 +88,7 @@ impl Instruction {
                     (op.rs, op.local)
                 }
                 None => {
-                    (0, false)
+                    (0, true)
                 }
             };
             for i in 0..cfg.index_bits() {

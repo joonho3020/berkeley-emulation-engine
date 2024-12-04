@@ -83,9 +83,26 @@ class SRAMConfigVecIf(val cfgs: Seq[SRAMConfigAddr]) extends MMap {
   }
 }
 
+case class DebugInitCntrAddr(addr: Int)
+
+class DebugProcInitCntIf(val cntrs: Seq[DebugInitCntrAddr]) extends MMap {
+  def str: String = {
+    var ret = "vec![\n"
+    cntrs.zipWithIndex.foreach({ case (cntr, i) => {
+      ret += s"          RdMMIOIf::new(0x${Integer.toHexString(cntr.addr)})"
+      if (i != cntrs.length - 1) {
+        ret += ",\n"
+      }
+    }})
+    ret += "\n        ]"
+    return ret
+  }
+}
+
 class ControlIf(val name: String) extends MMap {
   var regs = ListBuffer[MMIOIf]()
   var srams = ListBuffer[SRAMConfigAddr]()
+  var dbg_init_cntr = ListBuffer[DebugInitCntrAddr]()
 
   def add_reg(r: MMIOIf): Unit = {
     regs.append(r)
@@ -99,10 +116,21 @@ class ControlIf(val name: String) extends MMap {
     new SRAMConfigVecIf(srams.toSeq)
   }
 
+  def add_dbg_mmio(addr: Int): Unit = {
+    dbg_init_cntr.append(DebugInitCntrAddr(addr))
+  }
+
+  def dbg_cfg_vec: DebugProcInitCntIf = {
+    new DebugProcInitCntIf(dbg_init_cntr.toSeq)
+  }
+
   def str: String = {
     val sram = sram_cfg_vec
+    val dbg  = dbg_cfg_vec
+
     var ret = s"""${name}: ControlIf {
-        sram: ${sram.str},"""
+        sram: ${sram.str},
+        dbg_init_cntrs: ${dbg.str},"""
     regs.foreach(r => {
       ret += s"""
         ${r.str},"""
@@ -112,9 +140,24 @@ class ControlIf(val name: String) extends MMap {
   }
 }
 
+class ClockWizardControlIf extends MMap {
+  def str: String = {
+    var ret = s"""clkwiz_ctrl: ClockWizardControlIf {
+           pll_locked: RdMMIOIf::new(0x10000),
+           pll_reset:  WrMMIOIf::new(0x10004),
+           fpga_top_resetn:  WrMMIOIf::new(0x10008),
+           fingerprint:  RdWrMMIOIf::new(0x1000c),
+           pll_reset_cycle:  WrMMIOIf::new(0x10010),"""
+    ret += "\n      }\n"
+    return ret
+  }
+}
+
 class DriverMemoryMap extends MMap {
   var dmas  = ListBuffer[DMAIf]()
   var ctrl = new ControlIf("ctrl_bridge")
+
+  val clkwiz_ctrl = new ClockWizardControlIf
 
   def str: String = {
     var ret = s"""
@@ -127,6 +170,8 @@ class DriverMemoryMap extends MMap {
       ${dma.str},"""
     })
     ret += "\n"
+    ret += clkwiz_ctrl.str
+    ret += ",\n"
     ret += "      " + ctrl.str
     ret += "    }\n"
     ret += "  }\n"
