@@ -162,24 +162,11 @@ fn main() -> Result<(), SimIfErr> {
     println!("Clock wizard fingerprint register: {:x}",
         driver.clkwiz_ctrl.fingerprint.read(&mut driver.simif)?);
 
+    driver.clkwiz_ctrl.pll_reset_cycle.write(&mut driver.simif, 500)?;
+    driver.clkwiz_ctrl.pll_reset.write(&mut driver.simif, 1)?;
+
     while driver.clkwiz_ctrl.pll_locked.read(&mut driver.simif)? == 0 {
         println!("pll_locked mmio read is 0");
-
-        // Set reset to high
-        driver.clkwiz_ctrl.pll_reset.write(&mut driver.simif, 1)?;
-
-        println!("pll_reset write 1 done");
-
-        // Set reset to low after some time
-        driver.simif.step();
-        driver.clkwiz_ctrl.pll_reset.write(&mut driver.simif, 0)?;
-        println!("pll_reset write 0 done");
-
-        // PLL is locked
-        for _ in 0..30 {
-            driver.simif.step();
-        }
-        driver.simif.init();
     }
 
     println!("FPGATop resetn sequence");
