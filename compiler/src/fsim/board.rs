@@ -1,6 +1,5 @@
 use crate::fsim::module::*;
 use crate::fsim::switch::*;
-use crate::fsim::processor::ProcessorState;
 use crate::common::{hwgraph::*, config::*, network::*, circuit::Circuit, primitive::*};
 use petgraph::graph::NodeIndex;
 use indexmap::IndexMap;

@@ -22,9 +22,6 @@ pub fn try_new_circuit(args: &Args) -> std::io::Result<Circuit> {
         }
     };
 
-    assert!(args.large_sram_width >= args.sram_width);
-    assert!(args.large_sram_entries >= args.sram_entries);
-
     circuit.set_cfg(
         PlatformConfig {
             num_mods:           args.num_mods,
@@ -43,9 +40,6 @@ pub fn try_new_circuit(args: &Args) -> std::io::Result<Circuit> {
             sram_rd_lat:        args.sram_rd_lat,
             sram_wr_lat:        args.sram_wr_lat,
             sram_ip_pl:         args.sram_ip_pl,
-            large_sram_width:   args.large_sram_width,
-            large_sram_entries: args.large_sram_entries,
-            large_sram_cnt:     args.large_sram_cnt,
             topology: GlobalNetworkTopology::new(args.num_mods, args.num_procs)
         },
         CompilerConfig {

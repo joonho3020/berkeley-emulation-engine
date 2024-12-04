@@ -1,5 +1,4 @@
 use indexmap::IndexMap;
-use std::fs;
 use std::cmp::max;
 use indicatif::ProgressBar;
 use petgraph::graph::NodeIndex;

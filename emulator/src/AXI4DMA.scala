@@ -17,7 +17,6 @@ class StreamAdapterIO(val w: Int) extends Bundle {
 }
 
 class StreamWidthAdapter(narrowW: Int, wideW: Int) extends Module {
-// require(wideW >= narrowW)
   require(wideW % narrowW == 0)
   val io = IO(new Bundle {
     val narrow = new StreamAdapterIO(narrowW)
@@ -71,7 +70,6 @@ class Stream(val sp: StreamParam, val axiDataBits: Int) extends Bundle {
   val empty_bytes = UInt(capacityBits.W)
 }
 
-// TODO: CLeanup...
 class AXI4DecoupledConverter(
   axiParams: AXI4BundleParameters,
   streamParams: Seq[StreamParam],
@@ -128,7 +126,6 @@ class AXI4DecoupledConverter(
       grant
     )
 
-    // TODO: Get rid of this magic number.
     val writeBeatCounter = RegInit(0.U(9.W))
     val lastWriteBeat    = writeBeatCounter === io.axi.aw.bits.len
     when(io.axi.w.fire && grant) {

@@ -23,9 +23,6 @@ case class EmulatorConfig(
   sram_wr_lat: Int  = 1,         // Number of cycles to perform SRAM write
   sram_rd_lat: Int  = 1,         // Number of cycles to perform SRAM reads
   sram_ip_pl:  Int  = 1,         // Number of pipeline stages btw the proc SRAM IP ports and the sram procs
-  large_sram_cnt: Int = 2,       // Number of large srams
-  large_sram_width: Int = 16,       // Width of large srams
-  large_sram_entries: Int = 16,       // Depth of large srams
   blackbox_dmem: Boolean = false, // Use blackbox datamemory (for FPGA lutram mapping)
   debug:      Boolean = false    // Insert debug bundles
 ) {
@@ -35,10 +32,6 @@ case class EmulatorConfig(
   // The compiler supports changing these flags
   require(dmem_rd_lat == 0)
   require(dmem_rd_lat <= 1)
-
-  // Constraints
-  require(large_sram_width   >= sram_width)
-  require(large_sram_entries >= sram_entries)
 
   // These requirements are HW limitations
   require(imem_lat <= 1)
@@ -59,22 +52,22 @@ case class EmulatorConfig(
 
 
   // SRAM processor related parameters
-  val sram_addr_bits  = log2Ceil(large_sram_entries + 1)
-  val sram_width_bits = log2Ceil(large_sram_width   + 1)
+  val sram_addr_bits  = log2Ceil(sram_entries + 1)
+  val sram_width_bits = log2Ceil(sram_width   + 1)
 
   val sram_rd_en_offset     = 0
   val sram_wr_en_offset     = sram_rd_en_offset + 1
   val sram_rd_addr_offset   = sram_wr_en_offset + 1
-  val sram_wr_addr_offset   = sram_rd_addr_offset + large_sram_entries
-  val sram_wr_data_offset   = sram_wr_addr_offset + large_sram_entries
-  val sram_wr_mask_offset   = sram_wr_data_offset + large_sram_width
-  val sram_rdwr_en_offset   = sram_wr_mask_offset + large_sram_width
+  val sram_wr_addr_offset   = sram_rd_addr_offset + sram_entries
+  val sram_wr_data_offset   = sram_wr_addr_offset + sram_entries
+  val sram_wr_mask_offset   = sram_wr_data_offset + sram_width
+  val sram_rdwr_en_offset   = sram_wr_mask_offset + sram_width
   val sram_rdwr_mode_offset = sram_rdwr_en_offset + 1
   val sram_rdwr_addr_offset = sram_rdwr_mode_offset + 1
-  val sram_other_offset     = sram_rdwr_addr_offset + large_sram_entries
+  val sram_other_offset     = sram_rdwr_addr_offset + sram_entries
 
   val sram_offset_decode_bits = sram_addr_bits.max(sram_width_bits)
-  val sram_addr_width_max = sram_addr_bits.max(large_sram_width)
+  val sram_addr_width_max = sram_addr_bits.max(sram_width)
 
   val sram_unique_indices = 1 + sram_other_offset
   val sram_unique_indices_bits = log2Ceil(sram_unique_indices)

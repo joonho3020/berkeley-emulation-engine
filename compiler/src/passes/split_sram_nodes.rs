@@ -15,7 +15,6 @@ use petgraph::{
 /// IO port bits into separate nodes.
 pub fn split_sram_nodes(circuit: &mut Circuit) {
     spread_sram_nodes(circuit);
-    reassign_sram_nodes_by_size(circuit);
     check_sram_node_assignment(circuit);
     split_sram_node_by_io(circuit);
 }
@@ -67,91 +66,7 @@ fn spread_sram_nodes(circuit: &mut Circuit) {
     }
 }
 
-/// Check if the SRAM nodes fit in their current SRAM processor.
-/// If not, try to swap
-fn reassign_sram_nodes_by_size(circuit: &mut Circuit) {
-    let mut sram_info: IndexMap<NodeIndex, SRAMSizeInfo> = IndexMap::new();
-
-    let pcfg = &circuit.platform_cfg;
-    let small_sram_proc_cnt = pcfg.num_mods - pcfg.large_sram_cnt;
-    let mut free_small_sram_procs: IndexSet<u32> = IndexSet::new();
-
-    for i in 0..small_sram_proc_cnt {
-        free_small_sram_procs.insert(i);
-    }
-
-    let mut nodes_to_reassign: Vec<NodeIndex> = vec![];
-    for nidx in circuit.graph.node_indices() {
-        let node = circuit.graph.node_weight(nidx).unwrap();
-        if node.is() != Primitive::SRAMNode {
-            continue;
-        }
-
-        let pedges = circuit.graph.edges_directed(nidx, Incoming);
-        let mut addr_bits = 0;
-        let mut data_bits = 0;
-        for pedge in pedges {
-            let edge = circuit.graph.edge_weight(pedge.id()).unwrap().clone();
-            match edge.signal {
-                SignalType::SRAMRdAddr   { .. } => { addr_bits += 1; }
-                SignalType::SRAMRdWrAddr { .. } => { addr_bits += 1; }
-                SignalType::SRAMWrData   { .. } => { data_bits += 1; }
-                _ => {}
-            }
-        }
-
-        if node.info().coord.module < small_sram_proc_cnt {
-            free_small_sram_procs.swap_remove(&node.info().coord.module);
-        } else {
-            nodes_to_reassign.push(nidx);
-        }
-
-        let sz = SRAMSizeInfo { width: data_bits, entries: 1 << addr_bits };
-        if sz.entries > pcfg.large_sram().entries || sz.width > pcfg.large_sram().width {
-            assert!(false,
-                "SRAMNode {:?} with SRAMSize {:?} doesn't fit for platform with config {:?}",
-                node.info(), sz, pcfg);
-        }
-
-        sram_info.insert(nidx, sz);
-    }
-
-    assert!(nodes_to_reassign.len() <= free_small_sram_procs.len(),
-        "Not enough free space for swapping, need a better SRAM allocation algo");
-
-    for nidx in nodes_to_reassign.iter() {
-        let reassign_mod = free_small_sram_procs.pop().unwrap();
-        circuit.graph.node_weight_mut(*nidx).unwrap().info_mut().coord.module = reassign_mod;
-    }
-
-    println!("sram_info: {:?}", sram_info);
-
-    let mut unfitting_nodes: Vec<NodeIndex> = vec![];
-    for (nidx, sz) in sram_info.iter() {
-        let node = circuit.graph.node_weight(*nidx).unwrap();
-        let sram_proc_size = circuit.platform_cfg.sram_size_at_mod(node.info().coord.module);
-        if sram_proc_size >= *sz {
-            continue;
-        } else {
-            unfitting_nodes.push(*nidx);
-        }
-    }
-
-    println!("unfitting_nodes: {:?}", unfitting_nodes);
-    if unfitting_nodes.len() as u32 > pcfg.large_sram_cnt {
-        assert!(false, "Too many big SRAM nodes in the emulated target!");
-    }
-
-    println!("Reassigning nodes to larger sram processors");
-    for (i, nidx) in unfitting_nodes.iter().enumerate() {
-        let node = circuit.graph.node_weight_mut(*nidx).unwrap();
-        let sram_proc_idx = i as u32 + small_sram_proc_cnt;
-        println!("Move Node: {:?} from {} to {}",
-            node.info(), node.info().coord.module, sram_proc_idx);
-        node.info_mut().coord.module = sram_proc_idx;
-    }
-}
-
+/// Check if the assigned SRAM block fits in the platform's SRAM processor
 fn check_sram_node_assignment(circuit: &Circuit) {
     let mut allocated_sram_procs: IndexSet<u32> = IndexSet::new();
     for nidx in circuit.graph.node_indices() {
@@ -180,13 +95,14 @@ fn check_sram_node_assignment(circuit: &Circuit) {
 
             allocated_sram_procs.insert(node.info().coord.module);
 
-            let sz =  circuit.platform_cfg.sram_size_at_mod(node.info().coord.module);
-            assert!(sz.width >= data_bits,
+            let w = circuit.platform_cfg.sram_width;
+            let e = circuit.platform_cfg.sram_entries;
+            assert!(w >= data_bits,
                 "SRAM processor has {} bits per entry, got {}",
-                sz.width, data_bits);
-            assert!(sz.entries >= 1 << addr_bits,
+                w, data_bits);
+            assert!(e >= 1 << addr_bits,
                 "SRAM processor has {} entries, got {}",
-                sz.entries, 1 << addr_bits);
+                e, 1 << addr_bits);
         }
     }
 }

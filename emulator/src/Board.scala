@@ -34,14 +34,8 @@ class Board(cfg: EmulatorConfig) extends Module {
   import cfg._
   val io = IO(new BoardBundle(cfg))
 
-// val mdef_small = Definition(new EModule(cfg, false))
-// val mdef_large = Definition(new EModule(cfg, true))
   val mods = (0 until num_mods).map(i => {
-    if (i < cfg.num_mods - cfg.large_sram_cnt) {
-      Instantiate(new EModule(cfg, false))
-    } else {
-      Instantiate(new EModule(cfg, true))
-    }
+    Instantiate(new EModule(cfg))
   }).toSeq
 
   val global_switch = Module(new GlobalSwitch(cfg))

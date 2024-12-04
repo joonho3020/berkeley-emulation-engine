@@ -65,10 +65,10 @@ class SRAMMaskedWriteData(cfg: EmulatorConfig) extends Module {
   val io = IO(new Bundle {
     val wr_mask_bits   = Input (UInt(cfg.sram_width_bits.W))
     val width_bits     = Input (UInt(cfg.sram_width_bits.W))
-    val wr_mask        = Input (UInt(cfg.large_sram_width.W))
-    val wr_data        = Input (UInt(cfg.large_sram_width.W))
-    val rd_data        = Input (UInt(cfg.large_sram_width.W))
-    val masked_wr_data = Output(UInt(cfg.large_sram_width.W))
+    val wr_mask        = Input (UInt(cfg.sram_width.W))
+    val wr_data        = Input (UInt(cfg.sram_width.W))
+    val rd_data        = Input (UInt(cfg.sram_width.W))
+    val masked_wr_data = Output(UInt(cfg.sram_width.W))
   })
   when (io.wr_mask_bits === 0.U) {
     io.masked_wr_data := io.wr_data
@@ -103,8 +103,8 @@ class SRAMInputs(cfg: EmulatorConfig) extends Bundle {
   val wr_en   = Bool()
   val rd_addr = UInt(cfg.sram_addr_bits.W)
   val wr_addr = UInt(cfg.sram_addr_bits.W)
-  val wr_data = UInt(cfg.large_sram_width.W)
-  val wr_mask = UInt(cfg.large_sram_width.W)
+  val wr_data = UInt(cfg.sram_width.W)
+  val wr_mask = UInt(cfg.sram_width.W)
 }
 
 case class SRAMProcessorAnno(
@@ -115,7 +115,7 @@ case class SRAMProcessorAnno(
 }
 
 @instantiable
-class SRAMProcessor(cfg: EmulatorConfig, large_sram: Boolean) extends Module {
+class SRAMProcessor(cfg: EmulatorConfig) extends Module {
   import cfg._
   @public val io = IO(new SRAMProcessorBundle(cfg))
 
@@ -130,8 +130,8 @@ class SRAMProcessor(cfg: EmulatorConfig, large_sram: Boolean) extends Module {
   val cfg_regs = Reg(new SRAMProcessorConfigBundle(cfg))
   cfg_regs := io.cfg_in
 
-  val cur_sram_entries = if (large_sram) cfg.large_sram_entries else cfg.sram_entries
-  val cur_sram_width   = if (large_sram) cfg.large_sram_width else cfg.sram_width
+  val cur_sram_entries = cfg.sram_entries
+  val cur_sram_width   = cfg.sram_width
   val sram = SyncReadMem(cur_sram_entries, UInt(cur_sram_width.W))
 
   annotate(new ChiselAnnotation {

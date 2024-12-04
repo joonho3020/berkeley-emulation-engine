@@ -135,12 +135,6 @@ impl SRAMProcessor {
         assert!(cfg.sram_rd_ports == 1, "Currently only support single rd ported SRAM");
         assert!(cfg.sram_wr_ports == 1, "Currently only support single wr ported SRAM");
 
-        let sinfo = if id_ >= cfg.num_mods - cfg.large_sram_cnt {
-            cfg.large_sram()
-        } else {
-            cfg.small_sram()
-        };
-
         let mut pipeline_regs = VecDeque::new();
         for _ in 0..cfg.sram_ip_pl {
             pipeline_regs.push_back(
@@ -156,11 +150,11 @@ impl SRAMProcessor {
             ports: vec![ProcessorSRAMPort::default(); cfg.num_procs as usize],
             ports_pipeline_regs: pipeline_regs,
             mapping: SRAMMapping::default(),
-            inputs: vec![SRAMInputs::new(sinfo.width); 2],
-            prev_input: SRAMInputs::new(sinfo.width),
-            cur_rd_data: SRAMEntry::new(sinfo.width),
+            inputs: vec![SRAMInputs::new(cfg.sram_width); 2],
+            prev_input: SRAMInputs::new(cfg.sram_width),
+            cur_rd_data: SRAMEntry::new(cfg.sram_width),
             sram: AbstractMemory::new(
-                sinfo.entries,
+                cfg.sram_entries,
                 cfg.sram_rd_lat, cfg.sram_rd_ports,
                 cfg.sram_wr_lat, cfg.sram_wr_ports)
         };

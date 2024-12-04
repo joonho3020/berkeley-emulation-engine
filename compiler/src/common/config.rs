@@ -240,15 +240,6 @@ pub struct PlatformConfig {
     /// This is to cut the critical path in HW implementations
     pub sram_ip_pl: u32,
 
-    /// Number of SRAM entries (for larger SRAM processors)
-    pub large_sram_entries: u32,
-
-    /// SRAM width in bits (for larger SRAM processors)
-    pub large_sram_width: u32,
-
-    /// Number of larger SRAM processors (located for modules from the end)
-    pub large_sram_cnt: u32,
-
     /// Global network topology
     #[derivative(Debug="ignore")]
     pub topology: GlobalNetworkTopology
@@ -273,9 +264,6 @@ impl Default for PlatformConfig {
             sram_rd_lat: 1,
             sram_wr_lat: 1,
             sram_ip_pl: 1,
-            large_sram_cnt: 0,
-            large_sram_width: 64,
-            large_sram_entries: 1024,
             topology: GlobalNetworkTopology::default()
         }
     }
@@ -295,10 +283,12 @@ impl PlatformConfig {
         }
     }
 
+    /// log2Ceil(self.num_procs)
     pub fn num_proc_bits(self: &Self) -> u32 {
         self.log2ceil(self.num_procs)
     }
 
+    /// log2Ceil(self.num_mods)
     pub fn num_mod_bits(self: &Self) -> u32 {
         self.log2ceil(self.num_mods)
     }
@@ -316,14 +306,6 @@ impl PlatformConfig {
     /// log2Ceil(number of Opcode)
     pub fn opcode_bits(self: &Self) -> u32 {
         self.log2ceil(Opcode::COUNT as u32)
-    }
-
-    pub fn num_proc_bits(self: &Self) -> u32 {
-        self.log2ceil(self.num_procs)
-    }
-
-    pub fn num_mod_bits(self: &Self) -> u32 {
-        self.log2ceil(self.num_mods)
     }
 
     /// number of bits for the LUT
@@ -400,19 +382,19 @@ impl PlatformConfig {
     }
 
     pub fn sram_wr_addr_offset(self: &Self) -> u32 {
-        self.sram_rd_addr_offset() + self.large_sram_entries
+        self.sram_rd_addr_offset() + self.sram_entries
     }
 
     pub fn sram_wr_data_offset(self: &Self) -> u32 {
-        self.sram_wr_addr_offset() + self.large_sram_entries
+        self.sram_wr_addr_offset() + self.sram_entries
     }
 
     pub fn sram_wr_mask_offset(self: &Self) -> u32 {
-        self.sram_wr_data_offset() + self.large_sram_width
+        self.sram_wr_data_offset() + self.sram_width
     }
 
     pub fn sram_rdwr_en_offset(self: &Self) -> u32 {
-        self.sram_wr_mask_offset() + self.large_sram_width
+        self.sram_wr_mask_offset() + self.sram_width
     }
 
     pub fn sram_rdwr_mode_offset(self: &Self) -> u32 {
@@ -424,7 +406,7 @@ impl PlatformConfig {
     }
 
     pub fn sram_other_offset(self: &Self) -> u32 {
-        self.sram_rdwr_mode_offset() + self.large_sram_entries
+        self.sram_rdwr_mode_offset() + self.sram_entries
     }
 
     /// To emulate SRAMs, the `operands` fields are used to set a unique ID
@@ -453,43 +435,6 @@ impl PlatformConfig {
         } else {
             (Primitive::SRAMRdEn, idx - self.sram_rd_en_offset())
         }
-    }
-
-    pub fn small_sram(self: &Self) -> SRAMSizeInfo {
-        SRAMSizeInfo {
-            width: self.sram_width,
-            entries: self.sram_entries
-        }
-    }
-
-    pub fn large_sram(self: &Self) -> SRAMSizeInfo {
-        SRAMSizeInfo {
-            width: self.large_sram_width,
-            entries: self.large_sram_entries
-        }
-    }
-
-    pub fn sram_size_at_mod(self: &Self, m: u32) -> SRAMSizeInfo {
-        if m < self.num_mods - self.large_sram_cnt {
-            self.small_sram()
-        } else {
-            self.large_sram()
-        }
-    }
-
-    pub fn sram_size_map(self: &Self) -> IndexMap<SRAMSizeInfo, Vec<u32>> {
-        let mut ret: IndexMap<SRAMSizeInfo, Vec<u32>> = IndexMap::new();
-        ret.insert(self.small_sram(), vec![]);
-        ret.insert(self.large_sram(), vec![]);
-
-        for m in 0..self.num_mods {
-            if m < self.num_mods - self.large_sram_cnt {
-                ret.get_mut(&self.small_sram()).unwrap().push(m);
-            } else {
-                ret.get_mut(&self.large_sram()).unwrap().push(m);
-            }
-        }
-        return ret;
     }
 }
 
@@ -583,18 +528,6 @@ pub struct Args {
     /// dmem wr latency
     #[arg(long, default_value_t = 1)]
     pub dmem_wr_lat: u32,
-
-    /// Number of SRAM entries (for larger SRAM processors)
-    #[arg(long, default_value_t = 1024)]
-    pub large_sram_entries: u32,
-
-    /// SRAM width in bits (for larger SRAM processors)
-    #[arg(long, default_value_t = 128)]
-    pub large_sram_width: u32,
-
-    /// Number of larger SRAM processors (located for modules from the end)
-    #[arg(long, default_value_t = 2)]
-    pub large_sram_cnt: u32,
 
     /// SRAM width in bits (per module)
     #[arg(long, default_value_t = 128)]
