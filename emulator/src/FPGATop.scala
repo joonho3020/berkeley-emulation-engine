@@ -429,8 +429,6 @@ class FPGATopImp(outer: FPGATop)(cfg: FPGATopParams) extends LazyModuleImp(outer
       Some(AXI4MMIOModule.bind_readonly_reg(stream_converter.io.streams(0) .empty_bytes, mmio) << 2),
       "io_bridge"))
 
-    // TODO: remove later, just to keep consistency for now
-
     mmap.dmas.append(new DMAIf(
       0x1000,
       Some(AXI4MMIOModule.bind_readonly_reg(stream_converter.io.streams(1).filled_bytes, mmio) << 2),

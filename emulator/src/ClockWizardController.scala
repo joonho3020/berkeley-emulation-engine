@@ -16,9 +16,13 @@ class ClockWizardControllerBundle(cfg: FPGATopParams) extends Bundle {
   val fpga_top_ctrl_resetn = Output(Bool())
 }
 
+// Module for controlling the FPGA top clock wizard.
+// This works in the AXI clock domain comming out from the XDMA IP.
+// It connects to the XDMA MMIO control block so taht the software can read
+// the PLL locked signal, and if it is not, it will assert a reset so that
+// the PLL can be locked.
 class ClockWizardController(cfg: FPGATopParams) extends Module {
   val io = IO(new ClockWizardControllerBundle(cfg))
-
 
   ////////////////////////////////////////////////////////////////////////////
   // MMIO
