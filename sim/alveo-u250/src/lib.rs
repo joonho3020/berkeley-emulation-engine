@@ -212,6 +212,10 @@ impl SimIf for XDMAInterface {
         sleep(std::time::Duration::from_millis(10));
     }
 
+    fn step_debug(self: &mut Self) {
+        sleep(std::time::Duration::from_millis(10));
+    }
+
     fn push(self:  &mut Self, addr: u32, data: &Vec<u8>) -> Result<u32, SimIfErr> {
         return self.fpga_axi_write(addr as Addr, data);
     }

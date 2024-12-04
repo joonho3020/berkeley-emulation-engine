@@ -169,9 +169,11 @@ fn main() -> Result<(), SimIfErr> {
         println!("pll_locked mmio read is 0");
     }
 
+    println!("PLL locked!");
+
     println!("FPGATop resetn sequence");
     driver.clkwiz_ctrl.fpga_top_resetn.write(&mut driver.simif, 0)?;
-    for i in 0..10 {
+    for _i in 0..10 {
         driver.simif.step();
     }
     driver.clkwiz_ctrl.fpga_top_resetn.write(&mut driver.simif, 1)?;
@@ -233,7 +235,7 @@ fn main() -> Result<(), SimIfErr> {
     let mut rng = rand::thread_rng();
 
     println!("Testing Debug DMA Bridge");
-    let iterations = 10000000;
+    let iterations = 1000000;
     let bar = ProgressBar::new(iterations);
     for _i in 0..iterations {
         bar.inc(1);
@@ -346,7 +348,7 @@ fn main() -> Result<(), SimIfErr> {
             bytebuf.reverse();
             bytebuf.resize(64 as usize, 0);
 
-            sleep(std::time::Duration::from_micros(100));
+            sleep(std::time::Duration::from_micros(10));
 
             let dbg_init_cntr_mmio = driver.ctrl_bridge.dbg_init_cntrs.get(*_m as usize).unwrap();
             let dbg_init_cntr = dbg_init_cntr_mmio.read(&mut driver.simif)?;
