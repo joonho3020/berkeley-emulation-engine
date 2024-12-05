@@ -35,7 +35,6 @@ $(SIMULATION_SRCS): $(MILL_BUILD_ARTIFACTS) $(SIMIF_SRCS)
 		echo "Directory $(BUILDDIR)/obj-dir exists. Deleting..."; \
 		rm -rf $(BUILDDIR)/obj-dir; \
 	fi
-	cp $(SIMIF_SRCS) $(SIMIF_DIR)
 	cargo clean
 	cargo build --release
 
@@ -77,7 +76,7 @@ clean:
 	-rm -rf $(BUILDDIR)
 	-rm -rf sim-dir
 	-rm DEBUG
-	-rm $(DRIVER_SRCS)
+	-rm $(SIMIF_DIR)/driver_generated.rs
 
 all: test
 

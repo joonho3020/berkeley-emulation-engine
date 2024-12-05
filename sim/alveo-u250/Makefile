@@ -67,7 +67,7 @@ clean:
 	cargo clean
 	-rm -rf build-dir
 	-rm DEBUG
-	-rm $(DRIVER_SRCS)
+	-rm $(SIMIF_DIR)/driver_generated.rs
 
 all: run
 
