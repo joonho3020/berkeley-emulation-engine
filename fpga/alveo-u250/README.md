@@ -26,16 +26,3 @@ make all
 This is assumes that firesim scripts has been installed.
 This is because using the XDMA interface requires certain PCIe configurations which is done in the `firesim-fpga-util.py` script.
 For now, I'm just going to reuse this script.
-
-## Testing the bitstream w/ the driver
-
-```bash
-cd xdma-driver
-cargo run
-```
-
-## Misc notes
-
-- Seems like stuff works for MMIO quite robustly
-- For DMA, there can perform transactions up to 128B at a time
-- For both MMIO & DMA, there is some race condition, but I don't think this is really a problem for now

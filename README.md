@@ -2,7 +2,7 @@
 
 ---
 
-## Example usage
+## 1. Setup
 
 ### Generating a conda lock file from the current environment
 
@@ -39,6 +39,9 @@ conda config --remove channels defaults
 conda activate ~/.conda-yosys
 ```
 
+
+## 2. Generating inputs
+
 ### Generate blif file
 
 - The `yosys.cmd` reads the verilog file, lowers it to primitive logic level representations, and uses ABC to map it to LUTs
@@ -49,54 +52,83 @@ yosys
 > script yosys.cmd
 ```
 
-### Run RTL simulation to obtain a reference output
+## 3. Running the compiler
 
-- Run:
-
-```bash
-cargo run --bin run_refrtlsim -- ../examples/GCD.sv GCD ../examples/GCD.input
-```
+The compiler has a functional simulator that you can use to run tests.
 
 ### Run both emulation functional simulation and RTL simulation and compare the generated outputs
 
-- Run:
+```bash
+cd compiler
+just \
+    top=OneReadOneWritePortSRAM \
+    dir=../examples num_mods=17 \
+    num_procs=64 sram_entries=16384 \
+    sram_width=256 \
+    inter_mod_nw_lat=1 inter_proc_nw_lat=1 bee
+```
+
+### Run both emulation functional simulation and compare it with a VCD file
 
 ```bash
 cd compiler
-cargo run --bin blif-parser -- ../examples/GCD.sv GCD  ../examples/GCD.input ../examples/GCD-2bit.lut.blif
+ just \
+     top=DigitalTop \
+     instance_path=TestDriver.testHarness.chiptop0.system \
+     check_cycle_period=100 \
+     sram_entries=16384 \
+     imem_lat=1 \
+     num_mods=17 \
+     num_procs=64 \
+     inter_mod_nw_lat=1 \
+     dmem_rd_lat=1 \
+     inter_proc_nw_lat=1 \
+     bee_vcd
 ```
 
-### Running RTL simulations of the emulation processor
+### Run both emulation functional simulation and compare it with a blif native format simulator
 
-- To generate the RTL processor run:
+This is useful to check if the functional simulator has any bugs
 
-```bash
-cd emulator
-mill emulator.run
-mv OpalKellyEmulatorModuleTop.sv test/
 ```
-
-- To generate the testharness run:
-
-```bash
 cd compiler
-cargo run --bin run_emulrtlsim  ../examples/GCD.sv GCD ../examples/GCD.input ../examples/GCD-2bit.lut.blif
-mv TestHarness.sv ../emulator/test
+just top=DigitalTop sram_entries=16384 sim_dir=blif-sim-dir-DigitalTop run_blifsim
 ```
 
-- To generate RTL simulations, run it, and see waveforms:
+### We can extract the IO traces from a VCD file to use as input stimuli to the functional simulator
 
 ```
-cd emulator/test
-iverilog TestHarness.sv OpalKellyEmulatorModuleTop.sv
-./a.out
-gtkwave sim.vcd
+cd compiler
+just top=DigitalTop instance_path=TestDriver.testHarness.chiptop0.system run_test_gen_from_vcd
 ```
 
-### To just run tests
+### Run existing tests from the example directory
 
-```bash
-RUST_TEST_THREADS=1 cargo test
+```
+cd compiler
+just test
 ```
 
-- KaMinPar freeks out when multiple threads uses it in parallel (which is the default option for running `cargo test`)
+## 4. Testing the RTL
+
+This essentially corresponds to metasims in FireSim: we expose AXI ports that connect to the XDMA module and simulate everything downstream.
+Running the below commands will generate the RTL, verilate it and create rust bindings so that the driver can perform AXI transactions.
+
+```
+cd sim/metasims
+make test
+```
+
+## 5. Building the FPGA overlay
+
+```
+cd fpga/alveo-u250/design/
+make ip_project && make all
+```
+
+## 6. Running simulations
+
+```
+cd sim/alveo-u250/
+make run
+```
