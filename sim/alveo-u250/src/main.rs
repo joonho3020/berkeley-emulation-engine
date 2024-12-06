@@ -30,6 +30,7 @@ use simif::{
 };
 use driver::{
     driver::*,
+    dram::*,
     axi::*
 };
 
@@ -72,8 +73,11 @@ struct SimArgs {
     #[arg(long, default_value_t = 32)]
     pub axil_data_bits: u32,
 
+    #[arg(long, default_value_t = 1000)]
+    pub dma_test_iterations: u32,
+
     #[arg(short, long, default_value_t = false)]
-    pub functional_cosim: bool,
+    pub trace_mode: bool,
 
     #[clap(flatten)]
     pub bee_args: Args
@@ -91,7 +95,6 @@ fn main() -> Result<(), SimIfErr> {
     )?;
 
     let circuit = try_new_circuit(&args.bee_args)?;
-    let mut funct_sim = Board::from(&circuit);
 
     // Aggregate per module instructions
     let mut module_insts: IndexMap<u32, VecDeque<Instruction>> = IndexMap::new();
@@ -123,19 +126,16 @@ fn main() -> Result<(), SimIfErr> {
     }
 
     // Map the input stimuli to a coordinate
-    let mut mapped_input_stimulti_blasted: IndexMap<Coordinate, VecDeque<u64>> = IndexMap::new();
+    let mut mapped_input_stimuli_blasted: IndexMap<Coordinate, VecDeque<u64>> = IndexMap::new();
     for (sig, stim) in input_stimuli_blasted.iter() {
         match all_signal_map.get(sig) {
             Some(nmi) =>  {
                 let coord = nmi.info.coord;
-                mapped_input_stimulti_blasted.insert(coord, VecDeque::from(stim.clone()));
+                mapped_input_stimuli_blasted.insert(coord, VecDeque::from(stim.clone()));
             }
             None =>  { println!("Input Signal {} not found", sig); }
         }
     }
-
-    // Total number of target cycles
-    let target_cycles = mapped_input_stimulti_blasted.values().fold(0, |x, y| max(x, y.len()));
 
     let mut output_signals: IndexMap<String, Coordinate> = IndexMap::new();
     for nidx in circuit.graph.node_indices() {
@@ -166,7 +166,7 @@ fn main() -> Result<(), SimIfErr> {
 
     pll_lock_and_fpga_top_reset(&mut driver)?;
     board_reset(&mut driver, &fpga_top_cfg)?;
-    test_dma_bridge(&mut driver, 1000, &fpga_top_cfg)?;
+    test_dma_bridge(&mut driver, args.dma_test_iterations, &fpga_top_cfg)?;
     set_target_config_regs(&mut driver, &sram_cfgs, circuit.emul.host_steps)?;
     push_instructions(&mut driver, module_insts, circuit.emul.host_steps, &fpga_top_cfg)?;
 
@@ -175,104 +175,14 @@ fn main() -> Result<(), SimIfErr> {
         sleep(std::time::Duration::from_millis(1));
     }
 
-    println!("Init done!!!");
-    println!("Start Simulation");
-    let total_procs = circuit.platform_cfg.total_procs();
-    let axi4_data_bits = fpga_top_cfg.axi.data_bits;
-    let io_stream_bits = ((total_procs + axi4_data_bits - 1) / axi4_data_bits) * axi4_data_bits;
-    let io_stream_bytes = io_stream_bits / 8;
+    println!("Simulation initialization finished");
+    println!("Start simulation");
 
-    let mut mismatch = false;
-
-    let sim_bar = ProgressBar::new(target_cycles as u64);
-    'emulation_loop: for tcycle in 0..target_cycles {
-        sim_bar.inc(1);
-        let tot_procs = circuit.platform_cfg.total_procs();
-        let mut bit_vec: BitVec<usize, Lsb0> = BitVec::new();
-        for _ in 0..tot_procs {
-            bit_vec.push(false);
-        }
-
-        for (coord, stim) in mapped_input_stimulti_blasted.iter_mut() {
-            let bit = stim.pop_front().unwrap();
-            let id = coord.id(&circuit.platform_cfg);
-            bit_vec.set(id as usize, bit != 0);
-        }
-
-        let mut ivec: Vec<u8> = XDMAInterface::aligned_vec(0x1000, 0);
-        ivec.extend(bit_vec
-            .into_vec()
-            .iter()
-            .flat_map(|x| x.to_le_bytes()));
-            ivec.resize(io_stream_bytes as usize, 0);
-
-        let written_bytes = driver.io_bridge.push(&mut driver.simif, &ivec)?;
-        if written_bytes == 0 {
-            println!("Target cycle {} DMA FAILED", tcycle);
-            mismatch = true;
-            break 'emulation_loop;
-        }
-
-        let mut ovec = vec![0u8; ivec.len()];
-        'poll_io_out: loop {
-            let read_bytes = driver.io_bridge.pull(&mut driver.simif, &mut ovec)?;
-            if read_bytes == 0 {
-                sleep(std::time::Duration::from_millis(1));
-            } else {
-                break 'poll_io_out;
-            }
-        }
-
-        // Run functional simulator
-        if args.functional_cosim {
-            let input_stimuli_by_step = get_input_stimuli_by_step(
-                &circuit,
-                &input_stimuli_blasted,
-                &all_signal_map,
-                tcycle as u32);
-            funct_sim.run_cycle(&input_stimuli_by_step);
-
-            // Collect functional simulation outputs
-            let mut obit_ref: BitVec<usize, Lsb0> = BitVec::new();
-            for _ in 0..tot_procs {
-                obit_ref.push(false);
-            }
-
-            for (os, coord) in output_signals.iter() {
-                let fsim_bit = funct_sim.peek(os).unwrap_or(0);
-                let id = coord.id(&circuit.platform_cfg);
-                obit_ref.set(id as usize, fsim_bit != 0);
-            }
-            let mut ovec_ref: Vec<u8> = obit_ref
-                .into_vec()
-                .iter()
-                .flat_map(|x| x.to_le_bytes())
-                .collect();
-            ovec_ref.resize(io_stream_bytes as usize, 0);
-
-            println!("ovec: {:?}", ovec);
-            println!("ovec_ref: {:?}", ovec_ref);
-
-            if ovec != ovec_ref {
-                println!("MISMATCH");
-                println!("ovec: {:?}", ovec);
-                println!("ovec_ref: {:?}", ovec_ref);
-                println!("Target cycle {} mismatch got {:?} expect {:?}",
-                    tcycle, ovec, ovec_ref);
-                mismatch = true;
-                break 'emulation_loop;
-            }
-        } else {
-        }
-    }
-    sim_bar.finish();
-
-    if mismatch {
-        println!("Test failed");
+    if args.trace_mode {
+        run_from_trace(&mut driver, &circuit, &mapped_input_stimuli_blasted, &fpga_top_cfg);
     } else {
-        println!("Test passed");
     }
 
-    println!("Test Finished");
+    println!("Simulation ended");
     return Ok(());
 }

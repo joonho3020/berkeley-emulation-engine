@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 
 #[derive(Debug, Default, Clone)]
 pub struct AXI4Config {
@@ -136,4 +137,13 @@ pub struct AXI4R {
     pub resp: u32,
     pub last: bool,
     pub data: Vec<u8>
+}
+
+#[derive(Default, Debug)]
+pub struct AXI4Channels {
+    pub aw: VecDeque<AXI4AW>,
+    pub w:  VecDeque<AXI4W>,
+    pub b:  VecDeque<AXI4B>,
+    pub ar: VecDeque<AXI4AR>,
+    pub r:  VecDeque<AXI4R>,
 }

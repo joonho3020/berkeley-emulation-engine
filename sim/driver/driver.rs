@@ -1,19 +1,20 @@
 use rand::Rng;
 use indicatif::ProgressBar;
 use indexmap::IndexMap;
-use std::{
-    collections::VecDeque, thread::sleep
-};
+use std::collections::VecDeque;
 use bee::{
     common::{
+        network::Coordinate,
         config::PlatformConfig,
         circuit::Circuit,
         hwgraph::NodeMapInfo, instruction::*,
         mapping::{SRAMMapping, SRAMPortType},
         primitive::Bit
     },
+    fsim::board::Board,
     rtlsim::rtlsim_utils::InputStimuliMap,
 };
+use bitvec::{order::Lsb0, vec::BitVec};
 use crate::simif::simif::*;
 use crate::simif::mmioif::*;
 use crate::simif::dmaif::*;
@@ -349,7 +350,6 @@ pub fn push_instructions(
                 }
                 Err(_) => {
                     println!("DMA push panics while pushing instructions");
-                    sleep(std::time::Duration::from_millis(1));
                     assert!(driver.ctrl_bridge.init_done.read(&mut driver.simif)? == 0,
                         "Init set while pushing instructions");
                 }
@@ -430,4 +430,114 @@ pub fn push_instructions(
         println!("host_steps should only change once, changed {} times", host_steps_changed);
     }
     return Ok(());
+}
+
+pub fn run_from_trace(
+    driver: &mut Driver,
+    circuit: &Circuit,
+    input_stimuli_blasted: &InputStimuliMap,
+    all_signal_map: &IndexMap<String, NodeMapInfo>,
+    output_signals: IndexMap<String, Coordinate>,
+    mapped_input_stimuli_blasted: &IndexMap<Coordinate, VecDeque<u64>>,
+    fpga_top_cfg: &FPGATopConfig
+) -> bool {
+    let mut funct_sim = Board::from(&circuit);
+    let mut mismatch = false;
+
+    let total_procs = circuit.platform_cfg.total_procs();
+    let axi4_data_bits = fpga_top_cfg.axi.data_bits;
+    let io_stream_bits = ((total_procs + axi4_data_bits - 1) / axi4_data_bits) * axi4_data_bits;
+    let io_stream_bytes = io_stream_bits / 8;
+
+
+    // Total number of target cycles
+    let target_cycles = mapped_input_stimuli_blasted.values().fold(0, |x, y| max(x, y.len()));
+
+
+    let sim_bar = ProgressBar::new(target_cycles as u64);
+    'emulation_loop: for tcycle in 0..target_cycles {
+        sim_bar.inc(1);
+        let tot_procs = circuit.platform_cfg.total_procs();
+        let mut bit_vec: BitVec<usize, Lsb0> = BitVec::new();
+        for _ in 0..tot_procs {
+            bit_vec.push(false);
+        }
+
+        for (coord, stim) in mapped_input_stimuli_blasted.iter_mut() {
+            let bit = stim.pop_front().unwrap();
+            let id = coord.id(&circuit.platform_cfg);
+            bit_vec.set(id as usize, bit != 0);
+        }
+
+        let mut ivec: Vec<u8> = vec![];
+        ivec.extend(bit_vec
+            .into_vec()
+            .iter()
+            .flat_map(|x| x.to_le_bytes()));
+            ivec.resize(io_stream_bytes as usize, 0);
+
+        let written_bytes = driver.io_bridge.push(&mut driver.simif, &ivec)?;
+        if written_bytes == 0 {
+            println!("Target cycle {} DMA FAILED", tcycle);
+            mismatch = true;
+            break 'emulation_loop;
+        }
+
+        let mut ovec = vec![0u8; ivec.len()];
+        'poll_io_out: loop {
+            let read_bytes = driver.io_bridge.pull(&mut driver.simif, &mut ovec)?;
+            if read_bytes == 0 {
+                driver.simif.step();
+            } else {
+                break 'poll_io_out;
+            }
+        }
+
+        // Run functional simulator
+        let input_stimuli_by_step = get_input_stimuli_by_step(
+            &circuit,
+            &input_stimuli_blasted,
+            &all_signal_map,
+            tcycle as u32);
+        funct_sim.run_cycle(&input_stimuli_by_step);
+
+        // Collect functional simulation outputs
+        let mut obit_ref: BitVec<usize, Lsb0> = BitVec::new();
+        for _ in 0..tot_procs {
+            obit_ref.push(false);
+        }
+
+        for (os, coord) in output_signals.iter() {
+            let fsim_bit = funct_sim.peek(os).unwrap_or(0);
+            let id = coord.id(&circuit.platform_cfg);
+            obit_ref.set(id as usize, fsim_bit != 0);
+        }
+        let mut ovec_ref: Vec<u8> = obit_ref
+            .into_vec()
+            .iter()
+            .flat_map(|x| x.to_le_bytes())
+            .collect();
+        ovec_ref.resize(io_stream_bytes as usize, 0);
+
+        println!("ovec: {:?}", ovec);
+        println!("ovec_ref: {:?}", ovec_ref);
+
+        if ovec != ovec_ref {
+            println!("MISMATCH");
+            println!("ovec: {:?}", ovec);
+            println!("ovec_ref: {:?}", ovec_ref);
+            println!("Target cycle {} mismatch got {:?} expect {:?}",
+                tcycle, ovec, ovec_ref);
+            mismatch = true;
+            break 'emulation_loop;
+        }
+    }
+    sim_bar.finish();
+
+    if mismatch {
+        println!("Test failed");
+    } else {
+        println!("Test passed");
+    }
+    return mismatch;
 }
