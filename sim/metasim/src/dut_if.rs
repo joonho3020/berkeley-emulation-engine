@@ -1,5 +1,5 @@
 use crate::dut::*;
-use crate::axi::*;
+use crate::driver::axi::*;
 use crate::sim::*;
 use crate::simif::simif::*;
 

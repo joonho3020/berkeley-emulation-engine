@@ -1,16 +1,7 @@
 use crate::dut::*;
-use crate::axi::*;
 use crate::dut_if::*;
 use crate::simif::simif::*;
-use bee::common::config::PlatformConfig;
-
-#[derive(Debug, Default, Clone)]
-pub struct FPGATopConfig {
-    pub axi:  AXI4Config,
-    pub axil: AXI4Config,
-    pub emul: PlatformConfig
-}
-
+use crate::driver::driver::FPGATopConfig;
 
 #[derive(Debug)]
 pub struct Sim {

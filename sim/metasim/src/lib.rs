@@ -1,22 +1,18 @@
 pub mod dut;
 pub mod dut_if;
 pub mod sim;
-pub mod axi;
 pub mod simif;
+pub mod driver;
 use bee::{
     common::{
-        circuit::Circuit,
         config::Args,
         hwgraph::NodeMapInfo, instruction::*,
-        mapping::{SRAMMapping, SRAMPortType},
+        mapping::SRAMMapping,
         network::Coordinate,
         primitive::{Bit, Primitive}
     },
     fsim::board::Board,
-    rtlsim::rtlsim_utils::{
-        get_input_stimuli_blasted,
-        InputStimuliMap
-    },
+    rtlsim::rtlsim_utils::get_input_stimuli_blasted,
     testing::try_new_circuit
 };
 use indexmap::IndexMap;
@@ -28,11 +24,16 @@ use indicatif::ProgressBar;
 use bitvec::{order::Lsb0, vec::BitVec};
 use dut::*;
 use dut_if::*;
-use axi::*;
 use sim::*;
-use simif::simif::*;
-use simif::mmioif::*;
-use simif::dmaif::*;
+use simif::{
+    simif::*,
+    mmioif::*,
+    dmaif::*
+};
+use driver::{
+    axi::*,
+    driver::*
+};
 
 #[derive(Debug)]
 pub enum RTLSimError {
@@ -57,43 +58,6 @@ impl From<String> for RTLSimError {
         RTLSimError::SimError(err)
     }
 }
-
-pub fn get_input_stimuli_by_step<'a>(
-    circuit: &'a Circuit,
-    input_stimuli_blasted: &'a InputStimuliMap,
-    signal_map: &IndexMap<String, NodeMapInfo>,
-    cycle: u32
-) -> IndexMap<u32, Vec<(&'a str, Bit)>> {
-    // Collect input stimuli for the current cycle by name
-    let mut input_stimuli_by_name: IndexMap<&str, Bit> = IndexMap::new();
-    for key in input_stimuli_blasted.keys() {
-        let val = input_stimuli_blasted[key].get(cycle as usize);
-        match val {
-            Some(b) => input_stimuli_by_name.insert(key, *b as Bit),
-            None => None
-        };
-    }
-
-    // Find the step at which the input has to be poked
-    // Save that in the input_stimuli_by_step
-    let mut input_stimuli_by_step: IndexMap<u32, Vec<(&str, Bit)>> = IndexMap::new();
-    for (sig, bit) in input_stimuli_by_name.iter() {
-        match signal_map.get(*sig) {
-            Some(nmap) => {
-                let pc = circuit.graph.node_weight(nmap.idx).unwrap().info().pc;
-                let step = pc + circuit.platform_cfg.fetch_decode_lat();
-                if input_stimuli_by_step.get(&step) == None {
-                    input_stimuli_by_step.insert(step, vec![]);
-                }
-                input_stimuli_by_step.get_mut(&step).unwrap().push((sig, *bit));
-            }
-            None => {
-            }
-        }
-    }
-    return input_stimuli_by_step;
-}
-
 
 pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
     let circuit = try_new_circuit(&args)?;
@@ -135,8 +99,6 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
             }
             None =>  { println!("Input Signal {} not found", sig); }
         }
-// let coord = all_signal_map.get(sig).unwrap().info.coord;
-// mapped_input_stimulti_blasted.insert(coord, VecDeque::from(stim.clone()));
     }
 
     // Total number of target cycles
@@ -205,249 +167,26 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
         mmio_write(&mut sim, 0x20000, 0xdeadcafe);
         mmio_read(&mut sim,  0x20000);
 
+        // Assume lock is low when starting
         poke_io_clkwiz_ctrl_ctrl_clk_wiz_locked(sim.dut, 0);
-
 
         let mut driver = Driver::try_from_simif(Box::new(sim));
 
-
-        println!("Perform Clockwizard reset sequence");
-
-        // Assume lock is low when starting
         for _ in 0..10 {
             driver.simif.step();
         }
 
-        println!("read from pll_locked");
 
-        driver.clkwiz_ctrl.pll_reset_cycle.write(&mut driver.simif, 15)?;
-        driver.clkwiz_ctrl.pll_reset.write(&mut driver.simif, 1)?;
-
-        // Assert and deassert reset to lock the PLL
-        while driver.clkwiz_ctrl.pll_locked.read(&mut driver.simif)? == 0 {
-            println!("pll_locked mmio read is 0");
-
-            for _ in 0..10 {
-                driver.simif.step();
-            }
-
-            // PLL is locked
-            driver.simif.init();
-            driver.simif.step();
-        }
-
-        println!("FPGATop resetn sequence");
-        driver.clkwiz_ctrl.fpga_top_resetn.write(&mut driver.simif, 0)?;
-        for i in 0..10 {
-            driver.simif.step();
-        }
-        driver.clkwiz_ctrl.fpga_top_resetn.write(&mut driver.simif, 1)?;
-
-
-        // Custom reset
-        println!("Set custom resetn to low");
-        driver.ctrl_bridge.custom_resetn.write(&mut driver.simif, 0)?;
-        for _ in 0..10 {
-            driver.simif.step();
-        }
-
-        println!("Set custom resetn to high");
-        driver.ctrl_bridge.custom_resetn.write(&mut driver.simif, 1)?;
-        for _ in 0..10 {
-            driver.simif.step();
-        }
-
-        let pcs_are_zero = driver.ctrl_bridge.pcs_are_zero.read(&mut driver.simif)?;
-        assert!(pcs_are_zero == (1 << circuit.platform_cfg.num_mods) - 1,
-            "All PC values should be initialized after reset {:x}", pcs_are_zero);
-
-        println!("Testing MMIO fingerprint");
-        let fgr_init = driver.ctrl_bridge.fingerprint.read(&mut driver.simif)?;
-        assert!(fgr_init == 0xf00dcafe,
-            "mmio fingerprint mismatch, expect 0xf00dcafe got {}", fgr_init);
-
-        println!("Write to MMIO fingerprint");
-        driver.ctrl_bridge.fingerprint.write(&mut driver.simif, 0xdeadcafe)?;
-        let fgr_read = driver.ctrl_bridge.fingerprint.read(&mut driver.simif)?;
-
-        assert!(fgr_read == 0xdeadcafe,
-            "mmio fingerprint mismatch, expect {:x} got {:x}", 0xdeadcafeu32, fgr_read);
-
-        println!("Set custom resetn to low");
-        driver.ctrl_bridge.custom_resetn.write(&mut driver.simif, 0)?;
-        for _ in 0..10 {
-            driver.simif.step();
-        }
-
-        println!("Set custom resetn to high");
-        driver.ctrl_bridge.custom_resetn.write(&mut driver.simif, 1)?;
-        for _ in 0..10 {
-            driver.simif.step();
-        }
-
-        println!("Read MMIO fingerprint again after reset");
-        let fgr_init = driver.ctrl_bridge.fingerprint.read(&mut driver.simif)?;
-        assert!(fgr_init == 0xf00dcafe,
-            "mmio fingerprint mismatch, expect 0xf00dcafe got {}", fgr_init);
-
-        println!("Start testing the DMA interface");
-        let pattern: Vec<u8> = vec![0xd, 0xe, 0xa, 0xd, 0xc, 0xa, 0xf, 0xe];
-        let mut data: Vec<u8> = vec![];
-        data.extend(pattern.iter().cycle().take(io_stream_bytes as usize));
-
-        let wbytes = driver.dma_bridge.push(&mut driver.simif, &data)?;
-        assert!(wbytes == data.len() as u32, "write failed");
-
-        for _ in 0..20 {
-            driver.simif.step();
-        }
-
-        let mut rdata: Vec<u8> = vec![0u8; data.len()];
-        let rbytes = driver.dma_bridge.pull(&mut driver.simif, &mut rdata)?;
-
-        assert!(rbytes == data.len() as u32, "read failed, rbytes: {}, expected: {}", rbytes, data.len());
-        assert!(data == rdata, "DMA read {:X?}\nexpect   {:X?}", rdata, data);
-
-
-        println!("Start configuration register setup");
-
-        for (m, sram_cfg) in sram_cfgs.iter() {
-            let single_port_sram = match sram_cfg.port_type {
-                SRAMPortType::SinglePortSRAM     => { true }
-                SRAMPortType::OneRdOneWrPortSRAM => { false }
-            };
-            let sram_mmios: &SRAMConfig = driver.ctrl_bridge.sram.get(*m as usize).unwrap();
-
-            println!("Module {} SRAM config {:?}", m, sram_cfg);
-
-            sram_mmios.ptype.write(&mut driver.simif, single_port_sram as u32)?;
-            for _ in 0..5 {
-                driver.simif.step();
-            }
-
-            sram_mmios.mask.write(&mut driver.simif, sram_cfg.wmask_bits as u32)?;
-            for _ in 0..5 {
-                driver.simif.step();
-            }
-
-            sram_mmios.width.write(&mut driver.simif, sram_cfg.width_bits as u32)?;
-            for _ in 0..5 {
-                driver.simif.step();
-            }
-        }
-
-        driver.ctrl_bridge.host_steps.write(&mut driver.simif, host_steps)?;
-        driver.simif.step();
-
-        // Check that the host_step change checking logic works
-        driver.ctrl_bridge.host_steps.write(&mut driver.simif, host_steps + 1)?;
-        driver.simif.step();
-
-        let host_steps_changed =
-            driver.ctrl_bridge.host_steps_prv_cnt.read(&mut driver.simif)?;
-
-        println!("host_steps_changed: {}", host_steps_changed);
-
-        if host_steps_changed != 1 {
-            let deq_cnt = driver.ctrl_bridge.host_steps_cur_cnt.read(&mut driver.simif)?;
-            println!("host_steps_prv_deq {} entries, cur_deq {} entries",
-                host_steps_changed, deq_cnt);
-
-            for _ in 0..host_steps_changed {
-                println!("prv {} -> cur {}",
-                    driver.ctrl_bridge.host_steps_prv_deq.read(&mut driver.simif)?,
-                    driver.ctrl_bridge.host_steps_cur_deq.read(&mut driver.simif)?);
-            }
-
-            println!("host_steps should only change once, changed {} times", host_steps_changed);
-        }
-
-        // Set the host_step back to a correct value
-        driver.ctrl_bridge.host_steps.write(&mut driver.simif, host_steps)?;
-        driver.simif.step();
-
-        println!("Start pushing instructions");
-
-        let inst_bar = ProgressBar::new(module_insts.len() as u64);
-        for (_m, insts) in module_insts.iter() {
-            inst_bar.inc(1);
-
-            println!("Total pushed instructions: {}",
-                driver.ctrl_bridge.tot_insts_pushed.read(&mut driver.simif)?);
-
-            for (i, inst) in insts.iter().enumerate() {
-                let _p = i as u32 / host_steps;
-                let mut bitbuf = inst.to_bits(&circuit.platform_cfg);
-                assert!(bitbuf.len() < 8 * 8, "Instruction bits {} > 64", bitbuf.len());
-
-                for x in 0..circuit.platform_cfg.num_proc_bits() {
-                    let sl = circuit.platform_cfg.num_proc_bits() - x - 1;
-                    bitbuf.push((_p >> sl) & 1 == 1);
-                }
-                for x in 0..circuit.platform_cfg.num_mod_bits() {
-                    let sl = circuit.platform_cfg.num_mod_bits() - x - 1;
-                    bitbuf.push((_m >> sl) & 1 == 1);
-                }
-
-                bitbuf.reverse();
-
-                assert!(bitbuf.len() as u32 <= fpga_top_cfg.axi.beat_bytes() * 8,
-                    "Instruction + procidx + modidx bits {} > 512", bitbuf.len());
-
-                let mut bytebuf: Vec<u8> = bitbuf
-                                            .into_vec()
-                                            .iter()
-                                            .flat_map(|&x| x.to_le_bytes())
-                                            .rev()
-                                            .collect();
-                bytebuf.reverse();
-                bytebuf.resize(fpga_top_cfg.axi.beat_bytes() as usize, 0);
-                driver.inst_bridge.push(&mut driver.simif, &bytebuf)?;
-
-                for _ in 0..2 {
-                    driver.simif.step();
-                }
-
-                // Check that the logic for midx validation works
-                let midx_mismatch_cnt = driver.ctrl_bridge.midx_mismatch_cnt.read(&mut driver.simif)?;
-                for _ in 0..midx_mismatch_cnt {
-                    println!("midx_mismatch found: received midx {}",
-                        driver.ctrl_bridge.midx_mismatch_deq.read(&mut driver.simif)?);
-                }
-
-                // Check that the logic for pidx validation works
-                let pidx_mismatch_cnt = driver.ctrl_bridge.pidx_mismatch_cnt.read(&mut driver.simif)?;
-                for _ in 0..pidx_mismatch_cnt {
-                    println!("pidx_mismatch found: received pidx {}",
-                        driver.ctrl_bridge.pidx_mismatch_deq.read(&mut driver.simif)?);
-                }
-            }
-
-            // Check if all processor 0 & processor n-1 have been initialized
-            let proc_0_init_vec = driver.ctrl_bridge.dbg_proc_0_init.read(&mut driver.simif)?;
-            let proc_n_init_vec = driver.ctrl_bridge.dbg_proc_n_init.read(&mut driver.simif)?;
-            assert!(proc_0_init_vec == proc_n_init_vec,
-                "proc 0 {:x} n {:x}",
-                proc_0_init_vec, proc_n_init_vec);
-
-            // Check that the number of processors initialized processors match w/
-            // what is expected
-            let dbg_init_cntr = driver.ctrl_bridge.dbg_init_cntrs.get(*_m as usize).unwrap();
-            assert!(dbg_init_cntr.read(&mut driver.simif)? == circuit.platform_cfg.num_procs);
-        }
-        inst_bar.finish();
-
+        pll_lock_and_fpga_top_reset(&mut driver)?;
+        board_reset(&mut driver, &fpga_top_cfg)?;
+        test_dma_bridge(&mut driver, 20, &fpga_top_cfg)?;
+        set_target_config_regs(&mut driver, &sram_cfgs, host_steps)?;
+        push_instructions(&mut driver, module_insts, host_steps, &fpga_top_cfg)?;
 
         // Wait until initialization is finished
         while driver.ctrl_bridge.init_done.read(&mut driver.simif)? == 0 {
             driver.simif.step();
         }
-
-        println!("proc_0_init_vec: {:x}",
-            driver.ctrl_bridge.dbg_proc_0_init.read(&mut driver.simif)?);
-
-        println!("proc_n_init_vec: {:x}",
-            driver.ctrl_bridge.dbg_proc_n_init.read(&mut driver.simif)?);
 
         println!("Start simulation");
 

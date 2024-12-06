@@ -750,6 +750,7 @@ dependencies = [
  "clap 4.5.21",
  "indexmap 2.6.0",
  "indicatif",
+ "rand 0.8.5",
  "serial_test",
  "test-case",
 ]

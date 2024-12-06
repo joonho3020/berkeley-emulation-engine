@@ -1,4 +1,5 @@
 pub mod simif;
+pub mod driver;
 
 use std::fs::*;
 use std::io::{BufRead, BufReader, Write};
@@ -209,11 +210,11 @@ impl SimIf for XDMAInterface {
     }
 
     fn step(self: &mut Self) {
-        sleep(std::time::Duration::from_millis(10));
+        sleep(std::time::Duration::from_nanos(10));
     }
 
     fn step_debug(self: &mut Self) {
-        sleep(std::time::Duration::from_millis(10));
+        sleep(std::time::Duration::from_nanos(10));
     }
 
     fn push(self:  &mut Self, addr: u32, data: &Vec<u8>) -> Result<u32, SimIfErr> {

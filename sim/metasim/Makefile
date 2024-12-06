@@ -30,12 +30,11 @@ $(BUILDDIR):
 include $(EMULATOR_DIR)/chisel.mk
 
 # Build verilator shared library w/ c-bindings
-$(SIMULATION_SRCS): $(MILL_BUILD_ARTIFACTS) $(SIMIF_SRCS)
+$(SIMULATION_SRCS): $(MILL_BUILD_ARTIFACTS)
 	@if [ -d "$(BUILDDIR)/obj-dir" ]; then \
 		echo "Directory $(BUILDDIR)/obj-dir exists. Deleting..."; \
 		rm -rf $(BUILDDIR)/obj-dir; \
 	fi
-	cargo clean
 	cargo build --release
 
 # Run single example

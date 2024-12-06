@@ -12,3 +12,7 @@ indicatif = "0.17.9"
 libc = "0.2.161"
 memmap2 = "0.9.5"
 rand = "0.8.5"
+
+[profile.dev]
+debug = 0
+strip = "debuginfo"
