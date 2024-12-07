@@ -99,6 +99,15 @@ pub struct AXI4B {
     pub resp: u32
 }
 
+impl AXI4B {
+    pub fn from_id(id: u32) -> Self {
+        Self {
+            id: id,
+            resp: 0
+        }
+    }
+}
+
 #[derive(Default, Debug)]
 pub struct AXI4AR {
     pub addr:  u32,
@@ -137,6 +146,17 @@ pub struct AXI4R {
     pub resp: u32,
     pub last: bool,
     pub data: Vec<u8>
+}
+
+impl AXI4R {
+    pub fn from_id_data_last(id: u32, data: Vec<u8>, last: bool) -> Self {
+        Self {
+            id: id,
+            resp: 0,
+            last: last,
+            data: data
+        }
+    }
 }
 
 #[derive(Default, Debug)]

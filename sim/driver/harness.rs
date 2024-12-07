@@ -60,9 +60,6 @@ pub struct AXI4TargetOutIdx {
     pub r_ready: usize,
 }
 
-// .inputs auto_chipyard_prcictrl_domain_reset_setter_clock_in_member_allClocks_uncore_clock auto_chipyard_prcictrl_domain_reset_setter_clock_in_member_allClocks_uncore_reset resetctrl_hartIsInReset_0 debug_clock debug_reset debug_systemjtag_jtag_TCK debug_systemjtag_jtag_TMS debug_systemjtag_jtag_TDI debug_systemjtag_reset debug_dmactiveAck mem_axi4_0_aw_ready mem_axi4_0_w_ready mem_axi4_0_b_valid mem_axi4_0_b_bits_id[0] mem_axi4_0_b_bits_id[1] mem_axi4_0_b_bits_id[2] mem_axi4_0_b_bits_id[3] mem_axi4_0_b_bits_resp[0] mem_axi4_0_b_bits_resp[1] mem_axi4_0_ar_ready mem_axi4_0_r_valid mem_axi4_0_r_bits_id[0] mem_axi4_0_r_bits_id[1] mem_axi4_0_r_bits_id[2] mem_axi4_0_r_bits_id[3] mem_axi4_0_r_bits_data[0] mem_axi4_0_r_bits_data[1] mem_axi4_0_r_bits_data[2] mem_axi4_0_r_bits_data[3] mem_axi4_0_r_bits_data[4] mem_axi4_0_r_bits_data[5] mem_axi4_0_r_bits_data[6] mem_axi4_0_r_bits_data[7] mem_axi4_0_r_bits_data[8] mem_axi4_0_r_bits_data[9] mem_axi4_0_r_bits_data[10] mem_axi4_0_r_bits_data[11] mem_axi4_0_r_bits_data[12] mem_axi4_0_r_bits_data[13] mem_axi4_0_r_bits_data[14] mem_axi4_0_r_bits_data[15] mem_axi4_0_r_bits_data[16] mem_axi4_0_r_bits_data[17] mem_axi4_0_r_bits_data[18] mem_axi4_0_r_bits_data[19] mem_axi4_0_r_bits_data[20] mem_axi4_0_r_bits_data[21] mem_axi4_0_r_bits_data[22] mem_axi4_0_r_bits_data[23] mem_axi4_0_r_bits_data[24] mem_axi4_0_r_bits_data[25] mem_axi4_0_r_bits_data[26] mem_axi4_0_r_bits_data[27] mem_axi4_0_r_bits_data[28] mem_axi4_0_r_bits_data[29] mem_axi4_0_r_bits_data[30] mem_axi4_0_r_bits_data[31] mem_axi4_0_r_bits_data[32] mem_axi4_0_r_bits_data[33] mem_axi4_0_r_bits_data[34] mem_axi4_0_r_bits_data[35] mem_axi4_0_r_bits_data[36] mem_axi4_0_r_bits_data[37] mem_axi4_0_r_bits_data[38] mem_axi4_0_r_bits_data[39] mem_axi4_0_r_bits_data[40] mem_axi4_0_r_bits_data[41] mem_axi4_0_r_bits_data[42] mem_axi4_0_r_bits_data[43] mem_axi4_0_r_bits_data[44] mem_axi4_0_r_bits_data[45] mem_axi4_0_r_bits_data[46] mem_axi4_0_r_bits_data[47] mem_axi4_0_r_bits_data[48] mem_axi4_0_r_bits_data[49] mem_axi4_0_r_bits_data[50] mem_axi4_0_r_bits_data[51] mem_axi4_0_r_bits_data[52] mem_axi4_0_r_bits_data[53] mem_axi4_0_r_bits_data[54] mem_axi4_0_r_bits_data[55] mem_axi4_0_r_bits_data[56] mem_axi4_0_r_bits_data[57] mem_axi4_0_r_bits_data[58] mem_axi4_0_r_bits_data[59] mem_axi4_0_r_bits_data[60] mem_axi4_0_r_bits_data[61] mem_axi4_0_r_bits_data[62] mem_axi4_0_r_bits_data[63] mem_axi4_0_r_bits_resp[0] mem_axi4_0_r_bits_resp[1] mem_axi4_0_r_bits_last custom_boot serial_tl_0_in_valid serial_tl_0_in_bits_phit[0] serial_tl_0_in_bits_phit[1] serial_tl_0_in_bits_phit[2] serial_tl_0_in_bits_phit[3] serial_tl_0_in_bits_phit[4] serial_tl_0_in_bits_phit[5] serial_tl_0_in_bits_phit[6] serial_tl_0_in_bits_phit[7] serial_tl_0_in_bits_phit[8] serial_tl_0_in_bits_phit[9] serial_tl_0_in_bits_phit[10] serial_tl_0_in_bits_phit[11] serial_tl_0_in_bits_phit[12] serial_tl_0_in_bits_phit[13] serial_tl_0_in_bits_phit[14] serial_tl_0_in_bits_phit[15] serial_tl_0_in_bits_phit[16] serial_tl_0_in_bits_phit[17] serial_tl_0_in_bits_phit[18] serial_tl_0_in_bits_phit[19] serial_tl_0_in_bits_phit[20] serial_tl_0_in_bits_phit[21] serial_tl_0_in_bits_phit[22] serial_tl_0_in_bits_phit[23] serial_tl_0_in_bits_phit[24] serial_tl_0_in_bits_phit[25] serial_tl_0_in_bits_phit[26] serial_tl_0_in_bits_phit[27] serial_tl_0_in_bits_phit[28] serial_tl_0_in_bits_phit[29] serial_tl_0_in_bits_phit[30] serial_tl_0_in_bits_phit[31] serial_tl_0_out_ready serial_tl_0_clock_in uart_0_rxd
-// .outputs auto_mbus_fixedClockNode_anon_out_clock auto_cbus_fixedClockNode_anon_out_clock auto_cbus_fixedClockNode_anon_out_reset debug_systemjtag_jtag_TDO_data debug_dmactive mem_axi4_0_aw_valid mem_axi4_0_aw_bits_id[0] mem_axi4_0_aw_bits_id[1] mem_axi4_0_aw_bits_id[2] mem_axi4_0_aw_bits_id[3] mem_axi4_0_aw_bits_addr[0] mem_axi4_0_aw_bits_addr[1] mem_axi4_0_aw_bits_addr[2] mem_axi4_0_aw_bits_addr[3] mem_axi4_0_aw_bits_addr[4] mem_axi4_0_aw_bits_addr[5] mem_axi4_0_aw_bits_addr[6] mem_axi4_0_aw_bits_addr[7] mem_axi4_0_aw_bits_addr[8] mem_axi4_0_aw_bits_addr[9] mem_axi4_0_aw_bits_addr[10] mem_axi4_0_aw_bits_addr[11] mem_axi4_0_aw_bits_addr[12] mem_axi4_0_aw_bits_addr[13] mem_axi4_0_aw_bits_addr[14] mem_axi4_0_aw_bits_addr[15] mem_axi4_0_aw_bits_addr[16] mem_axi4_0_aw_bits_addr[17] mem_axi4_0_aw_bits_addr[18] mem_axi4_0_aw_bits_addr[19] mem_axi4_0_aw_bits_addr[20] mem_axi4_0_aw_bits_addr[21] mem_axi4_0_aw_bits_addr[22] mem_axi4_0_aw_bits_addr[23] mem_axi4_0_aw_bits_addr[24] mem_axi4_0_aw_bits_addr[25] mem_axi4_0_aw_bits_addr[26] mem_axi4_0_aw_bits_addr[27] mem_axi4_0_aw_bits_addr[28] mem_axi4_0_aw_bits_addr[29] mem_axi4_0_aw_bits_addr[30] mem_axi4_0_aw_bits_addr[31] mem_axi4_0_aw_bits_len[0] mem_axi4_0_aw_bits_len[1] mem_axi4_0_aw_bits_len[2] mem_axi4_0_aw_bits_len[3] mem_axi4_0_aw_bits_len[4] mem_axi4_0_aw_bits_len[5] mem_axi4_0_aw_bits_len[6] mem_axi4_0_aw_bits_len[7] mem_axi4_0_aw_bits_size[0] mem_axi4_0_aw_bits_size[1] mem_axi4_0_aw_bits_size[2] mem_axi4_0_aw_bits_burst[0] mem_axi4_0_aw_bits_burst[1] mem_axi4_0_aw_bits_lock mem_axi4_0_aw_bits_cache[0] mem_axi4_0_aw_bits_cache[1] mem_axi4_0_aw_bits_cache[2] mem_axi4_0_aw_bits_cache[3] mem_axi4_0_aw_bits_prot[0] mem_axi4_0_aw_bits_prot[1] mem_axi4_0_aw_bits_prot[2] mem_axi4_0_aw_bits_qos[0] mem_axi4_0_aw_bits_qos[1] mem_axi4_0_aw_bits_qos[2] mem_axi4_0_aw_bits_qos[3] mem_axi4_0_w_valid mem_axi4_0_w_bits_data[0] mem_axi4_0_w_bits_data[1] mem_axi4_0_w_bits_data[2] mem_axi4_0_w_bits_data[3] mem_axi4_0_w_bits_data[4] mem_axi4_0_w_bits_data[5] mem_axi4_0_w_bits_data[6] mem_axi4_0_w_bits_data[7] mem_axi4_0_w_bits_data[8] mem_axi4_0_w_bits_data[9] mem_axi4_0_w_bits_data[10] mem_axi4_0_w_bits_data[11] mem_axi4_0_w_bits_data[12] mem_axi4_0_w_bits_data[13] mem_axi4_0_w_bits_data[14] mem_axi4_0_w_bits_data[15] mem_axi4_0_w_bits_data[16] mem_axi4_0_w_bits_data[17] mem_axi4_0_w_bits_data[18] mem_axi4_0_w_bits_data[19] mem_axi4_0_w_bits_data[20] mem_axi4_0_w_bits_data[21] mem_axi4_0_w_bits_data[22] mem_axi4_0_w_bits_data[23] mem_axi4_0_w_bits_data[24] mem_axi4_0_w_bits_data[25] mem_axi4_0_w_bits_data[26] mem_axi4_0_w_bits_data[27] mem_axi4_0_w_bits_data[28] mem_axi4_0_w_bits_data[29] mem_axi4_0_w_bits_data[30] mem_axi4_0_w_bits_data[31] mem_axi4_0_w_bits_data[32] mem_axi4_0_w_bits_data[33] mem_axi4_0_w_bits_data[34] mem_axi4_0_w_bits_data[35] mem_axi4_0_w_bits_data[36] mem_axi4_0_w_bits_data[37] mem_axi4_0_w_bits_data[38] mem_axi4_0_w_bits_data[39] mem_axi4_0_w_bits_data[40] mem_axi4_0_w_bits_data[41] mem_axi4_0_w_bits_data[42] mem_axi4_0_w_bits_data[43] mem_axi4_0_w_bits_data[44] mem_axi4_0_w_bits_data[45] mem_axi4_0_w_bits_data[46] mem_axi4_0_w_bits_data[47] mem_axi4_0_w_bits_data[48] mem_axi4_0_w_bits_data[49] mem_axi4_0_w_bits_data[50] mem_axi4_0_w_bits_data[51] mem_axi4_0_w_bits_data[52] mem_axi4_0_w_bits_data[53] mem_axi4_0_w_bits_data[54] mem_axi4_0_w_bits_data[55] mem_axi4_0_w_bits_data[56] mem_axi4_0_w_bits_data[57] mem_axi4_0_w_bits_data[58] mem_axi4_0_w_bits_data[59] mem_axi4_0_w_bits_data[60] mem_axi4_0_w_bits_data[61] mem_axi4_0_w_bits_data[62] mem_axi4_0_w_bits_data[63] mem_axi4_0_w_bits_strb[0] mem_axi4_0_w_bits_strb[1] mem_axi4_0_w_bits_strb[2] mem_axi4_0_w_bits_strb[3] mem_axi4_0_w_bits_strb[4] mem_axi4_0_w_bits_strb[5] mem_axi4_0_w_bits_strb[6] mem_axi4_0_w_bits_strb[7] mem_axi4_0_w_bits_last mem_axi4_0_b_ready mem_axi4_0_ar_valid mem_axi4_0_ar_bits_id[0] mem_axi4_0_ar_bits_id[1] mem_axi4_0_ar_bits_id[2] mem_axi4_0_ar_bits_id[3] mem_axi4_0_ar_bits_addr[0] mem_axi4_0_ar_bits_addr[1] mem_axi4_0_ar_bits_addr[2] mem_axi4_0_ar_bits_addr[3] mem_axi4_0_ar_bits_addr[4] mem_axi4_0_ar_bits_addr[5] mem_axi4_0_ar_bits_addr[6] mem_axi4_0_ar_bits_addr[7] mem_axi4_0_ar_bits_addr[8] mem_axi4_0_ar_bits_addr[9] mem_axi4_0_ar_bits_addr[10] mem_axi4_0_ar_bits_addr[11] mem_axi4_0_ar_bits_addr[12] mem_axi4_0_ar_bits_addr[13] mem_axi4_0_ar_bits_addr[14] mem_axi4_0_ar_bits_addr[15] mem_axi4_0_ar_bits_addr[16] mem_axi4_0_ar_bits_addr[17] mem_axi4_0_ar_bits_addr[18] mem_axi4_0_ar_bits_addr[19] mem_axi4_0_ar_bits_addr[20] mem_axi4_0_ar_bits_addr[21] mem_axi4_0_ar_bits_addr[22] mem_axi4_0_ar_bits_addr[23] mem_axi4_0_ar_bits_addr[24] mem_axi4_0_ar_bits_addr[25] mem_axi4_0_ar_bits_addr[26] mem_axi4_0_ar_bits_addr[27] mem_axi4_0_ar_bits_addr[28] mem_axi4_0_ar_bits_addr[29] mem_axi4_0_ar_bits_addr[30] mem_axi4_0_ar_bits_addr[31] mem_axi4_0_ar_bits_len[0] mem_axi4_0_ar_bits_len[1] mem_axi4_0_ar_bits_len[2] mem_axi4_0_ar_bits_len[3] mem_axi4_0_ar_bits_len[4] mem_axi4_0_ar_bits_len[5] mem_axi4_0_ar_bits_len[6] mem_axi4_0_ar_bits_len[7] mem_axi4_0_ar_bits_size[0] mem_axi4_0_ar_bits_size[1] mem_axi4_0_ar_bits_size[2] mem_axi4_0_ar_bits_burst[0] mem_axi4_0_ar_bits_burst[1] mem_axi4_0_ar_bits_lock mem_axi4_0_ar_bits_cache[0] mem_axi4_0_ar_bits_cache[1] mem_axi4_0_ar_bits_cache[2] mem_axi4_0_ar_bits_cache[3] mem_axi4_0_ar_bits_prot[0] mem_axi4_0_ar_bits_prot[1] mem_axi4_0_ar_bits_prot[2] mem_axi4_0_ar_bits_qos[0] mem_axi4_0_ar_bits_qos[1] mem_axi4_0_ar_bits_qos[2] mem_axi4_0_ar_bits_qos[3] mem_axi4_0_r_ready serial_tl_0_in_ready serial_tl_0_out_valid serial_tl_0_out_bits_phit[0] serial_tl_0_out_bits_phit[1] serial_tl_0_out_bits_phit[2] serial_tl_0_out_bits_phit[3] serial_tl_0_out_bits_phit[4] serial_tl_0_out_bits_phit[5] serial_tl_0_out_bits_phit[6] serial_tl_0_out_bits_phit[7] serial_tl_0_out_bits_phit[8] serial_tl_0_out_bits_phit[9] serial_tl_0_out_bits_phit[10] serial_tl_0_out_bits_phit[11] serial_tl_0_out_bits_phit[12] serial_tl_0_out_bits_phit[13] serial_tl_0_out_bits_phit[14] serial_tl_0_out_bits_phit[15] serial_tl_0_out_bits_phit[16] serial_tl_0_out_bits_phit[17] serial_tl_0_out_bits_phit[18] serial_tl_0_out_bits_phit[19] serial_tl_0_out_bits_phit[20] serial_tl_0_out_bits_phit[21] serial_tl_0_out_bits_phit[22] serial_tl_0_out_bits_phit[23] serial_tl_0_out_bits_phit[24] serial_tl_0_out_bits_phit[25] serial_tl_0_out_bits_phit[26] serial_tl_0_out_bits_phit[27] serial_tl_0_out_bits_phit[28] serial_tl_0_out_bits_phit[29] serial_tl_0_out_bits_phit[30] serial_tl_0_out_bits_phit[31] uart_0_txd clock_tap
-
 impl AXI4TargetOutIdx {
 // mem_axi4_0_aw_valid
 // mem_axi4_0_aw_bits_id[0]
@@ -273,13 +270,25 @@ impl AXI4TargetInIdx {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct AXI4ReadyBits {
     pub aw: bool,
     pub w: bool,
     pub b: bool,
     pub ar: bool,
     pub r: bool,
+}
+
+impl Default for AXI4ReadyBits {
+    fn default() -> Self {
+        Self {
+            aw: true,
+            w: false,
+            b: false,
+            ar: true,
+            r: false
+        }
+    }
 }
 
 #[derive(Debug, Default)]
@@ -584,6 +593,11 @@ impl TestHarness {
     }
 
     fn step(self: &mut Self) {
+        // push aw_ready
+        // push  w_ready
+        // push ar_ready
+        // push b_valid if b_ready
+        // push r_valid if r_ready
         let ivec = self.construct_ivec();
         self.driver.io_bridge.push(&mut self.driver.simif, &ivec)?;
 
@@ -597,16 +611,25 @@ impl TestHarness {
             }
         }
 
-        self.parse_ovec(&ovec)
+        // pull aw_valid & if aw_ready -> push aw to channel
+        // pull  w_valid & if  w_ready -> push  w to channel
+        // pull ar_valid & if ar_ready -> push ar to channel
+        // pull b_ready
+        // pull r_ready
+        self.parse_ovec(&ovec);
 
-        // parse the outputs
+        // if aw_valid && aw_ready -> do stuff in dram & update aw_ready
+        // if  w_valid &&  w_ready -> do stuff in dram & update  w_ready
+        // if ar_valid && ar_ready -> do stuff in dram & update ar_ready
+        // push b_resp to channel
+        // push r_resp to channel
+        self.dram.step(&mut self.axi, &mut self.axi_rdy);
+
         // push requests to DRAM or FESVR
-
         // self.dram.step();
         // self.fesvr.step();
     }
 }
 
-// TODO : Proper ready bit setting
-// TODO : DRAM state update and request serving
+// TODO : tsi
 // TODO : reset signals
