@@ -6,15 +6,19 @@ use crate::simif::mmioif::*;
 use crate::simif::dmaif::*;
 use std::collections::VecDeque;
 use bee::common::config::PlatformConfig;
+use bytemuck::cast_slice;
 use indexmap::IndexMap;
 use bee::common::{
         network::Coordinate,
         config::PlatformConfig
 };
 use bitvec::{order::Lsb0, vec::BitVec};
+use fesvr::*;
 use super::driver::FPGATopConfig;
+use bytemuck::cast_slice_mut;
 
-
+/// Helper function to split `name[idx]` into a tuple `(name, idx)`.
+/// For instance,: `data[0]` will returns a tuple `(data, 0)`.
 fn split_indexed_field(input: &str) -> Result<(&str, u32), String> {
     if let Some(open_bracket_pos) = input.find('[') {
         if let Some(close_bracket_pos) = input.find(']') {
@@ -36,6 +40,8 @@ fn split_indexed_field(input: &str) -> Result<(&str, u32), String> {
     }
 }
 
+/// Maps signals comming out from the target to a emulation platform `Coordinate`
+/// - Example signals: `mem_axi4_0_aw_valid`, `mem_axi4_0_aw_bits_id[0]`
 #[derive(Debug, Default)]
 pub struct AXI4TargetOutIdx {
     pub aw_valid: usize,
@@ -61,8 +67,6 @@ pub struct AXI4TargetOutIdx {
 }
 
 impl AXI4TargetOutIdx {
-// mem_axi4_0_aw_valid
-// mem_axi4_0_aw_bits_id[0]
     fn new(pfx: String, output_signals: IndexMap<String, Coordinate>, pcfg: &PlatformConfig) -> Self {
         let mut ret = AXI4TargetOutIdx::default();
 
@@ -168,6 +172,8 @@ impl AXI4TargetOutIdx {
     }
 }
 
+/// Maps signals going in to the target to a emulation platform `Coordinate`
+/// - Example signals: `mem_axi4_0_aw_ready`, `mem_axi4_0_b_bits_id[0]`
 #[derive(Debug, Default)]
 pub struct AXI4TargetInIdx {
     pub aw_ready: usize,
@@ -291,6 +297,8 @@ impl Default for AXI4ReadyBits {
     }
 }
 
+/// Maps signals comming out from the target to a emulation platform `Coordinate`
+/// - Example signals: `serial_tl_0_out_valid`, `serial_tl_0_out_bits_phit[0]`
 #[derive(Debug, Default)]
 pub struct TSITargetOutIdx {
     pub out_valid: usize,
@@ -300,7 +308,6 @@ pub struct TSITargetOutIdx {
 }
 
 impl TSITargetOutIdx {
-// serial_tl_0_in_valid serial_tl_0_in_bits_phit[0]
     fn new(pfx: String, output_signals: IndexMap<String, Coordinate>, pcfg: &PlatformConfig) -> Self {
         let mut ret = TSITargetOutIdx::default();
 
@@ -345,6 +352,8 @@ impl TSITargetOutIdx {
     }
 }
 
+/// Maps signals going in to the target to a emulation platform `Coordinate`
+/// - Example signals: `serial_tl_0_in_valid`, `serial_tl_0_in_bits_phit[0]`
 #[derive(Debug, Default)]
 pub struct TSITargetInIdx {
     pub out_ready: usize,
@@ -353,7 +362,6 @@ pub struct TSITargetInIdx {
 }
 
 impl TSITargetInIdx {
-// serial_tl_0_in_valid serial_tl_0_in_bits_phit[0]
     fn new(pfx: String, input_signals: IndexMap<String, Coordinate>, pcfg: &PlatformConfig) -> Self {
         let mut ret = TSITargetInIdx::default();
 
@@ -398,14 +406,23 @@ impl TSITargetInIdx {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct TSIReadyBits {
     pub out: bool,
     pub in_: bool
 }
 
+impl Default for TSIReadyBits {
+    fn default() -> Self {
+        Self {
+            out: true,
+            in_: false
+        }
+    }
+}
+
 #[derive(Debug, Default)]
-pub struct TestHarness {
+pub struct TargetSystem {
     pub dram: DRAM,
     pub axi: AXI4Channels,
     pub tsi: TSI,
@@ -418,12 +435,16 @@ pub struct TestHarness {
     pub tsi_idx_i: TSITargetInIdx,
     pub tsi_rdy: TSIReadyBits,
     pub io_stream_bytes: u32,
-    pub tot_procs: u32,
     pub input_signals:  IndexMap<String, Coordinate>,
     pub output_signals: IndexMap<String, Coordinate>,
 }
 
-impl TestHarness {
+impl TargetSystem {
+    const TSI_BITS: u32 = 32;
+    const TSI_BYTES: u32 = Self::TSI_BITS / 8;
+    const SAI_ADDR_CHUNKS: u32 = 2;
+    const SAI_LEN_CHUNKS: u32 = 2;
+
     fn new(
         dram_base_addr: Addr,
         dram_size_bytes: Addr,
@@ -447,7 +468,6 @@ impl TestHarness {
             tsi: TSI::default(),
             driver: Driver,
             cfg: cfg,
-            // FIXME:... proper index setting
             axi_idx_o: AXI4TargetOutIdx::new("mem_axi4_0".to_string(), output_signals, &cfg.emul),
             axi_idx_i: AXI4TargetInIdx::new("mem_axi4_0".to_string(), input_signals, &cfg.emul),
             axi_rdy: AXI4ReadyBits::default(),
@@ -455,7 +475,6 @@ impl TestHarness {
             tsi_idx_i: TSITargetInIdx::new("serial_tl_0".to_string(), input_signals, &cfg.emul),
             tsi_rdy: TSIReadyBits::default(),
             io_stream_bytes: io_stream_bytes,
-            tot_procs: cfg.emul.total_procs(),
             input_signals: input_signals,
             output_signals: output_signals
         }
@@ -508,7 +527,7 @@ impl TestHarness {
 
     fn construct_ivec(self: &mut Self) -> Vec<u8> {
         let mut bit_vec: BitVec<usize, Lsb0> = BitVec::new();
-        for _ in 0..self.tot_procs {
+        for _ in 0..self.cfg.emul.total_procs() {
             bit_vec.push(false);
         }
 
@@ -624,12 +643,68 @@ impl TestHarness {
         // push b_resp to channel
         // push r_resp to channel
         self.dram.step(&mut self.axi, &mut self.axi_rdy);
+    }
 
-        // push requests to DRAM or FESVR
-        // self.dram.step();
-        // self.fesvr.step();
+}
+
+enum SAICommands {
+    SaiCmdRead = 0,
+    SaiCmdWrite,
+}
+
+impl TargetSystem {
+    fn push_addr(&mut self, ptr: u64) {
+        let mut addr = ptr;
+        for i in 0..TargetSystem::SAI_ADDR_CHUNKS {
+            self.tsi.i.push_back(addr & 0xffffffff);
+            addr >>= TargetSystem::TSI_BITS;
+        }
+    }
+
+    fn push_len(&mut self, length: u64) {
+        let mut len = length;
+        for i in 0..TargetSystem::SAI_LEN_CHUNKS {
+            self.tsi.i.push_back(len & 0xffffffff);
+            len >>= 32;
+        }
     }
 }
 
-// TODO : tsi
+impl Htif for TargetSystem {
+    fn read(&mut self, ptr: u64, buf: &mut [u8]) -> Result<()> {
+        let chunks = buf.len() / TargetSystem::TSI_BYTES;
+
+        self.tsi.i.push_back(SAICommands::SaiCmdRead);
+        self.push_addr(ptr);
+        self.push_len(chunks - 1);
+
+        let buf_u32: &mut [u32] = cast_slice_mut(buf);
+
+        // TODO: make async
+        for i in 0..chunks {
+            while (self.tsi.o.is_empty()) {
+                self.step();
+            }
+            buf_u32[i] = self.tsi.o.pop_front().unwrap();
+        }
+
+        return Ok(());
+    }
+
+    fn write(&mut self, ptr: u64, buf: &[u8]) -> Result<()> {
+        let chunks = buf.len() / TargetSystem::TSI_BYTES;
+
+        self.tsi.i.push_back(SAICommands::SaiCmdWrite);
+        self.push_addr(ptr);
+        self.push_len(chunks - 1);
+
+        let buf_u32: &[u32] = cast_slice(buf);
+        for i in 0..chunks {
+            self.tsi.i.push_back(buf_u32[i]);
+        }
+
+        return Ok(());
+    }
+}
+
 // TODO : reset signals
