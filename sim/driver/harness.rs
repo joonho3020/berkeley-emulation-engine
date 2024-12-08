@@ -422,6 +422,25 @@ impl Default for TSIReadyBits {
 }
 
 #[derive(Debug, Default)]
+pub struct ResetTargetInIdx {
+    pub uncore_reset: u32,
+    pub hart_is_in_reset: u32
+}
+
+impl ResetTargetInIdx {
+    fn new(input_signals: IndexMap<String, Coordinate>, pcfg: &PlatformConfig) -> Self {
+        let mut ret = Self::default();
+        for (name, coord)in input_signals.iter() {
+            if name.ends_with("uncore_reset") {
+                ret.uncore_reset = coord.id(pcfg);
+            } else if name.contains("hartIsInReset") {
+                ret.hart_is_in_reset = coord.id(pcfg);
+            }
+        }
+    }
+}
+
+#[derive(Debug, Default)]
 pub struct TargetSystem {
     pub dram: DRAM,
     pub axi: AXI4Channels,
@@ -434,9 +453,11 @@ pub struct TargetSystem {
     pub tsi_idx_o: TSITargetOutIdx,
     pub tsi_idx_i: TSITargetInIdx,
     pub tsi_rdy: TSIReadyBits,
+    pub reset_idx: ResetTargetInIdx,
     pub io_stream_bytes: u32,
     pub input_signals:  IndexMap<String, Coordinate>,
     pub output_signals: IndexMap<String, Coordinate>,
+    pub cycle: u64,
 }
 
 impl TargetSystem {
@@ -445,7 +466,7 @@ impl TargetSystem {
     const SAI_ADDR_CHUNKS: u32 = 2;
     const SAI_LEN_CHUNKS: u32 = 2;
 
-    fn new(
+    pub fn new(
         dram_base_addr: Addr,
         dram_size_bytes: Addr,
         dram_word_size: u32,
@@ -468,15 +489,26 @@ impl TargetSystem {
             tsi: TSI::default(),
             driver: Driver,
             cfg: cfg,
-            axi_idx_o: AXI4TargetOutIdx::new("mem_axi4_0".to_string(), output_signals, &cfg.emul),
-            axi_idx_i: AXI4TargetInIdx::new("mem_axi4_0".to_string(), input_signals, &cfg.emul),
+            axi_idx_o: AXI4TargetOutIdx::new(dram_pfx_str, output_signals, &cfg.emul),
+            axi_idx_i: AXI4TargetInIdx::new(dram_pfx_str, input_signals, &cfg.emul),
             axi_rdy: AXI4ReadyBits::default(),
-            tsi_idx_o: TSITargetOutIdx::new("serial_tl_0".to_string(), output_signals, &cfg.emul),
-            tsi_idx_i: TSITargetInIdx::new("serial_tl_0".to_string(), input_signals, &cfg.emul),
+            tsi_idx_o: TSITargetOutIdx::new(tsi_pfx_str, output_signals, &cfg.emul),
+            tsi_idx_i: TSITargetInIdx::new(tsi_pfx_str, input_signals, &cfg.emul),
             tsi_rdy: TSIReadyBits::default(),
+            reset_idx: ResetTargetInIdx::new(input_signals, &cfg.emul),
             io_stream_bytes: io_stream_bytes,
             input_signals: input_signals,
-            output_signals: output_signals
+            output_signals: output_signals,
+            cycle: 0,
+        }
+    }
+
+    fn construct_reset_input(self: &mut Self, ivec: &mut BitVec<usize, Lsb0>) {
+        if self.cycle < 25 {
+            ivec.set(self.reset_idx.uncore_reset, 1);
+        }
+        if self.cycle < 28 {
+            ivec.set(self.reset_idx.hart_is_in_reset, 1);
         }
     }
 
@@ -531,6 +563,7 @@ impl TargetSystem {
             bit_vec.push(false);
         }
 
+        self.construct_reset_input(&mut bit_vec);
         self.construct_axi_input(&mut bit_vec);
         self.construct_tsi_input(&mut bit_vec);
 
@@ -611,7 +644,7 @@ impl TargetSystem {
         self.parse_tsi_output(&ovec_bit);
     }
 
-    fn step(self: &mut Self) {
+    pub fn step(self: &mut Self) {
         // push aw_ready
         // push  w_ready
         // push ar_ready
@@ -643,6 +676,8 @@ impl TargetSystem {
         // push b_resp to channel
         // push r_resp to channel
         self.dram.step(&mut self.axi, &mut self.axi_rdy);
+
+        self.cycle += 1;
     }
 
 }
@@ -668,11 +703,18 @@ impl TargetSystem {
             len >>= 32;
         }
     }
+
+    fn to_u32(slice: &[u8]) -> u32 {
+        let mut buffer = [0u8; 4];
+        let len = slice.len().min(4);
+        buffer[..len].copy_from_slice(&slice[..len]);
+        u32::from_le_bytes(buffer)
+    }
 }
 
 impl Htif for TargetSystem {
     fn read(&mut self, ptr: u64, buf: &mut [u8]) -> Result<()> {
-        let chunks = buf.len() / TargetSystem::TSI_BYTES;
+        let chunks = buf.chunks(TargetSystem::TSI_BYTES).len();
 
         self.tsi.i.push_back(SAICommands::SaiCmdRead);
         self.push_addr(ptr);
@@ -680,31 +722,35 @@ impl Htif for TargetSystem {
 
         let buf_u32: &mut [u32] = cast_slice_mut(buf);
 
-        // TODO: make async
-        for i in 0..chunks {
+        for chunk in buf.chunks_mut(TargetSystem::TSI_BYTES) {
             while (self.tsi.o.is_empty()) {
                 self.step();
             }
-            buf_u32[i] = self.tsi.o.pop_front().unwrap();
+            let buf_u32 = self.tsi.o.pop_front().unwrap();
+            let buf_u8 = buf_u32.to_le_bytes();
+            for (i, b) in chunk.iter_mut().enumerate() {
+                *b = buf_u8[i];
+            }
         }
+
+        println!("Htif read done buf: {:?}", buf);
 
         return Ok(());
     }
 
     fn write(&mut self, ptr: u64, buf: &[u8]) -> Result<()> {
-        let chunks = buf.len() / TargetSystem::TSI_BYTES;
+        let chunks = buf.chunks(TargetSystem::TSI_BYTES).len();
 
         self.tsi.i.push_back(SAICommands::SaiCmdWrite);
         self.push_addr(ptr);
         self.push_len(chunks - 1);
 
-        let buf_u32: &[u32] = cast_slice(buf);
-        for i in 0..chunks {
-            self.tsi.i.push_back(buf_u32[i]);
+        for chunk in buf.chunks(TargetSystem::TSI_BYTES) {
+            self.tsi.i.push_back(Self::to_u32(chunk));
         }
+
+        println!("Htif write done buf: {:?}", buf);
 
         return Ok(());
     }
 }
-
-// TODO : reset signals

@@ -4,7 +4,7 @@ use rand::Rng;
 use indicatif::ProgressBar;
 use indexmap::IndexMap;
 use std::{
-    cmp::max, collections::VecDeque, thread::sleep
+    cmp::max, collections::VecDeque, thread::sleep, path::Path
 };
 use bee::{
     common::{
@@ -29,10 +29,9 @@ use simif::{
     dmaif::*
 };
 use driver::{
-    driver::*,
-    dram::*,
-    axi::*
+    axi::*, dram::*, driver::*, harness::TargetSystem
 };
+use fesvr::*;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about=None)]
@@ -78,6 +77,9 @@ struct SimArgs {
 
     #[arg(short, long, default_value_t = false)]
     pub trace_mode: bool,
+
+    #[arg(short, long)]
+    pub elf_file_path: String,
 
     #[clap(flatten)]
     pub bee_args: Args
@@ -148,6 +150,17 @@ fn main() -> Result<(), SimIfErr> {
         }
     }
 
+    let mut input_signals: IndexMap<String, Coordinate> = IndexMap::new();
+    for nidx in circuit.graph.node_indices() {
+        let node = circuit.graph.node_weight(nidx).unwrap();
+        if node.is() == Primitive::Input {
+            assert!(all_signal_map.contains_key(node.name()),
+                    "input {} not found in signal map",
+                    node.name());
+            input_signals.insert(node.name().to_string(), node.info().coord);
+        }
+    }
+
     let fpga_top_cfg = FPGATopConfig {
         axi: AXI4Config {
             addr_bits: args.axi_addr_bits,
@@ -179,8 +192,40 @@ fn main() -> Result<(), SimIfErr> {
     println!("Start simulation");
 
     if args.trace_mode {
-        run_from_trace(&mut driver, &circuit, &mapped_input_stimuli_blasted, &fpga_top_cfg);
+        run_from_trace(&mut driver,
+            &circuit,
+            &input_stimuli_blasted,
+            &all_signal_map,
+            &output_signals,
+            &mapped_input_stimuli_blasted,
+            &fpga_top_cfg);
     } else {
+        let mut target = TargetSystem::new(
+            0,
+            1000 * 1000 * 1000,
+            8,
+            driver,
+            &fpga_top_cfg,
+            input_signals,
+            output_signals,
+            "mem_axi4_0".to_string(),
+            "serial_tl_0".to_string());
+
+        let mut frontend = frontend::Frontend::try_new(
+                Path::new(args.elf_file_path.as_str())).unwrap();
+        frontend.write_elf(&mut target);
+        frontend.reset(&mut target);
+
+        let mut i = 1;
+        loop {
+            target.step();
+            if i % 50 == 0 {
+                if frontend.process(&mut target).expect("htif") {
+                    break;
+                }
+            }
+            i += 1;
+        }
     }
 
     println!("Simulation ended");
