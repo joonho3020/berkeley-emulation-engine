@@ -2,20 +2,17 @@ use crate::driver::axi::*;
 use crate::driver::dram::*;
 use crate::driver::tsi::*;
 use crate::simif::simif::Driver;
-use crate::simif::mmioif::*;
 use crate::simif::dmaif::*;
+use crate::SimIfErr;
 use std::collections::VecDeque;
-use bee::common::config::PlatformConfig;
-use bytemuck::cast_slice;
 use indexmap::IndexMap;
 use bee::common::{
         network::Coordinate,
         config::PlatformConfig
 };
 use bitvec::{order::Lsb0, vec::BitVec};
-use fesvr::*;
+use fesvr::Htif;
 use super::driver::FPGATopConfig;
-use bytemuck::cast_slice_mut;
 
 /// Helper function to split `name[idx]` into a tuple `(name, idx)`.
 /// For instance,: `data[0]` will returns a tuple `(data, 0)`.
@@ -67,45 +64,45 @@ pub struct AXI4TargetOutIdx {
 }
 
 impl AXI4TargetOutIdx {
-    fn new(pfx: String, output_signals: IndexMap<String, Coordinate>, pcfg: &PlatformConfig) -> Self {
+    fn new(pfx: &str, output_signals: &IndexMap<String, Coordinate>, pcfg: &PlatformConfig) -> Self {
         let mut ret = AXI4TargetOutIdx::default();
 
-        let aw_addr_idx: IndexMap<u32, u32> = IndexMap::new();
-        let aw_id_idx:   IndexMap<u32, u32> = IndexMap::new();
-        let aw_len_idx:  IndexMap<u32, u32> = IndexMap::new();
-        let aw_size_idx: IndexMap<u32, u32> = IndexMap::new();
+        let mut aw_addr_idx: IndexMap<u32, u32> = IndexMap::new();
+        let mut aw_id_idx:   IndexMap<u32, u32> = IndexMap::new();
+        let mut aw_len_idx:  IndexMap<u32, u32> = IndexMap::new();
+        let mut aw_size_idx: IndexMap<u32, u32> = IndexMap::new();
 
-        let w_strb_idx: IndexMap<u32, u32> = IndexMap::new();
-        let w_data_idx: IndexMap<u32, u32> = IndexMap::new();
+        let mut w_strb_idx: IndexMap<u32, u32> = IndexMap::new();
+        let mut w_data_idx: IndexMap<u32, u32> = IndexMap::new();
 
-        let ar_addr_idx: IndexMap<u32, u32> = IndexMap::new();
-        let ar_id_idx:   IndexMap<u32, u32> = IndexMap::new();
-        let ar_len_idx:  IndexMap<u32, u32> = IndexMap::new();
-        let ar_size_idx: IndexMap<u32, u32> = IndexMap::new();
+        let mut ar_addr_idx: IndexMap<u32, u32> = IndexMap::new();
+        let mut ar_id_idx:   IndexMap<u32, u32> = IndexMap::new();
+        let mut ar_len_idx:  IndexMap<u32, u32> = IndexMap::new();
+        let mut ar_size_idx: IndexMap<u32, u32> = IndexMap::new();
 
         for (name, coord) in output_signals.iter() {
             if let Some(sfx) = name.strip_prefix(pfx) {
-                let split: VecDeque<&str> = sfx.split('_').filter(|&s| !s.is_empty()).collect();
+                let mut split: VecDeque<&str> = sfx.split('_').filter(|&s| !s.is_empty()).collect();
                 if split.len() < 2 {
                     assert!(false, "Unknown AXI channel: {}, split: {:?}", name, split);
                 }
 
-                let channel = split.pop_front().unwrap().to_lowercase().as_str();
-                let rdy_val_bits = split.pop_front().unwrap().to_lowercase().as_str();
+                let channel = split.pop_front().unwrap().to_lowercase();
+                let rdy_val_bits = split.pop_front().unwrap().to_lowercase();
 
-                match rdy_val_bits {
+                match rdy_val_bits.as_str() {
                     "valid" => {
-                        match channel {
-                            "aw" => { ret.aw_valid = coord.id(pcfg); }
-                            "w"  => { ret.w_valid  = coord.id(pcfg); }
-                            "ar" => { ret.ar_valid = coord.id(pcfg); }
+                        match channel.as_str() {
+                            "aw" => { ret.aw_valid = coord.id(pcfg) as usize; }
+                            "w"  => { ret.w_valid  = coord.id(pcfg) as usize; }
+                            "ar" => { ret.ar_valid = coord.id(pcfg) as usize; }
                             _    => { assert!(false, "Invalid signal {}", name); }
                         }
                     }
                     "ready" => {
-                        match channel {
-                            "b" => { ret.b_ready = coord.id(pcfg); }
-                            "r" => { ret.r_ready = coord.id(pcfg); }
+                        match channel.as_str() {
+                            "b" => { ret.b_ready = coord.id(pcfg) as usize; }
+                            "r" => { ret.r_ready = coord.id(pcfg) as usize; }
                             _   => { assert!(false, "Invalid signal {}", name); }
                         }
                     }
@@ -113,7 +110,7 @@ impl AXI4TargetOutIdx {
                         let field_with_bit_index = split.pop_front().unwrap().to_lowercase();
                         match split_indexed_field(field_with_bit_index.as_str()) {
                             Ok((name, idx)) => {
-                                match (channel, name) {
+                                match (channel.as_str(), name) {
                                     ("aw", "addr") => { aw_addr_idx.insert(idx, coord.id(pcfg)); }
                                     ("aw", "id")   => {   aw_id_idx.insert(idx, coord.id(pcfg)); }
                                     ("aw", "len")  => {  aw_len_idx.insert(idx, coord.id(pcfg)); }
@@ -121,7 +118,7 @@ impl AXI4TargetOutIdx {
 
                                     ("w",  "strb") => {  w_strb_idx.insert(idx, coord.id(pcfg)); }
                                     ("w",  "data") => {  w_data_idx.insert(idx, coord.id(pcfg)); }
-                                    ("w",  "last") => {  ret.w_last = coord.id(pcfg); }
+                                    ("w",  "last") => {  ret.w_last = coord.id(pcfg) as usize; }
 
                                     ("ar", "addr") => { ar_addr_idx.insert(idx, coord.id(pcfg)); }
                                     ("ar", "id")   => {   ar_id_idx.insert(idx, coord.id(pcfg)); }
@@ -133,7 +130,7 @@ impl AXI4TargetOutIdx {
                                     }
                                 }
                             }
-                            Err(e) => { assert!(false, e); }
+                            Err(e) => { assert!(false, "{}", e); }
                         }
                     }
                     _ => {
@@ -155,18 +152,18 @@ impl AXI4TargetOutIdx {
         ar_len_idx.sort_keys();
         ar_size_idx.sort_keys();
 
-        ret.aw_addr = aw_addr_idx.values();
-        ret.aw_id   = aw_id_idx.values();
-        ret.aw_len  = aw_len_idx.values();
-        ret.aw_size = aw_size_idx.values();
+        ret.aw_addr = aw_addr_idx.values().map(|&v| v as usize).collect();
+        ret.aw_id   = aw_id_idx.values().map(|&v| v as usize).collect();
+        ret.aw_len  = aw_len_idx.values().map(|&v| v as usize).collect();
+        ret.aw_size = aw_size_idx.values().map(|&v| v as usize).collect();
 
-        ret.w_strb = w_strb_idx.values();
-        ret.w_data = w_data_idx.values();
+        ret.w_strb = w_strb_idx.values().map(|&v| v as usize).collect();
+        ret.w_data = w_data_idx.values().map(|&v| v as usize).collect();
 
-        ret.ar_addr = ar_addr_idx.values();
-        ret.ar_id   = ar_id_idx.values();
-        ret.ar_len  = ar_len_idx.values();
-        ret.ar_size = ar_size_idx.values();
+        ret.ar_addr = ar_addr_idx.values().map(|&v| v as usize).collect();
+        ret.ar_id   = ar_id_idx.values().map(|&v| v as usize).collect();
+        ret.ar_len  = ar_len_idx.values().map(|&v| v as usize).collect();
+        ret.ar_size = ar_size_idx.values().map(|&v| v as usize).collect();
 
         return ret;
     }
@@ -194,39 +191,39 @@ pub struct AXI4TargetInIdx {
 }
 
 impl AXI4TargetInIdx {
-    fn new(pfx: String, input_signals: IndexMap<String, Coordinate>, pcfg: &PlatformConfig) -> Self {
+    fn new(pfx: &str, input_signals: &IndexMap<String, Coordinate>, pcfg: &PlatformConfig) -> Self {
         let mut ret = AXI4TargetInIdx::default();
 
-        let b_id_idx:   IndexMap<u32, u32> = IndexMap::new();
-        let b_resp_idx: IndexMap<u32, u32> = IndexMap::new();
+        let mut b_id_idx:   IndexMap<u32, u32> = IndexMap::new();
+        let mut b_resp_idx: IndexMap<u32, u32> = IndexMap::new();
 
-        let r_id_idx:   IndexMap<u32, u32> = IndexMap::new();
-        let r_resp_idx: IndexMap<u32, u32> = IndexMap::new();
-        let r_data_idx: IndexMap<u32, u32> = IndexMap::new();
+        let mut r_id_idx:   IndexMap<u32, u32> = IndexMap::new();
+        let mut r_resp_idx: IndexMap<u32, u32> = IndexMap::new();
+        let mut r_data_idx: IndexMap<u32, u32> = IndexMap::new();
 
         for (name, coord) in input_signals.iter() {
             if let Some(sfx) = name.strip_prefix(pfx) {
-                let split: VecDeque<&str> = sfx.split('_').filter(|&s| !s.is_empty()).collect();
+                let mut split: VecDeque<&str> = sfx.split('_').filter(|&s| !s.is_empty()).collect();
                 if split.len() < 2 {
                     assert!(false, "Unknown AXI channel: {}, split: {:?}", name, split);
                 }
 
-                let channel = split.pop_front().unwrap().to_lowercase().as_str();
-                let rdy_val_bits = split.pop_front().unwrap().to_lowercase().as_str();
+                let channel = split.pop_front().unwrap().to_lowercase();
+                let rdy_val_bits = split.pop_front().unwrap().to_lowercase();
 
-                match rdy_val_bits {
+                match rdy_val_bits.as_str() {
                     "valid" => {
-                        match channel {
-                            "b" => { ret.b_valid = coord.id(pcfg); }
-                            "r" => { ret.r_valid  = coord.id(pcfg); }
+                        match channel.as_str() {
+                            "b" => { ret.b_valid = coord.id(pcfg) as usize; }
+                            "r" => { ret.r_valid  = coord.id(pcfg) as usize; }
                             _    => { assert!(false, "Invalid signal {}", name); }
                         }
                     }
                     "ready" => {
-                        match channel {
-                            "aw" => { ret.aw_ready = coord.id(pcfg); }
-                            "w"  => { ret.w_ready  = coord.id(pcfg); }
-                            "ar" => { ret.ar_ready = coord.id(pcfg); }
+                        match channel.as_str() {
+                            "aw" => { ret.aw_ready = coord.id(pcfg) as usize; }
+                            "w"  => { ret.w_ready  = coord.id(pcfg) as usize; }
+                            "ar" => { ret.ar_ready = coord.id(pcfg) as usize; }
                             _   => { assert!(false, "Invalid signal {}", name); }
                         }
                     }
@@ -234,21 +231,21 @@ impl AXI4TargetInIdx {
                         let field_with_bit_index = split.pop_front().unwrap().to_lowercase();
                         match split_indexed_field(field_with_bit_index.as_str()) {
                             Ok((name, idx)) => {
-                                match (channel, name) {
+                                match (channel.as_str(), name) {
                                     ("b", "id")   => { b_id_idx.insert(idx, coord.id(pcfg)); }
                                     ("b", "resp") => { b_resp_idx.insert(idx, coord.id(pcfg)); }
 
                                     ("r", "id")   => {   r_id_idx.insert(idx, coord.id(pcfg)); }
                                     ("r", "resp") => { r_resp_idx.insert(idx, coord.id(pcfg)); }
                                     ("r", "data") => { r_data_idx.insert(idx, coord.id(pcfg)); }
-                                    ("r", "last") => { ret.r_last = coord.id(pcfg); }
+                                    ("r", "last") => { ret.r_last = coord.id(pcfg) as usize; }
 
                                     _ => {
                                         println!("Unrecognized AXI signal {} {}", channel, name);
                                     }
                                 }
                             }
-                            Err(e) => { assert!(false, e); }
+                            Err(e) => { assert!(false, "{}", e); }
                         }
                     }
                     _ => {
@@ -265,12 +262,12 @@ impl AXI4TargetInIdx {
         r_resp_idx.sort_keys();
         r_data_idx.sort_keys();
 
-        ret.b_id   = b_id_idx.values();
-        ret.b_resp = b_resp_idx.values();
+        ret.b_id   = b_id_idx.values().map(|&v| v as usize).collect();
+        ret.b_resp = b_resp_idx.values().map(|&v| v as usize).collect();
 
-        ret.r_id   = r_id_idx.values();
-        ret.r_resp = r_resp_idx.values();
-        ret.r_data = r_data_idx.values();
+        ret.r_id   = r_id_idx.values().map(|&v| v as usize).collect();
+        ret.r_resp = r_resp_idx.values().map(|&v| v as usize).collect();
+        ret.r_data = r_data_idx.values().map(|&v| v as usize).collect();
 
         return ret;
     }
@@ -308,27 +305,27 @@ pub struct TSITargetOutIdx {
 }
 
 impl TSITargetOutIdx {
-    fn new(pfx: String, output_signals: IndexMap<String, Coordinate>, pcfg: &PlatformConfig) -> Self {
+    fn new(pfx: &str, output_signals: &IndexMap<String, Coordinate>, pcfg: &PlatformConfig) -> Self {
         let mut ret = TSITargetOutIdx::default();
 
-        let bits: IndexMap<u32, u32> = IndexMap::new();
+        let mut bits: IndexMap<u32, u32> = IndexMap::new();
 
         for (name, coord) in output_signals.iter() {
             if let Some(sfx) = name.strip_prefix(pfx) {
-                let split: VecDeque<&str> = sfx.split('_').filter(|&s| !s.is_empty()).collect();
+                let mut split: VecDeque<&str> = sfx.split('_').filter(|&s| !s.is_empty()).collect();
                 if split.len() < 2 {
                     assert!(false, "Unknown TSI channel: {}, split: {:?}", name, split);
                 }
 
-                let in_out = split.pop_front().unwrap().to_lowercase().as_str();
-                let rdy_val_bits = split.pop_front().unwrap().to_lowercase().as_str();
+                let _in_out = split.pop_front().unwrap().to_lowercase();
+                let rdy_val_bits = split.pop_front().unwrap().to_lowercase();
 
-                match rdy_val_bits {
+                match rdy_val_bits.as_str() {
                     "valid" => {
-                        ret.out_valid = coord.id(pcfg);
+                        ret.out_valid = coord.id(pcfg) as usize;
                     }
                     "ready" => {
-                        ret.in_ready = coord.id(pcfg);
+                        ret.in_ready = coord.id(pcfg) as usize;
                     }
                     "bits" => {
                         let field_with_bit_index = split.pop_front().unwrap().to_lowercase();
@@ -336,7 +333,7 @@ impl TSITargetOutIdx {
                             Ok((_, idx)) => {
                                 bits.insert(idx, coord.id(pcfg));
                             }
-                            Err(e) => { assert!(false, e); }
+                            Err(e) => { assert!(false, "{}", e); }
                         }
                     }
                     _ => {
@@ -346,7 +343,7 @@ impl TSITargetOutIdx {
             }
         }
         bits.sort_keys();
-        ret.out_bits = bits;
+        ret.out_bits = bits.values().map(|&v| v as usize).collect();
 
         return ret;
     }
@@ -362,27 +359,27 @@ pub struct TSITargetInIdx {
 }
 
 impl TSITargetInIdx {
-    fn new(pfx: String, input_signals: IndexMap<String, Coordinate>, pcfg: &PlatformConfig) -> Self {
+    fn new(pfx: &str, input_signals: &IndexMap<String, Coordinate>, pcfg: &PlatformConfig) -> Self {
         let mut ret = TSITargetInIdx::default();
 
-        let bits: IndexMap<u32, u32> = IndexMap::new();
+        let mut bits: IndexMap<u32, u32> = IndexMap::new();
 
         for (name, coord) in input_signals.iter() {
             if let Some(sfx) = name.strip_prefix(pfx) {
-                let split: VecDeque<&str> = sfx.split('_').filter(|&s| !s.is_empty()).collect();
+                let mut split: VecDeque<&str> = sfx.split('_').filter(|&s| !s.is_empty()).collect();
                 if split.len() < 2 {
                     assert!(false, "Unknown TSI channel: {}, split: {:?}", name, split);
                 }
 
-                let in_out = split.pop_front().unwrap().to_lowercase().as_str();
-                let rdy_val_bits = split.pop_front().unwrap().to_lowercase().as_str();
+                let _in_out = split.pop_front().unwrap().to_lowercase();
+                let rdy_val_bits = split.pop_front().unwrap().to_lowercase();
 
-                match rdy_val_bits {
+                match rdy_val_bits.as_str() {
                     "valid" => {
-                        ret.in_valid = coord.id(pcfg);
+                        ret.in_valid = coord.id(pcfg) as usize;
                     }
                     "ready" => {
-                        ret.out_ready = coord.id(pcfg);
+                        ret.out_ready = coord.id(pcfg) as usize;
                     }
                     "bits" => {
                         let field_with_bit_index = split.pop_front().unwrap().to_lowercase();
@@ -390,7 +387,7 @@ impl TSITargetInIdx {
                             Ok((_, idx)) => {
                                 bits.insert(idx, coord.id(pcfg));
                             }
-                            Err(e) => { assert!(false, e); }
+                            Err(e) => { assert!(false, "{}", e); }
                         }
                     }
                     _ => {
@@ -400,7 +397,7 @@ impl TSITargetInIdx {
             }
         }
         bits.sort_keys();
-        ret.in_bits = bits;
+        ret.in_bits = bits.values().map(|&v| v as usize).collect();
 
         return ret;
     }
@@ -423,30 +420,31 @@ impl Default for TSIReadyBits {
 
 #[derive(Debug, Default)]
 pub struct ResetTargetInIdx {
-    pub uncore_reset: u32,
-    pub hart_is_in_reset: u32
+    pub uncore_reset: usize,
+    pub hart_is_in_reset: usize
 }
 
 impl ResetTargetInIdx {
-    fn new(input_signals: IndexMap<String, Coordinate>, pcfg: &PlatformConfig) -> Self {
+    fn new(input_signals: &IndexMap<String, Coordinate>, pcfg: &PlatformConfig) -> Self {
         let mut ret = Self::default();
         for (name, coord)in input_signals.iter() {
             if name.ends_with("uncore_reset") {
-                ret.uncore_reset = coord.id(pcfg);
+                ret.uncore_reset = coord.id(pcfg) as usize;
             } else if name.contains("hartIsInReset") {
-                ret.hart_is_in_reset = coord.id(pcfg);
+                ret.hart_is_in_reset = coord.id(pcfg) as usize;
             }
         }
+        return ret;
     }
 }
 
-#[derive(Debug, Default)]
-pub struct TargetSystem {
+#[derive(Debug)]
+pub struct TargetSystem<'a> {
     pub dram: DRAM,
     pub axi: AXI4Channels,
     pub tsi: TSI,
     pub driver: Driver,
-    pub cfg: &FPGATopConfig,
+    pub cfg: &'a FPGATopConfig,
     pub axi_idx_o: AXI4TargetOutIdx,
     pub axi_idx_i: AXI4TargetInIdx,
     pub axi_rdy: AXI4ReadyBits,
@@ -460,7 +458,7 @@ pub struct TargetSystem {
     pub cycle: u64,
 }
 
-impl TargetSystem {
+impl<'a> TargetSystem<'a> {
     const TSI_BITS: u32 = 32;
     const TSI_BYTES: u32 = Self::TSI_BITS / 8;
     const SAI_ADDR_CHUNKS: u32 = 2;
@@ -471,7 +469,7 @@ impl TargetSystem {
         dram_size_bytes: Addr,
         dram_word_size: u32,
         driver: Driver,
-        cfg: &FPGATopConfig,
+        cfg: &'a FPGATopConfig,
         input_signals:  IndexMap<String, Coordinate>,
         output_signals: IndexMap<String, Coordinate>,
         dram_pfx_str: String,
@@ -487,15 +485,15 @@ impl TargetSystem {
             dram: DRAM::new(dram_base_addr, dram_size_bytes, dram_word_size),
             axi: AXI4Channels::default(),
             tsi: TSI::default(),
-            driver: Driver,
+            driver: driver,
             cfg: cfg,
-            axi_idx_o: AXI4TargetOutIdx::new(dram_pfx_str, output_signals, &cfg.emul),
-            axi_idx_i: AXI4TargetInIdx::new(dram_pfx_str, input_signals, &cfg.emul),
+            axi_idx_o: AXI4TargetOutIdx::new(&dram_pfx_str, &output_signals, &cfg.emul),
+            axi_idx_i: AXI4TargetInIdx::new(&dram_pfx_str, &input_signals, &cfg.emul),
             axi_rdy: AXI4ReadyBits::default(),
-            tsi_idx_o: TSITargetOutIdx::new(tsi_pfx_str, output_signals, &cfg.emul),
-            tsi_idx_i: TSITargetInIdx::new(tsi_pfx_str, input_signals, &cfg.emul),
+            tsi_idx_o: TSITargetOutIdx::new(&tsi_pfx_str, &output_signals, &cfg.emul),
+            tsi_idx_i: TSITargetInIdx::new(&tsi_pfx_str, &input_signals, &cfg.emul),
             tsi_rdy: TSIReadyBits::default(),
-            reset_idx: ResetTargetInIdx::new(input_signals, &cfg.emul),
+            reset_idx: ResetTargetInIdx::new(&input_signals, &cfg.emul),
             io_stream_bytes: io_stream_bytes,
             input_signals: input_signals,
             output_signals: output_signals,
@@ -505,10 +503,10 @@ impl TargetSystem {
 
     fn construct_reset_input(self: &mut Self, ivec: &mut BitVec<usize, Lsb0>) {
         if self.cycle < 25 {
-            ivec.set(self.reset_idx.uncore_reset, 1);
+            ivec.set(self.reset_idx.uncore_reset, true);
         }
         if self.cycle < 28 {
-            ivec.set(self.reset_idx.hart_is_in_reset, 1);
+            ivec.set(self.reset_idx.hart_is_in_reset, true);
         }
     }
 
@@ -519,12 +517,12 @@ impl TargetSystem {
 
         if !self.axi.b.is_empty() && self.axi_rdy.b {
             let b = self.axi.b.pop_front().unwrap();
-            ivec.set(self.axi_idx_i.b_valid, 1);
+            ivec.set(self.axi_idx_i.b_valid, true);
             for (i, id_idx) in self.axi_idx_i.b_id.iter().enumerate() {
-                ivec.set(id_idx, b.id >> i);
+                ivec.set(*id_idx, (b.id >> i) & 1 == 1);
             }
             for (i, resp_idx) in self.axi_idx_i.b_resp.iter().enumerate() {
-                ivec.set(resp_idx, b.resp >> i);
+                ivec.set(*resp_idx, (b.resp >> i) & 1 == 1);
             }
         }
 
@@ -532,15 +530,17 @@ impl TargetSystem {
 
         if !self.axi.r.is_empty() && self.axi_rdy.r {
             let r = self.axi.r.pop_front().unwrap();
-            ivec.set(self.axi_idx_i.r_valid, 1);
+            ivec.set(self.axi_idx_i.r_valid, true);
             for (i, id_idx) in self.axi_idx_i.r_id.iter().enumerate() {
-                ivec.set(id_idx, r.id >> i);
+                ivec.set(*id_idx, (r.id >> i) & 1 == 1);
             }
             for (i, resp_idx) in self.axi_idx_i.r_resp.iter().enumerate() {
-                ivec.set(resp_idx, r.resp >> i);
+                ivec.set(*resp_idx, (r.resp >> i) & 1 == 1);
             }
             for (i, data_idx) in self.axi_idx_i.r_data.iter().enumerate() {
-                ivec.set(data_idx, r.data >> i);
+                let ii = i / 8;
+                let jj = i % 8;
+                ivec.set(*data_idx, (r.data[ii] >> jj) & 1 == 1);
             }
             ivec.set(self.axi_idx_i.r_last, r.last);
         }
@@ -550,9 +550,9 @@ impl TargetSystem {
         ivec.set(self.tsi_idx_i.out_ready, self.tsi_rdy.out);
         if !self.tsi.i.is_empty() && self.tsi_rdy.in_ {
             let tsi_req = self.tsi.i.pop_front().unwrap();
-            ivec.set(self.tsi_idx_i.in_valid, 1);
-            for (i, idx) in self.tsi_idx_i.in_bits.iter().enumerate() {
-                ivec.set(idx, tsi_req >> idx);
+            ivec.set(self.tsi_idx_i.in_valid, true);
+            for (_, idx) in self.tsi_idx_i.in_bits.iter().enumerate() {
+                ivec.set(*idx, (tsi_req >> idx) & 1 == 1);
             }
         }
     }
@@ -576,75 +576,75 @@ impl TargetSystem {
         return ivec;
     }
 
-    fn parse_axi_output(self: &mut Self, ovec: &BitVec<usize, Lsb0>) {
-        self.axi_rdy.b = ovec.get(self.axi_idx_o.b_ready).unwrap();
-        self.axi_rdy.r = ovec.get(self.axi_idx_o.r_ready).unwrap();
+    fn parse_axi_output(self: &mut Self, ovec: &BitVec<u8, Lsb0>) {
+        self.axi_rdy.b = *ovec.get(self.axi_idx_o.b_ready).unwrap();
+        self.axi_rdy.r = *ovec.get(self.axi_idx_o.r_ready).unwrap();
 
-        if self.axi_rdy.aw && ovec.get(self.axi_idx_o.aw_valid).unwrap() {
+        if self.axi_rdy.aw && *ovec.get(self.axi_idx_o.aw_valid).unwrap() {
             let mut addr = 0;
             for (i, idx) in self.axi_idx_o.aw_addr.iter().enumerate() {
-                addr |= ovec.get(idx).unwrap() << i;
+                addr |= (*ovec.get(*idx).unwrap() as u32) << i;
             }
             let mut size = 0;
             for (i, idx) in self.axi_idx_o.aw_size.iter().enumerate() {
-                size |= ovec.get(idx).unwrap() << i;
+                size |= (*ovec.get(*idx).unwrap() as u32) << i;
             }
             let mut len = 0;
             for (i, idx) in self.axi_idx_o.aw_len.iter().enumerate() {
-                len |= ovec.get(idx).unwrap() << i;
+                len |= (*ovec.get(*idx).unwrap() as u32) << i;
             }
             self.axi.aw.push_back(AXI4AW::from_addr_size_len(addr, size, len));
         }
 
-        if self.axi_rdy.w && ovec.get(self.axi_idx_o.w_valid).unwrap() {
+        if self.axi_rdy.w && *ovec.get(self.axi_idx_o.w_valid).unwrap() {
             let mut strb = 0;
             for (i, idx) in self.axi_idx_o.w_strb.iter().enumerate() {
-                strb |= ovec.get(idx).unwrap() << i;
+                strb |= (*ovec.get(*idx).unwrap() as u32) << i;
             }
             let mut data = 0;
             for (i, idx) in self.axi_idx_o.w_data.iter().enumerate() {
-                data |= ovec.get(idx).unwrap() << i;
+                data |= (*ovec.get(*idx).unwrap() as u32) << i;
             }
-            let last = ovec.get(self.axi_idx_o.w_last).unwrap();
-            self.axi.w.push_back(AXI4W::from_data_strb_last(data, strb, last));
+            let last = ovec.get(self.axi_idx_o.w_last).unwrap() == true;
+            self.axi.w.push_back(AXI4W::from_data_strb_last(&data.to_le_bytes().to_vec(), strb.into(), last));
         }
 
 
-        if self.axi_rdy.ar && ovec.get(self.axi_idx_o.ar_valid).unwrap() {
+        if self.axi_rdy.ar && *ovec.get(self.axi_idx_o.ar_valid).unwrap() {
             let mut addr = 0;
             for (i, idx) in self.axi_idx_o.ar_addr.iter().enumerate() {
-                addr |= ovec.get(idx).unwrap() << i;
+                addr |= (*ovec.get(*idx).unwrap() as u32) << i;
             }
             let mut size = 0;
             for (i, idx) in self.axi_idx_o.ar_size.iter().enumerate() {
-                size |= ovec.get(idx).unwrap() << i;
+                size |= (*ovec.get(*idx).unwrap() as u32) << i;
             }
             let mut len = 0;
             for (i, idx) in self.axi_idx_o.ar_len.iter().enumerate() {
-                len |= ovec.get(idx).unwrap() << i;
+                len |= (*ovec.get(*idx).unwrap() as u32) << i;
             }
             self.axi.ar.push_back(AXI4AR::from_addr_size_len(addr, size, len));
         }
     }
 
-    fn parse_tsi_output(self: &mut Self, ovec: &BitVec<usize, Lsb0>) {
-        self.tsi_rdy.in_ = ovec.get(self.tsi_idx_o.in_ready).unwrap();
-        if !self.tsi_rdy.out && ovec.get(self.tsi_idx_o.out_valid).unwrap() {
+    fn parse_tsi_output(self: &mut Self, ovec: &BitVec<u8, Lsb0>) {
+        self.tsi_rdy.in_ = *ovec.get(self.tsi_idx_o.in_ready).unwrap();
+        if !self.tsi_rdy.out && *ovec.get(self.tsi_idx_o.out_valid).unwrap() {
             let mut bits = 0;
             for (i, idx) in self.tsi_idx_o.out_bits.iter().enumerate() {
-                bits |= ovec.get(idx).unwrap() << i;
+                bits |= (*ovec.get(*idx).unwrap() as u32) << i;
             }
             self.tsi.o.push_back(bits);
         }
     }
 
-    fn parse_ovec(self: &mut Self, ovec: &Vec<u8>) {
-        let ovec_bit: BitVec<usize, Lsb0> = BitVec::from_vec(ovec);
+    fn parse_ovec(self: &mut Self, ovec: Vec<u8>) {
+        let ovec_bit: BitVec<u8, Lsb0> = BitVec::from_vec(ovec);
         self.parse_axi_output(&ovec_bit);
         self.parse_tsi_output(&ovec_bit);
     }
 
-    pub fn step(self: &mut Self) {
+    pub fn step(self: &mut Self) -> Result<(), SimIfErr> {
         // push aw_ready
         // push  w_ready
         // push ar_ready
@@ -657,7 +657,7 @@ impl TargetSystem {
         'poll_io_out: loop {
             let read_bytes = self.driver.io_bridge.pull(&mut self.driver.simif, &mut ovec)?;
             if read_bytes == 0 {
-                ;
+                continue 'poll_io_out;
             } else {
                 break 'poll_io_out;
             }
@@ -668,7 +668,7 @@ impl TargetSystem {
         // pull ar_valid & if ar_ready -> push ar to channel
         // pull b_ready
         // pull r_ready
-        self.parse_ovec(&ovec);
+        self.parse_ovec(ovec);
 
         // if aw_valid && aw_ready -> do stuff in dram & update aw_ready
         // if  w_valid &&  w_ready -> do stuff in dram & update  w_ready
@@ -678,6 +678,8 @@ impl TargetSystem {
         self.dram.step(&mut self.axi, &mut self.axi_rdy);
 
         self.cycle += 1;
+
+        return Ok(());
     }
 
 }
@@ -687,19 +689,19 @@ enum SAICommands {
     SaiCmdWrite,
 }
 
-impl TargetSystem {
+impl<'a> TargetSystem<'a> {
     fn push_addr(&mut self, ptr: u64) {
         let mut addr = ptr;
-        for i in 0..TargetSystem::SAI_ADDR_CHUNKS {
-            self.tsi.i.push_back(addr & 0xffffffff);
+        for _i in 0..TargetSystem::SAI_ADDR_CHUNKS {
+            self.tsi.i.push_back((addr & 0xffffffff) as u32);
             addr >>= TargetSystem::TSI_BITS;
         }
     }
 
     fn push_len(&mut self, length: u64) {
         let mut len = length;
-        for i in 0..TargetSystem::SAI_LEN_CHUNKS {
-            self.tsi.i.push_back(len & 0xffffffff);
+        for _i in 0..TargetSystem::SAI_LEN_CHUNKS {
+            self.tsi.i.push_back((len & 0xffffffff) as u32);
             len >>= 32;
         }
     }
@@ -712,19 +714,17 @@ impl TargetSystem {
     }
 }
 
-impl Htif for TargetSystem {
-    fn read(&mut self, ptr: u64, buf: &mut [u8]) -> Result<()> {
-        let chunks = buf.chunks(TargetSystem::TSI_BYTES).len();
+impl<'a> Htif for TargetSystem<'a> {
+    fn read(&mut self, ptr: u64, buf: &mut [u8]) -> Result<(), fesvr::Error> {
+        let chunks = buf.chunks(TargetSystem::TSI_BYTES as usize).len();
 
-        self.tsi.i.push_back(SAICommands::SaiCmdRead);
+        self.tsi.i.push_back(SAICommands::SaiCmdRead as u32);
         self.push_addr(ptr);
-        self.push_len(chunks - 1);
+        self.push_len((chunks - 1) as u64);
 
-        let buf_u32: &mut [u32] = cast_slice_mut(buf);
-
-        for chunk in buf.chunks_mut(TargetSystem::TSI_BYTES) {
-            while (self.tsi.o.is_empty()) {
-                self.step();
+        for chunk in buf.chunks_mut(TargetSystem::TSI_BYTES as usize) {
+            while self.tsi.o.is_empty() {
+                let _ = self.step();
             }
             let buf_u32 = self.tsi.o.pop_front().unwrap();
             let buf_u8 = buf_u32.to_le_bytes();
@@ -738,14 +738,14 @@ impl Htif for TargetSystem {
         return Ok(());
     }
 
-    fn write(&mut self, ptr: u64, buf: &[u8]) -> Result<()> {
-        let chunks = buf.chunks(TargetSystem::TSI_BYTES).len();
+    fn write(&mut self, ptr: u64, buf: &[u8]) -> Result<(), fesvr::Error> {
+        let chunks = buf.chunks(TargetSystem::TSI_BYTES as usize).len();
 
-        self.tsi.i.push_back(SAICommands::SaiCmdWrite);
+        self.tsi.i.push_back(SAICommands::SaiCmdWrite as u32);
         self.push_addr(ptr);
-        self.push_len(chunks - 1);
+        self.push_len((chunks - 1) as u64);
 
-        for chunk in buf.chunks(TargetSystem::TSI_BYTES) {
+        for chunk in buf.chunks(TargetSystem::TSI_BYTES as usize) {
             self.tsi.i.push_back(Self::to_u32(chunk));
         }
 

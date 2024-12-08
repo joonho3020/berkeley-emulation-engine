@@ -1,41 +1,35 @@
 use clap::Parser;
 use xdma_driver::*;
-use rand::Rng;
-use indicatif::ProgressBar;
 use indexmap::IndexMap;
 use std::{
-    cmp::max, collections::VecDeque, thread::sleep, path::Path
+    collections::VecDeque, thread::sleep, path::Path
 };
 use bee::{
     common::{
-        circuit::Circuit,
-        config::{Args, PlatformConfig},
+        config::Args,
         hwgraph::NodeMapInfo, instruction::*,
-        mapping::{SRAMMapping, SRAMPortType},
+        mapping::SRAMMapping,
         network::Coordinate,
-        primitive::{Primitive, Bit}
+        primitive::Primitive
     },
-    fsim::board::Board,
-    rtlsim::rtlsim_utils::{
-        get_input_stimuli_blasted,
-        InputStimuliMap
-    },
+    rtlsim::rtlsim_utils::get_input_stimuli_blasted,
     testing::try_new_circuit
 };
-use bitvec::{order::Lsb0, vec::BitVec};
 use simif::{
     simif::*,
     mmioif::*,
-    dmaif::*
 };
 use driver::{
-    axi::*, dram::*, driver::*, harness::TargetSystem
+    axi::*, driver::*, harness::TargetSystem
 };
-use fesvr::*;
+use fesvr::frontend;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about=None)]
 struct SimArgs {
+    #[clap(flatten)]
+    pub bee_args: Args,
+
     #[arg(long, default_value_t = 0x0000)]
     pub domain: u16,
 
@@ -78,11 +72,8 @@ struct SimArgs {
     #[arg(short, long, default_value_t = false)]
     pub trace_mode: bool,
 
-    #[arg(short, long)]
+    #[arg(short, long, default_value = "")]
     pub elf_file_path: String,
-
-    #[clap(flatten)]
-    pub bee_args: Args
 }
 
 fn main() -> Result<(), SimIfErr> {
@@ -197,8 +188,8 @@ fn main() -> Result<(), SimIfErr> {
             &input_stimuli_blasted,
             &all_signal_map,
             &output_signals,
-            &mapped_input_stimuli_blasted,
-            &fpga_top_cfg);
+            &mut mapped_input_stimuli_blasted,
+            &fpga_top_cfg)?;
     } else {
         let mut target = TargetSystem::new(
             0,
@@ -213,12 +204,12 @@ fn main() -> Result<(), SimIfErr> {
 
         let mut frontend = frontend::Frontend::try_new(
                 Path::new(args.elf_file_path.as_str())).unwrap();
-        frontend.write_elf(&mut target);
-        frontend.reset(&mut target);
+        frontend.write_elf(&mut target)?;
+        frontend.reset(&mut target)?;
 
         let mut i = 1;
         loop {
-            target.step();
+            target.step()?;
             if i % 50 == 0 {
                 if frontend.process(&mut target).expect("htif") {
                     break;

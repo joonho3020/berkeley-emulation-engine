@@ -25,7 +25,7 @@ impl AXI4Config {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct AXI4AW {
     pub addr:  u32,
     pub id:    u32,
@@ -57,7 +57,7 @@ impl AXI4AW {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct AXI4W {
     pub last: bool,
     pub data: Vec<u8>,
@@ -93,7 +93,7 @@ impl AXI4W {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct AXI4B {
     pub id:   u32,
     pub resp: u32
@@ -108,7 +108,7 @@ impl AXI4B {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct AXI4AR {
     pub addr:  u32,
     pub id:    u32,
@@ -140,7 +140,7 @@ impl AXI4AR {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct AXI4R {
     pub id: u32,
     pub resp: u32,
@@ -159,7 +159,7 @@ impl AXI4R {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct AXI4Channels {
     pub aw: VecDeque<AXI4AW>,
     pub w:  VecDeque<AXI4W>,

@@ -21,7 +21,7 @@ impl DRAM {
     pub fn new(base_addr: Addr, size: Addr, word_size: u32) -> Self {
         Self {
             base_addr: base_addr,
-            data: vec![0u8, size as usize],
+            data: vec![0u8; size as usize],
             word_size: word_size,
             inflight_aw: None,
             store_cnt: 0
@@ -30,29 +30,29 @@ impl DRAM {
 
     /// Read a chunk of memory
     pub fn read(self: &Self, faddr: Addr) -> Vec<u8> {
-        let addr = faddr - self.base_addr;
-        assert!(addr as usize < self.data.len());
-        return self.data[addr..addr + self.word_size];
+        let addr = (faddr - self.base_addr) as usize;
+        assert!(addr < self.data.len());
+        return self.data[addr..addr + self.word_size as usize].to_vec();
     }
 
     /// Write a chunk of memory
     pub fn write(self: &mut Self, faddr: Addr, strb: u64, size: u64, data: &Vec<u8>) {
-        let addr = faddr - self.base_addr;
-        assert!(addr as usize < self.data.len());
+        let addr = (faddr - self.base_addr) as usize;
+        assert!(addr < self.data.len());
 
         let max_strb_bytes = 64;
         assert!(size <= max_strb_bytes);
 
         let mut strb_ = if size != max_strb_bytes {
-            strb & ((1 << size) - 1) << (addr % self.word_size)
+            strb & ((1 << size) - 1) << (addr % self.word_size as usize)
         } else {
             strb
         };
 
-        let offset = (addr / self.word_size) * self.word_size;
+        let offset = (addr / self.word_size as usize) * self.word_size as usize;
         for i in 0..self.word_size {
-            if strb_ & 1 {
-                self.data[offset + i] = data[i];
+            if strb_ & 1 == 1 {
+                self.data[offset as usize + i as usize] = data[i as usize];
             }
             strb_ >>= 1;
         }
@@ -69,9 +69,9 @@ impl DRAM {
 
         if !axi.w.is_empty() && axi_rdy.w {
             let w = axi.w.pop_front().unwrap();
-            let mut aw = self.inflight_aw.unwrap();
+            let aw = self.inflight_aw.clone().unwrap();
             let store_size = 1 << aw.size;
-            self.write(aw.addr + self.store_cnt * store_size, w.strb, store_size, &w.data);
+            self.write((aw.addr + self.store_cnt * store_size).into(), w.strb, store_size.into(), &w.data);
             self.store_cnt += 1;
 
             if self.store_cnt == aw.len + 1 {
@@ -89,9 +89,9 @@ impl DRAM {
             let ar = axi.ar.pop_front().unwrap();
             let start_addr = (ar.addr / self.word_size) * self.word_size;
             let req_len = ar.len + 1;
-            let req_size = 1 << ar.size;
+            let _req_size = 1 << ar.size;
             for i in 0..req_len {
-                let read_data = self.read(start_addr + i * self.word_size);
+                let read_data = self.read((start_addr + i * self.word_size).into());
                 axi.r.push_back(AXI4R::from_id_data_last(ar.id, read_data, i == req_len - 1));
             }
         }

@@ -7,14 +7,6 @@ sim_type = "alveo-u250"
 EMULATOR_DIR  := ../../emulator
 BUILDDIR=build-dir
 
-# Variables for emulator platform
-top        ?= "Adder"
-dir        := "../../examples/"
-svfile     := $(dir)/$(top)".sv"
-input_file := $(dir)/$(top)".input"
-lut_file   := $(dir)/$(top)".lut.blif"
-sim_dir    := "../sim-dir/alveo-u250-"$(top)
-
 # Chisel generated driver stuff
 SIMIF_DIR := src/simif
 SIMIF_SRC_DIR := ../simif
@@ -33,8 +25,6 @@ include $(EMULATOR_DIR)/chisel.mk
 # Build verilator shared library w/ c-bindings
 $(DRIVER_SRCS): $(MILL_BUILD_ARTIFACTS) $(SIMIF_SRCS)
 	@echo "Building $@ because of changes in $?"
-	cp $(SIMIF_SRCS) $(SIMIF_DIR)
-	cargo clean
 	cargo build --release
 
 build: $(DRIVER_SRCS)
@@ -55,7 +45,8 @@ run: $(DRIVER_SRCS)
 		--inter-proc-nw-lat $(inter_proc_nw_lat) \
 		--inter-mod-nw-lat $(inter_mod_nw_lat) \
 		--max-steps $(max_steps) \
-		--sim-dir $(sim_dir) | tee DEBUG
+		--sim-dir $(sim_dir) \
+		--elf-file-path $(binary) | tee DEBUG
 
 clean:
 	@if [ -d "$(BUILDDIR)" ]; then \

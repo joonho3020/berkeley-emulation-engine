@@ -2,6 +2,7 @@ use rand::Rng;
 use indicatif::ProgressBar;
 use indexmap::IndexMap;
 use std::collections::VecDeque;
+use std::cmp::max;
 use bee::{
     common::{
         network::Coordinate,
@@ -437,10 +438,10 @@ pub fn run_from_trace(
     circuit: &Circuit,
     input_stimuli_blasted: &InputStimuliMap,
     all_signal_map: &IndexMap<String, NodeMapInfo>,
-    output_signals: IndexMap<String, Coordinate>,
-    mapped_input_stimuli_blasted: &IndexMap<Coordinate, VecDeque<u64>>,
+    output_signals: &IndexMap<String, Coordinate>,
+    mapped_input_stimuli_blasted: &mut IndexMap<Coordinate, VecDeque<u64>>,
     fpga_top_cfg: &FPGATopConfig
-) -> bool {
+) -> Result<bool, SimIfErr> {
     let mut funct_sim = Board::from(&circuit);
     let mut mismatch = false;
 
@@ -539,5 +540,5 @@ pub fn run_from_trace(
     } else {
         println!("Test passed");
     }
-    return mismatch;
+    return Ok(mismatch);
 }

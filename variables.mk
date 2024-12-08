@@ -11,11 +11,14 @@ sram_entries       ?= 16384
 blackbox_dmem      ?= "true"
 
 
-# Variables for emulator platform
-top        ?= "Adder"
-sim_type   ?= "sims"
-dir        := "../../examples/"
-svfile     := $(dir)/$(top)".sv"
-input_file := $(dir)/$(top)".input"
-lut_file   := $(dir)/$(top)".lut.blif"
-sim_dir    := "../sim-dir/$(sim_type)-"$(top)
+# Variables for target to simulate
+top        ?= Adder
+sim_type   ?= sims
+dir        := ../../examples/
+svfile     := $(dir)/$(top).sv
+input_file := $(dir)/$(top).input
+lut_file   := $(dir)/$(top).lut.blif
+sim_dir    := ../sim-dir/$(sim_type)-$(top)
+
+# Variables for binary
+binary     ?= "../../examples/digitaltop/hello.riscv"
