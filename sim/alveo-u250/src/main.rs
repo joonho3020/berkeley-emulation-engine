@@ -1,6 +1,6 @@
 use clap::Parser;
 use xdma_driver::*;
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use std::{
     collections::VecDeque, thread::sleep, path::Path
 };
@@ -130,6 +130,7 @@ fn main() -> Result<(), SimIfErr> {
         }
     }
 
+    let mut output_signal_coords: IndexSet<Coordinate> = IndexSet::new();
     let mut output_signals: IndexMap<String, Coordinate> = IndexMap::new();
     for nidx in circuit.graph.node_indices() {
         let node = circuit.graph.node_weight(nidx).unwrap();
@@ -138,9 +139,14 @@ fn main() -> Result<(), SimIfErr> {
                     "Output {} not found in signal map",
                     node.name());
             output_signals.insert(node.name().to_string(), node.info().coord);
+            assert!(output_signal_coords.contains(&node.info().coord) == false,
+                "Node {} with coord {:?} overlaps",
+                node.name(), node.info().coord);
+            output_signal_coords.insert(node.info().coord);
         }
     }
 
+    let mut input_signal_coords: IndexSet<Coordinate> = IndexSet::new();
     let mut input_signals: IndexMap<String, Coordinate> = IndexMap::new();
     for nidx in circuit.graph.node_indices() {
         let node = circuit.graph.node_weight(nidx).unwrap();
@@ -149,8 +155,14 @@ fn main() -> Result<(), SimIfErr> {
                     "input {} not found in signal map",
                     node.name());
             input_signals.insert(node.name().to_string(), node.info().coord);
+            assert!(input_signal_coords.contains(&node.info().coord) == false,
+                "Node {} with coord {:?} overlaps",
+                node.name(), node.info().coord);
+            input_signal_coords.insert(node.info().coord);
         }
     }
+    println!("input_signals: {:?}", input_signals);
+    println!("output_signals: {:?}", output_signals);
 
     let fpga_top_cfg = FPGATopConfig {
         axi: AXI4Config {
@@ -192,7 +204,7 @@ fn main() -> Result<(), SimIfErr> {
             &fpga_top_cfg)?;
     } else {
         let mut target = TargetSystem::new(
-            0,
+            0x80000000,
             1000 * 1000 * 1000,
             8,
             driver,
@@ -200,11 +212,17 @@ fn main() -> Result<(), SimIfErr> {
             input_signals,
             output_signals,
             "mem_axi4_0".to_string(),
-            "serial_tl_0".to_string());
+            "tsi_outer".to_string());
+
+        println!("================ TargetSystem =====================");
+        println!("{:?}", target);
 
         let mut frontend = frontend::Frontend::try_new(
                 Path::new(args.elf_file_path.as_str())).unwrap();
+        println!("frontend write_elf");
         frontend.write_elf(&mut target)?;
+
+        println!("frontend msip");
         frontend.reset(&mut target)?;
 
         let mut i = 1;

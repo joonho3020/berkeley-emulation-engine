@@ -12,6 +12,7 @@ use bee::common::{
 };
 use bitvec::{order::Lsb0, vec::BitVec};
 use fesvr::Htif;
+use derivative::Derivative;
 use super::driver::FPGATopConfig;
 
 /// Helper function to split `name[idx]` into a tuple `(name, idx)`.
@@ -320,16 +321,18 @@ impl TSITargetOutIdx {
                 let _in_out = split.pop_front().unwrap().to_lowercase();
                 let rdy_val_bits = split.pop_front().unwrap().to_lowercase();
 
-                match rdy_val_bits.as_str() {
-                    "valid" => {
+                println!("_in_out: {} rdy_val_bits: {}", _in_out, rdy_val_bits);
+
+                match (_in_out.as_str(), rdy_val_bits.as_str()) {
+                    ("out", "valid") => {
                         ret.out_valid = coord.id(pcfg) as usize;
                     }
-                    "ready" => {
+                    ("in", "ready") => {
                         ret.in_ready = coord.id(pcfg) as usize;
                     }
-                    "bits" => {
-                        let field_with_bit_index = split.pop_front().unwrap().to_lowercase();
-                        match split_indexed_field(field_with_bit_index.as_str()) {
+                    ("out", _) => {
+// let field_with_bit_index = split.pop_front().unwrap().to_lowercase();
+                        match split_indexed_field(rdy_val_bits.as_str()) {
                             Ok((_, idx)) => {
                                 bits.insert(idx, coord.id(pcfg));
                             }
@@ -337,7 +340,7 @@ impl TSITargetOutIdx {
                         }
                     }
                     _ => {
-                        assert!(false, "Could not parse rdy_val_bits {}", rdy_val_bits);
+                        panic!("name: {}, sfx: {} _in_out: {} rdy_val_bits: {}", name, sfx, _in_out, rdy_val_bits);
                     }
                 }
             }
@@ -373,17 +376,18 @@ impl TSITargetInIdx {
 
                 let _in_out = split.pop_front().unwrap().to_lowercase();
                 let rdy_val_bits = split.pop_front().unwrap().to_lowercase();
+                println!("name: {}, sfx {} _in_out {} rdy_val_bits {}", name, sfx, _in_out, rdy_val_bits);
 
-                match rdy_val_bits.as_str() {
-                    "valid" => {
+                match (_in_out.as_str(), rdy_val_bits.as_str()) {
+                    ("in", "valid") => {
                         ret.in_valid = coord.id(pcfg) as usize;
                     }
-                    "ready" => {
+                    ("out", "ready") => {
                         ret.out_ready = coord.id(pcfg) as usize;
                     }
-                    "bits" => {
-                        let field_with_bit_index = split.pop_front().unwrap().to_lowercase();
-                        match split_indexed_field(field_with_bit_index.as_str()) {
+                    ("in", _) => {
+// let field_with_bit_index = split.pop_front().unwrap().to_lowercase();
+                        match split_indexed_field(rdy_val_bits.as_str()) {
                             Ok((_, idx)) => {
                                 bits.insert(idx, coord.id(pcfg));
                             }
@@ -391,7 +395,7 @@ impl TSITargetInIdx {
                         }
                     }
                     _ => {
-                        assert!(false, "Could not parse rdy_val_bits {}", rdy_val_bits);
+                        panic!("name: {}, sfx: {} _in_out: {} rdy_val_bits: {}", name, sfx, _in_out, rdy_val_bits);
                     }
                 }
             }
@@ -438,11 +442,16 @@ impl ResetTargetInIdx {
     }
 }
 
-#[derive(Debug)]
+#[derive(Derivative)]
+#[derivative(Debug)]
 pub struct TargetSystem<'a> {
+    #[derivative(Debug="ignore")]
     pub dram: DRAM,
+    #[derivative(Debug="ignore")]
     pub axi: AXI4Channels,
+    #[derivative(Debug="ignore")]
     pub tsi: TSI,
+    #[derivative(Debug="ignore")]
     pub driver: Driver,
     pub cfg: &'a FPGATopConfig,
     pub axi_idx_o: AXI4TargetOutIdx,
@@ -453,9 +462,12 @@ pub struct TargetSystem<'a> {
     pub tsi_rdy: TSIReadyBits,
     pub reset_idx: ResetTargetInIdx,
     pub io_stream_bytes: u32,
+    #[derivative(Debug="ignore")]
     pub input_signals:  IndexMap<String, Coordinate>,
+    #[derivative(Debug="ignore")]
     pub output_signals: IndexMap<String, Coordinate>,
     pub cycle: u64,
+    pub reset_period: u64,
 }
 
 impl<'a> TargetSystem<'a> {
@@ -498,14 +510,15 @@ impl<'a> TargetSystem<'a> {
             input_signals: input_signals,
             output_signals: output_signals,
             cycle: 0,
+            reset_period: 25,
         }
     }
 
     fn construct_reset_input(self: &mut Self, ivec: &mut BitVec<usize, Lsb0>) {
-        if self.cycle < 25 {
+        if self.cycle < self.reset_period {
             ivec.set(self.reset_idx.uncore_reset, true);
         }
-        if self.cycle < 28 {
+        if self.cycle < self.reset_period {
             ivec.set(self.reset_idx.hart_is_in_reset, true);
         }
     }
@@ -517,6 +530,9 @@ impl<'a> TargetSystem<'a> {
 
         if !self.axi.b.is_empty() && self.axi_rdy.b {
             let b = self.axi.b.pop_front().unwrap();
+
+            println!("push AXI b: {:?}", b);
+
             ivec.set(self.axi_idx_i.b_valid, true);
             for (i, id_idx) in self.axi_idx_i.b_id.iter().enumerate() {
                 ivec.set(*id_idx, (b.id >> i) & 1 == 1);
@@ -530,6 +546,9 @@ impl<'a> TargetSystem<'a> {
 
         if !self.axi.r.is_empty() && self.axi_rdy.r {
             let r = self.axi.r.pop_front().unwrap();
+
+            println!("push AXI r: {:?}", r);
+
             ivec.set(self.axi_idx_i.r_valid, true);
             for (i, id_idx) in self.axi_idx_i.r_id.iter().enumerate() {
                 ivec.set(*id_idx, (r.id >> i) & 1 == 1);
@@ -548,11 +567,14 @@ impl<'a> TargetSystem<'a> {
 
     fn construct_tsi_input(self: &mut Self, ivec: &mut BitVec<usize, Lsb0>) {
         ivec.set(self.tsi_idx_i.out_ready, self.tsi_rdy.out);
-        if !self.tsi.i.is_empty() && self.tsi_rdy.in_ {
+        if !self.tsi.i.is_empty() && self.tsi_rdy.in_ && self.cycle > self.reset_period + 30 {
             let tsi_req = self.tsi.i.pop_front().unwrap();
+
+            println!("TSI input data: 0x{:x}", tsi_req);
+
             ivec.set(self.tsi_idx_i.in_valid, true);
-            for (_, idx) in self.tsi_idx_i.in_bits.iter().enumerate() {
-                ivec.set(*idx, (tsi_req >> idx) & 1 == 1);
+            for (i, idx) in self.tsi_idx_i.in_bits.iter().enumerate() {
+                ivec.set(*idx, (tsi_req >> i) & 1 == 1);
             }
         }
     }
@@ -580,6 +602,10 @@ impl<'a> TargetSystem<'a> {
         self.axi_rdy.b = *ovec.get(self.axi_idx_o.b_ready).unwrap();
         self.axi_rdy.r = *ovec.get(self.axi_idx_o.r_ready).unwrap();
 
+        if *ovec.get(self.axi_idx_o.aw_valid).unwrap() {
+            println!("aw valid high, aw_ready: {}", self.axi_rdy.aw);
+        }
+
         if self.axi_rdy.aw && *ovec.get(self.axi_idx_o.aw_valid).unwrap() {
             let mut addr = 0;
             for (i, idx) in self.axi_idx_o.aw_addr.iter().enumerate() {
@@ -593,9 +619,14 @@ impl<'a> TargetSystem<'a> {
             for (i, idx) in self.axi_idx_o.aw_len.iter().enumerate() {
                 len |= (*ovec.get(*idx).unwrap() as u32) << i;
             }
-            self.axi.aw.push_back(AXI4AW::from_addr_size_len(addr, size, len));
-        }
+            let aw = AXI4AW::from_addr_size_len(addr, size, len);
+            println!("pull aw {:?}", aw);
 
+            self.axi.aw.push_back(aw);
+        }
+        if *ovec.get(self.axi_idx_o.w_valid).unwrap() {
+            println!("w valid high, w_ready: {}", self.axi_rdy.w);
+        }
         if self.axi_rdy.w && *ovec.get(self.axi_idx_o.w_valid).unwrap() {
             let mut strb = 0;
             for (i, idx) in self.axi_idx_o.w_strb.iter().enumerate() {
@@ -606,7 +637,11 @@ impl<'a> TargetSystem<'a> {
                 data |= (*ovec.get(*idx).unwrap() as u32) << i;
             }
             let last = ovec.get(self.axi_idx_o.w_last).unwrap() == true;
-            self.axi.w.push_back(AXI4W::from_data_strb_last(&data.to_le_bytes().to_vec(), strb.into(), last));
+
+            let w = AXI4W::from_data_strb_last(&data.to_le_bytes().to_vec(), strb.into(), last);
+            println!("pull w {:?}", w);
+
+            self.axi.w.push_back(w);
         }
 
 
@@ -623,7 +658,9 @@ impl<'a> TargetSystem<'a> {
             for (i, idx) in self.axi_idx_o.ar_len.iter().enumerate() {
                 len |= (*ovec.get(*idx).unwrap() as u32) << i;
             }
-            self.axi.ar.push_back(AXI4AR::from_addr_size_len(addr, size, len));
+            let ar = AXI4AR::from_addr_size_len(addr, size, len);
+            println!("pull ar {:?}", ar);
+            self.axi.ar.push_back(ar);
         }
     }
 
@@ -634,6 +671,9 @@ impl<'a> TargetSystem<'a> {
             for (i, idx) in self.tsi_idx_o.out_bits.iter().enumerate() {
                 bits |= (*ovec.get(*idx).unwrap() as u32) << i;
             }
+
+            println!("TSI output data: 0x{:x}", bits);
+
             self.tsi.o.push_back(bits);
         }
     }
@@ -645,6 +685,8 @@ impl<'a> TargetSystem<'a> {
     }
 
     pub fn step(self: &mut Self) -> Result<(), SimIfErr> {
+// println!("target step: {}", self.cycle);
+
         // push aw_ready
         // push  w_ready
         // push ar_ready
@@ -739,13 +781,16 @@ impl<'a> Htif for TargetSystem<'a> {
     }
 
     fn write(&mut self, ptr: u64, buf: &[u8]) -> Result<(), fesvr::Error> {
-        let chunks = buf.chunks(TargetSystem::TSI_BYTES as usize).len();
+
+        let chunks = buf.chunks(TargetSystem::TSI_BYTES as usize);
+
+        println!("Htif write to addr: 0x{:x} len: {} chunks.len: {}", ptr, buf.len(), chunks.len());
 
         self.tsi.i.push_back(SAICommands::SaiCmdWrite as u32);
         self.push_addr(ptr);
-        self.push_len((chunks - 1) as u64);
+        self.push_len((chunks.len() - 1) as u64);
 
-        for chunk in buf.chunks(TargetSystem::TSI_BYTES as usize) {
+        for chunk in chunks {
             self.tsi.i.push_back(Self::to_u32(chunk));
         }
 

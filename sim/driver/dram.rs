@@ -30,6 +30,7 @@ impl DRAM {
 
     /// Read a chunk of memory
     pub fn read(self: &Self, faddr: Addr) -> Vec<u8> {
+        println!("dram read addr 0x{:x}", faddr);
         let addr = (faddr - self.base_addr) as usize;
         assert!(addr < self.data.len());
         return self.data[addr..addr + self.word_size as usize].to_vec();
@@ -37,6 +38,8 @@ impl DRAM {
 
     /// Write a chunk of memory
     pub fn write(self: &mut Self, faddr: Addr, strb: u64, size: u64, data: &Vec<u8>) {
+        println!("dram write addr 0x{:x} strb {:x} size {} data {:X?}", faddr, strb, size, data);
+
         let addr = (faddr - self.base_addr) as usize;
         assert!(addr < self.data.len());
 

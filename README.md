@@ -99,7 +99,7 @@ just top=DigitalTop sram_entries=16384 sim_dir=blif-sim-dir-DigitalTop run_blifs
 
 ```
 cd compiler
-just top=DigitalTop instance_path=TestDriver.testHarness.chiptop0.system run_test_gen_from_vcd
+just top=DigitalTop instance_path=TOP.TestDriver.testHarness.chiptop0.system run_test_gen_from_vcd
 ```
 
 ### Run existing tests from the example directory
