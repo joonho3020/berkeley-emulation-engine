@@ -95,6 +95,7 @@ fn main() -> std::io::Result<()> {
         for (h, s) in h2s.iter() {
             match s.get_offset(step) {
                 Some(idx) => {
+                    assert!(idx.elements == 1);
                     for elemidx in 0..idx.elements {
                         let binary = &s.get_value_at(&idx, elemidx).to_string();
                         let decimal = binary_to_decimal(binary).unwrap_or(0);

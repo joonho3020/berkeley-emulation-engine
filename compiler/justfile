@@ -8,8 +8,8 @@ lut_file   := dir + "/" + top + ".lut.blif"
 sim_dir    := "sim-dir-" + top
 instance_path := ""
 
-time_steps_per_cycle := "4"
-ref_skip_cycles := "470"
+time_steps_per_cycle := "5"
+ref_skip_cycles := "200"
 check_cycle_period := "1"
 
 num_mods := "17"
