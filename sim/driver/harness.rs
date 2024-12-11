@@ -528,10 +528,8 @@ impl<'a> TargetSystem<'a> {
 
         ivec.set(self.axi_idx_i.w_ready,  self.axi_rdy.w);
 
-        if !self.axi.b.is_empty() && self.axi_rdy.b {
+        if !self.axi.b.is_empty() {
             let b = self.axi.b.pop_front().unwrap();
-
-            println!("push AXI b: {:?}", b);
 
             ivec.set(self.axi_idx_i.b_valid, true);
             for (i, id_idx) in self.axi_idx_i.b_id.iter().enumerate() {
@@ -544,10 +542,10 @@ impl<'a> TargetSystem<'a> {
 
         ivec.set(self.axi_idx_i.ar_ready, self.axi_rdy.ar);
 
-        if !self.axi.r.is_empty() && self.axi_rdy.r {
-            let r = self.axi.r.pop_front().unwrap();
 
-            println!("push AXI r: {:?}", r);
+        // NOTE: In CY, the TLToAXI4 combinationally ties the axi4 r_ready & r_valid signals
+        if !self.axi.r.is_empty() {
+            let r = self.axi.r.pop_front().unwrap();
 
             ivec.set(self.axi_idx_i.r_valid, true);
             for (i, id_idx) in self.axi_idx_i.r_id.iter().enumerate() {
@@ -570,7 +568,7 @@ impl<'a> TargetSystem<'a> {
         if !self.tsi.i.is_empty() && self.tsi_rdy.in_ && self.cycle > self.reset_period + 30 {
             let tsi_req = self.tsi.i.pop_front().unwrap();
 
-            println!("TSI input data: 0x{:x}", tsi_req);
+// println!("TSI input data: 0x{:x}", tsi_req);
 
             ivec.set(self.tsi_idx_i.in_valid, true);
             for (i, idx) in self.tsi_idx_i.in_bits.iter().enumerate() {
@@ -666,7 +664,7 @@ impl<'a> TargetSystem<'a> {
 
     fn parse_tsi_output(self: &mut Self, ovec: &BitVec<u8, Lsb0>) {
         self.tsi_rdy.in_ = *ovec.get(self.tsi_idx_o.in_ready).unwrap();
-        if !self.tsi_rdy.out && *ovec.get(self.tsi_idx_o.out_valid).unwrap() {
+        if self.tsi_rdy.out && *ovec.get(self.tsi_idx_o.out_valid).unwrap() {
             let mut bits = 0;
             for (i, idx) in self.tsi_idx_o.out_bits.iter().enumerate() {
                 bits |= (*ovec.get(*idx).unwrap() as u32) << i;
@@ -711,6 +709,34 @@ impl<'a> TargetSystem<'a> {
         // pull b_ready
         // pull r_ready
         self.parse_ovec(ovec);
+
+// if !self.tsi.i.is_empty() {
+// if self.tsi_rdy.in_ {
+// let tsi_req = self.tsi.i.pop_front().unwrap();
+// println!("push TSI input data: 0x{:x}", tsi_req);
+// } else {
+// let tsi_req = self.tsi.i.front().unwrap();
+// println!("pending TSI input data: 0x{:x}", tsi_req);
+// }
+// }
+
+// if !self.axi.r.is_empty() {
+// if self.axi_rdy.r {
+// let r = self.axi.r.pop_front().unwrap();
+// println!("push AXI r: {:X?}", r);
+// } else {
+// println!("pending AXI r: {:X?}", self.axi.r.front().unwrap());
+// }
+// }
+
+// if !self.axi.b.is_empty() {
+// if self.axi_rdy.b {
+// let b = self.axi.b.pop_front().unwrap();
+// println!("push AXI b: {:X?}", b);
+// } else {
+// println!("pending AXI b: {:X?}", self.axi.b.front().unwrap());
+// }
+// }
 
         // if aw_valid && aw_ready -> do stuff in dram & update aw_ready
         // if  w_valid &&  w_ready -> do stuff in dram & update  w_ready
@@ -781,7 +807,6 @@ impl<'a> Htif for TargetSystem<'a> {
     }
 
     fn write(&mut self, ptr: u64, buf: &[u8]) -> Result<(), fesvr::Error> {
-
         let chunks = buf.chunks(TargetSystem::TSI_BYTES as usize);
 
         println!("Htif write to addr: 0x{:x} len: {} chunks.len: {}", ptr, buf.len(), chunks.len());
