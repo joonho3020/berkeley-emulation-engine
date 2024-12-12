@@ -546,6 +546,7 @@ impl<'a> TargetSystem<'a> {
         // NOTE: In CY, the TLToAXI4 combinationally ties the axi4 r_ready & r_valid signals
         if !self.axi.r.is_empty() {
             let r = self.axi.r.pop_front().unwrap();
+            println!("push r {:?}", r);
 
             ivec.set(self.axi_idx_i.r_valid, true);
             for (i, id_idx) in self.axi_idx_i.r_id.iter().enumerate() {
@@ -568,7 +569,7 @@ impl<'a> TargetSystem<'a> {
         if !self.tsi.i.is_empty() && self.tsi_rdy.in_ && self.cycle > self.reset_period + 30 {
             let tsi_req = self.tsi.i.pop_front().unwrap();
 
-// println!("TSI input data: 0x{:x}", tsi_req);
+            println!("TSI input data: 0x{:x}", tsi_req);
 
             ivec.set(self.tsi_idx_i.in_valid, true);
             for (i, idx) in self.tsi_idx_i.in_bits.iter().enumerate() {
