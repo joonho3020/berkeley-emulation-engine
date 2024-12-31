@@ -592,10 +592,8 @@ impl<'a> TargetSystem<'a> {
     }
 
     fn construct_ivec(self: &mut Self) -> Vec<u8> {
-        let mut bit_vec: BitVec<usize, Lsb0> = BitVec::new();
-        for _ in 0..self.cfg.emul.total_procs() {
-            bit_vec.push(false);
-        }
+        let mut bit_vec: BitVec<usize, Lsb0> = BitVec::repeat(
+            false, self.cfg.emul.total_procs() as usize);
 
         self.construct_reset_input(&mut bit_vec);
         self.construct_axi_input(&mut bit_vec);
