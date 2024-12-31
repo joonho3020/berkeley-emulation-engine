@@ -246,7 +246,7 @@ fn main() -> Result<(), SimIfErr> {
             let mut i = 1;
             'fesvr_loop: loop {
                 target.step()?;
-                if i % 5000 == 0 {
+                if i % 50000 == 0 {
                     let exit = frontend.process(&mut target)?;
                     if exit {
                         break 'fesvr_loop;
