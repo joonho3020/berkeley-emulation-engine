@@ -462,11 +462,11 @@ pub struct Args {
     pub blif_file_path: String,
 
     /// Reference waveform
-    #[arg(short, long)]
+    #[arg(long)]
     pub vcd: Option<String>,
 
     /// Hierarchy path to the instance under emulation
-    #[arg(short, long, default_value = "testharness.top")]
+    #[arg(long, default_value = "testharness.top")]
     pub instance_path: String,
 
     /// clock starts low
@@ -474,7 +474,7 @@ pub struct Args {
     pub clock_start_low: bool,
 
     /// timesteps per cycle
-    #[arg(short, long, default_value_t = 2)]
+    #[arg(long, default_value_t = 2)]
     pub timesteps_per_cycle: u32,
 
     /// number of cycles to skip when parsing reference rtl sim vcd
@@ -490,7 +490,7 @@ pub struct Args {
     pub check_cycle_period: u32,
 
     /// Simulation output directory path
-    #[arg(short, long, default_value = "sim-dir")]
+    #[arg(long, default_value = "sim-dir")]
     pub sim_dir: String,
 
     /// number of modules

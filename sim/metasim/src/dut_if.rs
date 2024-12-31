@@ -305,7 +305,7 @@ pub unsafe fn dma_read_req(
     }
 
     // Send request
-    let ar = AXI4AR::from_addr_size_len(addr, size, len);
+    let ar = AXI4AR::from_addr_size_len_id(addr, size, len, 0);
     poke_io_dma_axi4_master_ar(sim.dut, &ar);
     poke_io_dma_axi4_master_ar_valid(sim.dut, true.into());
 
@@ -368,7 +368,7 @@ pub unsafe fn dma_write_req(
         sim.step();
     }
 
-    let aw = AXI4AW::from_addr_size_len(addr, size, len);
+    let aw = AXI4AW::from_addr_size_len_id(addr, size, len, 0);
     poke_io_dma_axi4_master_aw(sim.dut, &aw);
     poke_io_dma_axi4_master_aw_valid(sim.dut, true.into());
     sim.step();

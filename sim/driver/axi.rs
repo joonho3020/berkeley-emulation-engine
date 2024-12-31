@@ -47,11 +47,12 @@ impl AXI4AW {
         }
     }
 
-    pub fn from_addr_size_len(addr: u32, size: u32, len: u32) -> Self {
+    pub fn from_addr_size_len_id(addr: u32, size: u32, len: u32, id: u32) -> Self {
         Self {
             addr: addr,
             size: size,
             len: len,
+            id: id,
             ..Self::default()
         }
     }
@@ -130,11 +131,12 @@ impl AXI4AR {
         }
     }
 
-    pub fn from_addr_size_len(addr: u32, size: u32, len: u32) -> Self {
+    pub fn from_addr_size_len_id(addr: u32, size: u32, len: u32, id: u32) -> Self {
         Self {
             addr: addr,
             size: size,
             len: len,
+            id: id,
             ..Self::default()
         }
     }

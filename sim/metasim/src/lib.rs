@@ -215,7 +215,7 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
             driver.io_bridge.push(&mut driver.simif, &ivec)?;
 
             let mut ovec = vec![0u8; ivec.len()];
-            while true {
+            loop {
                 let read_bytes = driver.io_bridge.pull(&mut driver.simif, &mut ovec)?;
                 if read_bytes == 0 {
                     driver.simif.step();
@@ -236,7 +236,7 @@ pub fn start_test(args: &Args) -> Result<(), RTLSimError> {
 
             for step in 0..host_steps {
                 let mut rtl_state_vec = vec![0u8; dbg_stream_bytes as usize];
-                'spin_until_read: while true {
+                'spin_until_read: loop {
                     let read_bytes = driver.dbg_bridge.pull(&mut driver.simif, &mut rtl_state_vec)?;
                     if read_bytes == 0 {
                         driver.simif.step();

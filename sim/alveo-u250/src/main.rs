@@ -69,10 +69,13 @@ struct SimArgs {
     #[arg(long, default_value_t = 1000)]
     pub dma_test_iterations: u32,
 
-    #[arg(short, long, default_value_t = false)]
+    #[arg(long, default_value_t = false)]
     pub trace_mode: bool,
 
-    #[arg(short, long, default_value = "")]
+    #[arg(long, default_value_t = false)]
+    pub ref_mode: bool,
+
+    #[arg(long, default_value = "")]
     pub elf_file_path: String,
 }
 
@@ -195,6 +198,7 @@ fn main() -> Result<(), SimIfErr> {
     println!("Start simulation");
 
     if args.trace_mode {
+        // Feed in IO traces to the emulator
         run_from_trace(&mut driver,
             &circuit,
             &input_stimuli_blasted,
@@ -204,6 +208,7 @@ fn main() -> Result<(), SimIfErr> {
             &fpga_top_cfg)?;
     } else {
         let mut target = TargetSystem::new(
+            &circuit,
             0x80000000,
             1000 * 1000 * 1000,
             8,
@@ -217,23 +222,34 @@ fn main() -> Result<(), SimIfErr> {
         println!("================ TargetSystem =====================");
         println!("{:?}", target);
 
-        let mut frontend = frontend::Frontend::try_new(
+        if args.ref_mode {
+            // Run functional simulator from IO traces
+            // Mainly to see IO transaction behaviors
+            target.run_from_trace(
+                &input_stimuli_blasted,
+                &all_signal_map,
+                &mut mapped_input_stimuli_blasted)?;
+        } else {
+            let mut frontend = frontend::Frontend::try_new(
                 Path::new(args.elf_file_path.as_str())).unwrap();
-        println!("frontend write_elf");
-        frontend.write_elf(&mut target)?;
 
-        println!("frontend msip");
-        frontend.reset(&mut target)?;
+            println!("frontend write_elf");
+            frontend.write_elf(&mut target)?;
 
-        let mut i = 1;
-        loop {
-            target.step()?;
-            if i % 50 == 0 {
-                if frontend.process(&mut target).expect("htif") {
-                    break;
+            println!("frontend msip");
+            frontend.reset(&mut target)?;
+
+            let mut i = 1;
+            'fesvr_loop: loop {
+                target.step()?;
+                if i % 50 == 0 {
+                    let exit = frontend.process(&mut target)?;
+                    if exit {
+                        break 'fesvr_loop;
+                    }
                 }
+                i += 1;
             }
-            i += 1;
         }
     }
 

@@ -1,14 +1,23 @@
 use crate::driver::axi::*;
 use crate::driver::dram::*;
 use crate::driver::tsi::*;
+use crate::driver::driver::*;
 use crate::simif::simif::Driver;
 use crate::simif::dmaif::*;
 use crate::SimIfErr;
+use indicatif::ProgressBar;
 use std::collections::VecDeque;
+use std::cmp::max;
 use indexmap::IndexMap;
-use bee::common::{
+use bee::{
+    common::{
+        circuit::Circuit,
         network::Coordinate,
-        config::PlatformConfig
+        config::PlatformConfig,
+        hwgraph::NodeMapInfo,
+    },
+    fsim::board::Board,
+    rtlsim::rtlsim_utils::InputStimuliMap,
 };
 use bitvec::{order::Lsb0, vec::BitVec};
 use fesvr::Htif;
@@ -331,7 +340,6 @@ impl TSITargetOutIdx {
                         ret.in_ready = coord.id(pcfg) as usize;
                     }
                     ("out", _) => {
-// let field_with_bit_index = split.pop_front().unwrap().to_lowercase();
                         match split_indexed_field(rdy_val_bits.as_str()) {
                             Ok((_, idx)) => {
                                 bits.insert(idx, coord.id(pcfg));
@@ -386,7 +394,6 @@ impl TSITargetInIdx {
                         ret.out_ready = coord.id(pcfg) as usize;
                     }
                     ("in", _) => {
-// let field_with_bit_index = split.pop_front().unwrap().to_lowercase();
                         match split_indexed_field(rdy_val_bits.as_str()) {
                             Ok((_, idx)) => {
                                 bits.insert(idx, coord.id(pcfg));
@@ -468,6 +475,10 @@ pub struct TargetSystem<'a> {
     pub output_signals: IndexMap<String, Coordinate>,
     pub cycle: u64,
     pub reset_period: u64,
+    #[derivative(Debug="ignore")]
+    pub board: Board,
+    #[derivative(Debug="ignore")]
+    pub circuit: Circuit,
 }
 
 impl<'a> TargetSystem<'a> {
@@ -477,6 +488,7 @@ impl<'a> TargetSystem<'a> {
     const SAI_LEN_CHUNKS: u32 = 2;
 
     pub fn new(
+        circuit: &Circuit,
         dram_base_addr: Addr,
         dram_size_bytes: Addr,
         dram_word_size: u32,
@@ -511,14 +523,18 @@ impl<'a> TargetSystem<'a> {
             output_signals: output_signals,
             cycle: 0,
             reset_period: 25,
+            board: Board::from(circuit),
+            circuit: circuit.clone(),
         }
     }
 
+    fn reset(self: &Self) -> bool {
+        self.cycle < self.reset_period
+    }
+
     fn construct_reset_input(self: &mut Self, ivec: &mut BitVec<usize, Lsb0>) {
-        if self.cycle < self.reset_period {
+        if self.reset() {
             ivec.set(self.reset_idx.uncore_reset, true);
-        }
-        if self.cycle < self.reset_period {
             ivec.set(self.reset_idx.hart_is_in_reset, true);
         }
     }
@@ -529,7 +545,7 @@ impl<'a> TargetSystem<'a> {
         ivec.set(self.axi_idx_i.w_ready,  self.axi_rdy.w);
 
         if !self.axi.b.is_empty() {
-            let b = self.axi.b.pop_front().unwrap();
+            let b = self.axi.b.front().unwrap();
 
             ivec.set(self.axi_idx_i.b_valid, true);
             for (i, id_idx) in self.axi_idx_i.b_id.iter().enumerate() {
@@ -545,8 +561,7 @@ impl<'a> TargetSystem<'a> {
 
         // NOTE: In CY, the TLToAXI4 combinationally ties the axi4 r_ready & r_valid signals
         if !self.axi.r.is_empty() {
-            let r = self.axi.r.pop_front().unwrap();
-            println!("push r {:?}", r);
+            let r = self.axi.r.front().unwrap();
 
             ivec.set(self.axi_idx_i.r_valid, true);
             for (i, id_idx) in self.axi_idx_i.r_id.iter().enumerate() {
@@ -566,10 +581,8 @@ impl<'a> TargetSystem<'a> {
 
     fn construct_tsi_input(self: &mut Self, ivec: &mut BitVec<usize, Lsb0>) {
         ivec.set(self.tsi_idx_i.out_ready, self.tsi_rdy.out);
-        if !self.tsi.i.is_empty() && self.tsi_rdy.in_ && self.cycle > self.reset_period + 30 {
-            let tsi_req = self.tsi.i.pop_front().unwrap();
-
-            println!("TSI input data: 0x{:x}", tsi_req);
+        if !self.tsi.i.is_empty() {
+            let tsi_req = self.tsi.i.front().unwrap();
 
             ivec.set(self.tsi_idx_i.in_valid, true);
             for (i, idx) in self.tsi_idx_i.in_bits.iter().enumerate() {
@@ -601,10 +614,6 @@ impl<'a> TargetSystem<'a> {
         self.axi_rdy.b = *ovec.get(self.axi_idx_o.b_ready).unwrap();
         self.axi_rdy.r = *ovec.get(self.axi_idx_o.r_ready).unwrap();
 
-        if *ovec.get(self.axi_idx_o.aw_valid).unwrap() {
-            println!("aw valid high, aw_ready: {}", self.axi_rdy.aw);
-        }
-
         if self.axi_rdy.aw && *ovec.get(self.axi_idx_o.aw_valid).unwrap() {
             let mut addr = 0;
             for (i, idx) in self.axi_idx_o.aw_addr.iter().enumerate() {
@@ -618,14 +627,14 @@ impl<'a> TargetSystem<'a> {
             for (i, idx) in self.axi_idx_o.aw_len.iter().enumerate() {
                 len |= (*ovec.get(*idx).unwrap() as u32) << i;
             }
-            let aw = AXI4AW::from_addr_size_len(addr, size, len);
-            println!("pull aw {:?}", aw);
-
+            let mut id = 0;
+            for (i, idx) in self.axi_idx_o.aw_id.iter().enumerate() {
+                id |= (*ovec.get(*idx).unwrap() as u32) << i;
+            }
+            let aw = AXI4AW::from_addr_size_len_id(addr, size, len, id);
             self.axi.aw.push_back(aw);
         }
-        if *ovec.get(self.axi_idx_o.w_valid).unwrap() {
-            println!("w valid high, w_ready: {}", self.axi_rdy.w);
-        }
+
         if self.axi_rdy.w && *ovec.get(self.axi_idx_o.w_valid).unwrap() {
             let mut strb = 0;
             for (i, idx) in self.axi_idx_o.w_strb.iter().enumerate() {
@@ -638,8 +647,6 @@ impl<'a> TargetSystem<'a> {
             let last = ovec.get(self.axi_idx_o.w_last).unwrap() == true;
 
             let w = AXI4W::from_data_strb_last(&data.to_le_bytes().to_vec(), strb.into(), last);
-            println!("pull w {:?}", w);
-
             self.axi.w.push_back(w);
         }
 
@@ -657,8 +664,11 @@ impl<'a> TargetSystem<'a> {
             for (i, idx) in self.axi_idx_o.ar_len.iter().enumerate() {
                 len |= (*ovec.get(*idx).unwrap() as u32) << i;
             }
-            let ar = AXI4AR::from_addr_size_len(addr, size, len);
-            println!("pull ar {:?}", ar);
+            let mut id = 0;
+            for (i, idx) in self.axi_idx_o.ar_id.iter().enumerate() {
+                id |= (*ovec.get(*idx).unwrap() as u32) << i;
+            }
+            let ar = AXI4AR::from_addr_size_len_id(addr, size, len, id);
             self.axi.ar.push_back(ar);
         }
     }
@@ -670,9 +680,6 @@ impl<'a> TargetSystem<'a> {
             for (i, idx) in self.tsi_idx_o.out_bits.iter().enumerate() {
                 bits |= (*ovec.get(*idx).unwrap() as u32) << i;
             }
-
-            println!("TSI output data: 0x{:x}", bits);
-
             self.tsi.o.push_back(bits);
         }
     }
@@ -684,8 +691,6 @@ impl<'a> TargetSystem<'a> {
     }
 
     pub fn step(self: &mut Self) -> Result<(), SimIfErr> {
-// println!("target step: {}", self.cycle);
-
         // push aw_ready
         // push  w_ready
         // push ar_ready
@@ -694,7 +699,7 @@ impl<'a> TargetSystem<'a> {
         let ivec = self.construct_ivec();
         self.driver.io_bridge.push(&mut self.driver.simif, &ivec)?;
 
-        let mut ovec = vec![0u8; ivec.len()];
+        let mut ovec = vec![0u8; self.io_stream_bytes as usize];
         'poll_io_out: loop {
             let read_bytes = self.driver.io_bridge.pull(&mut self.driver.simif, &mut ovec)?;
             if read_bytes == 0 {
@@ -711,33 +716,17 @@ impl<'a> TargetSystem<'a> {
         // pull r_ready
         self.parse_ovec(ovec);
 
-// if !self.tsi.i.is_empty() {
-// if self.tsi_rdy.in_ {
-// let tsi_req = self.tsi.i.pop_front().unwrap();
-// println!("push TSI input data: 0x{:x}", tsi_req);
-// } else {
-// let tsi_req = self.tsi.i.front().unwrap();
-// println!("pending TSI input data: 0x{:x}", tsi_req);
-// }
-// }
+        if !self.tsi.i.is_empty() && self.tsi_rdy.in_ && !self.reset() {
+            let _tsi_req = self.tsi.i.pop_front().unwrap();
+        }
 
-// if !self.axi.r.is_empty() {
-// if self.axi_rdy.r {
-// let r = self.axi.r.pop_front().unwrap();
-// println!("push AXI r: {:X?}", r);
-// } else {
-// println!("pending AXI r: {:X?}", self.axi.r.front().unwrap());
-// }
-// }
+        if !self.axi.r.is_empty() && self.axi_rdy.r && !self.reset() {
+            let _r = self.axi.r.pop_front().unwrap();
+        }
 
-// if !self.axi.b.is_empty() {
-// if self.axi_rdy.b {
-// let b = self.axi.b.pop_front().unwrap();
-// println!("push AXI b: {:X?}", b);
-// } else {
-// println!("pending AXI b: {:X?}", self.axi.b.front().unwrap());
-// }
-// }
+        if !self.axi.b.is_empty() && self.axi_rdy.b && !self.reset() {
+            let _b = self.axi.b.pop_front().unwrap();
+        }
 
         // if aw_valid && aw_ready -> do stuff in dram & update aw_ready
         // if  w_valid &&  w_ready -> do stuff in dram & update  w_ready
@@ -751,6 +740,166 @@ impl<'a> TargetSystem<'a> {
         return Ok(());
     }
 
+    pub fn print_ivec(self: &Self, ivec: &Vec<u8>) {
+        let ivec_bit: BitVec<u8, Lsb0> = BitVec::from_vec(ivec.clone());
+
+        let mut tsi_req = 0;
+        for (i, idx) in self.tsi_idx_i.in_bits.iter().enumerate() {
+            tsi_req |= (*ivec_bit.get(*idx).unwrap() as u32) << i;
+        }
+
+        println!("TSI input val: {} input data: 0x{:x} output rdy: {}",
+            ivec_bit.get(self.tsi_idx_i.in_valid).unwrap(),
+            tsi_req,
+            ivec_bit.get(self.tsi_idx_i.out_ready).unwrap());
+
+        println!("AXI r val: {} b val: {} ar rdy: {} aw rdy: {} w rdy: {}",
+            ivec_bit.get(self.axi_idx_i.r_valid).unwrap(),
+            ivec_bit.get(self.axi_idx_i.b_valid).unwrap(),
+            ivec_bit.get(self.axi_idx_i.ar_ready).unwrap(),
+            ivec_bit.get(self.axi_idx_i.aw_ready).unwrap(),
+            ivec_bit.get(self.axi_idx_i.w_ready).unwrap());
+
+        if *ivec_bit.get(self.axi_idx_i.r_valid).unwrap() {
+            let last = ivec_bit.get(self.axi_idx_i.r_last).unwrap();
+            let mut id = 0;
+            for (i, idx) in self.axi_idx_i.r_id.iter().enumerate() {
+                id |= (*ivec_bit.get(*idx).unwrap() as u32) << i;
+            }
+            let mut resp = 0;
+            for (i, respx) in self.axi_idx_i.r_resp.iter().enumerate() {
+                resp |= (*ivec_bit.get(*respx).unwrap() as u32) << i;
+            }
+            let mut data = 0;
+            for (i, datax) in self.axi_idx_i.r_data.iter().enumerate() {
+                data |= (*ivec_bit.get(*datax).unwrap() as u64) << i;
+            }
+            println!("AXI r last: {} resp: {} id: {} data: {}",
+                last, id, resp, data);
+        }
+    }
+
+    pub fn print_ovec(self: &Self, ovec: &Vec<u8>) {
+        let ovec_bit: BitVec<u8, Lsb0> = BitVec::from_vec(ovec.clone());
+
+        let mut tsi_resp = 0;
+        for (i, idx) in self.tsi_idx_o.out_bits.iter().enumerate() {
+            tsi_resp |= (*ovec_bit.get(*idx).unwrap() as u32) << i;
+        }
+
+        println!("TSI input rdy: {} output data: 0x{:x} output val: {}",
+            ovec_bit.get(self.tsi_idx_o.in_ready).unwrap(),
+            tsi_resp,
+            ovec_bit.get(self.tsi_idx_o.out_valid).unwrap());
+
+        println!("AXI r rdy: {} b rdy: {} ar val: {} aw val: {} w val: {}",
+            ovec_bit.get(self.axi_idx_o.r_ready).unwrap(),
+            ovec_bit.get(self.axi_idx_o.b_ready).unwrap(),
+            ovec_bit.get(self.axi_idx_o.ar_valid).unwrap(),
+            ovec_bit.get(self.axi_idx_o.aw_valid).unwrap(),
+            ovec_bit.get(self.axi_idx_o.w_valid).unwrap());
+    }
+
+    pub fn run_from_trace
+        (
+            self: &mut Self,
+            input_stimuli_blasted: &InputStimuliMap,
+            all_signal_map: &IndexMap<String, NodeMapInfo>,
+            mapped_input_stimuli_blasted: &mut IndexMap<Coordinate, VecDeque<u64>>
+        ) -> Result<bool, SimIfErr> {
+
+        let mut mismatch = false;
+        let total_procs = self.cfg.emul.total_procs();
+        let axi4_data_bits = self.cfg.axi.data_bits;
+        let io_stream_bits = ((total_procs + axi4_data_bits - 1) / axi4_data_bits) * axi4_data_bits;
+        let io_stream_bytes = io_stream_bits / 8;
+
+        let pcfg = self.cfg.emul.clone();
+
+        let target_cycles = mapped_input_stimuli_blasted
+            .values()
+            .fold(0, |x, y| max(x, y.len()));
+
+        let sim_bar = ProgressBar::new(target_cycles as u64);
+        'emulation_loop: for tcycle in 0..target_cycles {
+            sim_bar.inc(1);
+            let tot_procs = total_procs;
+            let mut bit_vec: BitVec<usize, Lsb0> = BitVec::new();
+            for _ in 0..tot_procs {
+                bit_vec.push(false);
+            }
+
+            for (coord, stim) in mapped_input_stimuli_blasted.iter_mut() {
+                let bit = stim.pop_front().unwrap();
+                let id = coord.id(&pcfg);
+                bit_vec.set(id as usize, bit != 0);
+            }
+
+            let mut ivec: Vec<u8> = vec![];
+            ivec.extend(bit_vec
+                .into_vec()
+                .iter()
+                .flat_map(|x| x.to_le_bytes()));
+                ivec.resize(io_stream_bytes as usize, 0);
+
+            println!("-------------- cycle: {} ------------", tcycle);
+            self.print_ivec(&ivec);
+
+            let written_bytes = self.driver.io_bridge.push(&mut self.driver.simif, &ivec)?;
+            if written_bytes == 0 {
+                println!("Target cycle {} DMA FAILED", tcycle);
+                mismatch = true;
+                break 'emulation_loop;
+            }
+
+            let mut ovec = vec![0u8; ivec.len()];
+            'poll_io_out: loop {
+                let read_bytes = self.driver.io_bridge.pull(&mut self.driver.simif, &mut ovec)?;
+                if read_bytes == 0 {
+                    self.driver.simif.step();
+                } else {
+                    break 'poll_io_out;
+                }
+            }
+
+            // Run functional simulator
+            let input_stimuli_by_step = get_input_stimuli_by_step(
+                &self.circuit,
+                &input_stimuli_blasted,
+                &all_signal_map,
+                tcycle as u32);
+            self.board.run_cycle(&input_stimuli_by_step);
+
+            // Collect functional simulation outputs
+            let mut obit_ref: BitVec<usize, Lsb0> = BitVec::new();
+            for _ in 0..tot_procs {
+                obit_ref.push(false);
+            }
+
+            for (os, coord) in self.output_signals.iter() {
+                let fsim_bit = self.board.peek(os).unwrap_or(0);
+                let id = coord.id(&pcfg);
+                obit_ref.set(id as usize, fsim_bit != 0);
+            }
+            let mut ovec_ref: Vec<u8> = obit_ref
+                .into_vec()
+                .iter()
+                .flat_map(|x| x.to_le_bytes())
+                .collect();
+            ovec_ref.resize(io_stream_bytes as usize, 0);
+
+            self.print_ovec(&ovec_ref);
+        }
+        sim_bar.finish();
+
+        if mismatch {
+            println!("Test failed");
+        } else {
+            println!("Test passed");
+        }
+        return Ok(mismatch);
+
+    }
 }
 
 enum SAICommands {
@@ -802,7 +951,7 @@ impl<'a> Htif for TargetSystem<'a> {
             }
         }
 
-        println!("Htif read done buf: {:?}", buf);
+// println!("Htif read 0x{:x} buf: {:X?}", ptr, buf);
 
         return Ok(());
     }
@@ -810,7 +959,7 @@ impl<'a> Htif for TargetSystem<'a> {
     fn write(&mut self, ptr: u64, buf: &[u8]) -> Result<(), fesvr::Error> {
         let chunks = buf.chunks(TargetSystem::TSI_BYTES as usize);
 
-        println!("Htif write to addr: 0x{:x} len: {} chunks.len: {}", ptr, buf.len(), chunks.len());
+// println!("Htif write to addr: 0x{:x} len: {} chunks.len: {}", ptr, buf.len(), chunks.len());
 
         self.tsi.i.push_back(SAICommands::SaiCmdWrite as u32);
         self.push_addr(ptr);
@@ -820,7 +969,7 @@ impl<'a> Htif for TargetSystem<'a> {
             self.tsi.i.push_back(Self::to_u32(chunk));
         }
 
-        println!("Htif write done buf: {:?}", buf);
+// println!("Htif write 0x{:x} buf: {:X?}", ptr, buf);
 
         return Ok(());
     }
