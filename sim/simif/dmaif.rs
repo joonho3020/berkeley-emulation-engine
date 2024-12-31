@@ -8,7 +8,8 @@ pub trait DMAPush: PushDMAAddrs {
             sim.push(self.deq_addr(), data)?
         } else {
             0
-        }; Ok(pushed_bytes)
+        };
+        Ok(pushed_bytes)
     }
 }
 
