@@ -330,7 +330,7 @@ impl TSITargetOutIdx {
                 let _in_out = split.pop_front().unwrap().to_lowercase();
                 let rdy_val_bits = split.pop_front().unwrap().to_lowercase();
 
-                println!("_in_out: {} rdy_val_bits: {}", _in_out, rdy_val_bits);
+// println!("_in_out: {} rdy_val_bits: {}", _in_out, rdy_val_bits);
 
                 match (_in_out.as_str(), rdy_val_bits.as_str()) {
                     ("out", "valid") => {
@@ -384,7 +384,7 @@ impl TSITargetInIdx {
 
                 let _in_out = split.pop_front().unwrap().to_lowercase();
                 let rdy_val_bits = split.pop_front().unwrap().to_lowercase();
-                println!("name: {}, sfx {} _in_out {} rdy_val_bits {}", name, sfx, _in_out, rdy_val_bits);
+// println!("name: {}, sfx {} _in_out {} rdy_val_bits {}", name, sfx, _in_out, rdy_val_bits);
 
                 match (_in_out.as_str(), rdy_val_bits.as_str()) {
                     ("in", "valid") => {

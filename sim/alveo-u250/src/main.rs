@@ -2,7 +2,9 @@ use clap::Parser;
 use xdma_driver::*;
 use indexmap::{IndexMap, IndexSet};
 use std::{
-    collections::VecDeque, thread::sleep, path::Path
+    collections::VecDeque, thread::sleep, path::Path,
+    time::Instant,
+    cmp::max,
 };
 use bee::{
     common::{
@@ -233,6 +235,8 @@ fn main() -> Result<(), SimIfErr> {
             let mut frontend = frontend::Frontend::try_new(
                 Path::new(args.elf_file_path.as_str())).unwrap();
 
+            let start = Instant::now();
+
             println!("frontend write_elf");
             frontend.write_elf(&mut target)?;
 
@@ -242,7 +246,7 @@ fn main() -> Result<(), SimIfErr> {
             let mut i = 1;
             'fesvr_loop: loop {
                 target.step()?;
-                if i % 50 == 0 {
+                if i % 5000 == 0 {
                     let exit = frontend.process(&mut target)?;
                     if exit {
                         break 'fesvr_loop;
@@ -250,6 +254,12 @@ fn main() -> Result<(), SimIfErr> {
                 }
                 i += 1;
             }
+
+            let duration = start.elapsed();
+            let us = duration.as_micros();
+            let freq_hz = (target.cycle as u128 * 1000u128 * 1000u128) / us;
+            let freq_khz = freq_hz / 1000;
+            println!("Ran {} cycles, {} us {} KHz", target.cycle, us, freq_khz);
         }
     }
 

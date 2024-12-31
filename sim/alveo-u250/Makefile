@@ -31,7 +31,7 @@ build: $(DRIVER_SRCS)
 
 # Run single example
 run: $(DRIVER_SRCS)
-	RUST_BACKTRACE=full cargo run --release \
+	cargo flamegraph --release \
 		--bin xdma-driver \
 		-- -s $(svfile) \
 		-t $(top) \
@@ -46,7 +46,7 @@ run: $(DRIVER_SRCS)
 		--inter-mod-nw-lat $(inter_mod_nw_lat) \
 		--max-steps $(max_steps) \
 		--sim-dir $(sim_dir) \
-		--elf-file-path $(binary) | tee DEBUG
+		--elf-file-path $(binary)
 
 run_trace: $(DRIVER_SRCS)
 	RUST_BACKTRACE=1 cargo run --release \
