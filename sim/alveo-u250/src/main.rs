@@ -165,8 +165,8 @@ fn main() -> Result<(), SimIfErr> {
             input_signal_coords.insert(node.info().coord);
         }
     }
-    println!("input_signals: {:?}", input_signals);
-    println!("output_signals: {:?}", output_signals);
+// println!("input_signals: {:?}", input_signals);
+// println!("output_signals: {:?}", output_signals);
 
     let fpga_top_cfg = FPGATopConfig {
         axi: AXI4Config {
@@ -196,7 +196,6 @@ fn main() -> Result<(), SimIfErr> {
     }
 
     println!("Simulation initialization finished");
-    println!("Start simulation");
 
     if args.trace_mode {
         // Feed in IO traces to the emulator
@@ -223,6 +222,8 @@ fn main() -> Result<(), SimIfErr> {
         println!("================ TargetSystem =====================");
         println!("{:?}", target);
 
+        println!("===================== Start simulation ===================");
+
         if args.fsim_mode {
             // Run functional simulator from IO traces
             // Mainly to see IO transaction behaviors
@@ -235,11 +236,7 @@ fn main() -> Result<(), SimIfErr> {
                 Path::new(args.elf_file_path.as_str())).unwrap();
 
             let start = Instant::now();
-
-            println!("frontend write_elf");
             frontend.write_elf(&mut target)?;
-
-            println!("frontend msip");
             frontend.reset(&mut target)?;
 
             let mut i = 1;
@@ -258,7 +255,14 @@ fn main() -> Result<(), SimIfErr> {
             let us = duration.as_micros();
             let freq_hz = (target.cycle as u128 * 1000u128 * 1000u128) / us;
             let freq_khz = freq_hz / 1000;
-            println!("Ran {} cycles, {} us {} KHz", target.cycle, us, freq_khz);
+
+            println!("*** FINISHED ***");
+            println!("=====================================================");
+            println!("================ Simulation Stats ===================");
+            println!("=====================================================");
+            println!("Cycles: {}", target.cycle);
+            println!("Time: {} us", us);
+            println!("Throughput: {} KHz", freq_khz);
         }
     }
 

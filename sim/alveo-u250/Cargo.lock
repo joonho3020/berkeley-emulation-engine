@@ -665,7 +665,7 @@ checksum = "835a3dc7d1ec9e75e2b5fb4ba75396837112d2060b03f7d43bc1897c7f7211da"
 [[package]]
 name = "fesvr"
 version = "0.1.0"
-source = "git+https://github.com/euphoric-hardware/riscv-functional-sim#bd45f864e7210016c57549fb84cfb9ac5a0c748e"
+source = "git+https://github.com/euphoric-hardware/riscv-functional-sim#6191325820d8aedef5c2bb9519b520ce872185f8"
 dependencies = [
  "log",
  "object",
