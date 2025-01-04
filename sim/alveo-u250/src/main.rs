@@ -4,7 +4,6 @@ use indexmap::{IndexMap, IndexSet};
 use std::{
     collections::VecDeque, thread::sleep, path::Path,
     time::Instant,
-    cmp::max,
 };
 use bee::{
     common::{
@@ -75,7 +74,7 @@ struct SimArgs {
     pub trace_mode: bool,
 
     #[arg(long, default_value_t = false)]
-    pub ref_mode: bool,
+    pub fsim_mode: bool,
 
     #[arg(long, default_value = "")]
     pub elf_file_path: String,
@@ -224,7 +223,7 @@ fn main() -> Result<(), SimIfErr> {
         println!("================ TargetSystem =====================");
         println!("{:?}", target);
 
-        if args.ref_mode {
+        if args.fsim_mode {
             // Run functional simulator from IO traces
             // Mainly to see IO transaction behaviors
             target.run_from_trace(

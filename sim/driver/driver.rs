@@ -494,44 +494,44 @@ pub fn run_from_trace(
             }
         }
 
-        // // Run functional simulator
-        // let input_stimuli_by_step = get_input_stimuli_by_step(
-        //     &circuit,
-        //     &input_stimuli_blasted,
-        //     &all_signal_map,
-        //     tcycle as u32);
-        // funct_sim.run_cycle(&input_stimuli_by_step);
+        // Run functional simulator
+        let input_stimuli_by_step = get_input_stimuli_by_step(
+            &circuit,
+            &input_stimuli_blasted,
+            &all_signal_map,
+            tcycle as u32);
+        funct_sim.run_cycle(&input_stimuli_by_step);
 
-        // // Collect functional simulation outputs
-        // let mut obit_ref: BitVec<usize, Lsb0> = BitVec::new();
-        // for _ in 0..tot_procs {
-        //     obit_ref.push(false);
-        // }
+        // Collect functional simulation outputs
+        let mut obit_ref: BitVec<usize, Lsb0> = BitVec::new();
+        for _ in 0..tot_procs {
+            obit_ref.push(false);
+        }
 
-        // for (os, coord) in output_signals.iter() {
-        //     let fsim_bit = funct_sim.peek(os).unwrap_or(0);
-        //     let id = coord.id(&circuit.platform_cfg);
-        //     obit_ref.set(id as usize, fsim_bit != 0);
-        // }
-        // let mut ovec_ref: Vec<u8> = obit_ref
-        //     .into_vec()
-        //     .iter()
-        //     .flat_map(|x| x.to_le_bytes())
-        //     .collect();
-        // ovec_ref.resize(io_stream_bytes as usize, 0);
+        for (os, coord) in output_signals.iter() {
+            let fsim_bit = funct_sim.peek(os).unwrap_or(0);
+            let id = coord.id(&circuit.platform_cfg);
+            obit_ref.set(id as usize, fsim_bit != 0);
+        }
+        let mut ovec_ref: Vec<u8> = obit_ref
+            .into_vec()
+            .iter()
+            .flat_map(|x| x.to_le_bytes())
+            .collect();
+        ovec_ref.resize(io_stream_bytes as usize, 0);
 
-        // println!("ovec: {:?}", ovec);
-        // println!("ovec_ref: {:?}", ovec_ref);
+// println!("ovec: {:?}", ovec);
+// println!("ovec_ref: {:?}", ovec_ref);
 
-        // if ovec != ovec_ref {
-        //     println!("MISMATCH");
-        //     println!("ovec: {:?}", ovec);
-        //     println!("ovec_ref: {:?}", ovec_ref);
-        //     println!("Target cycle {} mismatch got {:?} expect {:?}",
-        //         tcycle, ovec, ovec_ref);
-        //     mismatch = true;
-        //     break 'emulation_loop;
-        // }
+        if ovec != ovec_ref {
+            println!("MISMATCH");
+            println!("ovec: {:?}", ovec);
+            println!("ovec_ref: {:?}", ovec_ref);
+            println!("Target cycle {} mismatch got {:?} expect {:?}",
+                tcycle, ovec, ovec_ref);
+            mismatch = true;
+            break 'emulation_loop;
+        }
     }
     sim_bar.finish();
 
