@@ -20,6 +20,32 @@ use yansi::Paint;
 use std::collections::BTreeSet;
 use std::cmp::Ordering;
 use std::cmp::max;
+use std::fmt::Debug;
+
+
+#[derive(Default, Clone)]
+struct ScheduleStats {
+    coord: u32,
+    inputs: u32,
+    network: u32,
+}
+
+impl Debug for ScheduleStats {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let total = self.coord + self.inputs + self.network;
+
+        let coord_ratio   = self.coord   as f32 / total as f32 * 100.0;
+        let inputs_ratio  = self.inputs  as f32 / total as f32 * 100.0;
+        let network_ratio = self.network as f32 / total as f32 * 100.0;
+
+        write!(f, "coord: {} ({} %) inputs: {} ({} %) network: {} ({} %)",
+            self.coord, coord_ratio,
+            self.inputs, inputs_ratio,
+            self.network, network_ratio)
+    }
+}
+
+
 
 /// Bitmap containing information about network port activity
 #[derive(Debug, Default, Clone)]
@@ -605,8 +631,9 @@ fn schedule_candidates_at_pc(
     candidates: &mut BTreeSet<NodeIndexMobility>,
     scheduled_coordinates: &mut IndexSet<Coordinate>,
     nw: &mut NetworkAvailability,
-    pc: &u32) -> Vec<NodeIndexMobility>
-{
+    pc: &u32,
+    stats: &mut ScheduleStats
+) -> Vec<NodeIndexMobility> {
     let pcfg = &circuit.platform_cfg;
     let mut remove_nodes: Vec<NodeIndexMobility> = vec![];
     for cand in candidates.iter() {
@@ -626,17 +653,20 @@ fn schedule_candidates_at_pc(
 
         // Node already scheduled at pc for this Coordinate
         if scheduled_coordinates.contains(&node.info().coord) {
+            stats.coord += 1;
             continue;
         }
 
         // Check if inputs to the node are ready
         if !all_inputs_arrived(circuit, &cand.index, pc) {
+            stats.inputs += 1;
             continue;
         }
 
         // Check if routes to child nodes are ready
         let (reachable, routes) = all_childs_reachable(circuit, nw, &cand.index, pc);
         if !reachable {
+            stats.network += 1;
             continue;
         }
 
@@ -709,6 +739,10 @@ fn schedule_instructions_internal(circuit: &mut Circuit) {
     let mut ex_schedule_data:   Vec<u32> = vec![];
     let mut nw_util_data:       Vec<u32> = vec![];
 
+    let mut must_schedule_stats = ScheduleStats::default();
+    let mut be_schedule_stats   = ScheduleStats::default();
+    let mut ex_schedule_stats   = ScheduleStats::default();
+
     for cur_rank in 0..(max_rank + 1) {
         println!("============================");
         println!("Current rank to schedule: {}", cur_rank);
@@ -754,7 +788,8 @@ fn schedule_instructions_internal(circuit: &mut Circuit) {
                 &mut must_schedule_candidates,
                 &mut scheduled_coordinates,
                 &mut nw,
-                &pc);
+                &pc,
+                &mut must_schedule_stats);
 
             // For analysis
             println!("pc: {} successful must scheduled: {}", pc, scheduled.len());
@@ -778,7 +813,8 @@ fn schedule_instructions_internal(circuit: &mut Circuit) {
                 &mut best_effort_schedule_candidates,
                 &mut scheduled_coordinates,
                 &mut nw,
-                &try_pc);
+                &try_pc,
+                &mut be_schedule_stats);
 
             // For analysis
             println!("pc: {} successful best effort scheduled: {}", try_pc, scheduled.len());
@@ -797,7 +833,8 @@ fn schedule_instructions_internal(circuit: &mut Circuit) {
                 &mut extra_effort_schedule_candidates,
                 &mut scheduled_coordinates,
                 &mut nw,
-                &try_pc);
+                &try_pc,
+                &mut ex_schedule_stats);
 
             // For analysis
             println!("pc: {} successful extra effort scheduled: {}", try_pc, scheduled.len());
@@ -860,6 +897,10 @@ fn schedule_instructions_internal(circuit: &mut Circuit) {
         be_schedule_data,
         ex_schedule_data,
         nw_util_data);
+
+    println!("Must schedule failed reasons: {:?}",         must_schedule_stats);
+    println!("Best effort schedule failed reasons: {:?}",  be_schedule_stats);
+    println!("Extra effort schedule failed reasons: {:?}", ex_schedule_stats);
 }
 
 fn check_route(route: &NetworkRoute, msg: &str) {

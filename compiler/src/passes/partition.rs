@@ -6,6 +6,7 @@ use crate::common::{
     config::*,
     network::*
 };
+use crate::passes::prepartition_set_rank::set_edge_weights;
 use petgraph::{
     graph::{Graph, NodeIndex}, Undirected
 };
@@ -41,7 +42,7 @@ fn kaminpar_partition(
     let result = kaminpar::PartitionerBuilder::with_epsilon(kaminpar.epsilon)
         .seed(kaminpar.seed)
         .threads(std::num::NonZeroUsize::new(kaminpar.nthreads as usize).unwrap())
-        .partition(&g, npartitions);
+        .partition_edge_weighted(&g, npartitions);
     return result;
 }
 
@@ -68,7 +69,14 @@ fn get_partition_histogram(partition: Vec<u32>) -> Histogram {
 
 /// Partition the design onto multiple modules and processors within a module
 pub fn partition(circuit: &mut Circuit) {
+    let pcfg = circuit.platform_cfg.clone();
+
+    // Module partition
+    set_edge_weights(circuit, pcfg.inter_mod_nw_lat * 2 + pcfg.dmem_wr_lat);
     kaminpar_partition_module(circuit);
+
+    // Processor partition
+    set_edge_weights(circuit, pcfg.inter_proc_nw_lat + pcfg.dmem_wr_lat);
     kaminpar_partition_processor(circuit);
 }
 

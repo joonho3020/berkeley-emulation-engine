@@ -191,6 +191,18 @@ pub struct HWEdge {
     /// over the global network.
     /// For communication that happens within a module, this is set to None.
     pub route: Option<NetworkRoute>,
+
+    /// Used to provide edge weights for partitioning
+    pub weight: Option<i32>
+}
+
+impl From<HWEdge> for i32 {
+    fn from(value: HWEdge) -> Self {
+        match value.weight {
+            Some(w) => w,
+            None    => 0
+        }
+    }
 }
 
 impl HWEdge {
@@ -198,6 +210,7 @@ impl HWEdge {
         HWEdge {
             signal: s,
             route: None,
+            weight: None
         }
     }
 
