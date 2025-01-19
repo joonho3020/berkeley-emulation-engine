@@ -1,6 +1,6 @@
 use crate::passes::*;
 use crate::common::circuit::Circuit;
-use prepartition_set_rank::{init_rank_order, prepartition_find_rank_order, set_edge_weights};
+use prepartition_set_rank::{init_rank_order, prepartition_find_rank_order};
 use split_sram_nodes::split_sram_nodes;
 use split_reg_nodes::split_reg_nodes;
 use replicate_consts::replicate_consts;

@@ -6,12 +6,29 @@ use crate::common::{
     config::*,
     network::*
 };
-use crate::passes::prepartition_set_rank::set_edge_weights;
 use petgraph::{
-    graph::{Graph, NodeIndex}, Undirected
+    graph::{Graph, NodeIndex}, Undirected, Direction::Outgoing
 };
 use histo::Histogram;
 use kaminpar::KaminParError;
+
+fn edge_weight(circuit: &Circuit, src_idx: &NodeIndex, dst_idx: &NodeIndex) -> f32 {
+    let dst = circuit.graph.node_weight(*dst_idx).unwrap().info();
+    let src_child_cnt = circuit.graph.neighbors_directed(*src_idx, Outgoing).count();
+    if dst.rank.alap - dst.rank.asap == 0 {
+        0.0
+    } else {
+        (src_child_cnt - 1) as f32 / src_child_cnt as f32
+    }
+}
+
+pub fn set_edge_weights(circuit: &mut Circuit, communication: u32) {
+    for eidx in circuit.graph.edge_indices() {
+        let e = circuit.graph.edge_endpoints(eidx).unwrap();
+        let cost_f32 = 300.0 * (communication as f32  - edge_weight(circuit, &e.0, &e.1));
+        circuit.graph.edge_weight_mut(eidx).unwrap().weight = Some(cost_f32 as i32);
+    }
+}
 
 fn set_proc(
     graph: &mut HWGraph,

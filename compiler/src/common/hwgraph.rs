@@ -71,7 +71,10 @@ impl Serialize for NodeInfo {
 
 #[derive(Debug, Clone, Default)]
 pub struct NodeMapInfo {
+    /// Info filled in by the compiler
     pub info: NodeInfo,
+
+    /// Petgraph node index
     pub idx: NodeIndex,
 }
 

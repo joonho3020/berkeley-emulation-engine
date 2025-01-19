@@ -108,27 +108,31 @@ impl NetworkAvailability {
 /// `NodeIndex` tagged with mobility `mob`. Used to sort the `NodeIndex`
 /// w.r.t to mobility during scheduling
 #[derive(Debug, Default, Clone, Eq, PartialEq, Copy)]
-struct NodeIndexMobility {
+struct SchedCandidate {
     index: NodeIndex,
-    mob: u32
+    mob: u32,
+    odeg: u32,
 }
 
-impl NodeIndexMobility {
-    fn new(index: NodeIndex, mob: u32) -> Self {
-        NodeIndexMobility {
+impl SchedCandidate {
+    fn new(index: NodeIndex, mob: u32, odeg: u32) -> Self {
+        SchedCandidate {
             index: index,
-            mob: mob
+            mob: mob,
+            odeg: odeg
         }
     }
 }
 
-impl Ord for NodeIndexMobility {
+impl Ord for SchedCandidate {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.mob.cmp(&other.mob).then_with(|| self.index.cmp(&other.index))
+        self.mob.cmp(&other.mob)
+            .then_with(|| other.odeg.cmp(&self.odeg))
+            .then_with(|| self.index.cmp(&other.index))
     }
 }
 
-impl PartialOrd for NodeIndexMobility {
+impl PartialOrd for SchedCandidate {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
@@ -628,14 +632,14 @@ fn mark_nw_busy(
 
 fn schedule_candidates_at_pc(
     circuit: &mut Circuit,
-    candidates: &mut BTreeSet<NodeIndexMobility>,
+    candidates: &mut BTreeSet<SchedCandidate>,
     scheduled_coordinates: &mut IndexSet<Coordinate>,
     nw: &mut NetworkAvailability,
     pc: &u32,
     stats: &mut ScheduleStats
-) -> Vec<NodeIndexMobility> {
+) -> Vec<SchedCandidate> {
     let pcfg = &circuit.platform_cfg;
-    let mut remove_nodes: Vec<NodeIndexMobility> = vec![];
+    let mut remove_nodes: Vec<SchedCandidate> = vec![];
     for cand in candidates.iter() {
         let node = circuit.graph.node_weight(cand.index).unwrap();
 
@@ -748,26 +752,27 @@ fn schedule_instructions_internal(circuit: &mut Circuit) {
         println!("Current rank to schedule: {}", cur_rank);
         println!("============================");
 
-        let mut must_schedule_candidates:        BTreeSet<NodeIndexMobility> = BTreeSet::new();
-        let mut best_effort_schedule_candidates: BTreeSet<NodeIndexMobility> = BTreeSet::new();
-        let mut extra_effort_schedule_candidates: BTreeSet<NodeIndexMobility> = BTreeSet::new();
+        let mut must_schedule_candidates:        BTreeSet<SchedCandidate> = BTreeSet::new();
+        let mut best_effort_schedule_candidates: BTreeSet<SchedCandidate> = BTreeSet::new();
+        let mut extra_effort_schedule_candidates: BTreeSet<SchedCandidate> = BTreeSet::new();
 
         let mut debug_scheduled_nodes: Vec<NodeIndex> = vec![];
         let mut per_pc_scheduled: Vec<u32> = vec![];
 
         // Search for all the nodes to schedule in this round
         for nidx in circuit.graph.node_indices() {
+            let odeg = circuit.graph.neighbors_directed(nidx, Outgoing).count() as u32;
             let node = circuit.graph.node_weight_mut(nidx).unwrap();
             let info = node.info_mut();
             if cur_rank <= info.rank.alap && !info.scheduled {
                 let mob = info.rank.alap - cur_rank;
                 info.rank = RankInfo { mob: mob, ..info.rank };
                 if info.rank.asap <= cur_rank && (cpn.contains(&nidx) || mob == 0) {
-                    must_schedule_candidates.insert(NodeIndexMobility::new(nidx, mob));
+                    must_schedule_candidates.insert(SchedCandidate::new(nidx, mob, odeg));
                 } else if info.rank.asap <= cur_rank {
-                    best_effort_schedule_candidates.insert(NodeIndexMobility::new(nidx, mob));
+                    best_effort_schedule_candidates.insert(SchedCandidate::new(nidx, mob, odeg));
                 } else {
-                    extra_effort_schedule_candidates.insert(NodeIndexMobility::new(nidx, mob));
+                    extra_effort_schedule_candidates.insert(SchedCandidate::new(nidx, mob, odeg));
                 }
             }
         }
