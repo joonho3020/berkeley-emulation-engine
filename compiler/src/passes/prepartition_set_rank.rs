@@ -18,6 +18,7 @@ pub fn init_rank_order(circuit: &mut Circuit) {
         set_rank_asap(&mut circuit.graph, nidx, 0);
         set_rank_alap(&mut circuit.graph, nidx, 0);
     }
+    circuit.emul.max_rank = 0;
 }
 
 fn prepartition_find_asap_rank_order(circuit: &mut Circuit) {
@@ -140,6 +141,8 @@ fn prepartition_find_asap_rank_order(circuit: &mut Circuit) {
         }
         visited += topo_sort_order.len();
     }
+    circuit.emul.max_rank = max_rank;
+
     println!("Max rank of this graph: {}", max_rank);
     assert!(
         visited == vis_map.len(),
@@ -248,4 +251,14 @@ fn prepartition_find_alap_rank_order(circuit: &mut Circuit) {
         "Visited {} nodes out of {} nodes while topo sorting",
         visited,
         vis_map.len());
+
+    let mut max_slack = 0;
+    for nidx in circuit.graph.node_indices() {
+        let node = circuit.graph.node_weight(nidx).unwrap();
+        let ni = node.info();
+        max_slack = max(max_slack, ni.rank.alap - ni.rank.asap);
+    }
+    circuit.emul.max_slack = max_slack;
+
+    println!("max slack of this circuit: {}", circuit.emul.max_slack);
 }
