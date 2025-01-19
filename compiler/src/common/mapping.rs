@@ -57,9 +57,6 @@ pub struct EmulatorMapping {
     /// Maximum rank of this design
     pub max_rank: u32,
 
-    /// Maximum slack (ALAP - ASAP) of this design
-    pub max_slack: u32,
-
     /// Per module emulation mapping information
     pub module_mappings: IndexMap<u32, ModuleMapping>
 }
