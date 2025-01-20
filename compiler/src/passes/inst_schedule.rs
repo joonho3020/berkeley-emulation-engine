@@ -16,7 +16,6 @@ use petgraph::{
 };
 use fixedbitset::FixedBitSet;
 use plotters::prelude::*;
-use yansi::Paint;
 use std::collections::BTreeSet;
 use std::cmp::Ordering;
 use std::cmp::max;
@@ -28,6 +27,10 @@ struct ScheduleStats {
     coord: u32,
     inputs: u32,
     network: u32,
+    inputs_proc_internal: u32,
+    inputs_local_nw: u32,
+    inputs_global_nw: u32,
+    inputs_unsched: u32
 }
 
 impl Debug for ScheduleStats {
@@ -38,10 +41,24 @@ impl Debug for ScheduleStats {
         let inputs_ratio  = self.inputs  as f32 / total as f32 * 100.0;
         let network_ratio = self.network as f32 / total as f32 * 100.0;
 
-        write!(f, "coord: {} ({} %) inputs: {} ({} %) network: {} ({} %)",
+        writeln!(f, "coord: {} ({} %) inputs: {} ({} %) network: {} ({} %)",
             self.coord, coord_ratio,
             self.inputs, inputs_ratio,
-            self.network, network_ratio)
+            self.network, network_ratio)?;
+
+        let inputs_local_nw_ratio  = self.inputs_local_nw  as f32 / total as f32 * 100.0;
+        let inputs_global_nw_ratio = self.inputs_global_nw as f32 / total as f32 * 100.0;
+        let inputs_proc_internal_ratio = self.inputs_proc_internal as f32 / total as f32 * 100.0;
+        let inputs_unsched_ratio   = self.inputs_unsched   as f32 / total as f32 * 100.0;
+        writeln!(f, "- inputs internal: {} ({} %) local nw: {} ({} %) global nw: {} ({} %) unsched: {} ({} %)",
+            self.inputs_proc_internal,
+            inputs_proc_internal_ratio,
+            self.inputs_local_nw,
+            inputs_local_nw_ratio,
+            self.inputs_global_nw,
+            inputs_global_nw_ratio,
+            self.inputs_unsched,
+            inputs_unsched_ratio)
     }
 }
 
@@ -109,8 +126,13 @@ impl NetworkAvailability {
 /// w.r.t to mobility during scheduling
 #[derive(Debug, Default, Clone, Eq, PartialEq, Copy)]
 struct SchedCandidate {
+    /// NodeIndex of the candidate node
     index: NodeIndex,
+
+    /// mobility (ALAP - ASAP)
     mob: u32,
+
+    /// fanout of this node
     odeg: u32,
 }
 
@@ -316,7 +338,8 @@ fn print_scheduling_stats(
 fn input_arrived(
     circuit: &Circuit,
     edge: EdgeReference<HWEdge, u32>,
-    pc: &u32
+    pc: &u32,
+    stats: &mut ScheduleStats
 ) -> bool {
     let mut unresolved_dep = false;
     let pcfg = &circuit.platform_cfg;
@@ -326,20 +349,32 @@ fn input_arrived(
    match &edge.weight().route {
        Some(route) => {
            if parent.info().pc + pcfg.nw_route_dep_lat(&route) > *pc {
-              unresolved_dep = true;
+               match pcfg.nw_route_type(route) {
+                   PathTypes::ProcessorInternal => {
+                       stats.inputs_proc_internal += 1;
+                   }
+                   PathTypes::InterProcessor => {
+                       stats.inputs_local_nw += 1;
+                   }
+                   PathTypes::InterModule => {
+                       stats.inputs_global_nw += 1;
+                   }
+               }
+               unresolved_dep = true;
            }
        }
        None => {
            assert_eq!(parent.info().scheduled, false,
                "{:?} scheduled w/o NetworkRoute set", parent.info());
           unresolved_dep = true;
+          stats.inputs_unsched += 1;
        }
    }
    return !unresolved_dep;
 }
 
 /// All input bits arrived & usable from parent nodes
-fn all_inputs_arrived(circuit: &Circuit, nidx: &NodeIndex, pc: &u32) -> bool {
+fn all_inputs_arrived(circuit: &Circuit, nidx: &NodeIndex, pc: &u32, stats: &mut ScheduleStats) -> bool {
     let mut arrived = true;
     let node = circuit.graph.node_weight(*nidx).unwrap();
     let parent_edges = circuit.graph.edges_directed(*nidx, Incoming);
@@ -348,7 +383,7 @@ fn all_inputs_arrived(circuit: &Circuit, nidx: &NodeIndex, pc: &u32) -> bool {
        node.is() != Primitive::Latch    &&
        node.is() != Primitive::Gate {
         for pedge in parent_edges {
-            if !input_arrived(circuit, pedge, pc) {
+            if !input_arrived(circuit, pedge, pc, stats) {
                 arrived = false;
                 break;
             }
@@ -662,7 +697,7 @@ fn schedule_candidates_at_pc(
         }
 
         // Check if inputs to the node are ready
-        if !all_inputs_arrived(circuit, &cand.index, pc) {
+        if !all_inputs_arrived(circuit, &cand.index, pc, stats) {
             stats.inputs += 1;
             continue;
         }

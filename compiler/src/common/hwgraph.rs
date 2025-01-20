@@ -34,6 +34,12 @@ pub struct RankInfo {
     pub mob:  u32,
 }
 
+impl RankInfo {
+    pub fn critical(self: &Self) -> bool {
+        self.alap - self.asap == 0
+    }
+}
+
 /// # Metadata attached to each `HWGraph` node
 #[derive(Debug, Clone, Default)]
 pub struct NodeInfo {

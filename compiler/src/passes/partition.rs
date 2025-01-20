@@ -7,15 +7,33 @@ use crate::common::{
     network::*
 };
 use petgraph::{
-    graph::{Graph, NodeIndex}, Undirected, Direction::Outgoing
+    graph::{Graph, NodeIndex}, Direction::{Incoming, Outgoing}, Undirected
 };
 use histo::Histogram;
 use kaminpar::KaminParError;
 
 fn edge_weight(circuit: &Circuit, src_idx: &NodeIndex, dst_idx: &NodeIndex) -> f32 {
+    let src = circuit.graph.node_weight(*src_idx).unwrap().info();
     let dst = circuit.graph.node_weight(*dst_idx).unwrap().info();
+
     let src_child_cnt = circuit.graph.neighbors_directed(*src_idx, Outgoing).count();
-    if dst.rank.alap - dst.rank.asap == 0 {
+    let src_child_critical_cnt = circuit.graph
+        .neighbors_directed(*src_idx, Outgoing)
+        .filter(|x| circuit.graph.node_weight(*x).unwrap().info().rank.critical())
+        .count();
+
+    let dst_parent_critical_cnt = circuit.graph
+        .neighbors_directed(*dst_idx, Incoming)
+        .filter(|x| circuit.graph.node_weight(*x).unwrap().info().rank.critical())
+        .count();
+
+    if src.rank.critical() && dst.rank.critical() {
+        if src_child_critical_cnt > 1 && dst_parent_critical_cnt > 1 {
+            1.0
+        } else {
+            0.0
+        }
+    } else if dst.rank.critical() {
         0.0
     } else {
         (src_child_cnt - 1) as f32 / src_child_cnt as f32
@@ -25,7 +43,7 @@ fn edge_weight(circuit: &Circuit, src_idx: &NodeIndex, dst_idx: &NodeIndex) -> f
 pub fn set_edge_weights(circuit: &mut Circuit, communication: u32) {
     for eidx in circuit.graph.edge_indices() {
         let e = circuit.graph.edge_endpoints(eidx).unwrap();
-        let cost_f32 = 300.0 * (communication as f32  - edge_weight(circuit, &e.0, &e.1));
+        let cost_f32 = 1000.0 * (communication as f32  - edge_weight(circuit, &e.0, &e.1));
         circuit.graph.edge_weight_mut(eidx).unwrap().weight = Some(cost_f32 as i32);
     }
 }
@@ -99,7 +117,7 @@ pub fn partition(circuit: &mut Circuit) {
 
 /// Partition the circuit using the KaMinPar partitioning algorithm
 /// and assign a module ID to each node
-fn kaminpar_partition_module(circuit: &mut Circuit) {
+pub fn kaminpar_partition_module(circuit: &mut Circuit) {
     let kaminpar = &circuit.kaminpar_cfg;
     let pcfg = &circuit.platform_cfg;
     let undir_graph = circuit.graph.clone().into_edge_type();
@@ -176,7 +194,7 @@ fn get_subgraphs(circuit: &Circuit) -> IndexMap<u32, SubGraph> {
 
 /// For each subgraph assigned to each module, parttion & assign a it
 /// to a processor
-fn kaminpar_partition_processor(circuit: &mut Circuit) {
+pub fn kaminpar_partition_processor(circuit: &mut Circuit) {
     let kaminpar = &circuit.kaminpar_cfg;
     let pcfg = &circuit.platform_cfg;
 
