@@ -1,5 +1,7 @@
 use crate::passes::*;
 use crate::common::circuit::Circuit;
+use partition::partition;
+use prepartition_set_rank::{init_rank_order, prepartition_find_rank_order};
 use split_sram_nodes::split_sram_nodes;
 use split_reg_nodes::split_reg_nodes;
 use replicate_consts::replicate_consts;
@@ -7,7 +9,6 @@ use dce::dead_code_elimination;
 use inst_map::map_instructions;
 use inst_schedule::schedule_instructions;
 use set_rank::find_rank_order;
-use partition::partition;
 use check_rank::check_rank_order;
 use distribute_io::distribute_io;
 use print_stats::print_stats;
@@ -21,7 +22,9 @@ pub fn run_compiler_passes(c: &mut Circuit) {
     println!("DCE done");
 
     let partition_start = Instant::now();
+    prepartition_find_rank_order(c);
     partition(c);
+    init_rank_order(c);
     let partition_time = partition_start.elapsed().as_millis();
     println!("Partition done");
 

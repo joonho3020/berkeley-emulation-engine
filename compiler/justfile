@@ -22,6 +22,7 @@ imem_lat := "1"
 inter_mod_nw_lat := "1"
 inter_proc_nw_lat := "1"
 dmem_rd_lat := "0"
+dmem_wr_lat := "1"
 
 [group: 'clean']
 clean:
@@ -68,6 +69,7 @@ bee_vcd $RUST_BACKTRACE="1":
        --sram-entries {{sram_entries}} \
        --imem-lat {{imem_lat}} \
        --dmem-rd-lat {{dmem_rd_lat}} \
+       --dmem-wr-lat {{dmem_wr_lat}} \
        --inter-proc-nw-lat {{inter_proc_nw_lat}} \
        --inter-mod-nw-lat {{inter_mod_nw_lat}} \
        --max-steps {{max_steps}} \
@@ -92,6 +94,7 @@ bee $RUST_BACKTRACE="1":
        --sram-entries {{sram_entries}} \
        --imem-lat {{imem_lat}} \
        --dmem-rd-lat {{dmem_rd_lat}} \
+       --dmem-wr-lat {{dmem_wr_lat}} \
        --inter-proc-nw-lat {{inter_proc_nw_lat}} \
        --inter-mod-nw-lat {{inter_mod_nw_lat}} \
        --max-steps {{max_steps}} \
@@ -112,6 +115,7 @@ run_blifsim $RUST_BACKTRACE="1":
        --sram-entries {{sram_entries}} \
        --imem-lat {{imem_lat}} \
        --dmem-rd-lat {{dmem_rd_lat}} \
+       --dmem-wr-lat {{dmem_wr_lat}} \
        --inter-proc-nw-lat {{inter_proc_nw_lat}} \
        --inter-mod-nw-lat {{inter_mod_nw_lat}} \
        --sim-dir {{sim_dir}} \

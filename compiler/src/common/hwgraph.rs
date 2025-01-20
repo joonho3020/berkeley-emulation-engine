@@ -34,6 +34,12 @@ pub struct RankInfo {
     pub mob:  u32,
 }
 
+impl RankInfo {
+    pub fn critical(self: &Self) -> bool {
+        self.alap - self.asap == 0
+    }
+}
+
 /// # Metadata attached to each `HWGraph` node
 #[derive(Debug, Clone, Default)]
 pub struct NodeInfo {
@@ -71,7 +77,10 @@ impl Serialize for NodeInfo {
 
 #[derive(Debug, Clone, Default)]
 pub struct NodeMapInfo {
+    /// Info filled in by the compiler
     pub info: NodeInfo,
+
+    /// Petgraph node index
     pub idx: NodeIndex,
 }
 
@@ -191,6 +200,18 @@ pub struct HWEdge {
     /// over the global network.
     /// For communication that happens within a module, this is set to None.
     pub route: Option<NetworkRoute>,
+
+    /// Used to provide edge weights for partitioning
+    pub weight: Option<i32>
+}
+
+impl From<HWEdge> for i32 {
+    fn from(value: HWEdge) -> Self {
+        match value.weight {
+            Some(w) => w,
+            None    => 0
+        }
+    }
 }
 
 impl HWEdge {
@@ -198,6 +219,7 @@ impl HWEdge {
         HWEdge {
             signal: s,
             route: None,
+            weight: None
         }
     }
 

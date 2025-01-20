@@ -16,10 +16,53 @@ use petgraph::{
 };
 use fixedbitset::FixedBitSet;
 use plotters::prelude::*;
-use yansi::Paint;
 use std::collections::BTreeSet;
 use std::cmp::Ordering;
 use std::cmp::max;
+use std::fmt::Debug;
+
+
+#[derive(Default, Clone)]
+struct ScheduleStats {
+    coord: u32,
+    inputs: u32,
+    network: u32,
+    inputs_proc_internal: u32,
+    inputs_local_nw: u32,
+    inputs_global_nw: u32,
+    inputs_unsched: u32
+}
+
+impl Debug for ScheduleStats {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let total = self.coord + self.inputs + self.network;
+
+        let coord_ratio   = self.coord   as f32 / total as f32 * 100.0;
+        let inputs_ratio  = self.inputs  as f32 / total as f32 * 100.0;
+        let network_ratio = self.network as f32 / total as f32 * 100.0;
+
+        writeln!(f, "coord: {} ({} %) inputs: {} ({} %) network: {} ({} %)",
+            self.coord, coord_ratio,
+            self.inputs, inputs_ratio,
+            self.network, network_ratio)?;
+
+        let inputs_local_nw_ratio  = self.inputs_local_nw  as f32 / total as f32 * 100.0;
+        let inputs_global_nw_ratio = self.inputs_global_nw as f32 / total as f32 * 100.0;
+        let inputs_proc_internal_ratio = self.inputs_proc_internal as f32 / total as f32 * 100.0;
+        let inputs_unsched_ratio   = self.inputs_unsched   as f32 / total as f32 * 100.0;
+        writeln!(f, "- inputs internal: {} ({} %) local nw: {} ({} %) global nw: {} ({} %) unsched: {} ({} %)",
+            self.inputs_proc_internal,
+            inputs_proc_internal_ratio,
+            self.inputs_local_nw,
+            inputs_local_nw_ratio,
+            self.inputs_global_nw,
+            inputs_global_nw_ratio,
+            self.inputs_unsched,
+            inputs_unsched_ratio)
+    }
+}
+
+
 
 /// Bitmap containing information about network port activity
 #[derive(Debug, Default, Clone)]
@@ -82,27 +125,36 @@ impl NetworkAvailability {
 /// `NodeIndex` tagged with mobility `mob`. Used to sort the `NodeIndex`
 /// w.r.t to mobility during scheduling
 #[derive(Debug, Default, Clone, Eq, PartialEq, Copy)]
-struct NodeIndexMobility {
+struct SchedCandidate {
+    /// NodeIndex of the candidate node
     index: NodeIndex,
-    mob: u32
+
+    /// mobility (ALAP - ASAP)
+    mob: u32,
+
+    /// fanout of this node
+    odeg: u32,
 }
 
-impl NodeIndexMobility {
-    fn new(index: NodeIndex, mob: u32) -> Self {
-        NodeIndexMobility {
+impl SchedCandidate {
+    fn new(index: NodeIndex, mob: u32, odeg: u32) -> Self {
+        SchedCandidate {
             index: index,
-            mob: mob
+            mob: mob,
+            odeg: odeg
         }
     }
 }
 
-impl Ord for NodeIndexMobility {
+impl Ord for SchedCandidate {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.mob.cmp(&other.mob).then_with(|| self.index.cmp(&other.index))
+        self.mob.cmp(&other.mob)
+            .then_with(|| other.odeg.cmp(&self.odeg))
+            .then_with(|| self.index.cmp(&other.index))
     }
 }
 
-impl PartialOrd for NodeIndexMobility {
+impl PartialOrd for SchedCandidate {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
@@ -150,6 +202,16 @@ fn print_tail_graph(
                         }
                         print_nodes.get_mut(&cnode.info().coord).unwrap().push(c);
                         print_nodes_set.insert(c);
+                    }
+
+                    let parents = circuit.graph.neighbors_directed(*nidx, Incoming);
+                    for p in parents {
+                        let pnode = circuit.graph.node_weight(p).unwrap();
+                        if !print_nodes.contains_key(&pnode.info().coord) {
+                            print_nodes.insert(pnode.info().coord, vec![]);
+                        }
+                        print_nodes.get_mut(&pnode.info().coord).unwrap().push(p);
+                        print_nodes_set.insert(p);
                     }
                 }
             }
@@ -286,7 +348,8 @@ fn print_scheduling_stats(
 fn input_arrived(
     circuit: &Circuit,
     edge: EdgeReference<HWEdge, u32>,
-    pc: &u32
+    pc: &u32,
+    stats: &mut ScheduleStats
 ) -> bool {
     let mut unresolved_dep = false;
     let pcfg = &circuit.platform_cfg;
@@ -296,20 +359,32 @@ fn input_arrived(
    match &edge.weight().route {
        Some(route) => {
            if parent.info().pc + pcfg.nw_route_dep_lat(&route) > *pc {
-              unresolved_dep = true;
+               match pcfg.nw_route_type(route) {
+                   PathTypes::ProcessorInternal => {
+                       stats.inputs_proc_internal += 1;
+                   }
+                   PathTypes::InterProcessor => {
+                       stats.inputs_local_nw += 1;
+                   }
+                   PathTypes::InterModule => {
+                       stats.inputs_global_nw += 1;
+                   }
+               }
+               unresolved_dep = true;
            }
        }
        None => {
            assert_eq!(parent.info().scheduled, false,
                "{:?} scheduled w/o NetworkRoute set", parent.info());
           unresolved_dep = true;
+          stats.inputs_unsched += 1;
        }
    }
    return !unresolved_dep;
 }
 
 /// All input bits arrived & usable from parent nodes
-fn all_inputs_arrived(circuit: &Circuit, nidx: &NodeIndex, pc: &u32) -> bool {
+fn all_inputs_arrived(circuit: &Circuit, nidx: &NodeIndex, pc: &u32, stats: &mut ScheduleStats) -> bool {
     let mut arrived = true;
     let node = circuit.graph.node_weight(*nidx).unwrap();
     let parent_edges = circuit.graph.edges_directed(*nidx, Incoming);
@@ -318,7 +393,7 @@ fn all_inputs_arrived(circuit: &Circuit, nidx: &NodeIndex, pc: &u32) -> bool {
        node.is() != Primitive::Latch    &&
        node.is() != Primitive::Gate {
         for pedge in parent_edges {
-            if !input_arrived(circuit, pedge, pc) {
+            if !input_arrived(circuit, pedge, pc, stats) {
                 arrived = false;
                 break;
             }
@@ -602,13 +677,14 @@ fn mark_nw_busy(
 
 fn schedule_candidates_at_pc(
     circuit: &mut Circuit,
-    candidates: &mut BTreeSet<NodeIndexMobility>,
+    candidates: &mut BTreeSet<SchedCandidate>,
     scheduled_coordinates: &mut IndexSet<Coordinate>,
     nw: &mut NetworkAvailability,
-    pc: &u32) -> Vec<NodeIndexMobility>
-{
+    pc: &u32,
+    stats: &mut ScheduleStats
+) -> Vec<SchedCandidate> {
     let pcfg = &circuit.platform_cfg;
-    let mut remove_nodes: Vec<NodeIndexMobility> = vec![];
+    let mut remove_nodes: Vec<SchedCandidate> = vec![];
     for cand in candidates.iter() {
         let node = circuit.graph.node_weight(cand.index).unwrap();
 
@@ -626,17 +702,20 @@ fn schedule_candidates_at_pc(
 
         // Node already scheduled at pc for this Coordinate
         if scheduled_coordinates.contains(&node.info().coord) {
+            stats.coord += 1;
             continue;
         }
 
         // Check if inputs to the node are ready
-        if !all_inputs_arrived(circuit, &cand.index, pc) {
+        if !all_inputs_arrived(circuit, &cand.index, pc, stats) {
+            stats.inputs += 1;
             continue;
         }
 
         // Check if routes to child nodes are ready
         let (reachable, routes) = all_childs_reachable(circuit, nw, &cand.index, pc);
         if !reachable {
+            stats.network += 1;
             continue;
         }
 
@@ -709,31 +788,36 @@ fn schedule_instructions_internal(circuit: &mut Circuit) {
     let mut ex_schedule_data:   Vec<u32> = vec![];
     let mut nw_util_data:       Vec<u32> = vec![];
 
+    let mut must_schedule_stats = ScheduleStats::default();
+    let mut be_schedule_stats   = ScheduleStats::default();
+    let mut ex_schedule_stats   = ScheduleStats::default();
+
     for cur_rank in 0..(max_rank + 1) {
         println!("============================");
         println!("Current rank to schedule: {}", cur_rank);
         println!("============================");
 
-        let mut must_schedule_candidates:        BTreeSet<NodeIndexMobility> = BTreeSet::new();
-        let mut best_effort_schedule_candidates: BTreeSet<NodeIndexMobility> = BTreeSet::new();
-        let mut extra_effort_schedule_candidates: BTreeSet<NodeIndexMobility> = BTreeSet::new();
+        let mut must_schedule_candidates:        BTreeSet<SchedCandidate> = BTreeSet::new();
+        let mut best_effort_schedule_candidates: BTreeSet<SchedCandidate> = BTreeSet::new();
+        let mut extra_effort_schedule_candidates: BTreeSet<SchedCandidate> = BTreeSet::new();
 
         let mut debug_scheduled_nodes: Vec<NodeIndex> = vec![];
         let mut per_pc_scheduled: Vec<u32> = vec![];
 
         // Search for all the nodes to schedule in this round
         for nidx in circuit.graph.node_indices() {
+            let odeg = circuit.graph.neighbors_directed(nidx, Outgoing).count() as u32;
             let node = circuit.graph.node_weight_mut(nidx).unwrap();
             let info = node.info_mut();
             if cur_rank <= info.rank.alap && !info.scheduled {
                 let mob = info.rank.alap - cur_rank;
                 info.rank = RankInfo { mob: mob, ..info.rank };
                 if info.rank.asap <= cur_rank && (cpn.contains(&nidx) || mob == 0) {
-                    must_schedule_candidates.insert(NodeIndexMobility::new(nidx, mob));
+                    must_schedule_candidates.insert(SchedCandidate::new(nidx, mob, odeg));
                 } else if info.rank.asap <= cur_rank {
-                    best_effort_schedule_candidates.insert(NodeIndexMobility::new(nidx, mob));
+                    best_effort_schedule_candidates.insert(SchedCandidate::new(nidx, mob, odeg));
                 } else {
-                    extra_effort_schedule_candidates.insert(NodeIndexMobility::new(nidx, mob));
+                    extra_effort_schedule_candidates.insert(SchedCandidate::new(nidx, mob, odeg));
                 }
             }
         }
@@ -754,7 +838,8 @@ fn schedule_instructions_internal(circuit: &mut Circuit) {
                 &mut must_schedule_candidates,
                 &mut scheduled_coordinates,
                 &mut nw,
-                &pc);
+                &pc,
+                &mut must_schedule_stats);
 
             // For analysis
             println!("pc: {} successful must scheduled: {}", pc, scheduled.len());
@@ -768,6 +853,8 @@ fn schedule_instructions_internal(circuit: &mut Circuit) {
             pc += 1;
         }
 
+// print_tail_graph(circuit, &per_pc_scheduled, &debug_scheduled_nodes, pc_min, cur_rank);
+
         // For the PC ranging set by scheduling the "must schedule" nodes,
         // try to slot in as much nodes as possible. If scheduling is unsucessful,
         // punt to the next round of scheduling.
@@ -778,7 +865,8 @@ fn schedule_instructions_internal(circuit: &mut Circuit) {
                 &mut best_effort_schedule_candidates,
                 &mut scheduled_coordinates,
                 &mut nw,
-                &try_pc);
+                &try_pc,
+                &mut be_schedule_stats);
 
             // For analysis
             println!("pc: {} successful best effort scheduled: {}", try_pc, scheduled.len());
@@ -797,7 +885,8 @@ fn schedule_instructions_internal(circuit: &mut Circuit) {
                 &mut extra_effort_schedule_candidates,
                 &mut scheduled_coordinates,
                 &mut nw,
-                &try_pc);
+                &try_pc,
+                &mut ex_schedule_stats);
 
             // For analysis
             println!("pc: {} successful extra effort scheduled: {}", try_pc, scheduled.len());
@@ -860,6 +949,10 @@ fn schedule_instructions_internal(circuit: &mut Circuit) {
         be_schedule_data,
         ex_schedule_data,
         nw_util_data);
+
+    println!("Must schedule failed reasons: {:?}",         must_schedule_stats);
+    println!("Best effort schedule failed reasons: {:?}",  be_schedule_stats);
+    println!("Extra effort schedule failed reasons: {:?}", ex_schedule_stats);
 }
 
 fn check_route(route: &NetworkRoute, msg: &str) {

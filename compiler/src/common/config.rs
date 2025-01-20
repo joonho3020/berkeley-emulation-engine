@@ -367,6 +367,14 @@ impl PlatformConfig {
         self.sram_rd_lat + self.sram_wr_lat
     }
 
+    pub fn nw_route_type(self: &Self, route: &NetworkRoute) -> PathTypes {
+        if route.len() == 1 {
+            route.front().unwrap().tpe
+        } else {
+            PathTypes::InterModule
+        }
+    }
+
     //////////////////////////////////////////////////////////
 
     pub fn sram_rd_en_offset(self: &Self) -> u32 {
@@ -563,5 +571,5 @@ pub struct Args {
 
     /// debug tail threshold
     #[arg(long, default_value_t = 5)]
-    pub dbg_tail_threshold: u32, 
+    pub dbg_tail_threshold: u32,
 }
