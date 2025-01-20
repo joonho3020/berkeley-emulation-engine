@@ -571,5 +571,5 @@ pub struct Args {
 
     /// debug tail threshold
     #[arg(long, default_value_t = 5)]
-    pub dbg_tail_threshold: u32, 
+    pub dbg_tail_threshold: u32,
 }

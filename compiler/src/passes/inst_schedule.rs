@@ -203,6 +203,16 @@ fn print_tail_graph(
                         print_nodes.get_mut(&cnode.info().coord).unwrap().push(c);
                         print_nodes_set.insert(c);
                     }
+
+                    let parents = circuit.graph.neighbors_directed(*nidx, Incoming);
+                    for p in parents {
+                        let pnode = circuit.graph.node_weight(p).unwrap();
+                        if !print_nodes.contains_key(&pnode.info().coord) {
+                            print_nodes.insert(pnode.info().coord, vec![]);
+                        }
+                        print_nodes.get_mut(&pnode.info().coord).unwrap().push(p);
+                        print_nodes_set.insert(p);
+                    }
                 }
             }
             // just print the first tail
@@ -842,6 +852,8 @@ fn schedule_instructions_internal(circuit: &mut Circuit) {
 
             pc += 1;
         }
+
+// print_tail_graph(circuit, &per_pc_scheduled, &debug_scheduled_nodes, pc_min, cur_rank);
 
         // For the PC ranging set by scheduling the "must schedule" nodes,
         // try to slot in as much nodes as possible. If scheduling is unsucessful,

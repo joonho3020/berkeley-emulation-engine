@@ -7,33 +7,15 @@ use crate::common::{
     network::*
 };
 use petgraph::{
-    graph::{Graph, NodeIndex}, Direction::{Incoming, Outgoing}, Undirected
+    graph::{Graph, NodeIndex}, Direction::Outgoing, Undirected
 };
 use histo::Histogram;
 use kaminpar::KaminParError;
 
 fn edge_weight(circuit: &Circuit, src_idx: &NodeIndex, dst_idx: &NodeIndex) -> f32 {
-    let src = circuit.graph.node_weight(*src_idx).unwrap().info();
     let dst = circuit.graph.node_weight(*dst_idx).unwrap().info();
-
     let src_child_cnt = circuit.graph.neighbors_directed(*src_idx, Outgoing).count();
-    let src_child_critical_cnt = circuit.graph
-        .neighbors_directed(*src_idx, Outgoing)
-        .filter(|x| circuit.graph.node_weight(*x).unwrap().info().rank.critical())
-        .count();
-
-    let dst_parent_critical_cnt = circuit.graph
-        .neighbors_directed(*dst_idx, Incoming)
-        .filter(|x| circuit.graph.node_weight(*x).unwrap().info().rank.critical())
-        .count();
-
-    if src.rank.critical() && dst.rank.critical() {
-        if src_child_critical_cnt > 1 && dst_parent_critical_cnt > 1 {
-            1.0
-        } else {
-            0.0
-        }
-    } else if dst.rank.critical() {
+    if dst.rank.critical() {
         0.0
     } else {
         (src_child_cnt - 1) as f32 / src_child_cnt as f32
