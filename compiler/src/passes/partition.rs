@@ -84,16 +84,29 @@ fn get_partition_histogram(partition: Vec<u32>) -> Histogram {
     return histogram;
 }
 
+/// HACK: KaMinPar with edge weights has some implicit assumption about the weights.
+/// If the communication cost is lower when 2, it throws a unexplainable assertion.
+/// To avoid this issue, simply add 2 to the edge weights if it is smaller than two.
+fn adjust_communication_cost(c: u32) -> u32 {
+    if c < 2 {
+        c + 2
+    } else {
+        c
+    }
+}
+
 /// Partition the design onto multiple modules and processors within a module
 pub fn partition(circuit: &mut Circuit) {
     let pcfg = circuit.platform_cfg.clone();
 
     // Module partition
-    set_edge_weights(circuit, pcfg.inter_mod_nw_lat * 2 + pcfg.dmem_wr_lat);
+    let inter_mod_comm_cost = adjust_communication_cost(pcfg.inter_mod_nw_lat * 2 + pcfg.dmem_wr_lat);
+    set_edge_weights(circuit, inter_mod_comm_cost);
     kaminpar_partition_module(circuit);
 
     // Processor partition
-    set_edge_weights(circuit, pcfg.inter_proc_nw_lat + pcfg.dmem_wr_lat);
+    let inter_proc_comm_cost = adjust_communication_cost(pcfg.inter_proc_nw_lat + pcfg.dmem_wr_lat);
+    set_edge_weights(circuit, inter_proc_comm_cost);
     kaminpar_partition_processor(circuit);
 }
 
