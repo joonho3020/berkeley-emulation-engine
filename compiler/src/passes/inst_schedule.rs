@@ -950,6 +950,8 @@ fn schedule_instructions_internal(circuit: &mut Circuit) {
         ex_schedule_data,
         nw_util_data);
 
+    print_network_utilization(circuit);
+
     println!("Must schedule failed reasons: {:?}",         must_schedule_stats);
     println!("Best effort schedule failed reasons: {:?}",  be_schedule_stats);
     println!("Extra effort schedule failed reasons: {:?}", ex_schedule_stats);
@@ -972,4 +974,92 @@ fn check_schedule(circuit: &Circuit) {
             }
         }
     }
+}
+
+fn print_network_utilization(circuit: &Circuit) {
+    let pcfg = &circuit.platform_cfg;
+    let mut local_nw_util:  Vec<u32> = vec![0; circuit.emul.host_steps as usize];
+    let mut global_nw_util: Vec<u32> = vec![0; circuit.emul.host_steps as usize];
+
+    for eidx in circuit.graph.edge_indices() {
+        let edge = circuit.graph.edge_weight(eidx).unwrap();
+        let ep = circuit.graph.edge_endpoints(eidx).unwrap();
+        let src_node = circuit.graph.node_weight(ep.0).unwrap();
+        let src_pc = src_node.info().pc;
+        let mut cur_route = NetworkRoute::new();
+
+        let route = edge.route.clone().unwrap();
+        for path in route.iter() {
+            cur_route.push_back(*path);
+            let pc = src_pc + pcfg.nw_route_lat(&cur_route);
+
+            match path.tpe {
+                PathTypes::InterProcessor => {
+                    local_nw_util[pc as usize] += 1;
+                }
+                PathTypes::InterModule => {
+                    global_nw_util[pc as usize] += 1;
+                }
+                _ => {
+                }
+            }
+        }
+    }
+
+    let local_nw_util_percent: Vec<f32> = local_nw_util.iter().map(|cnt|
+        *cnt as f32 / pcfg.total_procs() as f32 * 100.0
+    ).collect();
+
+    let global_nw_util_percent: Vec<f32> = global_nw_util.iter().map(|cnt|
+        *cnt as f32 / pcfg.total_procs() as f32 * 100.0
+    ).collect();
+
+    let title = format!("{}/network-utilization.png", circuit.compiler_cfg.output_dir);
+    let root = BitMapBackend::new(&title, (2560, 1920)).into_drawing_area();
+    let _ = root.fill(&WHITE);
+
+    let mut chart = ChartBuilder::on(&root)
+        .caption("Network Utilization", ("sans-serif", 50).into_font())
+        .margin(30)
+        .x_label_area_size(200)
+        .y_label_area_size(200)
+        .build_cartesian_2d(0f32..circuit.emul.host_steps as f32,
+                            0f32..100 as f32).unwrap();
+
+    let _ = chart
+        .configure_mesh()
+        .x_label_style(("sans-serif", 60))
+        .y_label_style(("sans-serif", 60))
+        .draw();
+
+    chart
+        .draw_series(LineSeries::new(
+            (0..).zip(local_nw_util_percent.iter()).map(|(a, b)| (a as f32, *b as f32)),
+            RED.stroke_width(3)
+        )).unwrap()
+        .label("global".to_string())
+        .legend(move |(x, y)| {
+            Rectangle::new([(x - 10, y - 10), (x + 10, y + 10)], RED.filled())
+        });
+
+    chart
+        .draw_series(LineSeries::new(
+            (0..).zip(global_nw_util_percent.iter()).map(|(a, b)| (a as f32, *b as f32)),
+            BLUE.stroke_width(3)
+        )).unwrap()
+        .label("local".to_string())
+        .legend(move |(x, y)| {
+            Rectangle::new([(x - 10, y - 10), (x + 10, y + 10)], BLUE.filled())
+        });
+
+    let _ = chart
+        .configure_series_labels()
+        .background_style(&WHITE.mix(0.8))
+        .border_style(BLACK.stroke_width(4))
+        .label_font(("sans-serif", 60))
+        .position(SeriesLabelPosition::UpperRight)
+        .margin(20)
+        .legend_area_size(40)
+        .draw();
+    let _ = root.present();
 }
