@@ -42,6 +42,25 @@ echo:
   echo {{instance_path}}
 
 [group: 'run']
+run_measure_utilization $RUST_BACKTRACE="1":
+  cargo run --release \
+    --bin run_measure_utilization \
+    -- --sv-file-path {{svfile}}  \
+       -b {{lut_file}} \
+       -t {{top}} \
+       --num-mods {{num_mods}} \
+       --num-procs {{num_procs}} \
+       --sram-width {{sram_width}} \
+       --sram-entries {{sram_entries}} \
+       --imem-lat {{imem_lat}} \
+       --dmem-rd-lat {{dmem_rd_lat}} \
+       --dmem-wr-lat {{dmem_wr_lat}} \
+       --inter-proc-nw-lat {{inter_proc_nw_lat}} \
+       --inter-mod-nw-lat {{inter_mod_nw_lat}} \
+       --max-steps {{max_steps}} \
+       --instance-path {{instance_path}} | tee DEBUG
+
+[group: 'run']
 run_test_gen_from_vcd $RUST_BACKTRACE="1":
   cargo run --release \
     --bin run_test_gen_from_vcd \
