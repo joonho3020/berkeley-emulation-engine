@@ -1,6 +1,5 @@
 use bee::common::config::*;
 use bee::common::circuit::Circuit;
-use bee::common::primitive::Opcode;
 use bee::testing::try_new_circuit;
 use clap::Parser;
 use std::fmt::Debug;
@@ -22,14 +21,21 @@ struct ProfileArgs {
     pub sdm_port_cnt: u32,
 }
 
-#[derive(Debug)]
 struct UtilizationInfo {
-    pub avg: f32,
+    pub cnt: u32,
+    pub sum: f32,
     pub max: f32,
     pub min: f32
 }
 
 impl UtilizationInfo {
+    pub fn add(self: &mut Self, util: f32) {
+        self.max = if self.max > util { self.max } else { util };
+        self.min = if self.min < util { self.min } else { util };
+        self.cnt += 1;
+        self.sum += util;
+    }
+
     pub fn profile(circuit: &Circuit) -> f32 {
         let max_steps = circuit.emul.host_steps;
         let pcfg = &circuit.platform_cfg;
@@ -38,6 +44,24 @@ impl UtilizationInfo {
 
         let utilization = total_nodes as f32 / capacity as f32;
         return utilization;
+    }
+}
+
+impl Debug for UtilizationInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Utilization min: {}% max: {}% avg: {}%",
+            self.min * 100.0, self.max * 100.0, self.sum / self.cnt as f32 * 100.0)
+    }
+}
+
+impl Default for UtilizationInfo {
+    fn default() -> Self {
+        Self {
+            cnt: 0,
+            sum: 0.0,
+            max: 0.0,
+            min: 100.0
+        }
     }
 }
 
@@ -130,30 +154,19 @@ impl Debug for ProfileInfo {
 fn collect_stats(args: &ProfileArgs) -> std::io::Result<ProfileInfo> {
     assert!(args.iterations > 0);
 
-    let mut total = 0.0;
-    let mut max = 0.0;
-    let mut min = 100.0;
-
     let mut port_contention = PortContentionInfo::default();
+    let mut utilization = UtilizationInfo::default();
 
     for _ in 0..args.iterations {
         let c = try_new_circuit(&args.bee_args)?;
-        let util = UtilizationInfo::profile(&c);
-        total += util;
-        max = if util > max  { util } else { max };
-        min = if min  > util { util } else { min };
 
+        println!("Collecting statistics....");
+        utilization.add(UtilizationInfo::profile(&c));
         port_contention.add(&PortContentionInfo::profile(&c, args.ldm_port_cnt, args.sdm_port_cnt));
     }
 
-    let util = UtilizationInfo {
-        avg: total / args.iterations as f32 * 100.0,
-        max: max * 100.0,
-        min: min * 100.0
-    };
-
     return Ok(ProfileInfo {
-        util: util,
+        util: utilization,
         port: port_contention
     });
 }
@@ -162,10 +175,8 @@ fn main() -> std::io::Result<()> {
     let args = ProfileArgs::parse();
     println!("{:#?}", args);
 
-    println!("Collecting statistics....");
     let stats = collect_stats(&args)?;
     println!("{:#?}", stats);
-
 
     return Ok(());
 }
