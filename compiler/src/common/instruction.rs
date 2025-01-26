@@ -107,4 +107,20 @@ impl Instruction {
         bit_vec.push(self.mem        );
         return bit_vec;
     }
+
+    pub fn ports_used(self: &Self) -> (Option<u32>, Option<u32>) {
+        (self.ldm_ports_used(), self.sdm_ports_used())
+    }
+
+    fn ldm_ports_used(self: &Self) -> Option<u32> {
+        self.operands.iter()
+            .map(|x| if x.local { 1 } else { 0 })
+            .reduce(|a, b| a + b)
+    }
+
+    fn sdm_ports_used(self: &Self) -> Option<u32> {
+        self.operands.iter()
+            .map(|x| if x.local { 0 } else { 1 })
+            .reduce(|a, b| a + b)
+    }
 }

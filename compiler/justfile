@@ -24,6 +24,10 @@ inter_proc_nw_lat := "1"
 dmem_rd_lat := "0"
 dmem_wr_lat := "1"
 
+prof_ldm_port_cnt := "3"
+prof_sdm_port_cnt := "3"
+prof_iterations := "5"
+
 [group: 'clean']
 clean:
   rm -rf sim-dir-*
@@ -58,7 +62,10 @@ run_measure_utilization $RUST_BACKTRACE="1":
        --inter-proc-nw-lat {{inter_proc_nw_lat}} \
        --inter-mod-nw-lat {{inter_mod_nw_lat}} \
        --max-steps {{max_steps}} \
-       --instance-path {{instance_path}} | tee DEBUG
+       --instance-path {{instance_path}} \
+       --ldm-port-cnt {{prof_ldm_port_cnt}} \
+       --sdm-port-cnt {{prof_sdm_port_cnt}} \
+       --iterations {{prof_iterations}} | tee DEBUG
 
 [group: 'run']
 run_test_gen_from_vcd $RUST_BACKTRACE="1":

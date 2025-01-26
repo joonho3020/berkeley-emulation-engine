@@ -1,5 +1,4 @@
 use crate::common::circuit::Circuit;
-use itertools::Itertools;
 use petgraph::{algo::connected_components, Direction::{Incoming, Outgoing}};
 
 pub fn print_stats(circuit: &Circuit) {
