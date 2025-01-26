@@ -1,8 +1,9 @@
 use crate::common::primitive::*;
 use crate::common::config::PlatformConfig;
+use bitvec::vec::BitVec;
 use serde::{Serialize, Deserialize};
 use std::fmt::Debug;
-use bitvec::vec::BitVec;
+use std::ops::Shr;
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct Operand {
@@ -34,6 +35,32 @@ pub struct SwitchInfo {
     pub fwd: bool
 }
 
+/// LUT: wrapper around u64
+#[derive(Default, Serialize, Clone, Debug)]
+pub struct LUT(u64);
+
+impl From<u64> for LUT {
+    fn from(value: u64) -> Self {
+        Self(value)
+    }
+}
+
+/// Defines shift-right (`>>`) for `struct LUT`
+impl Shr<u8> for LUT {
+    type Output = u64;
+    fn shr(self, rhs: u8) -> Self::Output {
+        self.0 >> rhs
+    }
+}
+
+impl LUT {
+    /// Returns `true` when `idx`th LSB bit in `LUT` is 1
+    /// Otherwise, returns `false`
+    pub fn get(self: &Self, idx: u32) -> bool {
+        (self.0 >> idx) & 1 == 1
+    }
+}
+
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct Instruction {
     /// This instruction is performing something
@@ -43,7 +70,7 @@ pub struct Instruction {
     pub opcode: Opcode,
 
     /// LUT table
-    pub lut: u64,
+    pub lut: LUT,
 
     /// Index into LDM or SDM
     pub operands: Vec<Operand>,
@@ -61,7 +88,7 @@ impl Instruction {
         Instruction {
             valid: false,
             opcode: Opcode::NOP,
-            lut: 0,
+            lut: LUT::default(),
             operands: Vec::with_capacity(nops as usize),
             sinfo: SwitchInfo::default(),
             mem: false,
@@ -78,8 +105,8 @@ impl Instruction {
         }
 
         for i in 0..cfg.lut_bits() {
-            let sl = cfg.lut_bits() - i - 1;
-            bit_vec.push((self.lut >> sl) & 1 == 1);
+            let pos = cfg.lut_bits() - i - 1;
+            bit_vec.push(self.lut.get(pos));
         }
 
         for opidx in (0..cfg.lut_inputs).rev() {

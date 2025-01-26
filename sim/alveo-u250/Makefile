@@ -95,7 +95,7 @@ clean:
 	fi
 	cargo clean
 	-rm -rf build-dir
-	-rm DEBUG
+	-rm DEBUG*
 	-rm $(SIMIF_DIR)/driver_generated.rs
 
 all: run

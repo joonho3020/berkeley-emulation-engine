@@ -53,8 +53,7 @@ run: $(SIMULATION_SRCS)
 			 --imem-lat $(imem_lat) \
 			 --inter-proc-nw-lat $(inter_proc_nw_lat) \
 			 --inter-mod-nw-lat $(inter_mod_nw_lat) \
-			 --sim-dir $(sim_dir) \
-			 --elf-file-path $(binary) |& tee DEBUG
+			 --sim-dir $(sim_dir) |& tee DEBUG
 
 # Run existing tests
 test: $(SIMULATION_SRCS)

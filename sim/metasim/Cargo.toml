@@ -11,6 +11,8 @@ indexmap = "2.6.0"
 indicatif = "0.17.9"
 rand = "0.8.5"
 test-case = "3.3.1"
+derivative = "2.2.0"
+fesvr = { git = "https://github.com/euphoric-hardware/riscv-functional-sim", package = "fesvr" }
 
 [build-dependencies]
 cc = "1.0"

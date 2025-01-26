@@ -64,7 +64,7 @@ pub fn map_instructions(circuit: &mut Circuit) {
                 for i in 0..(1 << nops) {
                     table_repeated |= table << ((1 << ops) * i);
                 }
-                node_inst.lut = table_repeated;
+                node_inst.lut = LUT::from(table_repeated);
             }
             // Constant LUT
             CircuitPrimitive::ConstLut { val, .. } => {
@@ -73,7 +73,7 @@ pub fn map_instructions(circuit: &mut Circuit) {
                 for i in 0..num_bits {
                     table |= (*val as u64) << (i as u64);
                 }
-                node_inst.lut = table;
+                node_inst.lut = LUT::from(table);
             }
             _ => { }
         }
