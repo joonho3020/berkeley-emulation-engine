@@ -35,7 +35,8 @@ pub struct SwitchInfo {
     pub fwd: bool
 }
 
-/// LUT: wrapper around u64
+/// Represents the lookup table in the instruction memory.
+/// Wrapper around u64
 #[derive(Default, Serialize, Clone, Debug)]
 pub struct LUT(u64);
 
@@ -61,6 +62,17 @@ impl LUT {
     }
 }
 
+/// When hyperthreading is implemented, the last instruction bank contains this field
+/// to distribute the LDM/SDM read ports to processors.
+#[derive(Default, Serialize, Clone, Debug)]
+pub struct PortSel(u32);
+
+impl From<u32> for PortSel {
+    fn from(value: u32) -> Self {
+        Self(value)
+    }
+}
+
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct Instruction {
     /// This instruction is performing something
@@ -74,6 +86,12 @@ pub struct Instruction {
 
     /// Index into LDM or SDM
     pub operands: Vec<Operand>,
+
+    /// Selectors for LDM read ports
+    pub ldm_port_sel: Option<Vec<PortSel>>,
+
+    /// Selectors for SDM read ports
+    pub sdm_port_sel: Option<Vec<PortSel>>,
 
     /// Information related to switching
     pub sinfo: SwitchInfo,
@@ -90,6 +108,8 @@ impl Instruction {
             opcode: Opcode::NOP,
             lut: LUT::default(),
             operands: Vec::with_capacity(nops as usize),
+            ldm_port_sel: None,
+            sdm_port_sel: None,
             sinfo: SwitchInfo::default(),
             mem: false,
         }

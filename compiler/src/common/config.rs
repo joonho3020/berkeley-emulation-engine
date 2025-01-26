@@ -203,12 +203,6 @@ pub struct PlatformConfig {
     /// Number of lut inputs
     pub lut_inputs: Cycle,
 
-    /// Latency of the switch network between processors in the same module
-    pub inter_proc_nw_lat: Cycle,
-
-    /// Latency of the switch network between modules
-    pub inter_mod_nw_lat: Cycle,
-
     /// Number of cycles to access i-mem
     pub imem_lat: Cycle,
 
@@ -217,6 +211,32 @@ pub struct PlatformConfig {
 
     /// Number of cycles to write d-mem
     pub dmem_wr_lat: Cycle,
+
+    /// Processor can fetch/execute up to `inst_lanes` instructions and process it.
+    /// This implies, that the instruction memory has `inst_lanes` banks.
+    /// Bank[0] can send out bits to the network as well as takes care of which
+    /// bit to receive from the network.
+    /// Bank[1] ~ Bank[n-1] can read and write from both LDM & SDM, can only write
+    /// back to the LDM.
+    pub inst_lanes: u32,
+
+    /// Number of read ports in LDM. Port is arbitrated between threads.
+    /// LDM port count:
+    /// - R: ldm_rd_ports
+    /// - W: inst_lanes
+    pub ldm_rd_ports: u32,
+
+    /// Number of read ports in SDM. Port is arbitrated between threads.
+    /// SDM port count:
+    /// - R: sdm_rd_ports
+    /// - W: 1
+    pub sdm_rd_ports: u32,
+
+    /// Latency of the switch network between processors in the same module
+    pub inter_proc_nw_lat: Cycle,
+
+    /// Latency of the switch network between modules
+    pub inter_mod_nw_lat: Cycle,
 
     /// SRAM width in bits (per module)
     pub sram_width: u32,
@@ -252,6 +272,9 @@ impl Default for PlatformConfig {
             num_procs: 64,
             max_steps: 128,
             lut_inputs: 3,
+            inst_lanes: 1,
+            ldm_rd_ports: 3,
+            sdm_rd_ports: 3,
             inter_proc_nw_lat: 0,
             inter_mod_nw_lat: 0,
             imem_lat: 0,
@@ -270,6 +293,17 @@ impl Default for PlatformConfig {
 }
 
 impl PlatformConfig {
+    pub fn check_validity(self: &Self) {
+        assert!(self.num_mods > 0,   "Number of modules should not be zero");
+        assert!(self.num_procs > 0,  "Number of processors should not be zero");
+
+        assert!(self.max_steps > 0,  "Number of max host steps should not be zero");
+        assert!(self.lut_inputs > 0, "Number of lut inputs should not be zero");
+        assert!(self.inst_lanes > 0, "Number of instruction lanes should not be zero");
+        assert!(self.ldm_rd_ports >= self.lut_inputs, "LDM Number of read ports should be greater or equal to the LUT inputs");
+        assert!(self.sdm_rd_ports >= self.lut_inputs, "LDM Number of read ports should be greater or equal to the LUT inputs");
+    }
+
     fn power_of_2(self: &Self, v: u32) -> bool {
         return v & (v - 1) == 0;
     }
@@ -517,6 +551,29 @@ pub struct Args {
     #[arg(long, default_value_t = 3)]
     pub lut_inputs: u32,
 
+    /// imem latency
+    #[arg(long, default_value_t = 0)]
+    pub imem_lat: u32,
+
+    /// dmem rd latency
+    #[arg(long, default_value_t = 0)]
+    pub dmem_rd_lat: u32,
+
+    /// dmem wr latency
+    #[arg(long, default_value_t = 1)]
+    pub dmem_wr_lat: u32,
+
+    /// number of instruction lanes
+    #[arg(long, default_value_t = 1)]
+    pub inst_lanes: u32,
+
+    /// number of instruction lanes
+    #[arg(long, default_value_t = 3)]
+    pub ldm_rd_ports: u32,
+
+    #[arg(long, default_value_t = 3)]
+    pub sdm_rd_ports: u32,
+
     /// network latency between procs in a module
     #[arg(long, default_value_t = 0)]
     pub inter_proc_nw_lat: u32,
@@ -524,18 +581,6 @@ pub struct Args {
     /// network latency between modules
     #[arg(long, default_value_t = 0)]
     pub inter_mod_nw_lat: u32,
-
-    /// imem latency
-    #[arg(long, default_value_t = 0)]
-    pub imem_lat: u32,
-
-    /// dmem rd latency
-    #[arg(long, default_value_t = 0)]
-    pub dmem_rd_lat: u32, 
-
-    /// dmem wr latency
-    #[arg(long, default_value_t = 1)]
-    pub dmem_wr_lat: u32,
 
     /// SRAM width in bits (per module)
     #[arg(long, default_value_t = 128)]

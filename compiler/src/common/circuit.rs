@@ -34,6 +34,7 @@ fn set_debug(graph: &mut HWGraph, nidx: NodeIndex, check: NodeCheckState) {
 
 impl Circuit {
     pub fn set_cfg(&mut self, pcfg: PlatformConfig, ccfg: CompilerConfig) {
+        pcfg.check_validity();
         self.platform_cfg = pcfg;
         self.compiler_cfg = ccfg;
     }
