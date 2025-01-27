@@ -55,6 +55,9 @@ pub struct NodeInfo {
     /// index to the allocated imem slot
     pub pc: u32,
 
+    /// instruction lane that this node is scheduled
+    pub lane: u32,
+
     /// Debug information
     pub debug: DebugInfo
 }

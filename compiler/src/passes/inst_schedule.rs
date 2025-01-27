@@ -16,11 +16,10 @@ use petgraph::{
 };
 use fixedbitset::FixedBitSet;
 use plotters::prelude::*;
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, ops::{SubAssign, Sub}};
 use std::cmp::Ordering;
 use std::cmp::max;
 use std::fmt::Debug;
-
 
 #[derive(Default, Clone)]
 struct ScheduleStats {
@@ -63,46 +62,50 @@ impl Debug for ScheduleStats {
 }
 
 
+type PC = u32;
+type ProcId = u32;
 
 /// Bitmap containing information about network port activity
 #[derive(Debug, Default, Clone)]
-struct NetworkPorts {
-    nbits: u32,
-    busy: IndexMap<u32, FixedBitSet>
+struct ResourceBitMap {
+    proc_cnt: u32,
+    busy: IndexMap<PC, FixedBitSet>
 }
 
-impl NetworkPorts {
-    fn new(nbits: u32) -> Self {
-        let mut ret = NetworkPorts::default();
-        ret.nbits = nbits;
+impl ResourceBitMap {
+    fn new(proc_cnt: u32) -> Self {
+        let mut ret = ResourceBitMap::default();
+        ret.proc_cnt = proc_cnt;
         ret.busy = IndexMap::new();
         return ret;
     }
 
-    fn add_pc_if_empty(self: &mut Self, pc: u32) {
+    fn add_pc_if_empty(self: &mut Self, pc: PC) {
         if !self.busy.contains_key(&pc) {
-            self.busy.insert(pc, FixedBitSet::with_capacity(self.nbits as usize));
+            self.busy.insert(pc, FixedBitSet::with_capacity(self.proc_cnt as usize));
         }
     }
 
     /// Port `idx` is busy at step `pc`
-    fn is_busy(self: &mut Self, idx: u32, pc: u32) -> bool {
+    fn is_busy(self: &mut Self, idx: ProcId, pc: PC) -> bool {
         self.add_pc_if_empty(pc);
         return self.busy.get(&pc).unwrap().contains(idx as usize);
     }
 
     /// Set port `idx` to busy at step `pc`
-    fn set_busy(self: &mut Self, idx: u32, pc: u32) {
+    fn set_busy(self: &mut Self, idx: ProcId, pc: PC) {
         self.add_pc_if_empty(pc);
         self.busy.get_mut(&pc).unwrap().set(idx as usize, true);
     }
 
     /// Number of busy ports at step `pc`
-    fn cnt_busy(self: &mut Self, pc: u32) -> u32 {
+    fn cnt_busy(self: &mut Self, pc: PC) -> u32 {
         self.add_pc_if_empty(pc);
         return self.busy.get(&pc).unwrap().count_ones(..) as u32;
     }
 }
+
+type NetworkPorts = ResourceBitMap;
 
 #[derive(Debug, Default, Clone)]
 struct NetworkAvailability {
@@ -114,10 +117,117 @@ struct NetworkAvailability {
 }
 
 impl NetworkAvailability {
-    fn new(nbits: u32) -> Self {
-        NetworkAvailability {
-            iports: NetworkPorts::new(nbits),
-            oports: NetworkPorts::new(nbits)
+    fn new(proc_cnt: u32) -> Self {
+        Self {
+            iports: NetworkPorts::new(proc_cnt),
+            oports: NetworkPorts::new(proc_cnt)
+        }
+    }
+}
+
+type InstLanes = ResourceBitMap;
+
+#[derive(Debug, Default, Clone)]
+struct InstLaneAvailability {
+    lanes: Vec<InstLanes>
+}
+
+impl InstLaneAvailability {
+    fn new(proc_cnt: u32, num_lanes: u32) -> Self {
+        Self {
+            lanes: vec![InstLanes::new(proc_cnt); num_lanes as usize]
+        }
+    }
+
+    fn is_busy(self: &mut Self, proc_id: ProcId, pc: PC, lane: u32) -> bool {
+        self.lanes.get_mut(lane as usize).unwrap().is_busy(proc_id, pc)
+    }
+
+    fn set_busy(self: &mut Self, proc_id: ProcId, pc: PC, lane: u32) {
+        self.lanes.get_mut(lane as usize).unwrap().set_busy(proc_id, pc)
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+struct PortCnt(u8);
+
+impl SubAssign for PortCnt {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.0 -= rhs.0
+    }
+}
+
+impl Sub for PortCnt {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self::Output {
+        PortCnt(self.0 - other.0)
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+struct MemoryPorts {
+    port_cnt: PortCnt,
+    ports: IndexMap<(PC, ProcId), PortCnt>,
+}
+
+impl MemoryPorts {
+    fn new(port_cnt: PortCnt) -> Self {
+        Self {
+            port_cnt,
+            ..Self::default()
+        }
+    }
+
+    fn consume(self: &mut Self, pc: PC, proc: ProcId, cnt: PortCnt) {
+        let key = (pc, proc);
+        if self.ports.contains_key(&key) {
+            let mp = self.ports.get_mut(&key).unwrap();
+            *mp -= cnt;
+        } else {
+            self.ports.insert(key, self.port_cnt - cnt);
+        }
+    }
+
+    fn free(self: &Self, pc: PC, proc: ProcId) -> PortCnt {
+        let key = (pc, proc);
+        if self.ports.contains_key(&key) {
+            *self.ports.get(&key).unwrap()
+        } else {
+            self.port_cnt
+        }
+
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+struct MemoryPortAvailability {
+    ldm: MemoryPorts,
+    sdm: MemoryPorts
+}
+
+impl MemoryPortAvailability {
+    fn new(ldm_port_cnt: PortCnt, sdm_port_cnt: PortCnt) -> Self {
+        Self {
+            ldm: MemoryPorts::new(ldm_port_cnt),
+            sdm: MemoryPorts::new(sdm_port_cnt),
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+struct HWAvailability {
+    nw: NetworkAvailability,
+    lane: InstLaneAvailability,
+    port: MemoryPortAvailability,
+}
+
+impl HWAvailability {
+    fn new(proc_cnt: u32, num_lanes: u32, ldm_port_cnt: u32, sdm_port_cnt: u32) -> Self {
+        Self {
+            nw: NetworkAvailability::new(proc_cnt),
+            lane: InstLaneAvailability::new(proc_cnt, num_lanes),
+            port: MemoryPortAvailability::new(PortCnt(ldm_port_cnt as u8), PortCnt(sdm_port_cnt as u8)),
         }
     }
 }
@@ -165,9 +275,9 @@ impl PartialOrd for SchedCandidate {
 /// scheduling scenario, print the nodes that are scheduled during that period
 fn print_tail_graph(
     circuit: &Circuit,
-    per_pc_scheduled: &Vec<u32>,
+    per_pc_scheduled: &Vec<PC>,
     debug_scheduled_nodes: &Vec<NodeIndex>,
-    pc_min: u32,
+    pc_min: PC,
     rank: u32)
 {
     let tail_length = circuit.compiler_cfg.dbg_tail_length;
@@ -183,7 +293,7 @@ fn print_tail_graph(
             .unwrap();
 
         if is_tail {
-            tail_start_pc = i as u32 + pc_min;
+            tail_start_pc = i as PC + pc_min;
             for nidx in debug_scheduled_nodes.iter() {
                 let node = circuit.graph.node_weight(*nidx).unwrap();
                 if node.info().pc >= tail_start_pc  &&
@@ -348,7 +458,7 @@ fn print_scheduling_stats(
 fn input_arrived(
     circuit: &Circuit,
     edge: EdgeReference<HWEdge, u32>,
-    pc: &u32,
+    pc: &PC,
     stats: &mut ScheduleStats
 ) -> bool {
     let mut unresolved_dep = false;
@@ -384,7 +494,7 @@ fn input_arrived(
 }
 
 /// All input bits arrived & usable from parent nodes
-fn all_inputs_arrived(circuit: &Circuit, nidx: &NodeIndex, pc: &u32, stats: &mut ScheduleStats) -> bool {
+fn all_inputs_arrived(circuit: &Circuit, nidx: &NodeIndex, pc: &PC, stats: &mut ScheduleStats) -> bool {
     let mut arrived = true;
     let node = circuit.graph.node_weight(*nidx).unwrap();
     let parent_edges = circuit.graph.edges_directed(*nidx, Incoming);
@@ -422,7 +532,7 @@ fn child_ff_scheduled(circuit: &Circuit, nidx: &NodeIndex) -> bool {
 fn route_usable(
     nw: &mut NetworkAvailability,
     route: &NetworkRoute,
-    pc: &u32,
+    pc: &PC,
     pcfg: &PlatformConfig
 )-> bool {
     let mut usable = true;
@@ -487,7 +597,7 @@ fn child_reachable(
     nidx: &NodeIndex,
     cidx: &NodeIndex,
     nw: &mut NetworkAvailability,
-    pc: &u32,
+    pc: &PC,
     inter_mod_routes: &mut IndexMap<u32, Vec<NetworkRoute>>
 ) -> Option<NetworkRoute> {
     let node = circuit.graph.node_weight(*nidx).unwrap();
@@ -559,8 +669,9 @@ fn coalesce_paths(
     routes: &IndexMap<NodeIndex, NetworkRoute>,
     pcfg: &PlatformConfig
 ) -> IndexMap<NodeIndex, NetworkRoute> {
+    type Latency = u32;
     let mut ret: IndexMap<NodeIndex, NetworkRoute> = IndexMap::new();
-    let mut visited: IndexMap<(Coordinate, u32), NetworkRoute> = IndexMap::new();
+    let mut visited: IndexMap<(Coordinate, Latency), NetworkRoute> = IndexMap::new();
 
     for (nidx, route) in routes.iter() {
         let mut cur_route = NetworkRoute::new();
@@ -609,7 +720,7 @@ fn all_childs_reachable(
     circuit: &Circuit,
     nw: &mut NetworkAvailability,
     nidx: &NodeIndex,
-    pc: &u32
+    pc: &PC
 ) -> (bool, IndexMap<NodeIndex, NetworkRoute>) {
     let mut reachable = true;
     let childs = circuit.graph.neighbors_directed(*nidx, Outgoing);
@@ -636,7 +747,7 @@ fn all_childs_reachable(
 fn overrides_ff_input(
     circuit: &Circuit,
     nidx: &NodeIndex,
-    pc: &u32) -> bool {
+    pc: &PC) -> bool {
     let mut overrides = false;
 
     let childs = circuit.graph.neighbors_directed(*nidx, Outgoing);
@@ -659,7 +770,7 @@ fn overrides_ff_input(
 
 fn mark_nw_busy(
     nw: &mut NetworkAvailability,
-    pc: &u32,
+    pc: &PC,
     route: &NetworkRoute,
     pcfg: &PlatformConfig
 ) {
@@ -678,9 +789,8 @@ fn mark_nw_busy(
 fn schedule_candidates_at_pc(
     circuit: &mut Circuit,
     candidates: &mut BTreeSet<SchedCandidate>,
-    scheduled_coordinates: &mut IndexSet<Coordinate>,
-    nw: &mut NetworkAvailability,
-    pc: &u32,
+    hw: &mut HWAvailability,
+    pc: &PC,
     stats: &mut ScheduleStats
 ) -> Vec<SchedCandidate> {
     let pcfg = &circuit.platform_cfg;
@@ -701,7 +811,7 @@ fn schedule_candidates_at_pc(
         }
 
         // Node already scheduled at pc for this Coordinate
-        if scheduled_coordinates.contains(&node.info().coord) {
+        if hw.lane.is_busy(node.info().coord.id(&pcfg), *pc, 0 /* FIXME */) {
             stats.coord += 1;
             continue;
         }
@@ -713,7 +823,7 @@ fn schedule_candidates_at_pc(
         }
 
         // Check if routes to child nodes are ready
-        let (reachable, routes) = all_childs_reachable(circuit, nw, &cand.index, pc);
+        let (reachable, routes) = all_childs_reachable(circuit, &mut hw.nw, &cand.index, pc);
         if !reachable {
             stats.network += 1;
             continue;
@@ -725,7 +835,7 @@ fn schedule_candidates_at_pc(
         }
 
         // Node is schedulable
-        scheduled_coordinates.insert(node.info().coord);
+        hw.lane.set_busy(node.info().coord.id(&pcfg), *pc, 0 /* FIXME */);
         remove_nodes.push(*cand);
 
         let node = circuit.graph.node_weight_mut(cand.index).unwrap();
@@ -746,7 +856,7 @@ fn schedule_candidates_at_pc(
 
         let pcfg = &circuit.platform_cfg;
         for (_, route) in routes.iter() {
-            mark_nw_busy(nw, pc, route, &pcfg);
+            mark_nw_busy(&mut hw.nw, pc, route, &pcfg);
         }
     }
 
@@ -777,10 +887,16 @@ fn schedule_instructions_internal(circuit: &mut Circuit) {
         }
     }
 
+    let pcfg = &circuit.platform_cfg;
     let max_rank = circuit.emul.max_rank;
     let mut pc_min = 0;
     let mut pc = 0;
-    let mut nw = NetworkAvailability::new(circuit.platform_cfg.total_procs());
+    let mut hw = HWAvailability::new(
+        pcfg.total_procs(),
+        pcfg.inst_lanes,
+        pcfg.ldm_rd_ports,
+        pcfg.sdm_rd_ports);
+
     let mut scheduled_map = circuit.graph.visit_map();
 
     let mut must_schedule_data: Vec<u32> = vec![];
@@ -827,17 +943,11 @@ fn schedule_instructions_internal(circuit: &mut Circuit) {
         // Schedule the nodes that must be scheduled in the current rank
         // (i.e. nodes with mobility 0). Increment the PC until all the nodes
         // are scheduled.
-        let mut scheduled_coordinates_by_pc: IndexMap<u32, IndexSet<Coordinate>> = IndexMap::new();
         while !must_schedule_candidates.is_empty() {
-            if !scheduled_coordinates_by_pc.contains_key(&pc) {
-                scheduled_coordinates_by_pc.insert(pc, IndexSet::new());
-            }
-            let mut scheduled_coordinates = scheduled_coordinates_by_pc.get_mut(&pc).unwrap();
             let scheduled = schedule_candidates_at_pc(
                 circuit,
                 &mut must_schedule_candidates,
-                &mut scheduled_coordinates,
-                &mut nw,
+                &mut hw,
                 &pc,
                 &mut must_schedule_stats);
 
@@ -859,12 +969,10 @@ fn schedule_instructions_internal(circuit: &mut Circuit) {
         // try to slot in as much nodes as possible. If scheduling is unsucessful,
         // punt to the next round of scheduling.
         for try_pc in pc_min..pc {
-            let mut scheduled_coordinates = scheduled_coordinates_by_pc.get_mut(&try_pc).unwrap();
             let scheduled = schedule_candidates_at_pc(
                 circuit,
                 &mut best_effort_schedule_candidates,
-                &mut scheduled_coordinates,
-                &mut nw,
+                &mut hw,
                 &try_pc,
                 &mut be_schedule_stats);
 
@@ -879,18 +987,16 @@ fn schedule_instructions_internal(circuit: &mut Circuit) {
         }
 
         for try_pc in pc_min..pc {
-            let mut scheduled_coordinates = scheduled_coordinates_by_pc.get_mut(&try_pc).unwrap();
             let scheduled = schedule_candidates_at_pc(
                 circuit,
                 &mut extra_effort_schedule_candidates,
-                &mut scheduled_coordinates,
-                &mut nw,
+                &mut hw,
                 &try_pc,
                 &mut ex_schedule_stats);
 
             // For analysis
             println!("pc: {} successful extra effort scheduled: {}", try_pc, scheduled.len());
-            nw_util_data.push(nw.iports.cnt_busy(try_pc));
+            nw_util_data.push(hw.nw.iports.cnt_busy(try_pc));
             ex_schedule_data.push(scheduled.len() as u32);
             per_pc_scheduled[(try_pc - pc_min) as usize] += scheduled.len() as u32;
             for s in scheduled {

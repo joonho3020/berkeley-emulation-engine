@@ -302,6 +302,14 @@ impl PlatformConfig {
         assert!(self.inst_lanes > 0, "Number of instruction lanes should not be zero");
         assert!(self.ldm_rd_ports >= self.lut_inputs, "LDM Number of read ports should be greater or equal to the LUT inputs");
         assert!(self.sdm_rd_ports >= self.lut_inputs, "LDM Number of read ports should be greater or equal to the LUT inputs");
+
+        // NOTE: The additional lanes beyond the second lane must have a separate
+        // instruction memory capacity and can be used for that many PCs.
+        // Bank 0 and bank 1 works together to fill in as much as possible.
+        // Bank 2, 3... is more like sidecars.
+        // NOTE: Having more than 2 lanes complicates things such as LDM/SDM port arbitration,
+        // so we only support up to 2 lanes for now.
+        assert!(self.inst_lanes <= 2, "Number of instruction lanes are currently limited to 1 or 2");
     }
 
     fn power_of_2(self: &Self, v: u32) -> bool {
@@ -345,6 +353,38 @@ impl PlatformConfig {
     /// number of bits for the LUT
     pub fn lut_bits(self: &Self) -> u32 {
         1 << self.lut_inputs
+    }
+
+    /// log2Ceil(self.ldm_rd_ports)
+    pub fn ldm_port_sel_bits(self: &Self) -> u32 {
+        self.log2ceil(self.ldm_rd_ports)
+    }
+
+    /// log2Ceil(self.sdm_rd_ports)
+    pub fn sdm_port_sel_bits(self: &Self) -> u32 {
+        self.log2ceil(self.sdm_rd_ports)
+    }
+
+    /// Number of ldm read ports that are arbitrated
+    pub fn ldm_arb_port_cnt(self: &Self) -> u32 {
+        assert!(self.inst_lanes <= 2);
+        if self.inst_lanes == 1 {
+            0
+        } else {
+            let per_lane_exclusive_ports = self.ldm_rd_ports - self.lut_inputs;
+            self.ldm_rd_ports - per_lane_exclusive_ports * self.inst_lanes
+        }
+    }
+
+    /// Number of sdm read ports that are arbitrated
+    pub fn sdm_arb_port_cnt(self: &Self) -> u32 {
+        assert!(self.inst_lanes <= 2);
+        if self.inst_lanes == 1 {
+            0
+        } else {
+            let per_lane_exclusive_ports = self.sdm_rd_ports - self.lut_inputs;
+            self.sdm_rd_ports - per_lane_exclusive_ports * self.inst_lanes
+        }
     }
 
     pub fn total_procs(self: &Self) -> u32 {

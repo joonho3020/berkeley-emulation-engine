@@ -73,6 +73,14 @@ impl From<u32> for PortSel {
     }
 }
 
+impl PortSel {
+    /// Returns `true` when `idx`th LSB bit in `LUT` is 1
+    /// Otherwise, returns `false`
+    pub fn get(self: &Self, idx: u32) -> bool {
+        (self.0 >> idx) & 1 == 1
+    }
+}
+
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct Instruction {
     /// This instruction is performing something
@@ -88,10 +96,10 @@ pub struct Instruction {
     pub operands: Vec<Operand>,
 
     /// Selectors for LDM read ports
-    pub ldm_port_sel: Option<Vec<PortSel>>,
+    pub ldm_port_sel: Vec<PortSel>,
 
     /// Selectors for SDM read ports
-    pub sdm_port_sel: Option<Vec<PortSel>>,
+    pub sdm_port_sel: Vec<PortSel>,
 
     /// Information related to switching
     pub sinfo: SwitchInfo,
@@ -108,8 +116,8 @@ impl Instruction {
             opcode: Opcode::NOP,
             lut: LUT::default(),
             operands: Vec::with_capacity(nops as usize),
-            ldm_port_sel: None,
-            sdm_port_sel: None,
+            ldm_port_sel: vec![],
+            sdm_port_sel: vec![],
             sinfo: SwitchInfo::default(),
             mem: false,
         }
@@ -143,6 +151,28 @@ impl Instruction {
                 bit_vec.push((rs >> sl) & 1 == 1);
             }
             bit_vec.push(local);
+        }
+
+        for psidx in (0..cfg.ldm_arb_port_cnt()).rev() {
+            let ps = match self.ldm_port_sel.get(psidx as usize) {
+                Some(p) => p,
+                None => &PortSel::default()
+            };
+            for i in 0..cfg.ldm_port_sel_bits() {
+                let sl = cfg.ldm_port_sel_bits() - i - 1;
+                bit_vec.push(ps.get(sl));
+            }
+        }
+
+        for psidx in (0..cfg.sdm_arb_port_cnt()).rev() {
+            let ps = match self.sdm_port_sel.get(psidx as usize) {
+                Some(p) => p,
+                None => &PortSel::default()
+            };
+            for i in 0..cfg.sdm_port_sel_bits() {
+                let sl = cfg.sdm_port_sel_bits() - i - 1;
+                bit_vec.push(ps.get(sl));
+            }
         }
 
         for i in 0..cfg.switch_bits() {
