@@ -527,6 +527,15 @@ fn child_ff_scheduled(circuit: &Circuit, nidx: &NodeIndex) -> bool {
     return can_schedule;
 }
 
+
+fn has_empty_lane(
+    circuit: &Circuit,
+    pc: &PC,
+    nidx: &NodeIndex,
+    lane: &InstLaneAvailability) -> Option<u32> {
+
+}
+
 /// When shipping a bit starting at `pc`, the `route` doesn't have any
 /// contention
 fn route_usable(
@@ -721,7 +730,7 @@ fn all_childs_reachable(
     nw: &mut NetworkAvailability,
     nidx: &NodeIndex,
     pc: &PC
-) -> (bool, IndexMap<NodeIndex, NetworkRoute>) {
+) -> Option<IndexMap<NodeIndex, NetworkRoute>> {
     let mut reachable = true;
     let childs = circuit.graph.neighbors_directed(*nidx, Outgoing);
 
@@ -740,8 +749,11 @@ fn all_childs_reachable(
         }
     }
 
-    let coalesced_paths = coalesce_paths(&child_routes, &circuit.platform_cfg);
-    return (reachable, coalesced_paths);
+    if reachable {
+        return Some(coalesce_paths(&child_routes, &circuit.platform_cfg));
+    } else {
+        return None;
+    }
 }
 
 fn overrides_ff_input(
@@ -823,11 +835,12 @@ fn schedule_candidates_at_pc(
         }
 
         // Check if routes to child nodes are ready
-        let (reachable, routes) = all_childs_reachable(circuit, &mut hw.nw, &cand.index, pc);
-        if !reachable {
+        let routes_opt = all_childs_reachable(circuit, &mut hw.nw, &cand.index, pc);
+        if routes_opt.is_none() {
             stats.network += 1;
             continue;
         }
+        let routes = routes_opt.unwrap();
 
         // Check if the produced bit doesn't override a unscheduled FF input
         if overrides_ff_input(circuit, &cand.index, pc) {
