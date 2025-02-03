@@ -12,6 +12,7 @@ use set_rank::find_rank_order;
 use check_rank::check_rank_order;
 use distribute_io::distribute_io;
 use print_stats::print_stats;
+use register_boundaries::find_register_boundaries;
 use std::time::Instant;
 // use check_connectivity::check_connectivity;
 
@@ -20,6 +21,9 @@ pub fn run_compiler_passes(c: &mut Circuit) {
     dead_code_elimination(c);
     let dce_time = dce_start.elapsed().as_millis();
     println!("DCE done");
+
+
+    find_register_boundaries(c);
 
     let partition_start = Instant::now();
     prepartition_find_rank_order(c);
