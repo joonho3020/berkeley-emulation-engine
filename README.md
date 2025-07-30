@@ -1,5 +1,7 @@
 # Berkeley Emulation Engine
 
+Implementation of a processor based RTL emulation platform.
+
 ---
 
 ## 1. Setup
