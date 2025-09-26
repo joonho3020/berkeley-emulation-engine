@@ -1,0 +1,118 @@
+@Misc{vcs,
+  author       = {{Synopsys, Inc.}},
+  title        = {VCS Functional Verification Solution},
+  howpublished = {\url{https://www.synopsys.com/verification/simulation/vcs.html}},
+  note         = {Accessed: 2025-09-16},
+}
+
+@Misc{xcelium,
+  author       = {{Cadence Design Systems, Inc.}},
+  title        = {Xcelium Logic Simulator},
+  howpublished = {\url{https://www.cadence.com/en_US/home/tools/system-design-and-verification/simulation-and-testbench-verification/xcelium-simulator.html}},
+  note         = {Accessed: 2025-09-17},
+}
+
+@Misc{verilator,
+  author       = {Wilson Snyder},
+  title        = {Verilator — the fastest Verilog/SystemVerilog simulator},
+  howpublished = {\url{https://www.veripool.org/verilator/}},
+  note         = {Accessed: 2025-09-17},
+}
+
+@inproceedings{chisel,
+  title={Chisel: constructing hardware in a scala embedded language},
+  author={Bachrach, Jonathan and Vo, Huy and Richards, Brian and Lee, Yunsup and Waterman, Andrew and Avi{\v{z}}ienis, Rimas and Wawrzynek, John and Asanovi{\'c}, Krste},
+  booktitle={Proceedings of the 49th annual design automation conference},
+  pages={1216--1225},
+  year={2012}
+}
+
+@InProceedings{essent,
+  author       = {Scott Beamer and Thomas Nijssen and Krishna Pandian and Kyle Zhang},
+  title        = {ESSENT: A High-Performance RTL Simulator},
+  booktitle    = {Workshop on Open-Source EDA Technology (WOSET), at the International Conference on Computer-Aided Design (ICCAD)},
+  year         = {2021},
+  month        = {November},
+  note         = {Open source tool available via UC‐Santa Cruz / “Essential Signal Simulation Enabled by Netlist Transformations”}  
+}
+
+@inproceedings{repcut,
+  author = {Wang, Haoyuan and Beamer, Scott},
+  title = {RepCut: Superlinear Parallel RTL Simulation with Replication-Aided Partitioning},
+  year = {2023},
+  isbn = {9781450399180},
+  publisher = {Association for Computing Machinery},
+  address = {New York, NY, USA},
+  url = {https://doi.org/10.1145/3582016.3582034},
+  doi = {10.1145/3582016.3582034},
+  abstract = {Register transfer level (RTL) simulation is an invaluable tool for developing, debugging, verifying, and validating hardware designs. Despite the parallel nature of hardware, existing parallel RTL simulators yield speedups unattractive for practical application due to high communication and synchronization costs incurred by typical circuit topologies. We present RepCut, a novel parallel RTL simulation methodology. RepCut is enabled by our replication-aided partitioning approach that cuts the circuit into balanced partitions with small overlaps. By replicating the overlaps, RepCut eliminates problematic data dependences between partitions and significantly reduces expensive synchronization overhead between parallel threads. RepCut outperforms state-of-the-art simulators, and when simulating a large system-on-chip with multiple out-of-order cores, it achieves a 27.10\texttimes{} speedup (superlinear) using 24 threads with only a 3.81\% replication cost.},
+  booktitle = {Proceedings of the 28th ACM International Conference on Architectural Support for Programming Languages and Operating Systems, Volume 3},
+  pages = {572–585},
+  numpages = {14},
+  keywords = {replication-aided partitioning, parallel simulation, full-cycle simulation, RTL simulation},
+  location = {Vancouver, BC, Canada},
+  series = {ASPLOS 2023}
+}
+
+@inproceedings{rtlsim-dedup,
+  author = {Wang, Haoyuan and Nijssen, Thomas and Beamer, Scott},
+  title = {Don't Repeat Yourself! Coarse-Grained Circuit Deduplication to Accelerate RTL Simulation},
+  year = {2025},
+  isbn = {9798400703911},
+  publisher = {Association for Computing Machinery},
+  address = {New York, NY, USA},
+  url = {https://doi.org/10.1145/3622781.3674184},
+  doi = {10.1145/3622781.3674184},
+  abstract = {Designing a digital integrated circuit requires many register transfer level (RTL) simulations for design, debugging, and especially verification. To cope with the slow speed of RTL simulation, industry frequently uses private server farms to run many simulations in parallel. Surprisingly, the implications of parallel runs of different RTL simulations have not been extensively explored. Moreover, in modern digital hardware, there is a growing trend to replicate components to scale out. However, the potential for circuit deduplication has been mostly overlooked.In this work, we pinpoint the shared last-level cache as the primary bottleneck impacting the throughput of RTL simulation. To address this issue, we propose a coarse-grained circuit deduplication strategy integrated into an RTL simulator. Our method involves identifying multiple instances of a single module within a digital circuit and creating shared code that can be applied to all of these instances. Our approach reduces the cache footprint by increasing code reuse, which consequently benefits processor components such as caches and branch predictors. Our experiments demonstrate that deduplication can bring up to 1.95\texttimes{} speedup in a single simulation, and achieve up to 2.09\texttimes{} overall RTL simulation throughput.},
+  booktitle = {Proceedings of the 29th ACM International Conference on Architectural Support for Programming Languages and Operating Systems, Volume 4},
+  pages = {79–93},
+  numpages = {15},
+  keywords = {RTL simulation, simulation throughput, deduplication},
+  location = {Hilton La Jolla Torrey Pines, La Jolla, CA, USA},
+  series = {ASPLOS '24}
+}
+
+@INPROCEEDINGS{yse,
+  author={Pfister, G.F.},
+  booktitle={19th Design Automation Conference}, 
+  title={The Yorktown Simulation Engine: Introduction}, 
+  year={1982},
+  volume={},
+  number={},
+  pages={51-54},
+  keywords={Engines;Computational modeling;Hardware;Computer architecture;Delay;Costs;Computer simulation;Design engineering;Logic design;Concurrent computing},
+  doi={10.1109/DAC.1982.1585479}}
+
+@misc{palladium,
+  title        = {Cadence Palladium Emulation Platform},
+  author       = {{Cadence Design Systems, Inc.}},
+  howpublished = {\url{https://www.cadence.com/en_US/home/tools/system-design-and-verification/emulation-and-prototyping/palladium.html}},
+  year         = {2025},
+  note         = {Accessed: 2025-09-22},
+}
+
+@InProceedings{kaminpar,
+  author    = {Lars Gottesb{\"{u}}ren and
+    Tobias Heuer and
+      Peter Sanders and
+      Christian Schulz and
+      Daniel Seemaier},
+  title     = {Deep Multilevel Graph Partitioning},
+  booktitle = {29th Annual European Symposium on Algorithms, {ESA} 2021},
+  series    = {LIPIcs},
+  volume    = {204},
+  pages     = {48:1--48:17},
+  publisher = {Schloss Dagstuhl - Leibniz-Zentrum f{\"{u}}r Informatik},
+  year      = {2021},
+  url       = {https://doi.org/10.4230/LIPIcs.ESA.2021.48},
+  doi       = {10.4230/LIPIcs.ESA.2021.48}
+}
+
+@misc{modified-list-scheduling,
+  title        = {Hardware Design and CAD for Processor-based Logic Emulation Systems},
+  author       = {Amir Ali Yazdanshenas},
+  howpublished = {\url{https://uwindsor.scholaris.ca/server/api/core/bitstreams/5b79364f-8e2f-4dd4-9af3-fc2f907e25eb/content}},
+  year         = {2006},
+  note         = {Accessed: 2025-09-24},
+}
+

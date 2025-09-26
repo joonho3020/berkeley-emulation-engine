@@ -1,0 +1,5 @@
+open:
+  open emulation-processor.pdf
+
+watch:
+  typst watch emulation-processor.typ emulation-processor.pdf
