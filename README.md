@@ -15,7 +15,9 @@ conda-lock lock -p linux-64 -f env.yaml
 
 - This will generate a `conda-lock.yml` file
 
-### Install conda env
+### Install conda env 
+
+- For Ubuntu 2025 or later, the system TBB library has been updated to match what KaMinPar uses. Hence, we can skip this step
 
 ```bash
 cd scripts
@@ -86,6 +88,23 @@ cd compiler
      dmem_rd_lat=1 \
      inter_proc_nw_lat=1 \
      bee_vcd
+```
+
+
+Another example:
+
+```bash
+just \
+    dir=../examples/digitaltop \
+    top=DigitalTop \
+    instance_path=TOP.TestDriver.testHarness.chiptop0.system \
+    ref_skip_cycles=200 \
+    check_cycle_period=100 \
+    time_steps_per_cycle=5 \
+    sram_entries=16384 imem_lat=1 num_mods=17 num_procs=64  inter_mod_nw_lat=1 dmem_rd_lat=0 inter_proc_nw_lat=1 \
+    sim_dir=sim-dir-digitaltop-hello \
+    vcd_file=hello.vcd  \
+    bee_vcd
 ```
 
 ### Run both emulation functional simulation and compare it with a blif native format simulator
