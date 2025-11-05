@@ -9,6 +9,8 @@ examples/*.pdf
 examples/*.tar.gz
 examples/*.instructions
 examples/obj_dir
+examples/digitaltop
+examples/digitaltop-tsi
 
 compiler/emulation-info
 **/DEBUG*
