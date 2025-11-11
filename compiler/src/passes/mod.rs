@@ -13,3 +13,9 @@ pub mod check_connectivity;
 pub mod print_stats;
 pub mod distribute_io;
 pub mod runner;
+
+
+
+pub mod inst_schedule_lpu;
+pub mod partition_lpu;
+pub mod runner_lpu;

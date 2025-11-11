@@ -125,19 +125,19 @@ impl NetworkAvailability {
 /// `NodeIndex` tagged with mobility `mob`. Used to sort the `NodeIndex`
 /// w.r.t to mobility during scheduling
 #[derive(Debug, Default, Clone, Eq, PartialEq, Copy)]
-struct SchedCandidate {
+pub struct SchedCandidate {
     /// NodeIndex of the candidate node
-    index: NodeIndex,
+    pub index: NodeIndex,
 
     /// mobility (ALAP - ASAP)
-    mob: u32,
+    pub mob: u32,
 
     /// fanout of this node
-    odeg: u32,
+    pub odeg: u32,
 }
 
 impl SchedCandidate {
-    fn new(index: NodeIndex, mob: u32, odeg: u32) -> Self {
+    pub fn new(index: NodeIndex, mob: u32, odeg: u32) -> Self {
         SchedCandidate {
             index: index,
             mob: mob,

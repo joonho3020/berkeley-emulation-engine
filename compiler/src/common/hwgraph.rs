@@ -40,6 +40,39 @@ impl RankInfo {
     }
 }
 
+/// Contains information when the graph is scheduled on an LPU
+/// In a single MemTile the LUTs are organized as the following:
+///                              `lut_entry`
+///                                  |
+///                                  v
+/// ---------------------------------------------------------
+///                                 1B   1B ............ 1B
+///             |               0 | 15 | 14 | ... |  1 |  0 |
+///             |               1 |
+///             |               . |
+/// lut_group 0 |               . |
+///             |               . |
+///             |2^lut_inputs - 1 |
+/// ------------|--------------------------------------------
+///             |                 |
+/// lut_group 1 |               . |
+///             |                 |
+/// - The MemTile rows are grouped into `lut_group`s which represents a group of
+/// up to 16 LUTs
+/// - Each entry is divided into 16 columns where each column represents the output
+/// of a 8x8 LUT (but really just a 8x1 LUT)
+#[derive(Debug, Clone, Default)]
+pub struct LPUInfo {
+    /// Memory tile id
+    pub mem_tile: Option<u32>,
+
+    /// Represents the offset'th LUT in the memory tile
+    pub lut_group: Option<u32>,
+
+    /// Entry within each columnar LUTs
+    pub lut_entry: Option<u32>
+}
+
 /// # Metadata attached to each `HWGraph` node
 #[derive(Debug, Clone, Default)]
 pub struct NodeInfo {
@@ -56,7 +89,10 @@ pub struct NodeInfo {
     pub pc: u32,
 
     /// Debug information
-    pub debug: DebugInfo
+    pub debug: DebugInfo,
+
+    /// Information about LPU scheduling
+    pub lpu: LPUInfo
 }
 
 impl Serialize for NodeInfo {

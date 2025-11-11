@@ -242,7 +242,25 @@ pub struct PlatformConfig {
 
     /// Global network topology
     #[derivative(Debug="ignore")]
-    pub topology: GlobalNetworkTopology
+    pub topology: GlobalNetworkTopology,
+
+    /// Number of memtiles per east/west hemisphere of the LPU chip
+    pub lpu_memtiles_per_superlane: u32,
+
+    /// Group of memtiles that can be read/written to per stream stage
+    pub lpu_memtiles_per_stream_stage: u32,
+
+    /// Number of LUTs that can be packed into a memtile lut group
+    pub lpu_luts_per_memtile_entry: u32,
+
+    /// Number of lut groups in a single memtile
+    pub lpu_lut_groups_per_memtile: u32,
+
+    /// Number of streams
+    pub lpu_num_streams: u32,
+
+    /// LPU VXM latency
+    pub lpu_vxm_lat: u32
 }
 
 impl Default for PlatformConfig {
@@ -264,7 +282,14 @@ impl Default for PlatformConfig {
             sram_rd_lat: 1,
             sram_wr_lat: 1,
             sram_ip_pl: 1,
-            topology: GlobalNetworkTopology::default()
+            topology: GlobalNetworkTopology::default(),
+
+            lpu_memtiles_per_superlane: 44,
+            lpu_memtiles_per_stream_stage: 4,
+            lpu_luts_per_memtile_entry: 16,
+            lpu_lut_groups_per_memtile: 32,
+            lpu_num_streams: 32,
+            lpu_vxm_lat: 3
         }
     }
 }
@@ -444,6 +469,11 @@ impl PlatformConfig {
             (Primitive::SRAMRdEn, idx - self.sram_rd_en_offset())
         }
     }
+
+    pub fn lpu_stream_stages(&self) -> u32 {
+        assert!(self.lpu_memtiles_per_superlane % self.lpu_memtiles_per_stream_stage == 0);
+        (self.lpu_memtiles_per_superlane / self.lpu_memtiles_per_stream_stage) as u32
+    }
 }
 
 #[derive(Parser, Debug, Clone)]
@@ -572,4 +602,28 @@ pub struct Args {
     /// debug tail threshold
     #[arg(long, default_value_t = 5)]
     pub dbg_tail_threshold: u32,
+
+    /// Number of memtiles per east/west hemisphere of the LPU chip
+    #[arg(long, default_value_t = 44)]
+    pub lpu_memtiles_per_superlane: u32,
+
+    /// Group of memtiles that can be read/written to per stream stage
+    #[arg(long, default_value_t = 4)]
+    pub lpu_memtiles_per_stream_stage: u32,
+
+    /// Number of LUTs that can be packed into a memtile lut group
+    #[arg(long, default_value_t = 16)]
+    pub lpu_luts_per_memtile_entry: u32,
+
+    /// Number of lut groups in a single memtile
+    #[arg(long, default_value_t = 32)]
+    pub lpu_lut_groups_per_memtile: u32,
+
+    /// Number of streams
+    #[arg(long, default_value_t = 32)]
+    pub lpu_num_streams: u32,
+
+    /// Number of streams
+    #[arg(long, default_value_t = 3)]
+    pub lpu_vxm_lat: u32,
 }
