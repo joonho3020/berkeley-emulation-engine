@@ -141,6 +141,7 @@ fn prepartition_find_asap_rank_order(circuit: &mut Circuit) {
         visited += topo_sort_order.len();
     }
     println!("Max rank of this graph: {}", max_rank);
+    circuit.emul.max_rank = max_rank;
     assert!(
         visited == vis_map.len(),
         "Visited {} nodes out of {} nodes while topo sorting",
